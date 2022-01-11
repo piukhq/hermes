@@ -214,13 +214,13 @@ def delete_user(message: dict) -> None:
     try:
         user = CustomUser.objects.get(pk=user_id)
     except CustomUser.DoesNotExist:
-        logger.error(f"User {user_id} cannot be found!")
+        logger.exception(f"Could not delete user {user_id} - account not found.")
     else:
         try:
             consent = ServiceConsent.objects.get(pk=user_id)
             consent_data = {"email": user.email, "timestamp": consent.timestamp}
         except ServiceConsent.DoesNotExist:
-            logger.error(f"Service Consent data for user {user_id} cannot be found!")
+            logger.exception(f"Service Consent data could not be found whilst deleting user {user_id} .")
 
         user.soft_delete()
         deleted_service_cleanup(
