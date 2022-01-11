@@ -17,7 +17,7 @@ from ubiquity.tasks import (
     auto_link_membership_to_payments,
     deleted_membership_card_cleanup,
     deleted_payment_card_cleanup,
-    deleted_service_cleanup
+    deleted_service_cleanup,
 )
 from ubiquity.views import AutoLinkOnCreationMixin, MembershipCardView
 from user.models import CustomUser
@@ -218,16 +218,14 @@ def delete_user(message: dict) -> None:
     else:
         try:
             consent = ServiceConsent.objects.get(pk=user_id)
-            consent_data = {
-                "email": user.email,
-                "timestamp": consent.timestamp
-            }
+            consent_data = {"email": user.email, "timestamp": consent.timestamp}
         except ServiceConsent.DoesNotExist:
             logger.error(f"Service Consent data for user {user_id} cannot be found!")
 
         user.soft_delete()
-        deleted_service_cleanup.delay(
+        deleted_service_cleanup(
             user_id=user_id,
             consent=consent_data,
             history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
         )
+        logger.info(f"User {user_id} successfully deleted. ")

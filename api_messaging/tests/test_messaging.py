@@ -7,6 +7,8 @@ from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.tests.factories import SchemeAccountFactory
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
+from user.models import CustomUser
+from user.tests.factories import UserFactory
 
 
 class TestPaymentAccountMessaging(GlobalMockAPITestCase):
@@ -243,3 +245,25 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         creds = angelia_background.credentials_to_key_pairs(self.creds_for_refactor)
 
         assert creds == {"postcode": "GU552RH", "last_name": "Bond", "email": "007@mi5.com"}
+
+
+class TestUserMessaging(GlobalMockAPITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = UserFactory()
+        cls.delete_user_headers = {"X-http-path": "delete_user"}
+        cls.delete_user_message = {"user_id": cls.user.id, "channel": "com.bink.wallet"}
+
+    @patch("api_messaging.angelia_background.deleted_service_cleanup")
+    def test_delete_user(self, mock_delete_cleanup):
+
+        user_pre = CustomUser.objects.filter(id=self.user.id, is_active=True)
+
+        self.assertTrue(user_pre)
+
+        route.route_message(self.delete_user_headers, self.delete_user_message)
+
+        user_post = CustomUser.objects.filter(id=self.delete_user_message["user_id"], is_active=True)
+
+        self.assertFalse(user_post)
+        self.assertTrue(mock_delete_cleanup.called)
