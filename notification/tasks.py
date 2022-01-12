@@ -81,24 +81,24 @@ class SftpManager:
         filename = f"Bink_lc_status_{timestamp}_{date}.csv{settings.BARCLAYS_SFTP_FILE_SUFFIX}"
         rows = self.remove_duplicates(self.format_data(self.rows))
 
-        logger.info("Establishing connection with SFTP.")
+        logger.warning("Establishing connection with SFTP.")
         sftp_client = self.connect()
-        logger.info("Connection established.")
+        logger.warning("Connection established.")
 
         try:
             with sftp_client.open(os.path.join(settings.SFTP_DIRECTORY, filename), "w", bufsize=32768) as f:
-                logger.info("Writing file.")
+                logger.warning("Writing file.")
                 writer = csv.writer(f)
                 writer.writerow(["00", date])
                 writer.writerows(rows)
                 writer.writerow([99, f"{len(rows):010}"])
-                logging.info(f"File: {filename}, uploaded.")
+                logging.warning(f"File: {filename}, uploaded.")
         except FileNotFoundError as e:
             logger.exception("File not found.")
             raise e
 
         sftp_client.close()
-        logger.info("Connection closed")
+        logger.warning("Connection closed")
         return
 
 
