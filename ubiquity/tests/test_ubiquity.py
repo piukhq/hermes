@@ -72,8 +72,6 @@ from ubiquity.versioning.v1_2.serializers import (
     PaymentCardSerializer,
 )
 from ubiquity.versioning.v1_3.serializers import MembershipCardSerializer as MembershipCardSerializer_V1_3
-from ubiquity.versioning.v1_3.serializers import MembershipPlanSerializer as MembershipPlanSerializer_V1_3
-
 from ubiquity.views import MembershipCardView, detect_and_handle_escaped_unicode
 from user.tests.factories import (
     ClientApplicationBundleFactory,
@@ -180,6 +178,7 @@ class TestResources(GlobalMockAPITestCase):
         cls.auth_headers = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user))}
         cls.version_header = {"HTTP_ACCEPT": "Application/json;v=1.1"}
         cls.version_header_v1_2 = {"HTTP_ACCEPT": "Application/json;v=1.2"}
+        cls.version_header_v1_3 = {"HTTP_ACCEPT": "Application/json;v=1.3"}
 
         cls.put_scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=cls.put_scheme)
@@ -1762,16 +1761,18 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(MockApiCache.key, f"m_plans:{self.scheme.id}:test.auth.fake:0:1.3")
         self.assertEqual(MockApiCache.expire, 60 * 60 * 24)
         self.assertDictEqual(MockApiCache.data, resp.json())
-        
-        self.scheme_bundle_association.test_scheme = True
-        self.scheme_bundle_association.status = SchemeBundleAssociation.ACTIVE
-        self.scheme_bundle_association.save()
 
-        resp = self.client.get(reverse("membership-plan", args=[self.scheme.id]), **self.auth_headers,  **self.version_header_v1_2)
+        resp = self.client.get(
+            reverse("membership-plan", args=[self.scheme.id]), **self.auth_headers, **self.version_header_v1_2
+        )
         self.assertEqual(
             remove_empty(MembershipPlanSerializer(self.scheme, context={"request": mock_request_context}).data),
             resp.json(),
         )
+
+        self.scheme_bundle_association.test_scheme = True
+        self.scheme_bundle_association.status = SchemeBundleAssociation.ACTIVE
+        self.scheme_bundle_association.save()
 
         resp = self.client.get(reverse("membership-plan", args=[self.scheme.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 404)
@@ -1790,11 +1791,14 @@ class TestResources(GlobalMockAPITestCase):
         mock_request_context = MagicMock()
         mock_request_context.user = self.user
 
-
         expected_result = remove_empty(
             MembershipPlanSerializer(self.scheme_account.scheme, context={"request": mock_request_context}).data
         )
-        resp = self.client.get(reverse("membership-card-plan", args=[self.scheme_account.id]), **self.auth_headers, **self.version_header_v1_2)
+        resp = self.client.get(
+            reverse("membership-card-plan", args=[self.scheme_account.id]),
+            **self.auth_headers,
+            **self.version_header_v1_2,
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
 
