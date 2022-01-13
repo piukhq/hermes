@@ -301,15 +301,29 @@ class TestBaseSerializers(GlobalMockAPITestCase):
         self.assertEqual(image1.image_type_code, image["type"])
         self.assertEqual(image1.description, image["description"])
 
-    def test_for_slug(self):
-        # this tests that base API does not return the slug
-        unexpected_data = {
+    def test_membership_plan(self):
+        expected_data = {
             "slug": "fake_slug_is_still_slug",
+            "name": "Insert fake plan_name",
+            "url": "https://fake.co.uk/plan_url",
+            "company": "Insert fake company_name",
+            "company_url": "https://fake.co.uk/company_url",
+            "forgotten_password_url": "https://fake.co.uk/forgiven_but_not_forgotten",
+            "scan_message": "scan_message goes here",
         }
         mock_request_context = MagicMock()
-        scheme = SchemeFactory(**unexpected_data)
+        scheme = SchemeFactory(**expected_data)
         serialized_data = base_MembershipPlanSerializer(scheme, context={"request": mock_request_context}).data
+        # slug check
         self.assertFalse("slug" in serialized_data.keys())
+        # account checks
+        self.assertEqual(expected_data["company"], serialized_data["account"]["company_name"])
+        self.assertEqual(expected_data["name"], serialized_data["account"]["plan_name"])
+        self.assertEqual(expected_data["company_url"], serialized_data["account"]["company_url"])
+        self.assertEqual(expected_data["url"], serialized_data["account"]["plan_url"])
+        self.assertEqual(expected_data["forgotten_password_url"], serialized_data["account"]["forgotten_password_url"])
+        # card checks
+        self.assertEqual(expected_data["scan_message"], serialized_data["card"]["scan_message"])
 
 
 class TestSerializersV1_2(GlobalMockAPITestCase):
@@ -411,15 +425,29 @@ class TestSerializersV1_2(GlobalMockAPITestCase):
 
         self.assertEqual(e.exception.args[0], "Failed to decrypt sensitive fields")
 
-    def test_for_slug(self):
-        # this tests that API v 1.2 does not return the slug
-        unexpected_data = {
+    def test_membership_plan(self):
+        expected_data = {
             "slug": "fake_slug_is_still_slug",
+            "name": "Insert fake plan_name",
+            "url": "https://fake.co.uk/plan_url",
+            "company": "Insert fake company_name",
+            "company_url": "https://fake.co.uk/company_url",
+            "forgotten_password_url": "https://fake.co.uk/forgiven_but_not_forgotten",
+            "scan_message": "scan_message goes here",
         }
         mock_request_context = MagicMock()
-        scheme = SchemeFactory(**unexpected_data)
+        scheme = SchemeFactory(**expected_data)
         serialized_data = MembershipPlanSerializerV1_2(scheme, context={"request": mock_request_context}).data
+        # slug check
         self.assertFalse("slug" in serialized_data.keys())
+        # account checks
+        self.assertEqual(expected_data["company"], serialized_data["account"]["company_name"])
+        self.assertEqual(expected_data["name"], serialized_data["account"]["plan_name"])
+        self.assertEqual(expected_data["company_url"], serialized_data["account"]["company_url"])
+        self.assertEqual(expected_data["url"], serialized_data["account"]["plan_url"])
+        self.assertEqual(expected_data["forgotten_password_url"], serialized_data["account"]["forgotten_password_url"])
+        # card checks
+        self.assertEqual(expected_data["scan_message"], serialized_data["card"]["scan_message"])
 
 
 class TestSerializersV1_3(GlobalMockAPITestCase):
@@ -468,12 +496,26 @@ class TestSerializersV1_3(GlobalMockAPITestCase):
         self.assertEqual(self.image1.image_type_code, image["type"])
         self.assertEqual(self.image1.description, image["description"])
 
-    def test_for_slug(self):
-        # this tests that API v 1.3 contains the slug value in the serialized data.
+    def test_membership_plan(self):
         expected_data = {
             "slug": "fake_slug_is_still_slug",
+            "name": "Insert fake plan_name",
+            "url": "https://fake.co.uk/plan_url",
+            "company": "Insert fake company_name",
+            "company_url": "https://fake.co.uk/company_url",
+            "forgotten_password_url": "https://fake.co.uk/forgiven_but_not_forgotten",
+            "scan_message": "scan_message goes here",
         }
         mock_request_context = MagicMock()
         scheme = SchemeFactory(**expected_data)
         serialized_data = MembershipPlanSerializerV1_3(scheme, context={"request": mock_request_context}).data
+        # slug check
         self.assertEqual(expected_data["slug"], serialized_data["slug"])
+        # account checks
+        self.assertEqual(expected_data["company"], serialized_data["account"]["company_name"])
+        self.assertEqual(expected_data["name"], serialized_data["account"]["plan_name"])
+        self.assertEqual(expected_data["company_url"], serialized_data["account"]["company_url"])
+        self.assertEqual(expected_data["url"], serialized_data["account"]["plan_url"])
+        self.assertEqual(expected_data["forgotten_password_url"], serialized_data["account"]["forgotten_password_url"])
+        # card checks
+        self.assertEqual(expected_data["scan_message"], serialized_data["card"]["scan_message"])
