@@ -281,6 +281,7 @@ MASTER_LOG_LEVEL = env_var("MASTER_LOG_LEVEL", "DEBUG")
 UBIQUITY_LOG_LEVEL = env_var("UBIQUITY_LOG_LEVEL", "DEBUG")
 PROMETHEUS_LOG_LEVEL = env_var("PROMETHEUS_LOG_LEVEL", "INFO")
 QUERY_LOG_LEVEL = env_var("QUERY_LOG_LEVEL", "CRITICAL")
+NOTIFICATION_LOG_LEVEL = env_var("NOTIFICATION_LOG_LEVEL", "INFO")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -337,6 +338,11 @@ LOGGING = {
             "handlers": ["console"],
             "propagate": False,
         },
+        "notification": {
+            "level": NOTIFICATION_LOG_LEVEL,
+            "handlers": ["console"],
+            "propagate": False
+        }
     },
 }
 
