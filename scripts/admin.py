@@ -10,6 +10,7 @@ from .actions.vop_actions import (
     do_mark_as_deactivated,
     do_re_enroll,
     do_retain,
+    do_set_account_to_active_status,
     do_un_enroll,
 )
 from .models import ScriptResult
@@ -27,6 +28,7 @@ def get_correction(entry):
         Correction.MARK_AS_DEACTIVATED: do_mark_as_deactivated,
         Correction.FIX_ENROLL: do_fix_enroll,
         Correction.RETAIN: do_retain,
+        Correction.SET_ACC_TO_ACTIVE: do_set_account_to_active_status,
     }
     if entry.apply not in actions.keys():
         return False

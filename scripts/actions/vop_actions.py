@@ -22,6 +22,7 @@ class Correction:
     FIX_ENROLL = 7
     RETAIN = 8
     RETAIN_FIX_ENROLL = 9
+    SET_ACC_TO_ACTIVE = 10
 
     CORRECTION_SCRIPTS = (
         (NO_CORRECTION, "No correction available"),
@@ -34,6 +35,7 @@ class Correction:
         (FIX_ENROLL, "Fix-enroll"),
         (RETAIN, "Retain"),
         (RETAIN_FIX_ENROLL, "Retain, Fix-Enroll"),
+        (SET_ACC_TO_ACTIVE, "Set 'active' status"),
     )
 
     COMPOUND_CORRECTION_SCRIPTS = {
@@ -71,6 +73,17 @@ def do_retain(entry):
     if reply.get("status_code") == 200 and reply.get("reason") == "OK":
         return True
     return False
+
+
+def do_set_account_to_active_status(entry):
+    """Sets status of a payment card account to 'Active'"""
+    card = PaymentCardAccount.objects.get(id=entry.data["card_id"])
+    try:
+        card.status = PaymentCardAccount.ACTIVE
+        card.save()
+        return True
+    except Exception:
+        return False
 
 
 def do_un_enroll(entry):
