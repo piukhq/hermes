@@ -338,11 +338,7 @@ LOGGING = {
             "handlers": ["console"],
             "propagate": False,
         },
-        "notification": {
-            "level": NOTIFICATION_LOG_LEVEL,
-            "handlers": ["console"],
-            "propagate": False
-        }
+        "notification": {"level": NOTIFICATION_LOG_LEVEL, "handlers": ["console"], "propagate": False},
     },
 }
 
