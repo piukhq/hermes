@@ -22,7 +22,7 @@ class Correction:
     FIX_ENROLL = 7
     RETAIN = 8
     RETAIN_FIX_ENROLL = 9
-    SET_ACC_TO_ACTIVE = 10
+    RETRY_ENROLL = 10
 
     CORRECTION_SCRIPTS = (
         (NO_CORRECTION, "No correction available"),
@@ -35,12 +35,13 @@ class Correction:
         (FIX_ENROLL, "Fix-enroll"),
         (RETAIN, "Retain"),
         (RETAIN_FIX_ENROLL, "Retain, Fix-Enroll"),
-        (SET_ACC_TO_ACTIVE, "Set 'active' status"),
+        (RETRY_ENROLL, "Un-enroll, Re-Enroll"),
     )
 
     COMPOUND_CORRECTION_SCRIPTS = {
         DEACTIVATE_UN_ENROLLED: [RE_ENROLL, DEACTIVATE, UN_ENROLL],
         RETAIN_FIX_ENROLL: [RETAIN, FIX_ENROLL],
+        RETRY_ENROLL: [UN_ENROLL, RE_ENROLL],
     }
 
 
@@ -87,7 +88,9 @@ def do_set_account_to_active_status(entry):
 
 
 def do_un_enroll(entry):
-    data = {"payment_token": entry.data["payment_token"], "id": entry.data["card_id"]}
+    data = {"payment_token": entry.data["payment_token"],
+            "id": entry.data["card_id"],
+            "partner_slug": entry.data["partner_slug"]}
     reply = metis_request(RequestMethod.POST, "/foundation/visa/remove", data)
     if reply.get("agent_response_code") == "Delete:SUCCESS" and reply.get("status_code") == 201:
         return True
@@ -148,12 +151,5 @@ def do_activation(entry):
 def do_mark_as_deactivated(entry):
     act = VopActivation.objects.get(id=entry.data["activation"])
     act.status = VopActivation.DEACTIVATED
-    act.save(update_fields=["status"])
-    return True
-
-
-def do_mark_as_activated(entry):
-    act = VopActivation.objects.get(id=entry.data["activation"])
-    act.status = VopActivation.ACTIVATED
     act.save(update_fields=["status"])
     return True

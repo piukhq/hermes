@@ -28,7 +28,6 @@ def get_correction(entry):
         Correction.MARK_AS_DEACTIVATED: do_mark_as_deactivated,
         Correction.FIX_ENROLL: do_fix_enroll,
         Correction.RETAIN: do_retain,
-        Correction.SET_ACC_TO_ACTIVE: do_set_account_to_active_status,
     }
     if entry.apply not in actions.keys():
         return False
