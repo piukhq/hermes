@@ -92,7 +92,7 @@ class SftpManager:
                 writer.writerow(["00", date])
                 writer.writerows(rows)
                 writer.writerow([99, f"{len(rows):010}"])
-                logging.warning(f"File: {filename}, uploaded.")
+                logger.info(f"File: {filename}, uploaded.")
         except FileNotFoundError as e:
             logger.exception("File not found.")
             raise e
@@ -279,8 +279,8 @@ def notification_file(initiation=True):
                 return
             except Exception as e:
                 retry_count += 1
-                logging.warning("Retrying connection to SFTP.")
+                logger.warning("Retrying connection to SFTP.")
                 sleep(settings.NOTIFICATION_RETRY_TIMER)
                 if retry_count == settings.NOTIFICATION_ERROR_THRESHOLD:
-                    logging.exception(f"Failed to connect. Error - {e}")
+                    logger.exception(f"Failed to connect. Error - {e}")
                     raise e
