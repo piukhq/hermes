@@ -36,8 +36,8 @@ class Correction:
         (FIX_ENROLL, "Fix-enroll"),
         (RETAIN, "Retain"),
         (RETAIN_FIX_ENROLL, "Retain, Fix-Enroll"),
-        (RETRY_ENROLL, "Un-enroll, Re-Enroll, Set Account and PLL Links to Active"),
-        (SET_ACTIVE, "Set Account and PLL Links to Active"),
+        (RETRY_ENROLL, "Un-enroll, Re-Enroll, Set Active"),
+        (SET_ACTIVE, "Set Active"),
     )
 
     COMPOUND_CORRECTION_SCRIPTS = {
