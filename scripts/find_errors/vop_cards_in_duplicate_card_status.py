@@ -29,7 +29,7 @@ class FindVOPCardsInDuplicateCardStatus(BaseScript):
                 "card_id": card.id,
                 "payment_token": card.psp_token,
                 "card_token": card.token,
-                "partner_slug": card.payment_card.slug
+                "partner_slug": card.payment_card.slug,
             }
 
             self.make_correction(unique_id_string=f"{card.id}", data=data)

@@ -8,7 +8,7 @@ from payment_card.enums import RequestMethod
 from payment_card.metis import enrol_existing_payment_card
 from payment_card.models import PaymentCardAccount
 from scheme.models import Scheme
-from ubiquity.models import VopActivation
+from ubiquity.models import PaymentCardSchemeEntry, VopActivation
 
 
 class Correction:
@@ -23,6 +23,7 @@ class Correction:
     RETAIN = 8
     RETAIN_FIX_ENROLL = 9
     RETRY_ENROLL = 10
+    SET_ACTIVE = 11
 
     CORRECTION_SCRIPTS = (
         (NO_CORRECTION, "No correction available"),
@@ -35,13 +36,14 @@ class Correction:
         (FIX_ENROLL, "Fix-enroll"),
         (RETAIN, "Retain"),
         (RETAIN_FIX_ENROLL, "Retain, Fix-Enroll"),
-        (RETRY_ENROLL, "Un-enroll, Re-Enroll"),
+        (RETRY_ENROLL, "Un-enroll, Re-Enroll, Set Account and PLL Links to Active"),
+        (SET_ACTIVE, "Set Account and PLL Links to Active"),
     )
 
     COMPOUND_CORRECTION_SCRIPTS = {
         DEACTIVATE_UN_ENROLLED: [RE_ENROLL, DEACTIVATE, UN_ENROLL],
         RETAIN_FIX_ENROLL: [RETAIN, FIX_ENROLL],
-        RETRY_ENROLL: [UN_ENROLL, RE_ENROLL],
+        RETRY_ENROLL: [UN_ENROLL, RE_ENROLL, SET_ACTIVE],
     }
 
 
@@ -56,6 +58,8 @@ def metis_request(method: RequestMethod, endpoint: str, payload: dict) -> object
 
 
 def do_fix_enroll(entry):
+    """Does a full Metis enrol via the Payment Card endpoint in Metis, including a callback to Hermes which will change
+    the status."""
     card = PaymentCardAccount.objects.get(id=entry.data["card_id"])
     enrol_existing_payment_card(card, False)
     for i in range(0, 10):
@@ -88,9 +92,12 @@ def do_set_account_to_active_status(entry):
 
 
 def do_un_enroll(entry):
-    data = {"payment_token": entry.data["payment_token"],
-            "id": entry.data["card_id"],
-            "partner_slug": entry.data["partner_slug"]}
+    """Un-enrolls the Payment Card via the Foundational Metis endpoint"""
+    data = {
+        "payment_token": entry.data["payment_token"],
+        "id": entry.data["card_id"],
+        "partner_slug": entry.data["partner_slug"],
+    }
     reply = metis_request(RequestMethod.POST, "/foundation/visa/remove", data)
     if reply.get("agent_response_code") == "Delete:SUCCESS" and reply.get("status_code") == 201:
         return True
@@ -111,6 +118,7 @@ def do_deactivate(entry):
 
 
 def do_re_enroll(entry):
+    """Re-enrolls the card via the Foundation base Metis endpoint, which has no callback."""
     data = {
         "payment_token": entry.data["payment_token"],
         "card_token": entry.data["card_token"],
@@ -152,4 +160,14 @@ def do_mark_as_deactivated(entry):
     act = VopActivation.objects.get(id=entry.data["activation"])
     act.status = VopActivation.DEACTIVATED
     act.save(update_fields=["status"])
+    return True
+
+
+def do_set_account_and_links_active(entry):
+    """Sets Payment Card Account to ACTIVE, along with any existing PLL soft-links. We do not call autolinking, as we
+    don't know what the original intention of the payment card was RE: auto-linking."""
+    pca = PaymentCardAccount.objects.get(pk=entry.data["card_id"])
+    pca.status = PaymentCardAccount.ACTIVE
+    pca.save()
+    PaymentCardSchemeEntry.update_soft_links({"payment_card_account": pca})
     return True
