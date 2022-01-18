@@ -80,17 +80,6 @@ def do_retain(entry):
     return False
 
 
-def do_set_account_to_active_status(entry):
-    """Sets status of a payment card account to 'Active'"""
-    card = PaymentCardAccount.objects.get(id=entry.data["card_id"])
-    try:
-        card.status = PaymentCardAccount.ACTIVE
-        card.save()
-        return True
-    except Exception:
-        return False
-
-
 def do_un_enroll(entry):
     """Un-enrolls the Payment Card via the Foundational Metis endpoint"""
     data = {
