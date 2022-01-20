@@ -4,6 +4,7 @@ from .find_errors.cards_stuck_in_pending import FindCardsStuckInPending
 from .find_errors.deleted_vop_cards_with_activations import FindDeletedVopCardsWithActivations
 from .find_errors.vop_activations_stuck_in_activating import FindVOPActivationsStuckInActivating
 from .find_errors.vop_activations_stuck_in_deactivating import FindVOPActivationsStuckInDeactivating
+from .find_errors.vop_cards_in_duplicate_card_status import FindVOPCardsInDuplicateCardStatus
 from .find_errors.vop_cards_needing_activations import FindVopCardsNeedingActivation
 
 # New scripts which find records to correct should be imported above and mapped in script functions
@@ -17,6 +18,7 @@ class DataScripts(IntEnum):
     REPEAT_VOP_ENROL_STUCK_CARDS = auto()
     FIX_STUCK_IN_ACTIVATING = auto()
     FIX_STUCK_IN_DEACTIVATING = auto()
+    VISA_DUPLICATE_CARDS = auto()
 
 
 SCRIPT_TITLES = {
@@ -26,6 +28,7 @@ SCRIPT_TITLES = {
     DataScripts.REPEAT_VOP_ENROL_STUCK_CARDS: "Cards stuck in pending may need removing and re-adding",
     DataScripts.FIX_STUCK_IN_ACTIVATING: "VOP Activations stuck in activating",
     DataScripts.FIX_STUCK_IN_DEACTIVATING: "VOP Activations stuck in deactivating",
+    DataScripts.VISA_DUPLICATE_CARDS: "Visa card accounts in 'duplicate card' status",
 }
 
 SCRIPT_CLASSES = {
@@ -34,6 +37,7 @@ SCRIPT_CLASSES = {
     DataScripts.REPEAT_VOP_ENROL_STUCK_CARDS: FindCardsStuckInPending,
     DataScripts.FIX_STUCK_IN_ACTIVATING: FindVOPActivationsStuckInActivating,
     DataScripts.FIX_STUCK_IN_DEACTIVATING: FindVOPActivationsStuckInDeactivating,
+    DataScripts.VISA_DUPLICATE_CARDS: FindVOPCardsInDuplicateCardStatus,
 }
 # End of new script definition - you do not need to do anything else to add a new find script
 # But you may need to add one or more corrective actions see models and admin actions
