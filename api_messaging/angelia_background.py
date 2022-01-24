@@ -1,4 +1,5 @@
 import logging
+from turtle import Turtle
 
 import arrow
 from rest_framework.generics import get_object_or_404
@@ -12,6 +13,7 @@ from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import Scheme, SchemeAccount
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent
 from ubiquity.tasks import (
+    async_balance,
     async_join,
     async_link,
     auto_link_membership_to_payments,
@@ -230,6 +232,13 @@ def delete_user(message: dict) -> None:
         )
         logger.info(f"User {user_id} successfully deleted. ")
 
-def refresh_balance(eh: dict) -> None:
+def refresh_balance(message: dict) -> None:
     print("Hello There API Messaging - Refresh Balance Called...")
+
+
+    instance_id = message["instance_id"]
+    ## make the call, requres instalce_id - I wonder what that is in this context
+    async_balance(instance_id, delete_balance=True)
+
+    print("See ya later API Messaging")
 
