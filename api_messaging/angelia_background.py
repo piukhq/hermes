@@ -234,10 +234,9 @@ def delete_user(message: dict) -> None:
         logger.info(f"User {user_id} successfully deleted. ")
 
 def refresh_balance(message: dict) -> None:    
-    print("***" * 10)
-    print("Hello There API Messaging - Refresh Balance Called...")
-    print("***" * 10)
-
+    """
+    refresh the balance(s) for the given user
+    """
     user_id = message.get("user_id")
     channel = message.get("channel")
 
@@ -247,4 +246,5 @@ def refresh_balance(message: dict) -> None:
     permit = Permit(bundle_id=channel, user=user)
     
     async_all_balance.delay(user_id, permit)
+    logger.info(f"User {user_id} balance refresh called. ")
 
