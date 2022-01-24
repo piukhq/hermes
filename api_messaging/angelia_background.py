@@ -234,10 +234,12 @@ def delete_user(message: dict) -> None:
 
 def refresh_balance(message: dict) -> None:
     print("Hello There API Messaging - Refresh Balance Called...")
-
+    from pprint import pprint
+    pprint(message)
 
     instance_id = message["instance_id"]
-    ## make the call, requres instalce_id - I wonder what that is in this context
+    ## make the call, requres instalce_id 
+    # instance id seems to be scheme id
     async_balance(instance_id, delete_balance=True)
 
     print("See ya later API Messaging")
