@@ -9,11 +9,12 @@ from history.enums import SchemeAccountJourney
 from history.utils import user_info
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
+from scheme.account_status_summary import scheme_account_status_data
 from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import Scheme, SchemeAccount
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent
 from ubiquity.tasks import (
-    async_balance,
+    async_all_balance,
     async_join,
     async_link,
     auto_link_membership_to_payments,
@@ -232,15 +233,18 @@ def delete_user(message: dict) -> None:
         )
         logger.info(f"User {user_id} successfully deleted. ")
 
-def refresh_balance(message: dict) -> None:
+def refresh_balance(message: dict) -> None:    
+    print("***" * 10)
     print("Hello There API Messaging - Refresh Balance Called...")
-    from pprint import pprint
-    pprint(message)
+    print("***" * 10)
 
-    instance_id = message["instance_id"]
-    ## make the call, requres instalce_id 
-    # instance id seems to be scheme id
-    async_balance(instance_id, delete_balance=True)
+    user_id = message.get("user_id")
+    channel = message.get("channel")
 
-    print("See ya later API Messaging")
+
+    user = CustomUser.objects.get(pk=user_id)
+
+    permit = Permit(bundle_id=channel, user=user)
+    
+    async_all_balance.delay(user_id, permit)
 
