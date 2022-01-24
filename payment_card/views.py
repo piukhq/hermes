@@ -239,6 +239,7 @@ class RetrievePaymentCardUserInfo(APIView):
         body = json.loads(body_unicode)
         payment_card_tokens = body["payment_cards"]
         scheme = get_object_or_404(Scheme, slug=scheme_slug)
+
         for payment_card_token in payment_card_tokens:
             payment_card_entries = PaymentCardAccountEntry.objects.filter(
                 payment_card_account__token=payment_card_token
@@ -281,6 +282,10 @@ class RetrievePaymentCardUserInfo(APIView):
                     "first_six": active_card.payment_card_account.pan_start,
                     "last_four": active_card.payment_card_account.pan_end,
                 }
+
+            response_data[payment_card_token]["payment_card_account_id"] = payment_card_entries[
+                0
+            ].payment_card_account.id
 
         return JsonResponse(response_data, safe=False)
 

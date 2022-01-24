@@ -192,11 +192,11 @@ class SchemeFee(models.Model):
 
 class Scheme(models.Model):
     PLL = 1
-    BASIC = 2
-    PARTNER = 3
+    STORE = 2
+    ENGAGE = 3
     COMING_SOON = 4
-    TIERS = ((1, "PLL"), (2, "Basic"), (3, "Partner"), (4, "Coming Soon"))
-    TRANSACTION_MATCHING_TIERS = [PLL, PARTNER]
+    TIERS = ((1, "PLL"), (2, "Store"), (3, "Engage"), (4, "Coming Soon"))
+    TRANSACTION_MATCHING_TIERS = [PLL, ENGAGE]
 
     MAX_POINTS_VALUE_LENGTHS = (
         (0, "0 (no numeric points value)"),
@@ -251,7 +251,9 @@ class Scheme(models.Model):
     secondary_colour = models.CharField(
         max_length=7, blank=True, default="", help_text='Hex string e.g "#112233"', validators=[validate_hex_colour]
     )
-    text_colour = RGBColorField(blank=True, default="#000000")
+    text_colour = models.CharField(
+        max_length=7, blank=True, default="", help_text='Hex string e.g "#112233"', validators=[validate_hex_colour]
+    )
     category = models.ForeignKey(Category, on_delete=models.PROTECT)
 
     card_number_regex = models.CharField(max_length=100, blank=True, help_text="Regex to map barcode to card number")

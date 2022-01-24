@@ -11,7 +11,7 @@ class TestVouchers(GlobalMockAPITestCase):
     @classmethod
     def setUpTestData(cls):
         category = Category.objects.create()
-        cls.scheme = Scheme.objects.create(tier=Scheme.PARTNER, category=category, slug=TEST_SLUG)
+        cls.scheme = Scheme.objects.create(tier=Scheme.ENGAGE, category=category, slug=TEST_SLUG)
         VoucherScheme.objects.create(
             scheme=cls.scheme,
             barcode_type=1,
