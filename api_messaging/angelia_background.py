@@ -229,3 +229,7 @@ def delete_user(message: dict) -> None:
             history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
         )
         logger.info(f"User {user_id} successfully deleted. ")
+
+def refresh_balance(eh: dict) -> None:
+    print("Hello There API Messaging - Refresh Balance Called...")
+
