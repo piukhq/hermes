@@ -1,5 +1,4 @@
 import logging
-from turtle import Turtle
 
 import arrow
 from rest_framework.generics import get_object_or_404
@@ -9,7 +8,6 @@ from history.enums import SchemeAccountJourney
 from history.utils import user_info
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
-from scheme.account_status_summary import scheme_account_status_data
 from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import Scheme, SchemeAccount
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent
@@ -233,18 +231,11 @@ def delete_user(message: dict) -> None:
         )
         logger.info(f"User {user_id} successfully deleted. ")
 
-def refresh_balance(message: dict) -> None:    
-    """
-    refresh the balance(s) for the given user
-    """
+
+def refresh_balance(message: dict) -> None:
     user_id = message.get("user_id")
     channel = message.get("channel")
-
-
     user = CustomUser.objects.get(pk=user_id)
-
     permit = Permit(bundle_id=channel, user=user)
-    
     async_all_balance.delay(user_id, permit)
     logger.info(f"User {user_id} balance refresh called. ")
-
