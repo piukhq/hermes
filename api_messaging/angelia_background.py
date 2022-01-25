@@ -232,10 +232,10 @@ def delete_user(message: dict) -> None:
         logger.info(f"User {user_id} successfully deleted. ")
 
 
-def refresh_balance(message: dict) -> None:
+def refresh_balances(message: dict) -> None:
     user_id = message.get("user_id")
     channel = message.get("channel")
     user = CustomUser.objects.get(pk=user_id)
     permit = Permit(bundle_id=channel, user=user)
     async_all_balance.delay(user_id, permit)
-    logger.info(f"User {user_id} balance refresh called. ")
+    logger.info(f"User {user_id} refresh balances called. ")
