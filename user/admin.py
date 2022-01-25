@@ -87,8 +87,8 @@ class CustomUserDetail(UserAdmin):
     fieldsets = ()
     add_fieldsets = ()
     list_display = (
-        "email",
         "uid",
+        "email",
         "external_id",
         "last_name",
         "date_of_birth",
