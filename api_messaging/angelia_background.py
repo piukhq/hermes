@@ -12,6 +12,7 @@ from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import Scheme, SchemeAccount
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent
 from ubiquity.tasks import (
+    async_all_balance,
     async_join,
     async_link,
     auto_link_membership_to_payments,
@@ -229,3 +230,12 @@ def delete_user(message: dict) -> None:
             history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
         )
         logger.info(f"User {user_id} successfully deleted. ")
+
+
+def refresh_balances(message: dict) -> None:
+    user_id = message.get("user_id")
+    channel = message.get("channel")
+    user = CustomUser.objects.get(pk=user_id)
+    permit = Permit(bundle_id=channel, user=user)
+    async_all_balance.delay(user_id, permit)
+    logger.info(f"User {user_id} refresh balances called. ")
