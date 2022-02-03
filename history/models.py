@@ -18,6 +18,7 @@ class HistoricalBase(models.Model):
     )
 
     created = models.DateTimeField(auto_now_add=True)
+    event_time = models.DateTimeField(blank=True, null=True)
     change_type = models.CharField(max_length=6, choices=CHANGE_TYPES)
     instance_id = models.CharField(max_length=255)
     channel = models.CharField(max_length=255)
