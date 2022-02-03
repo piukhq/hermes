@@ -76,7 +76,7 @@ def get_user_and_channel() -> Tuple[Optional[int], str]:
 
 def signal_record_history(sender, instance, **kwargs) -> None:
     with sentry_sdk.start_span(op="signal", description="signal_record_history"):
-        created_at = timezone.now()
+        event_time = timezone.now()
         change_type, change_details = _get_change_type_and_details(instance, kwargs)
         if not change_type:
             return None
@@ -101,7 +101,7 @@ def signal_record_history(sender, instance, **kwargs) -> None:
 
         record_history.delay(
             model_name,
-            created=created_at,
+            event_time=event_time,
             change_type=change_type,
             change_details=change_details,
             instance_id=instance_id,

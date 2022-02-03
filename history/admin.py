@@ -85,6 +85,7 @@ class HistoricalCustomUserAdmin(admin.ModelAdmin):
         "email",
         "external_id",
         "channel",
+        "event_time",
         "created",
         "change_type",
     )
@@ -105,6 +106,7 @@ class HistoricalPaymentCardAccountAdmin(admin.ModelAdmin):
         "instance_id",
         "user_id",
         "channel",
+        "event_time",
         "created",
         "change_type",
         "change_details",
@@ -129,6 +131,7 @@ class HistoricalPaymentCardAccountEntryAdmin(admin.ModelAdmin):
         "payment_card_account_id",
         "channel",
         "change_type",
+        "event_time",
         "created",
     )
     search_fields = ("instance_id", "created")
@@ -151,6 +154,7 @@ class HistoricalSchemeAccountAdmin(admin.ModelAdmin):
         "channel",
         "journey",
         "change_type",
+        "event_time",
         "created",
         "change_details",
     )
@@ -175,6 +179,7 @@ class HistoricalSchemeAccountEntryAdmin(admin.ModelAdmin):
         "scheme_account_id",
         "channel",
         "change_type",
+        "event_time",
         "created",
     )
     search_fields = ("instance_id", "created")
@@ -198,6 +203,7 @@ class HistoricalVopActivationAdmin(admin.ModelAdmin):
         "payment_card_account_id",
         "scheme_id",
         "change_type",
+        "event_time",
         "created",
         "change_details",
     )
@@ -223,6 +229,7 @@ class HistoricalPaymentCardSchemeEntryAdmin(admin.ModelAdmin):
         "payment_card_account_id",
         "scheme_account_id",
         "change_type",
+        "event_time",
         "created",
         "change_details",
     )
