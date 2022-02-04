@@ -143,7 +143,7 @@ def _bulk_create_with_id(model: Type["Model"], objs: Iterable, batch_size: int) 
 
 
 def _format_history_objs(
-    model_name: str, created_at: "datetime", objs: Iterable, change_type: str, change_details: str
+    model_name: str, event_time: "datetime", objs: Iterable, change_type: str, change_details: str
 ) -> list:
     user_id, channel = get_user_and_channel()
     required_extra_fields = get_required_extra_fields(model_name)
@@ -173,7 +173,7 @@ def _format_history_objs(
 
         history_objs.append(
             {
-                "created": created_at,
+                "event_time": event_time,
                 "change_type": change_type,
                 "change_details": change_details,
                 "instance_id": instance.id,
@@ -193,7 +193,7 @@ def _history_bulk(
     ignore_conflicts: bool = False,
     update: bool = False,
 ) -> list:
-    created_at = timezone.now()
+    event_time = timezone.now()
     model_name = model.__name__
 
     if update:
@@ -216,7 +216,7 @@ def _history_bulk(
 
         change_type, change_details = HistoricalBase.CREATE, ""
 
-    history_objs = _format_history_objs(model_name, created_at, objs, change_type, change_details)
+    history_objs = _format_history_objs(model_name, event_time, objs, change_type, change_details)
 
     bulk_record_history.delay(model_name, history_objs)
     return objs
