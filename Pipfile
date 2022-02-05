@@ -22,7 +22,7 @@ isort = "*"
 mypy = "*"
 pytest = "*"
 ptpython = "*"
-black = "==21.11b1"
+black = "*"
 
 [packages]
 arrow = "==0.17.0"
@@ -63,3 +63,4 @@ paramiko = "*"
 dj-database-url = "*"
 azure-identity = "*"
 azure-keyvault-secrets = "*"
+single-beat = "*"
