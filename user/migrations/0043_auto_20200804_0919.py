@@ -36,14 +36,14 @@ def add_read_write_group(apps, schema_editor):
 def revert_migration_read_only(apps, schema_editor):
     Group = apps.get_model("auth", "Group")
     Group.objects.filter(
-        name=u"Read Only",
+        name="Read Only",
     ).delete()
 
 
 def revert_migration(apps, schema_editor):
     Group = apps.get_model("auth", "Group")
     Group.objects.filter(
-        name=u"Read/Write",
+        name="Read/Write",
     ).delete()
 
 
