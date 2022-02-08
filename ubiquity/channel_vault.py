@@ -113,7 +113,7 @@ def load_secrets(config):
         #  Fetch channel information from all secrets with prefix 'ubiquity-channel-'
         all_secrets_in_vault = client.list_properties_of_secrets()
         for secret in all_secrets_in_vault:
-            if 'ubiquity-channel' in secret.name:
+            if "ubiquity-channel" in secret.name:
                 secret_definition = (secret.name, _bundle_secrets)
                 secrets_to_load.append(secret_definition)
                 logger.info(f"Found channel information: {secret.name} - adding to load list")
