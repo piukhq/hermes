@@ -103,13 +103,20 @@ def load_secrets(config):
     else:
 
         secrets_to_load = [
-            (config["BUNDLE_SECRETS_NAME"], _bundle_secrets),
             (config["SECRET_KEYS_NAME"], _secret_keys),
             (config["AES_KEYS_NAME"], _aes_keys),
             (config["BARCLAYS_SFTP_SECRETS_NAME"], _barclays_hermes_sftp),
         ]
 
         client = get_azure_client(config)
+
+        #  Fetch channel information from all secrets with prefix 'ubiquity-channel-'
+        all_secrets_in_vault = client.list_properties_of_secrets()
+        for secret in all_secrets_in_vault:
+            if 'ubiquity-channel' in secret.name:
+                secret_definition = (secret.name, _bundle_secrets)
+                secrets_to_load.append(secret_definition)
+                logger.info(f"Found channel information: {secret.name} - adding to load list")
 
         errors = []
         failed_secrets = []
