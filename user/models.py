@@ -221,6 +221,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     external_id = models.CharField(max_length=255, db_index=True, default="", blank=True)
     delete_token = models.CharField(max_length=255, blank=True, default="")
     magic_link_verified = models.DateTimeField(null=True, blank=True)
+    bundle_id = models.CharField(max_length=255, blank=True)
 
     USERNAME_FIELD = "uid"
 

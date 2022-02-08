@@ -56,9 +56,12 @@ class RegisterSerializer(serializers.Serializer):
         password = validated_data.get("password", None)
         external_id = validated_data.get("external_id")
         client_id = validated_data.get("client_id")
+        bundle_id = validated_data.get("bundle_id")
 
-        if client_id and external_id:
-            user = CustomUser.objects.create_user(email, password, client_id=client_id, external_id=external_id)
+        if client_id and external_id and bundle_id:
+            user = CustomUser.objects.create_user(email, password, client_id=client_id, external_id=external_id, bundle_id=bundle_id)
+        elif client_id and bundle_id:
+            user = CustomUser.objects.create_user(email, password, client_id=client_id, bundle_id=bundle_id)
         elif client_id:
             user = CustomUser.objects.create_user(email, password, client_id=client_id)
         else:
