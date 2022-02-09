@@ -1,4 +1,3 @@
-from asyncio.log import logger
 import base64
 import os
 import random
@@ -300,9 +299,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             # Also raises exception is the client_id has no row in the users_clientapplicationbundle table
             # TODO: fix it!
             try:
-                bundle_id = ClientApplicationBundle.objects.values_list("bundle_id", flat=True).get(client=self.client_id)
-            except:
+                bundle_id = ClientApplicationBundle.objects.values_list("bundle_id", flat=True).get(
+                    client=self.client_id
+                )
+            except (ClientApplicationBundle.DoesNotExist):
                 bundle_id = ""
+
         payload = {
             "bundle_id": bundle_id,
             "user_id": self.email,
