@@ -1,3 +1,4 @@
+from asyncio.log import logger
 import base64
 import os
 import random
@@ -296,7 +297,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         if not bundle_id:
             # This will raise an exception if more than one bundle has the same client_Id
             # if bundles are properly defined only one associate with the user should be found.
-            bundle_id = ClientApplicationBundle.objects.values_list("bundle_id", flat=True).get(client=self.client_id)
+            # Also raises exception is the client_id has no row in the users_clientapplicationbundle table
+            # TODO: fix it!
+            try:
+                bundle_id = ClientApplicationBundle.objects.values_list("bundle_id", flat=True).get(client=self.client_id)
+            except:
+                bundle_id = ""
         payload = {
             "bundle_id": bundle_id,
             "user_id": self.email,
