@@ -58,7 +58,6 @@ class CustomUserModelForm(forms.ModelForm):
                 kwargs["initial"] = {}
             choices = user.create_token()
             kwargs["initial"].update({"jwt_token": choices})
-
         super(CustomUserModelForm, self).__init__(*args, **kwargs)
 
     class Meta:
