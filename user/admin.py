@@ -47,14 +47,22 @@ class UserPaymentCardAccountInline(StackedInline):
 
 
 class CustomUserModelForm(forms.ModelForm):
-    jwt_token = forms.CharField(required=False, widget=forms.TextInput(attrs={"readonly": "readonly"}))
+    jwt_token = forms.CharField(required=False, widget=forms.Textarea(attrs={"readonly": "readonly"}))
 
     def __init__(self, *args, **kwargs):
         user = kwargs.get("instance")
         if user:
             if not kwargs.get("initial"):
                 kwargs["initial"] = {}
-            kwargs["initial"].update({"jwt_token": user.create_token()})
+                
+            print("DJango is weird...")
+
+            choices = user.create_token()
+
+            kwargs["initial"].update({"jwt_token": choices})
+            
+            print("kwargs...", kwargs)
+
         super(CustomUserModelForm, self).__init__(*args, **kwargs)
 
     class Meta:

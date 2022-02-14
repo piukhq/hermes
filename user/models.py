@@ -221,7 +221,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     external_id = models.CharField(max_length=255, db_index=True, default="", blank=True)
     delete_token = models.CharField(max_length=255, blank=True, default="")
     magic_link_verified = models.DateTimeField(null=True, blank=True)
-    bundle_id = models.CharField(max_length=200, blank=True, null=True)
+    bundle_id = models.CharField(verbose_name="creation bundle id", max_length=200, blank=True, null=True)
 
     USERNAME_FIELD = "uid"
 
@@ -293,25 +293,28 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return "id: {} - {}".format(self.id, self.email) or str(self.uid)
 
     def create_token(self, bundle_id=""):
+        # return a dict {bundle_id : token} 
+        # return empty dict if no client application bundle exists for this user
+        jwts = {}
         if not bundle_id:
-            # This will raise an exception if more than one bundle has the same client_Id
-            # if bundles are properly defined only one associate with the user should be found.
-            # Also raises exception is the client_id has no row in the users_clientapplicationbundle table
-            # TODO: fix it!
-            try:
-                bundle_id = ClientApplicationBundle.objects.values_list("bundle_id", flat=True).get(
-                    client=self.client_id
-                )
-            except (ClientApplicationBundle.DoesNotExist):
-                bundle_id = ""
-
-        payload = {
-            "bundle_id": bundle_id,
-            "user_id": self.email,
-            "sub": self.id,
-            "iat": arrow.utcnow().datetime,
-        }
-        return jwt.encode(payload, self.client.secret + self.salt)
+            for bid, cid in ClientApplicationBundle.objects.values_list("bundle_id", "client_id"):
+                if cid == self.client_id:                    
+                    payload = {
+                        "bundle_id": bid,
+                        "user_id": self.email,
+                        "sub": self.id,
+                        "iat": arrow.utcnow().datetime,
+                    }
+                    jwts[bid] = jwt.encode(payload, self.client.secret + self.salt)
+        else:
+            payload = {
+                "bundle_id": bundle_id,
+                "user_id": self.email,
+                "sub": self.id,
+                "iat": arrow.utcnow().datetime,
+            }
+            jwts[bundle_id] = jwt.encode(payload, self.client.secret + self.salt)
+        return jwts
 
     def soft_delete(self):
         self.is_active = False
