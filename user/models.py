@@ -293,12 +293,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return "id: {} - {}".format(self.id, self.email) or str(self.uid)
 
     def create_token(self, bundle_id=""):
-        # return a dict {bundle_id : token} 
+        # return a dict {bundle_id : token}
         # return empty dict if no client application bundle exists for this user
         jwts = {}
         if not bundle_id:
             for bid, cid in ClientApplicationBundle.objects.values_list("bundle_id", "client_id"):
-                if cid == self.client_id:                    
+                if cid == self.client_id:
                     payload = {
                         "bundle_id": bid,
                         "user_id": self.email,
