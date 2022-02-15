@@ -52,7 +52,7 @@ class TestOrder(GlobalMockAPITestCase):
             {"id": payment_card_account.id, "order": 20, "type": "payment_card"},
         ]
 
-        auth_headers = {"HTTP_AUTHORIZATION": "Token " + user.create_token(bundle_id)}
+        auth_headers = {"HTTP_AUTHORIZATION": "Token " + user.create_token(bundle_id=bundle_id)}
         response = self.client.post("/order", data=data, format="json", **auth_headers)
         self.assertEqual(response.status_code, 201)
         self.assertEqual(type(response.data), ReturnList)

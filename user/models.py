@@ -292,22 +292,39 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return "id: {} - {}".format(self.id, self.email) or str(self.uid)
 
-    def create_token(self, bundle_id=""):
-        # return token if bundle_id is given else 
-        # return a dict {bundle_id : token} 
-        # return empty dict if no client application bundle exists for this user)
-        jwts = {}
-        if not bundle_id:
-            for bid, cid in ClientApplicationBundle.objects.values_list("bundle_id", "client_id"):
-                if cid == self.client_id:                    
-                    payload = {
-                        "bundle_id": bid,
-                        "user_id": self.email,
-                        "sub": self.id,
-                        "iat": arrow.utcnow().datetime,
-                    }
-                    jwts[bid] = jwt.encode(payload, self.client.secret + self.salt)
+    def create_token(self, bundle_id="", admin=False):
+        # if admin is true this call is for the django admin and wants all bundle_id tokens returned
+        if admin:
+            jwt_tokens = {}
+            if not bundle_id:
+                for bid, cid in ClientApplicationBundle.objects.values_list("bundle_id", "client_id"):
+                    if cid == self.client_id:
+                        payload = {
+                            "bundle_id": bid,
+                            "user_id": self.email,
+                            "sub": self.id,
+                            "iat": arrow.utcnow().datetime,
+                        }
+                        jwt_tokens[bid] = jwt.encode(payload, self.client.secret + self.salt)
+            else:
+                # a single jwt_token is returned for the given bundle_id
+                payload = {
+                    "bundle_id": bundle_id,
+                    "user_id": self.email,
+                    "sub": self.id,
+                    "iat": arrow.utcnow().datetime,
+                }
+                return jwt.encode(payload, self.client.secret + self.salt)
+            return jwt_tokens
         else:
+            if not bundle_id:
+                try:
+                    bundle_id = ClientApplicationBundle.objects.values_list("bundle_id", flat=True).get(
+                        client=self.client_id
+                    )
+                except (ClientApplicationBundle.DoesNotExist):
+                    bundle_id = ""
+
             payload = {
                 "bundle_id": bundle_id,
                 "user_id": self.email,
@@ -315,7 +332,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
                 "iat": arrow.utcnow().datetime,
             }
             return jwt.encode(payload, self.client.secret + self.salt)
-        return jwts
 
     def soft_delete(self):
         self.is_active = False

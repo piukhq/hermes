@@ -56,7 +56,7 @@ class CustomUserModelForm(forms.ModelForm):
         if user:
             if not kwargs.get("initial"):
                 kwargs["initial"] = {}
-            choices = user.create_token()
+            choices = user.create_token(admin=True)
             kwargs["initial"].update({"jwt_token": choices})
         super(CustomUserModelForm, self).__init__(*args, **kwargs)
 
