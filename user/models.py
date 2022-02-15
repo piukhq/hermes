@@ -322,7 +322,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
                     bundle_id = ClientApplicationBundle.objects.values_list("bundle_id", flat=True).get(
                         client=self.client_id
                     )
-                except (ClientApplicationBundle.DoesNotExist):
+                except ClientApplicationBundle.DoesNotExist:
                     bundle_id = ""
 
             payload = {
