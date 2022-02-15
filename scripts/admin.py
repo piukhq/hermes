@@ -1,7 +1,12 @@
+from multiprocessing.shared_memory import SharedMemory
 from django.contrib import admin, messages
 from django.template.response import TemplateResponse
 from django.urls import path
 
+from .actions.schemeaccount_actions import (
+    SchemeAccountCorrection,
+    do_mark_as_unknown,
+)
 from .actions.vop_actions import (
     Correction,
     do_activation,
@@ -29,6 +34,7 @@ def get_correction(entry):
         Correction.FIX_ENROLL: do_fix_enroll,
         Correction.RETAIN: do_retain,
         Correction.SET_ACTIVE: do_set_account_and_links_active,
+        SchemeAccountCorrection.MARK_AS_UNKNOWN: do_mark_as_unknown,
     }
     if entry.apply not in actions.keys():
         return False
@@ -40,7 +46,8 @@ def apply_correction(modeladmin, request, queryset):
     success_count = 0
     failed_count = 0
     done_count = 0
-    correction_titles = dict(Correction.CORRECTION_SCRIPTS)
+    correction_titles = dict(Correction.CORRECTION_SCRIPTS+SchemeAccountCorrection.CORRECTION_SCRIPTS)
+
     if not user_can_run_script(request):
         messages.add_message(request, messages.WARNING, "Could not execute the script: Access Denied")
     else:

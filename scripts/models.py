@@ -1,7 +1,11 @@
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 
+
 from .actions.vop_actions import Correction
+from .actions.schemeaccount_actions import SchemeAccountCorrection
+
+CHOICES = Correction.CORRECTION_SCRIPTS + SchemeAccountCorrection.CORRECTION_SCRIPTS
 
 
 class ScriptResult(models.Model):
@@ -11,8 +15,8 @@ class ScriptResult(models.Model):
     data = JSONField(default=dict, null=True, blank=True)
     results = JSONField(default=list, null=True, blank=True)
     correction = models.IntegerField(
-        choices=Correction.CORRECTION_SCRIPTS, default=0, help_text="Correction Required", db_index=True
+        choices=CHOICES, default=0, help_text="Correction Required", db_index=True
     )
     apply = models.IntegerField(
-        choices=Correction.CORRECTION_SCRIPTS, default=0, help_text="Correction to Apply Now", db_index=True
+        choices=CHOICES, default=0, help_text="Correction to Apply Now", db_index=True
     )
