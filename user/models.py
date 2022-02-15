@@ -221,7 +221,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     external_id = models.CharField(max_length=255, db_index=True, default="", blank=True)
     delete_token = models.CharField(max_length=255, blank=True, default="")
     magic_link_verified = models.DateTimeField(null=True, blank=True)
-    bundle_id = models.CharField(max_length=200, blank=True, null=True)
+    bundle_id = models.CharField(verbose_name="creation bundle id", max_length=200, blank=True, null=True)
 
     USERNAME_FIELD = "uid"
 
@@ -292,26 +292,46 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return "id: {} - {}".format(self.id, self.email) or str(self.uid)
 
-    def create_token(self, bundle_id=""):
-        if not bundle_id:
-            # This will raise an exception if more than one bundle has the same client_Id
-            # if bundles are properly defined only one associate with the user should be found.
-            # Also raises exception is the client_id has no row in the users_clientapplicationbundle table
-            # TODO: fix it!
-            try:
-                bundle_id = ClientApplicationBundle.objects.values_list("bundle_id", flat=True).get(
-                    client=self.client_id
-                )
-            except (ClientApplicationBundle.DoesNotExist):
-                bundle_id = ""
+    def create_token(self, bundle_id="", admin=False):
+        # if admin is true this call is for the django admin and wants all bundle_id tokens returned
+        if admin:
+            jwt_tokens = {}
+            if not bundle_id:
+                for bid, cid in ClientApplicationBundle.objects.values_list("bundle_id", "client_id"):
+                    if cid == self.client_id:
+                        payload = {
+                            "bundle_id": bid,
+                            "user_id": self.email,
+                            "sub": self.id,
+                            "iat": arrow.utcnow().datetime,
+                        }
+                        jwt_tokens[bid] = jwt.encode(payload, self.client.secret + self.salt)
+            else:
+                # a single jwt_token is returned for the given bundle_id
+                payload = {
+                    "bundle_id": bundle_id,
+                    "user_id": self.email,
+                    "sub": self.id,
+                    "iat": arrow.utcnow().datetime,
+                }
+                return jwt.encode(payload, self.client.secret + self.salt)
+            return jwt_tokens
+        else:
+            if not bundle_id:
+                try:
+                    bundle_id = ClientApplicationBundle.objects.values_list("bundle_id", flat=True).get(
+                        client=self.client_id
+                    )
+                except ClientApplicationBundle.DoesNotExist:
+                    bundle_id = ""
 
-        payload = {
-            "bundle_id": bundle_id,
-            "user_id": self.email,
-            "sub": self.id,
-            "iat": arrow.utcnow().datetime,
-        }
-        return jwt.encode(payload, self.client.secret + self.salt)
+            payload = {
+                "bundle_id": bundle_id,
+                "user_id": self.email,
+                "sub": self.id,
+                "iat": arrow.utcnow().datetime,
+            }
+            return jwt.encode(payload, self.client.secret + self.salt)
 
     def soft_delete(self):
         self.is_active = False
