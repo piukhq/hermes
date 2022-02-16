@@ -249,6 +249,32 @@ class UserSerializer(serializers.ModelSerializer):
         )
 
 
+class HistoryUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = (
+            "id",
+            "uid",
+            "salt",
+            "apple",
+            "email",
+            "client",
+            "twitter",
+            "facebook",
+            "is_staff",
+            "password",
+            "is_active",
+            "is_tester",
+            "last_login",
+            "date_joined",
+            "external_id",
+            "reset_token",
+            "delete_token",
+            "is_superuser",
+            "marketing_code",
+        )
+
+
 class SchemeAccountsSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeAccount

@@ -24,7 +24,7 @@ from ubiquity.tasks import (
 )
 from ubiquity.views import AutoLinkOnCreationMixin, MembershipCardView
 from user.models import CustomUser
-from user.serializers import UserSerializer
+from user.serializers import HistoryUserSerializer
 
 logger = logging.getLogger("messaging")
 
@@ -248,7 +248,7 @@ def mapper_history(message: dict) -> None:
     """This message assumes Angelia logged history via mapper database event ie an ORM based where the
     data was know to Angelia and can be passed to Hermes to update History
     """
-    event_time = datetime.strptime(message["event_date"], "%Y-%m-%d %H:%M:%S.%f")
+    event_time = datetime.strptime(message["event_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
     if message.get("table") == "user":
         record_history(
             "CustomUser",
@@ -268,15 +268,15 @@ def sql_history(message: dict) -> None:
     was not know to Angelia because a SqlAlchemy mapped the Model to the table name and then sent a SQL to
     postgres which did not
     """
-    event_time = datetime.strptime(message["event_date"], "%Y-%m-%d %H:%M:%S.%f")
+    event_time = datetime.strptime(message["event_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
     if message.get("table") == "user":
         user = CustomUser.objects.get(id=message["id"])
-        serializer = UserSerializer(user)
+        serializer = HistoryUserSerializer(user)
         record_history(
             "CustomUser",
             event_time=event_time,
             change_type=message["event"],
-            change_details="",
+            change_details=message["change"],
             channel=message["channel"],
             instance_id=message["id"],
             email=user.email,
