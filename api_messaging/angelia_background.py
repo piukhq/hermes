@@ -225,14 +225,29 @@ def delete_user(message: dict) -> None:
             consent_data = {"email": user.email, "timestamp": consent.timestamp}
         except ServiceConsent.DoesNotExist:
             logger.exception(f"Service Consent data could not be found whilst deleting user {user_id} .")
-
+        event_time = datetime.utcnow()
         user.soft_delete()
         deleted_service_cleanup(
             user_id=user_id,
             consent=consent_data,
             history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
         )
+
         logger.info(f"User {user_id} successfully deleted. ")
+        # Log history of user delete
+
+        serializer = HistoryUserSerializer(user)
+        record_history(
+            "CustomUser",
+            event_time=event_time,
+            change_type="delete",
+            change_details="",
+            channel=channel,
+            instance_id=user.id,
+            email=user.email,
+            external_id=user.external_id,
+            body=serializer.data,
+        )
 
 
 def refresh_balances(message: dict) -> None:
