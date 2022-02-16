@@ -20,7 +20,6 @@ class SchemeAccountCorrection:
 def do_refresh_balance(entry):
     sact = SchemeAccount.objects.get(id=entry.data["schemeaccount_id"])
     sact.get_midas_balance()
-    # sact.save(update_fields=["status"])
     return True
 
 
