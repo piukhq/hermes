@@ -1,4 +1,4 @@
-from scheme.models import SchemeAccount
+from scheme.models import SchemeAccount, JourneyTypes
 
 
 
@@ -19,7 +19,7 @@ class SchemeAccountCorrection:
 
 def do_refresh_balance(entry):
     sact = SchemeAccount.objects.get(id=entry.data["schemeaccount_id"])
-    sact.get_midas_balance()
+    sact.get_midas_balance(JourneyTypes.UPDATE)
     return True
 
 
