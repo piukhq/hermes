@@ -56,7 +56,7 @@ def route_message(headers: dict, message: dict):
         "delete_loyalty_card": angelia_background.delete_loyalty_card,
         "delete_user": angelia_background.delete_user,
         "refresh_balances": angelia_background.refresh_balances,
-        "mapper_history": angelia_background.mapper_history,
+        "mapped_history": angelia_background.mapper_history,
         "sql_history": angelia_background.sql_history,
     }
 
