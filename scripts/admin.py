@@ -48,7 +48,7 @@ def apply_correction(modeladmin, request, queryset):
     success_count = 0
     failed_count = 0
     done_count = 0
-    correction_titles = dict(Correction.CORRECTION_SCRIPTS+SchemeAccountCorrection.CORRECTION_SCRIPTS)
+    correction_titles = dict(Correction.CORRECTION_SCRIPTS + SchemeAccountCorrection.CORRECTION_SCRIPTS)
 
     if not user_can_run_script(request):
         messages.add_message(request, messages.WARNING, "Could not execute the script: Access Denied")

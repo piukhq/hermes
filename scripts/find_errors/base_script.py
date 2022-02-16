@@ -8,7 +8,8 @@ class BaseScript:
     def __init__(self, script_id, script_name):
         self.script_id = script_id
         self.script_name = script_name
-        self._correction_titles = dict(Correction.CORRECTION_SCRIPTS + SchemeAccountCorrection.CORRECTION_SCRIPTS)
+        self._correction_titles = dict(Correction.CORRECTION_SCRIPTS)
+        self._correction_titles.update(dict(SchemeAccountCorrection.CORRECTION_SCRIPTS))
         self.result = []
         self.correction_count = 0
         self.new_corrections = 0
@@ -38,9 +39,7 @@ class BaseScript:
         all_corrections = Correction.COMPOUND_CORRECTION_SCRIPTS
         all_corrections.update(SchemeAccountCorrection.COMPOUND_CORRECTION_SCRIPTS)
 
-        self._sequence = all_corrections.get(
-            self.correction_function, [self.correction_function]
-        )
+        self._sequence = all_corrections.get(self.correction_function, [self.correction_function])
 
         data["script_id"] = self.script_id
         data["sequence"] = self._sequence
