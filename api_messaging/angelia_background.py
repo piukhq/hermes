@@ -1,10 +1,12 @@
 import logging
+from datetime import datetime
 
 import arrow
 from rest_framework.generics import get_object_or_404
 
 from hermes.channels import Permit
 from history.enums import SchemeAccountJourney
+from history.tasks import record_history
 from history.utils import user_info
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
@@ -22,6 +24,7 @@ from ubiquity.tasks import (
 )
 from ubiquity.views import AutoLinkOnCreationMixin, MembershipCardView
 from user.models import CustomUser
+from user.serializers import HistoryUserSerializer
 
 logger = logging.getLogger("messaging")
 
@@ -222,14 +225,29 @@ def delete_user(message: dict) -> None:
             consent_data = {"email": user.email, "timestamp": consent.timestamp}
         except ServiceConsent.DoesNotExist:
             logger.exception(f"Service Consent data could not be found whilst deleting user {user_id} .")
-
+        event_time = datetime.utcnow()
         user.soft_delete()
         deleted_service_cleanup(
             user_id=user_id,
             consent=consent_data,
             history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
         )
+
         logger.info(f"User {user_id} successfully deleted. ")
+        # Log history of user delete
+
+        serializer = HistoryUserSerializer(user)
+        record_history(
+            "CustomUser",
+            event_time=event_time,
+            change_type="delete",
+            change_details="",
+            channel=channel,
+            instance_id=user.id,
+            email=user.email,
+            external_id=user.external_id,
+            body=serializer.data,
+        )
 
 
 def refresh_balances(message: dict) -> None:
@@ -239,3 +257,44 @@ def refresh_balances(message: dict) -> None:
     permit = Permit(bundle_id=channel, user=user)
     async_all_balance.delay(user_id, permit)
     logger.info(f"User {user_id} refresh balances called. ")
+
+
+def mapper_history(message: dict) -> None:
+    """This message assumes Angelia logged history via mapper database event ie an ORM based where the
+    data was know to Angelia and can be passed to Hermes to update History
+    """
+    event_time = datetime.strptime(message["event_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
+    if message.get("table") == "user":
+        record_history(
+            "CustomUser",
+            event_time=event_time,
+            change_type=message["event"],
+            change_details="",
+            channel=message["channel"],
+            instance_id=message["payload"]["id"],
+            email=message["payload"].get("email"),
+            external_id=message["user"],
+            body=message["payload"],
+        )
+
+
+def sql_history(message: dict) -> None:
+    """This message assumes Angelia logged history via sql and no event was raised ie the model data
+    was not know to Angelia because a SqlAlchemy mapped the Model to the table name and then sent a SQL to
+    postgres which did not
+    """
+    event_time = datetime.strptime(message["event_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
+    if message.get("table") == "user":
+        user = CustomUser.objects.get(id=message["id"])
+        serializer = HistoryUserSerializer(user)
+        record_history(
+            "CustomUser",
+            event_time=event_time,
+            change_type=message["event"],
+            change_details=message["change"],
+            channel=message["channel"],
+            instance_id=message["id"],
+            email=user.email,
+            external_id=user.external_id,
+            body=serializer.data,
+        )
