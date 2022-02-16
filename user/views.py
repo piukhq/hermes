@@ -290,7 +290,7 @@ class Login(GenericAPIView):
         credentials = self.get_credentials(serializer.data)
         user = authenticate(**credentials)
 
-        bundle_id = request.POST.get("bundle_id", "")
+        bundle_id = request.data.get("bundle_id", "")
 
         if not user:
             return error_response(INCORRECT_CREDENTIALS)
