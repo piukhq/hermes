@@ -272,6 +272,7 @@ class HistoryUserSerializer(serializers.ModelSerializer):
             "delete_token",
             "is_superuser",
             "marketing_code",
+            "bundle_id",
         )
 
 
