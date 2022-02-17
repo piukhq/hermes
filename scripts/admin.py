@@ -1,4 +1,3 @@
-from multiprocessing.shared_memory import SharedMemory
 from django.contrib import admin, messages
 from django.template.response import TemplateResponse
 from django.urls import path
