@@ -1,4 +1,4 @@
-from scheme.models import SchemeAccount, JourneyTypes
+from scheme.models import JourneyTypes, SchemeAccount
 
 
 class SchemeAccountCorrection:

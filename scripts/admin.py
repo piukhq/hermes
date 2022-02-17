@@ -2,11 +2,7 @@ from django.contrib import admin, messages
 from django.template.response import TemplateResponse
 from django.urls import path
 
-from .actions.schemeaccount_actions import (
-    SchemeAccountCorrection,
-    do_mark_as_unknown,
-    do_refresh_balance,
-)
+from .actions.schemeaccount_actions import SchemeAccountCorrection, do_mark_as_unknown, do_refresh_balance
 from .actions.vop_actions import (
     Correction,
     do_activation,

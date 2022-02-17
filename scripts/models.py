@@ -1,9 +1,8 @@
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 
-
-from .actions.vop_actions import Correction
 from .actions.schemeaccount_actions import SchemeAccountCorrection
+from .actions.vop_actions import Correction
 
 CHOICES = Correction.CORRECTION_SCRIPTS + SchemeAccountCorrection.CORRECTION_SCRIPTS
 
