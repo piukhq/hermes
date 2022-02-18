@@ -1,3 +1,4 @@
+from scripts.actions.schemeaccount_actions import SchemeAccountCorrection
 from scripts.actions.vop_actions import Correction
 from scripts.models import ScriptResult
 
@@ -7,6 +8,7 @@ class BaseScript:
         self.script_id = script_id
         self.script_name = script_name
         self._correction_titles = dict(Correction.CORRECTION_SCRIPTS)
+        self._correction_titles.update(dict(SchemeAccountCorrection.CORRECTION_SCRIPTS))
         self.result = []
         self.correction_count = 0
         self.new_corrections = 0
@@ -33,9 +35,10 @@ class BaseScript:
     def make_correction(self, unique_id_string, data):
         unique_ref = f"{unique_id_string}.{self.script_id}"
 
-        self._sequence = Correction.COMPOUND_CORRECTION_SCRIPTS.get(
-            self.correction_function, [self.correction_function]
-        )
+        all_corrections = Correction.COMPOUND_CORRECTION_SCRIPTS
+        all_corrections.update(SchemeAccountCorrection.COMPOUND_CORRECTION_SCRIPTS)
+
+        self._sequence = all_corrections.get(self.correction_function, [self.correction_function])
 
         data["script_id"] = self.script_id
         data["sequence"] = self._sequence
