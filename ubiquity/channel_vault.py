@@ -105,7 +105,6 @@ def load_secrets(config):
         secrets_to_load = [
             (config["SECRET_KEYS_NAME"], _secret_keys),
             (config["AES_KEYS_NAME"], _aes_keys),
-            (config["BARCLAYS_SFTP_SECRETS_NAME"], _barclays_hermes_sftp),
         ]
 
         client = get_azure_client(config)
@@ -118,10 +117,15 @@ def load_secrets(config):
                 secrets_to_load.append(secret_definition)
                 logger.info(f"Found channel information: {secret.name} - adding to load list")
 
+            # add secret only if it's available and don't prevent hermes from running.
+            if "barclays-hermes-sftp" in secret.name:
+                secret_definition = (secret.name, _barclays_hermes_sftp)
+                secrets_to_load.append(secret_definition)
+                logger.info(f"Found barclay notification information: {secret.name} - adding to load list")
+
         errors = []
         failed_secrets = []
         for secret_name, secret_dict in secrets_to_load:
-
             try:
                 logger.info(f"Loading {secret_name} from vault at {config['VAULT_URL']}")
                 secret_dict.update(json.loads(client.get_secret(secret_name).value))
