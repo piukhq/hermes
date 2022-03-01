@@ -4,6 +4,8 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 
+# upgrade css issue perhaps..?
+# admin.site.enable_nav_sidebar = False
 
 class AADAdminSite(admin.AdminSite):
     @never_cache
