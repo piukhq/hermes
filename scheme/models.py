@@ -14,7 +14,8 @@ import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
 from django.conf import settings
-from django.contrib.postgres.fields import ArrayField, JSONField
+from django.db.models import JSONField
+from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
 from django.core.validators import RegexValidator
 from django.db import models

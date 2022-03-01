@@ -68,7 +68,7 @@ LOCAL_APPS = (
 
 INSTALLED_APPS = (
     "django_admin_env_notice",
-    "sso.apps.AADAdminConfig",
+    "sso.apps_admin.AADAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -815,3 +815,6 @@ NOTIFICATION_RETRY_TIMER = int(env_var("NOTIFICATION_RETRY_TIMER", 120))
 NOTIFICATION_RUN = env_var("NOTIFICATION_RUN", False)
 # Barclays notification file suffix
 BARCLAYS_SFTP_FILE_SUFFIX = env_var("BARCLAYS_SFTP_FILE_SUFFIX", "_DTUIL05787")
+
+# DJango 3.2 change
+DEFAULT_AUTO_FIELD="django.db.models.AutoField"
