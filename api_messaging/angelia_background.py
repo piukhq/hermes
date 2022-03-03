@@ -5,6 +5,7 @@ import arrow
 from rest_framework.generics import get_object_or_404
 
 from hermes.channels import Permit
+from history.data_warehouse import to_data_warehouse
 from history.enums import SchemeAccountJourney
 from history.models import get_required_extra_fields
 from history.serializers import get_body_serializer
@@ -272,35 +273,35 @@ journey_map = (
 )
 
 
-def record_mapper_history(payload: dict, model_name: str, message: dict):
-    with AngeliaContext(message) as ac:
-        event_time = datetime.strptime(message["event_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
-        extra = {"user_id": ac.user_id, "channel": ac.channel_slug}
-        required_extra_fields = get_required_extra_fields(model_name)
+def record_mapper_history(model_name: str, ac: AngeliaContext, message: dict):
+    payload = message.get("payload", {})
+    extra = {"user_id": ac.user_id, "channel": ac.channel_slug}
+    event_time = datetime.strptime(message["event_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
+    required_extra_fields = get_required_extra_fields(model_name)
 
-        if "body" in required_extra_fields:
-            extra["body"] = get_body_serializer(model_name)(payload).data
+    if "body" in required_extra_fields:
+        extra["body"] = get_body_serializer(model_name)(payload).data
 
-        if "journey" in required_extra_fields:
-            if message["event"] == "create" and payload.get("originating_journey", -1) <= 5:
-                extra["journey"] = journey_map[payload["originating_journey"]]
+    if "journey" in required_extra_fields:
+        if message["event"] == "create" and payload.get("originating_journey", -1) <= 5:
+            extra["journey"] = journey_map[payload["originating_journey"]]
 
-        for field in required_extra_fields:
-            if field not in extra and payload.get(field):
-                extra[field] = payload[field]
+    for field in required_extra_fields:
+        if field not in extra and payload.get(field):
+            extra[field] = payload[field]
 
-        change = ""
-        if message.get("change"):
-            change = message["change"]
+    change = ""
+    if message.get("change"):
+        change = message["change"]
 
-        record_history(
-            model_name,
-            event_time=event_time,
-            change_type=message["event"],
-            change_details=change,
-            instance_id=payload.get("id", None),
-            **extra,
-        )
+    record_history(
+        model_name,
+        event_time=event_time,
+        change_type=message["event"],
+        change_details=change,
+        instance_id=payload.get("id", None),
+        **extra,
+    )
 
 
 def mapper_history(message: dict) -> None:
@@ -309,7 +310,12 @@ def mapper_history(message: dict) -> None:
     """
     model_name = table_to_model.get(message.get("table", ""), False)
     if message.get("payload") and model_name:
-        record_mapper_history(message["payload"], model_name, message)
+        with AngeliaContext(message) as ac:
+            record_mapper_history(model_name, ac, message)
+            if model_name == "CustomUser" and message.get("event") == "create":
+                to_data_warehouse(
+                    "event.user.created.api", ac.user_id, ac.channel_slug, message["event_date"], message["payload"]
+                )
     else:
         logger.error(f"Failed to process history entry for {model_name}")
 
@@ -324,6 +330,7 @@ def sql_history(message: dict) -> None:
         model_name = table_to_model.get(message.get("table", ""), False)
 
         if model_name == "CustomUser":
+            # This relates to user update add paths is via mapper
             user = CustomUser.objects.get(id=ac.user_id)
             serializer = HistoryUserSerializer(user)
             record_history(
