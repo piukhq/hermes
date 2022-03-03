@@ -3,9 +3,10 @@ from django.contrib import admin
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
+from django.utils.decorators import method_decorator
 
 class AADAdminSite(admin.AdminSite):
-    @never_cache
+    @method_decorator(never_cache)
     def login(self, request, extra_context=None):
         if settings.SSO_OFF:
             return super(AADAdminSite, self).login(request, extra_context)

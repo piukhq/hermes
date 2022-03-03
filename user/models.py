@@ -15,7 +15,7 @@ from django.db import models
 from django.db.models import signals
 from django.db.models.fields import CharField
 from django.dispatch import receiver
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from hashids import Hashids
 
 from scheme.models import Scheme

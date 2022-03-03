@@ -42,8 +42,8 @@ SECRET_KEY = "*is3^%seh_2=sgc$8dw+vcd)5cwrecvy%cxiv69^q8hz3q%=fo"
 DEBUG = env_var("HERMES_DEBUG", True)
 
 CSRF_TRUSTED_ORIGINS = [
-    "127.0.0.1",
-    ".bink.com",
+    "http://127.0.0.1",
+    "https://*.bink.com",
 ]
 
 ALLOWED_HOSTS = ["*"]
