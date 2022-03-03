@@ -5,6 +5,8 @@ from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.utils.decorators import method_decorator
 
+admin.AdminSite.enable_nav_sidebar=False
+
 class AADAdminSite(admin.AdminSite):
     @method_decorator(never_cache)
     def login(self, request, extra_context=None):
