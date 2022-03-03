@@ -1,7 +1,7 @@
 from enum import Enum, IntEnum
 
-from django.db.models import JSONField
 from django.db import models
+from django.db.models import JSONField
 from django.utils import timezone
 
 

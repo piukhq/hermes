@@ -2,10 +2,11 @@ from django.conf import settings
 from django.contrib import admin
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
-from django.views.decorators.cache import never_cache
 from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 
-admin.AdminSite.enable_nav_sidebar=False
+admin.AdminSite.enable_nav_sidebar = False
+
 
 class AADAdminSite(admin.AdminSite):
     @method_decorator(never_cache)

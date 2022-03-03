@@ -14,12 +14,11 @@ import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
 from django.conf import settings
-from django.db.models import JSONField
 from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
 from django.core.validators import RegexValidator
 from django.db import models
-from django.db.models import F, Q, signals
+from django.db.models import F, JSONField, Q, signals
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone

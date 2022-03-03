@@ -817,4 +817,4 @@ NOTIFICATION_RUN = env_var("NOTIFICATION_RUN", False)
 BARCLAYS_SFTP_FILE_SUFFIX = env_var("BARCLAYS_SFTP_FILE_SUFFIX", "_DTUIL05787")
 
 # DJango 3/4 change
-DEFAULT_AUTO_FIELD="django.db.models.AutoField"
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"

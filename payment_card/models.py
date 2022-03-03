@@ -3,9 +3,8 @@ import uuid
 from enum import IntEnum
 from functools import lru_cache
 
-from django.db.models import JSONField
 from django.db import models
-from django.db.models import F, Q, signals
+from django.db.models import F, JSONField, Q, signals
 from django.dispatch import receiver
 from django.utils import timezone
 

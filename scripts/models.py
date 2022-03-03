@@ -1,6 +1,5 @@
-from django.db.models import JSONField
-
 from django.db import models
+from django.db.models import JSONField
 
 from .actions.schemeaccount_actions import SchemeAccountCorrection
 from .actions.vop_actions import Correction
