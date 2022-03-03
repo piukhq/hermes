@@ -313,8 +313,15 @@ def mapper_history(message: dict) -> None:
         with AngeliaContext(message) as ac:
             record_mapper_history(model_name, ac, message)
             if model_name == "CustomUser" and message.get("event") == "create":
+                # ToDo In one edge case the created user the ac.user_id is a string taken form the sub which in b2b is
+                # the external_id. This needs some refinement to prevent confusion - what if new tokens types are
+                # create?  It is the only edge case as after a user is created the access token is used
                 to_data_warehouse(
-                    "event.user.created.api", ac.user_id, ac.channel_slug, message["event_date"], message["payload"]
+                    "event.user.created.api",
+                    message["payload"]["id"],
+                    ac.channel_slug,
+                    message["event_date"],
+                    message["payload"],
                 )
     else:
         logger.error(f"Failed to process history entry for {model_name}")
