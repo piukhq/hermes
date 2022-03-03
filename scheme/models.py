@@ -1032,7 +1032,7 @@ class SchemeAccount(models.Model):
                 vouchers = self.make_vouchers_response(balance["vouchers"])
                 del balance["vouchers"]
 
-            balance.update({"updated_at": arrow.utcnow().timestamp, "scheme_id": self.scheme.id})
+            balance.update({"updated_at": arrow.utcnow().timestamp(), "scheme_id": self.scheme.id})
             balance = UbiquityBalanceHandler(balance).data
             cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
 
