@@ -305,7 +305,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         content = response.data
         self.assertEqual(content["scheme"], scheme.id)
         self.assertEqual(content["card_number"], "1234")
-        self.assertIn("/schemes/accounts/", response._headers["location"][1])
+        self.assertIn("/schemes/accounts/", response.headers["location"][1])
         self.assertEqual(SchemeAccount.objects.get(pk=content["id"]).status, SchemeAccount.WALLET_ONLY)
 
         self.assertEqual(
