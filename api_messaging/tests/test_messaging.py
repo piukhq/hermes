@@ -22,21 +22,21 @@ class TestPaymentAccountMessaging(GlobalMockAPITestCase):
         cls.post_payment_account_message = {
             "payment_account_id": cls.payment_card_account_entry.payment_card_account.id,
             "user_id": cls.payment_card_account_entry.user.id,
-            "channel_id": "com.bink.wallet",
+            "channel_slug": "com.bink.wallet",
             "created": True,
             "auto_link": False,
         }
         cls.post_payment_account_auto_link_message = {
             "payment_account_id": cls.payment_card_account_entry.payment_card_account.id,
             "user_id": cls.payment_card_account_entry.user.id,
-            "channel_id": "com.bink.wallet",
+            "channel_slug": "com.bink.wallet",
             "created": False,
             "auto_link": True,
         }
         cls.delete_payment_account_message = {
             "payment_account_id": cls.payment_card_account_entry.payment_card_account.id,
             "user_id": cls.payment_card_account_entry.user.id,
-            "channel_id": "com.bink.wallet",
+            "channel_slug": "com.bink.wallet",
         }
         cls.post_payment_account_headers = {"X-http-path": "post_payment_account"}
         cls.delete_payment_account_headers = {"X-http-path": "delete_payment_account"}
@@ -111,7 +111,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         cls.loyalty_card_auth_autolink_primary_auth_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
-            "channel": "com.bink.wallet",
+            "channel_slug": "com.bink.wallet",
             "auto_link": True,
             "primary_auth": True,
             "authorise_fields": cls.auth_fields,
@@ -119,7 +119,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         cls.loyalty_card_auth_autolink_non_primary_auth_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
-            "channel": "com.bink.wallet",
+            "channel_slug": "com.bink.wallet",
             "auto_link": True,
             "primary_auth": False,
             "authorise_fields": cls.auth_fields,
@@ -127,7 +127,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         cls.loyalty_card_auth_no_autolink_non_primary_auth_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
-            "channel": "com.bink.wallet",
+            "channel_slug": "com.bink.wallet",
             "auto_link": False,
             "primary_auth": False,
             "authorise_fields": cls.auth_fields,
@@ -136,7 +136,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         cls.loyalty_card_register_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
-            "channel": "com.bink.wallet",
+            "channel_slug": "com.bink.wallet",
             "auto_link": True,
             "loyalty_plan_id": cls.scheme_account.id,
             "register_fields": [{"credential_slug": "postcode", "value": "GU552RH"}],
@@ -146,7 +146,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         cls.loyalty_card_join_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
-            "channel": "com.bink.wallet",
+            "channel_slug": "com.bink.wallet",
             "auto_link": True,
             "loyalty_plan_id": cls.scheme_account.id,
             "join_fields": [{"credential_slug": "postcode", "value": "GU552RH"}],
@@ -156,7 +156,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         cls.delete_loyalty_card_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
-            "channel": "com.bink.wallet",
+            "channel_slug": "com.bink.wallet",
             "auto_link": False,
             "created": True,
             "loyalty_plan_id": cls.scheme_account.id,
@@ -252,7 +252,7 @@ class TestUserMessaging(GlobalMockAPITestCase):
     def setUpTestData(cls):
         cls.user = UserFactory()
         cls.delete_user_headers = {"X-http-path": "delete_user"}
-        cls.delete_user_message = {"user_id": cls.user.id, "channel": "com.bink.wallet"}
+        cls.delete_user_message = {"user_id": cls.user.id, "channel_slug": "com.bink.wallet"}
 
     @patch("api_messaging.angelia_background.deleted_service_cleanup")
     def test_delete_user(self, mock_delete_cleanup):
