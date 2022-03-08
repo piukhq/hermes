@@ -1217,13 +1217,13 @@ class SchemeAccount(models.Model):
         if issue_date is not None:
             voucher.update(
                 {
-                    "date_issued": issue_date.timestamp,
-                    "expiry_date": expiry_date.timestamp,
+                    "date_issued": issue_date.timestamp(),
+                    "expiry_date": expiry_date.timestamp(),
                 }
             )
 
         if redeem_date is not None:
-            voucher["date_redeemed"] = redeem_date.timestamp
+            voucher["date_redeemed"] = redeem_date.timestamp()
 
         if "code" in voucher_fields:
             voucher["code"] = voucher_fields["code"]
