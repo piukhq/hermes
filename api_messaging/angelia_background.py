@@ -290,7 +290,10 @@ def record_mapper_history(model_name: str, ac: AngeliaContext, message: dict):
     related = message.get("related", {})
     change_details = message.get("change", "")
     for rk, ri in related.items():
-        payload[rk] = FakeRelatedModel(ri)
+        if ri:
+            payload[rk] = FakeRelatedModel(ri)
+        else:
+            payload[rk] = None
 
     extra = {"user_id": ac.user_id, "channel": ac.channel_slug}
     event_time = datetime.strptime(message["event_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
