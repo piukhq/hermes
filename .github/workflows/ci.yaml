@@ -78,8 +78,7 @@ jobs:
         with:
           push: true
           tags: |
-            binkcore.azurecr.io/hermes-perf:${{ steps.date.outputs.date }}
-            binkcore.azurecr.io/hermes-perf:latest
+            binkcore.azurecr.io/hermes:perf-${{ steps.date.outputs.date }}
   create_tag_release:
     if: github.event_name == 'release' && github.event.action == 'published'
     name: create_tag_release
