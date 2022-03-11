@@ -272,8 +272,29 @@ journey_map = (
 )
 
 
+class FakeRelatedModel:
+    """We can't pass a model from Angelia in mapper_history message.
+    However, Rest Serializer in Hermes uses a class PKOnlyObject: which they say
+    is a mock object, used for when we only need the pk of the object.
+    This FakeRelatedModel reconstructs an object from the id so that it can
+    be serialised.  This was originally required for PaymentCard field when
+    updating PaymentCard on Angelia
+    """
+
+    def __init__(self, object_id):
+        self.pk = object_id
+
+
 def record_mapper_history(model_name: str, ac: AngeliaContext, message: dict):
     payload = message.get("payload", {})
+    related = message.get("related", {})
+    change_details = message.get("change", "")
+    for rk, ri in related.items():
+        if ri:
+            payload[rk] = FakeRelatedModel(ri)
+        else:
+            payload[rk] = None
+
     extra = {"user_id": ac.user_id, "channel": ac.channel_slug}
     event_time = datetime.strptime(message["event_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
     required_extra_fields = get_required_extra_fields(model_name)
@@ -289,15 +310,11 @@ def record_mapper_history(model_name: str, ac: AngeliaContext, message: dict):
         if field not in extra and payload.get(field):
             extra[field] = payload[field]
 
-    change = ""
-    if message.get("change"):
-        change = message["change"]
-
     record_history(
         model_name,
         event_time=event_time,
         change_type=message["event"],
-        change_details=change,
+        change_details=change_details,
         instance_id=payload.get("id", None),
         **extra,
     )
