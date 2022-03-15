@@ -224,7 +224,7 @@ class PaymentCardConsentSerializer(serializers.Serializer):
         except ParserError:
             raise serializers.ValidationError("timestamp field is not a timestamp.")
 
-        return date.timestamp
+        return date.timestamp()
 
 
 class UbiquityImageSerializer(serializers.Serializer):
