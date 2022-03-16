@@ -93,6 +93,7 @@ MIDDLEWARE = (
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "dictfilter.django.middleware.DictFilterMiddleware",
@@ -817,3 +818,8 @@ BARCLAYS_SFTP_FILE_SUFFIX = env_var("BARCLAYS_SFTP_FILE_SUFFIX", "_DTUIL05787")
 
 # DJango 3/4 change
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+
+# WhiteNoise Static Files Serving
+STATIC_URL = "/admin/static/"
+STATIC_ROOT = "/tmp/static/"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
