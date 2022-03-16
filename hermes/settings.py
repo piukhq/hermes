@@ -41,10 +41,7 @@ SECRET_KEY = "*is3^%seh_2=sgc$8dw+vcd)5cwrecvy%cxiv69^q8hz3q%=fo"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_var("HERMES_DEBUG", True)
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://127.0.0.1",
-    "https://*.bink.com",
-]
+CSRF_TRUSTED_ORIGINS = []
 
 ALLOWED_HOSTS = ["*"]
 CORS_ALLOW_CREDENTIALS = True
