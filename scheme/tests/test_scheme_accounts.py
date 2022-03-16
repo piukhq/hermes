@@ -752,7 +752,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
         self.assertEqual(resp.status_code, 200)
         json = resp.json()
-        self.assertEqual(json,{'message': 'Unknown error with join - MARTIN WAS HERE'})
+        self.assertEqual(json,{'message': 'Unknown error with join'})
 
     def test_register_join_endpoint_scheme_has_no_join_questions(self):
         scheme = SchemeFactory()
