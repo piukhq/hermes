@@ -1,8 +1,8 @@
 import sys
 from typing import List, Type
 
-from django.contrib.postgres.fields import JSONField
 from django.db import models
+from django.db.models import JSONField
 
 from history.enums import SchemeAccountJourney
 

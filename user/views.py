@@ -14,7 +14,7 @@ from django.core.exceptions import MultipleObjectsReturned, ValidationError
 from django.http import Http404
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
@@ -844,7 +844,7 @@ class MagicLinkAuthView(CreateAPIView):
             logger.debug(message)
             raise MagicLinkValidationError
 
-        return email, bundle_id, token_hash, exp - arrow.utcnow().timestamp
+        return email, bundle_id, token_hash, exp - arrow.utcnow().timestamp()
 
     def create(self, request, *args, **kwargs):
         tmp_token = request.data.get("token")

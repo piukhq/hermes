@@ -41,10 +41,7 @@ SECRET_KEY = "*is3^%seh_2=sgc$8dw+vcd)5cwrecvy%cxiv69^q8hz3q%=fo"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_var("HERMES_DEBUG", True)
 
-CSRF_TRUSTED_ORIGINS = [
-    "127.0.0.1",
-    ".bink.com",
-]
+CSRF_TRUSTED_ORIGINS = []
 
 ALLOWED_HOSTS = ["*"]
 CORS_ALLOW_CREDENTIALS = True
@@ -68,7 +65,7 @@ LOCAL_APPS = (
 
 INSTALLED_APPS = (
     "django_admin_env_notice",
-    "sso.apps.AADAdminConfig",
+    "sso.apps_admin.AADAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -817,3 +814,6 @@ NOTIFICATION_RETRY_TIMER = int(env_var("NOTIFICATION_RETRY_TIMER", 120))
 NOTIFICATION_RUN = env_var("NOTIFICATION_RUN", False)
 # Barclays notification file suffix
 BARCLAYS_SFTP_FILE_SUFFIX = env_var("BARCLAYS_SFTP_FILE_SUFFIX", "_DTUIL05787")
+
+# DJango 3/4 change
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
