@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('periodic_retry', '0001_initial'),
+        ("periodic_retry", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='periodicretry',
-            name='data',
+            model_name="periodicretry",
+            name="data",
             field=models.JSONField(blank=True, default=dict, null=True),
         ),
         migrations.AlterField(
-            model_name='periodicretry',
-            name='results',
+            model_name="periodicretry",
+            name="results",
             field=models.JSONField(blank=True, default=list, null=True),
         ),
     ]

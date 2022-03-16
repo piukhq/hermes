@@ -6,23 +6,23 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('history', '0007_auto_20220201_1726'),
+        ("history", "0007_auto_20220201_1726"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='historicalcustomuser',
-            name='body',
+            model_name="historicalcustomuser",
+            name="body",
             field=models.JSONField(),
         ),
         migrations.AlterField(
-            model_name='historicalpaymentcardaccount',
-            name='body',
+            model_name="historicalpaymentcardaccount",
+            name="body",
             field=models.JSONField(),
         ),
         migrations.AlterField(
-            model_name='historicalschemeaccount',
-            name='body',
+            model_name="historicalschemeaccount",
+            name="body",
             field=models.JSONField(),
         ),
     ]

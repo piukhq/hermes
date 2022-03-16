@@ -6,33 +6,33 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0056_auto_20210929_0339'),
+        ("payment_card", "0056_auto_20210929_0339"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='paymentcard',
-            name='formatted_images',
+            model_name="paymentcard",
+            name="formatted_images",
             field=models.JSONField(blank=True, default=dict),
         ),
         migrations.AlterField(
-            model_name='paymentcardaccount',
-            name='agent_data',
+            model_name="paymentcardaccount",
+            name="agent_data",
             field=models.JSONField(blank=True, default=dict, null=True),
         ),
         migrations.AlterField(
-            model_name='paymentcardaccount',
-            name='consents',
+            model_name="paymentcardaccount",
+            name="consents",
             field=models.JSONField(default=list),
         ),
         migrations.AlterField(
-            model_name='paymentcardaccount',
-            name='formatted_images',
+            model_name="paymentcardaccount",
+            name="formatted_images",
             field=models.JSONField(blank=True, default=dict),
         ),
         migrations.AlterField(
-            model_name='paymentcardaccount',
-            name='pll_links',
+            model_name="paymentcardaccount",
+            name="pll_links",
             field=models.JSONField(default=list),
         ),
     ]

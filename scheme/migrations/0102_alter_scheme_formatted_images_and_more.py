@@ -6,43 +6,43 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0101_auto_20220113_1613'),
+        ("scheme", "0101_auto_20220113_1613"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='scheme',
-            name='formatted_images',
+            model_name="scheme",
+            name="formatted_images",
             field=models.JSONField(blank=True, default=dict),
         ),
         migrations.AlterField(
-            model_name='schemeaccount',
-            name='balances',
+            model_name="schemeaccount",
+            name="balances",
             field=models.JSONField(blank=True, default=dict, null=True),
         ),
         migrations.AlterField(
-            model_name='schemeaccount',
-            name='formatted_images',
+            model_name="schemeaccount",
+            name="formatted_images",
             field=models.JSONField(blank=True, default=dict, null=True),
         ),
         migrations.AlterField(
-            model_name='schemeaccount',
-            name='pll_links',
+            model_name="schemeaccount",
+            name="pll_links",
             field=models.JSONField(blank=True, default=list, null=True),
         ),
         migrations.AlterField(
-            model_name='schemeaccount',
-            name='transactions',
+            model_name="schemeaccount",
+            name="transactions",
             field=models.JSONField(blank=True, default=list, null=True),
         ),
         migrations.AlterField(
-            model_name='schemeaccount',
-            name='vouchers',
+            model_name="schemeaccount",
+            name="vouchers",
             field=models.JSONField(blank=True, default=dict, null=True),
         ),
         migrations.AlterField(
-            model_name='userconsent',
-            name='metadata',
+            model_name="userconsent",
+            name="metadata",
             field=models.JSONField(),
         ),
     ]
