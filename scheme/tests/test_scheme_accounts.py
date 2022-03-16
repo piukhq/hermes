@@ -750,9 +750,9 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         data = {"order": 2, "username": "testbink", "password": "password"}
         resp = self.client.post("/schemes/{}/join".format(scheme.id), **self.auth_headers, data=data)
 
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 200)
         json = resp.json()
-        self.assertEqual(json, {"save_user_information": ["This field is required."]})
+        self.assertEqual(json,{'message': 'Unknown error with join - MARTIN WAS HERE'})
 
     def test_register_join_endpoint_scheme_has_no_join_questions(self):
         scheme = SchemeFactory()
