@@ -44,7 +44,7 @@ DEBUG = env_var("HERMES_DEBUG", True)
 CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1",
     "https://*.bink.com",
-    ]
+]
 
 ALLOWED_HOSTS = ["*"]
 CORS_ALLOW_CREDENTIALS = True
