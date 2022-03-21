@@ -678,7 +678,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         return images.values()
 
     def _get_images(self, instance: "SchemeAccount", scheme: "Scheme", tier: str) -> list:
-        today = arrow.utcnow().datetime.int_timestamp
+        today = arrow.utcnow().datetime.timestamp()
         account_images = instance.formatted_images
         base_images = scheme.formatted_images
         images, tier_images = self._filter_valid_images(account_images, base_images, today)
