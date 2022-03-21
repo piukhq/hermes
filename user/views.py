@@ -844,7 +844,7 @@ class MagicLinkAuthView(CreateAPIView):
             logger.debug(message)
             raise MagicLinkValidationError
 
-        return email, bundle_id, token_hash, exp - arrow.utcnow().timestamp()
+        return email, bundle_id, token_hash, exp - arrow.utcnow().int_timestamp
 
     def create(self, request, *args, **kwargs):
         tmp_token = request.data.get("token")
