@@ -275,7 +275,7 @@ class PaymentCardSerializer:
 
     @staticmethod
     def _get_images(instance: PaymentCardAccount):
-        today = arrow.utcnow().datetime.int_timestamp
+        today = arrow.utcnow().timestamp()
         account_images = {
             image_type: image["payload"]
             for image_type, images in instance.formatted_images.items()
@@ -678,7 +678,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         return images.values()
 
     def _get_images(self, instance: "SchemeAccount", scheme: "Scheme", tier: str) -> list:
-        today = arrow.utcnow().datetime.timestamp()
+        today = arrow.utcnow().timestamp()
         account_images = instance.formatted_images
         base_images = scheme.formatted_images
         images, tier_images = self._filter_valid_images(account_images, base_images, today)
