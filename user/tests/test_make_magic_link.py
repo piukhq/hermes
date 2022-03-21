@@ -173,7 +173,7 @@ class TestMakeMagicLinkViews(GlobalMockAPITestCase):
         print(token_data)
         self.assertEqual(email, token_data["email"])
         self.assertEqual(self.BINK_BUNDLE_ID, token_data["bundle_id"])
-        token_age = arrow.utcnow().timestamp() - token_data["iat"]
+        token_age = arrow.utcnow().int_timestamp - token_data["iat"]
         # Make sure execution time does cause a failed test error on timestamp < 30 secs
         self.assertLess(token_age, 30)
         token_life_mins = int((token_data["exp"] - token_data["iat"]) / 60)
