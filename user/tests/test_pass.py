@@ -47,7 +47,7 @@ class TestResetPassword(GlobalMockAPITestCase):
     def test_reset_token_expiry(self):
         expiry_date = arrow.utcnow()
         expiry_date.shift(hours=-1)
-        payload = {"email": self.user.email, "expiry_date": expiry_date.timestamp}
+        payload = {"email": self.user.email, "expiry_date": expiry_date.timestamp()}
         reset_token = jwt.encode(payload, self.user.client.secret)
         self.user.reset_token = reset_token
         self.user.save()

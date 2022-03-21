@@ -2,11 +2,14 @@ from django.conf import settings
 from django.contrib import admin
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
+from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
+
+admin.AdminSite.enable_nav_sidebar = False
 
 
 class AADAdminSite(admin.AdminSite):
-    @never_cache
+    @method_decorator(never_cache)
     def login(self, request, extra_context=None):
         if settings.SSO_OFF:
             return super(AADAdminSite, self).login(request, extra_context)

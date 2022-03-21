@@ -224,7 +224,7 @@ class PaymentCardConsentSerializer(serializers.Serializer):
         except ParserError:
             raise serializers.ValidationError("timestamp field is not a timestamp.")
 
-        return date.timestamp
+        return date.timestamp()
 
 
 class UbiquityImageSerializer(serializers.Serializer):
@@ -424,7 +424,7 @@ class TransactionSerializer(serializers.Serializer):
         return {
             "id": instance["id"],
             "status": self.status,
-            "timestamp": instance.get("timestamp") or arrow.get(instance["date"]).timestamp,
+            "timestamp": instance.get("timestamp") or arrow.get(instance["date"]).timestamp(),
             "description": instance["description"],
             "amounts": instance.get("amounts") or self.get_amounts(instance),
         }
@@ -434,7 +434,7 @@ class TransactionSerializer(serializers.Serializer):
         return {
             "id": data["id"],
             "status": self.status,
-            "timestamp": arrow.get(data["date"]).timestamp,
+            "timestamp": arrow.get(data["date"]).timestamp(),
             "description": data["description"],
             "amounts": self.get_amounts(data),
         }
