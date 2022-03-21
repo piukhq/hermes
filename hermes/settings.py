@@ -682,7 +682,7 @@ CACHES = {
     },
 }
 
-BALANCE_RENEW_PERIOD = 20 * 60  # 20 minutes
+BALANCE_RENEW_PERIOD = int(env_var("BALANCE_RENEW_PERIOD", 20 * 60))  # 20 minutes
 
 TOKEN_SECRET = "8vA/fjVA83(n05LWh7R4'$3dWmVCU"
 

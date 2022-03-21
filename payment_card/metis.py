@@ -12,7 +12,7 @@ def _generate_card_json(account: "PaymentCardAccount", retry_id: int = -1) -> di
         "card_token": account.token,
         "partner_slug": account.payment_card.slug,
         "id": account.id,
-        "date": arrow.get(account.created).timestamp(),
+        "date": arrow.get(account.created).int_timestamp,
     }
 
     if retry_id > -1:
