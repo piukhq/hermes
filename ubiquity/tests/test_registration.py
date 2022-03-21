@@ -29,7 +29,7 @@ class TestRegistration(GlobalMockAPITestCase):
         }
         token = self.token_generator(**data).get_token()
         auth_headers = {"HTTP_AUTHORIZATION": "bearer {}".format(token)}
-        consent = json.dumps({"consent": {"email": "test@email.bink", "timestamp": arrow.utcnow().timestamp()}})
+        consent = json.dumps({"consent": {"email": "test@email.bink", "timestamp": int(arrow.utcnow().timestamp())}})
 
         resp = self.client.post("/ubiquity/service", data=consent, content_type="application/json", **auth_headers)
         self.assertEqual(resp.status_code, 201)
@@ -46,7 +46,7 @@ class TestRegistration(GlobalMockAPITestCase):
         }
         token = self.token_generator(**data).get_token()
         auth_headers = {"HTTP_AUTHORIZATION": "bearer {}".format(token)}
-        consent = json.dumps({"consent": {"email": "test@email.bink", "timestamp": arrow.utcnow().timestamp()}})
+        consent = json.dumps({"consent": {"email": "test@email.bink", "timestamp": int(arrow.utcnow().timestamp())}})
 
         resp = self.client.post("/ubiquity/service", data=consent, content_type="application/json", **auth_headers)
         self.assertEqual(resp.status_code, 201)
@@ -69,7 +69,7 @@ class TestRegistration(GlobalMockAPITestCase):
         }
         token = self.token_generator(**data).get_token()
         auth_headers = {"HTTP_AUTHORIZATION": "bearer {}".format(token)}
-        consent = json.dumps({"consent": {"email": "test@email.bink", "timestamp": arrow.utcnow().timestamp()}})
+        consent = json.dumps({"consent": {"email": "test@email.bink", "timestamp": int(arrow.utcnow().timestamp())}})
         resp = self.client.post("/ubiquity/service", data=consent, content_type="application/json", **auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertIn("consent", resp.data.keys())
@@ -124,7 +124,7 @@ class TestRegistration(GlobalMockAPITestCase):
         }
         token = self.token_generator(**data).get_token()
         auth_headers = {"HTTP_AUTHORIZATION": "bearer {}".format(token)}
-        consent = json.dumps({"consent": {"timestamp": arrow.utcnow().timestamp()}})
+        consent = json.dumps({"consent": {"timestamp": int(arrow.utcnow().timestamp())}})
 
         wrong_header_resp = self.client.post(
             "/ubiquity/service", data=consent, content_type="application/json", **auth_headers

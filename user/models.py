@@ -248,7 +248,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def generate_reset_token(self):
         expiry_date = self.get_expiry_date()
-        payload = {"email": self.email, "expiry_date": expiry_date.timestamp()}
+        payload = {"email": self.email, "expiry_date": int(expiry_date.timestamp())}
         reset_token = jwt.encode(payload, self.client.secret)
         self.reset_token = reset_token
         self.save()

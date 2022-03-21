@@ -161,7 +161,7 @@ class TestVouchers(GlobalMockAPITestCase):
         self.assertEqual(headline, "Voucher cancelled")
 
     def test_make_voucher(self):
-        now = arrow.utcnow().timestamp()
+        now = int(arrow.utcnow().timestamp())
         voucher_fields = {
             "issue_date": now,
             "redeem_date": now,
@@ -208,7 +208,7 @@ class TestVouchers(GlobalMockAPITestCase):
         )
 
     def test_make_voucher_sans_expiry_and_redeem_dates(self):
-        now = arrow.utcnow().timestamp()
+        now = int(arrow.utcnow().timestamp())
         voucher_fields = {
             "issue_date": now,
             "code": "abc123",
@@ -241,7 +241,7 @@ class TestVouchers(GlobalMockAPITestCase):
                 },
                 "code": "abc123",
                 "date_issued": now,
-                "expiry_date": arrow.get(now).shift(months=vs.expiry_months).timestamp(),
+                "expiry_date": int(arrow.get(now).shift(months=vs.expiry_months).timestamp()),
                 "headline": "£5.00 voucher earned",
                 "body_text": "voucher body",
                 "subtext": "",

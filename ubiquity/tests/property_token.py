@@ -49,13 +49,13 @@ class GenerateJWToken:
     def _format_payload(self, email: str, magic_link: bool, expired: bool) -> dict:
         now = arrow.utcnow()
         user = email or "test@binktest.com"
-        payload = {"bundle_id": self.bundle_id, "iat": now.timestamp()}
+        payload = {"bundle_id": self.bundle_id, "iat": int(now.timestamp())}
         if magic_link:
             payload["email"] = user
             if expired:
-                payload["exp"] = now.shift(minutes=-1).timestamp()
+                payload["exp"] = int(now.shift(minutes=-1).timestamp())
             else:
-                payload["exp"] = now.shift(hours=1).timestamp()
+                payload["exp"] = int(now.shift(hours=1).timestamp())
         else:
             payload["user_id"] = user
             payload["organisation_id"] = self.organisation_id

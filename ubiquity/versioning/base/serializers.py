@@ -224,7 +224,7 @@ class PaymentCardConsentSerializer(serializers.Serializer):
         except ParserError:
             raise serializers.ValidationError("timestamp field is not a timestamp.")
 
-        return date.timestamp()
+        return int(date.timestamp())
 
 
 class UbiquityImageSerializer(serializers.Serializer):
@@ -275,7 +275,7 @@ class PaymentCardSerializer:
 
     @staticmethod
     def _get_images(instance: PaymentCardAccount):
-        today = arrow.utcnow().datetime.timestamp()
+        today = int(arrow.utcnow().datetime.timestamp())
         account_images = {
             image_type: image["payload"]
             for image_type, images in instance.formatted_images.items()
@@ -424,7 +424,7 @@ class TransactionSerializer(serializers.Serializer):
         return {
             "id": instance["id"],
             "status": self.status,
-            "timestamp": instance.get("timestamp") or arrow.get(instance["date"]).timestamp(),
+            "timestamp": instance.get("timestamp") or int(arrow.get(instance["date"]).timestamp()),
             "description": instance["description"],
             "amounts": instance.get("amounts") or self.get_amounts(instance),
         }
@@ -434,7 +434,7 @@ class TransactionSerializer(serializers.Serializer):
         return {
             "id": data["id"],
             "status": self.status,
-            "timestamp": arrow.get(data["date"]).timestamp(),
+            "timestamp": int(arrow.get(data["date"]).timestamp()),
             "description": data["description"],
             "amounts": self.get_amounts(data),
         }
@@ -678,7 +678,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         return images.values()
 
     def _get_images(self, instance: "SchemeAccount", scheme: "Scheme", tier: str) -> list:
-        today = arrow.utcnow().datetime.timestamp()
+        today = int(arrow.utcnow().datetime.timestamp())
         account_images = instance.formatted_images
         base_images = scheme.formatted_images
         images, tier_images = self._filter_valid_images(account_images, base_images, today)
