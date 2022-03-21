@@ -15,7 +15,7 @@ from django.db import models
 from django.db.models import signals
 from django.db.models.fields import CharField
 from django.dispatch import receiver
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from hashids import Hashids
 
 from scheme.models import Scheme
@@ -248,7 +248,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def generate_reset_token(self):
         expiry_date = self.get_expiry_date()
-        payload = {"email": self.email, "expiry_date": expiry_date.timestamp}
+        payload = {"email": self.email, "expiry_date": expiry_date.timestamp()}
         reset_token = jwt.encode(payload, self.client.secret)
         self.reset_token = reset_token
         self.save()

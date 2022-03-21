@@ -14,11 +14,11 @@ import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
 from django.conf import settings
-from django.contrib.postgres.fields import ArrayField, JSONField
+from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
 from django.core.validators import RegexValidator
 from django.db import models
-from django.db.models import F, Q, signals
+from django.db.models import F, JSONField, Q, signals
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
@@ -1032,7 +1032,7 @@ class SchemeAccount(models.Model):
                 vouchers = self.make_vouchers_response(balance["vouchers"])
                 del balance["vouchers"]
 
-            balance.update({"updated_at": arrow.utcnow().timestamp, "scheme_id": self.scheme.id})
+            balance.update({"updated_at": arrow.utcnow().timestamp(), "scheme_id": self.scheme.id})
             balance = UbiquityBalanceHandler(balance).data
             cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
 
@@ -1217,13 +1217,13 @@ class SchemeAccount(models.Model):
         if issue_date is not None:
             voucher.update(
                 {
-                    "date_issued": issue_date.timestamp,
-                    "expiry_date": expiry_date.timestamp,
+                    "date_issued": issue_date.timestamp(),
+                    "expiry_date": expiry_date.timestamp(),
                 }
             )
 
         if redeem_date is not None:
-            voucher["date_redeemed"] = redeem_date.timestamp
+            voucher["date_redeemed"] = redeem_date.timestamp()
 
         if "code" in voucher_fields:
             voucher["code"] = voucher_fields["code"]

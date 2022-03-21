@@ -42,8 +42,8 @@ SECRET_KEY = "*is3^%seh_2=sgc$8dw+vcd)5cwrecvy%cxiv69^q8hz3q%=fo"
 DEBUG = env_var("HERMES_DEBUG", True)
 
 CSRF_TRUSTED_ORIGINS = [
-    "127.0.0.1",
-    ".bink.com",
+    "http://127.0.0.1",
+    "https://*.bink.com",
 ]
 
 ALLOWED_HOSTS = ["*"]
@@ -68,7 +68,7 @@ LOCAL_APPS = (
 
 INSTALLED_APPS = (
     "django_admin_env_notice",
-    "sso.apps.AADAdminConfig",
+    "sso.apps_admin.AADAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -96,6 +96,7 @@ MIDDLEWARE = (
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "dictfilter.django.middleware.DictFilterMiddleware",
@@ -700,7 +701,7 @@ CELERY_TASK_DEFAULT_QUEUE = env_var("CELERY_TASK_DEFAULT_QUEUE", "ubiquity-async
 CELERY_TASK_SERIALIZER = "pickle"
 CELERY_ACCEPT_CONTENT = ["pickle", "json"]
 CELERY_RESULT_SERIALIZER = "pickle"
-CELERY_ENABLE_REMOTE_CONTROL = False
+CELERY_WORKER_ENABLE_REMOTE_CONTROL = False
 
 SPREEDLY_BASE_URL = env_var("SPREEDLY_BASE_URL", "")
 
@@ -817,3 +818,11 @@ NOTIFICATION_RETRY_TIMER = int(env_var("NOTIFICATION_RETRY_TIMER", 120))
 NOTIFICATION_RUN = env_var("NOTIFICATION_RUN", False)
 # Barclays notification file suffix
 BARCLAYS_SFTP_FILE_SUFFIX = env_var("BARCLAYS_SFTP_FILE_SUFFIX", "_DTUIL05787")
+
+# DJango 3/4 change
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+
+# WhiteNoise Static Files Serving
+STATIC_URL = "/admin/static/"
+STATIC_ROOT = "/tmp/static/"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
