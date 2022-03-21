@@ -1032,7 +1032,7 @@ class SchemeAccount(models.Model):
                 vouchers = self.make_vouchers_response(balance["vouchers"])
                 del balance["vouchers"]
 
-            balance.update({"updated_at": int(arrow.utcnow().timestamp()), "scheme_id": self.scheme.id})
+            balance.update({"updated_at": arrow.utcnow().int_timestamp, "scheme_id": self.scheme.id})
             balance = UbiquityBalanceHandler(balance).data
             cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
 
@@ -1217,13 +1217,13 @@ class SchemeAccount(models.Model):
         if issue_date is not None:
             voucher.update(
                 {
-                    "date_issued": int(issue_date.timestamp()),
-                    "expiry_date": int(expiry_date.timestamp()),
+                    "date_issued": issue_date.int_timestamp,
+                    "expiry_date": expiry_date.int_timestamp,
                 }
             )
 
         if redeem_date is not None:
-            voucher["date_redeemed"] = int(redeem_date.timestamp())
+            voucher["date_redeemed"] = redeem_date.int_timestamp
 
         if "code" in voucher_fields:
             voucher["code"] = voucher_fields["code"]
