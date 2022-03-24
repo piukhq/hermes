@@ -281,6 +281,8 @@ class RetrievePaymentCardUserInfo(APIView):
                 response_data[payment_card_token]["card_information"] = {
                     "first_six": active_card.payment_card_account.pan_start,
                     "last_four": active_card.payment_card_account.pan_end,
+                    "expiry_year": active_card.payment_card_account.expiry_year,
+                    "expiry_month": active_card.payment_card_account.expiry_month,
                 }
 
             response_data[payment_card_token]["payment_card_account_id"] = payment_card_entries[
