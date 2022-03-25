@@ -229,7 +229,7 @@ AUTHENTICATION_BACKENDS = [
 NO_AZURE_STORAGE = env_var("NO_AZURE_STORAGE", True)
 
 if not NO_AZURE_STORAGE:
-    DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
+    DEFAULT_FILE_STORAGE = "hermes.storage.CustomAzureStorage"
     AZURE_CONTAINER = env_var("HERMES_BLOB_STORAGE_CONTAINER", "media/hermes")
     AZURE_CONNECTION_STRING = env_var("HERMES_BLOB_STORAGE_DSN", "")
     # For generating image urls with a custom domain
