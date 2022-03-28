@@ -31,5 +31,5 @@ class Migration(migrations.Migration):
             name="bundle_id",
             field=models.CharField(blank=True, max_length=200, null=True),
         ),
-        migrations.RunPython(populate_bundle_id, reverse_bundle_id),
+        # migrations.RunPython(populate_bundle_id, reverse_bundle_id),
     ]
