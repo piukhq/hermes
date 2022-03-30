@@ -694,8 +694,12 @@ INFLUX_DB_CONFIG = {
     "password": env_var("INFLUX_PASSWORD", ""),
 }
 
+# RABBIT
+TIME_OUT = env_var("TIMEOUT", 4)
+RABBIT_DSN = env_var("RABBIT_DSN", "amqp://guest:guest@localhost/")
+
 # Celery
-CELERY_BROKER_URL = env_var("CELERY_BROKER_URL", "pyamqp://guest@localhost//")
+CELERY_BROKER_URL = RABBIT_DSN
 CELERY_TASK_DEFAULT_QUEUE = env_var("CELERY_TASK_DEFAULT_QUEUE", "ubiquity-async-midas")
 CELERY_TASK_SERIALIZER = "pickle"
 CELERY_ACCEPT_CONTENT = ["pickle", "json"]
@@ -794,14 +798,6 @@ PROMETHEUS_PUSH_GATEWAY = env_var("PROMETHEUS_PUSH_GATEWAY", "http://localhost:9
 PROMETHEUS_JOB = "hermes"
 
 ENCRYPTED_VALUES_LENGTH_CONTROL = int(env_var("ENCRYPTED_VALUES_LENGTH_CONTROL", "255"))
-
-# RABBIT
-TIME_OUT = env_var("TIMEOUT", 4)
-RABBIT_PASSWORD = env_var("RABBIT_PASSWORD", "guest")
-RABBIT_USER = env_var("RABBIT_USER", "guest")
-RABBIT_HOST = env_var("RABBIT_HOST", "127.0.0.1")
-RABBIT_PORT = env_var("RABBIT_PORT", 5672)
-RABBIT_DSN = env_var("RABBIT_DSN", f"amqp://{RABBIT_USER}:{RABBIT_PASSWORD}@{RABBIT_HOST}:{RABBIT_PORT}/")
 
 WAREHOUSE_QUEUE_NAME = env_var("WAREHOUSE_QUEUE_NAME", "clickhouse_hermes")
 
