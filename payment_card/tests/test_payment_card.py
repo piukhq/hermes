@@ -1,4 +1,5 @@
 from unittest import mock
+from unittest.mock import patch
 
 from django.conf import settings
 from django.utils import timezone
@@ -133,12 +134,23 @@ class TestPaymentCard(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, {"payment_card": ["Cannot change payment card for payment card account."]})
 
-    def test_put_payment_card_account_status(self):
+    @patch("payment_card.views.to_data_warehouse")
+    def test_put_payment_card_account_status(self, mock_to_warehouse):
         response = self.client.put(
             "/payment_cards/accounts/status",
             data={"status": 1, "id": self.payment_card_account.id},
             **self.auth_service_headers
         )
+
+        self.assertTrue(mock_to_warehouse.called)
+        passed_to_mock = mock_to_warehouse.call_args_list[0][0][0]
+        self.assertEqual(passed_to_mock["event_type"], "payment.account.status.change")
+        self.assertEqual(passed_to_mock["origin"], "scheme.callback")
+        self.assertEqual(passed_to_mock["channel"], self.user.client.clientapplicationbundle_set.first().bundle_id)
+        self.assertEqual(passed_to_mock["internal_user_ref"], self.user.id)
+        self.assertEqual(passed_to_mock["from_status"], 0)
+        self.assertEqual(passed_to_mock["to_status"], 1)
+        self.assertEqual(passed_to_mock["email"], self.user.email)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["id"], self.payment_card_account.id)
