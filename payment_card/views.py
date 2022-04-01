@@ -1,5 +1,6 @@
 import csv
 import json
+from datetime import datetime
 from io import StringIO
 
 from django.conf import settings
@@ -14,6 +15,7 @@ from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from history.data_warehouse import to_data_warehouse
 from history.utils import history_bulk_update
 from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
@@ -429,6 +431,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
     ):
         # Normal enrol path for set status
         retry_task = "retry_enrol"
+        current_status = payment_card_account.status
 
         if new_status_code not in [status_code[0] for status_code in PaymentCardAccount.STATUSES]:
             raise rest_framework_serializers.ValidationError("Invalid status code sent.")
@@ -451,6 +454,26 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             if new_status_code == payment_card_account.ACTIVE:
                 # make any soft links active for payment_card_account
                 PaymentCardSchemeEntry.update_soft_links({"payment_card_account": payment_card_account})
+
+            # Now report state change events for all owners of the payment card
+            wallets = PaymentCardAccountEntry.objects.filter(payment_card_account=payment_card_account)
+            for wallet in wallets:
+                cabs = wallet.user.client.clientapplicationbundle_set.all()
+                for cab in cabs:
+                    payload = {
+                        "event_type": "payment.account.status.change",
+                        "origin": "scheme.callback",
+                        "channel": cab.bundle_id,
+                        "event_date_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
+                        "external_user_id": wallet.user.external_id,
+                        "internal_user_ref": wallet.user.id,
+                        "email": wallet.user.email,
+                        "expiry_date": f"{payment_card_account.expiry_month}/{payment_card_account.expiry_year}",
+                        "token": payment_card_account.token,
+                        "from_status": current_status,
+                        "to_status": new_status_code,
+                    }
+                    to_data_warehouse(payload)
 
         if response_state:
             # Only metis agents which send a response state will be retried
