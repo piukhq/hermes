@@ -1,5 +1,6 @@
 import logging
 import typing as t
+from datetime import datetime
 from enum import Enum
 
 import arrow
@@ -13,6 +14,7 @@ from rest_framework.exceptions import ParseError
 
 import analytics
 from hermes.vop_tasks import activate, deactivate
+from history.data_warehouse import to_data_warehouse
 from history.utils import clean_history_kwargs, history_bulk_create, history_bulk_update, set_history_kwargs
 from payment_card import metis
 from payment_card.models import PaymentCard, PaymentCardAccount
@@ -372,28 +374,31 @@ def _delete_user_payment_cards(user: "CustomUser", run_async: bool = True) -> No
 
     # TODO check if signal picks up queryset.delete()
     PaymentCardSchemeEntry.objects.filter(payment_card_account_id__in=[card.id for card in cards_to_delete]).delete()
-    history_bulk_update(PaymentCardAccount, cards_to_delete, ["is_deleted"])
+
     user_card_entries = user.paymentcardaccountentry_set.all()
+
     for user_card_entry in user_card_entries:
+        pay_card = user_card_entry.payment_card_account
         cabs = user.client.clientapplicationbundle_set.all()
         for cab in cabs:
             payload = {
-                "event_type": "payment.account.status.change",
-                "origin": "scheme.callback",
+                "event_type": "payment.account.removed",
+                "origin": "channel",
                 "channel": cab.bundle_id,
                 "event_date_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
                 "external_user_id": user.external_id,
                 "internal_user_ref": user.id,
                 "email": user.email,
-                "expiry_date": f"{payment_card_account.expiry_month}/{payment_card_account.expiry_year}",
-                "token": payment_card_account.token,
-                "from_status": current_status,
-                "to_status": new_status_code,
+                "payment_account_id": pay_card.id,
+                "fingerprint": pay_card.fingerprint,
+                "expiry_date": f"{pay_card.expiry_month}/{pay_card.expiry_year}",
+                "token": pay_card.token,
+                "status": pay_card.status,
             }
             to_data_warehouse(payload)
 
+        history_bulk_update(PaymentCardAccount, cards_to_delete, ["is_deleted"])
         user_card_entry.delete()
-
 
 
 @shared_task
