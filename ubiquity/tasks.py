@@ -373,7 +373,27 @@ def _delete_user_payment_cards(user: "CustomUser", run_async: bool = True) -> No
     # TODO check if signal picks up queryset.delete()
     PaymentCardSchemeEntry.objects.filter(payment_card_account_id__in=[card.id for card in cards_to_delete]).delete()
     history_bulk_update(PaymentCardAccount, cards_to_delete, ["is_deleted"])
-    user.paymentcardaccountentry_set.all().delete()
+    user_card_entries = user.paymentcardaccountentry_set.all()
+    for user_card_entry in user_card_entries:
+        cabs = user.client.clientapplicationbundle_set.all()
+        for cab in cabs:
+            payload = {
+                "event_type": "payment.account.status.change",
+                "origin": "scheme.callback",
+                "channel": cab.bundle_id,
+                "event_date_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
+                "external_user_id": user.external_id,
+                "internal_user_ref": user.id,
+                "email": user.email,
+                "expiry_date": f"{payment_card_account.expiry_month}/{payment_card_account.expiry_year}",
+                "token": payment_card_account.token,
+                "from_status": current_status,
+                "to_status": new_status_code,
+            }
+            to_data_warehouse(payload)
+
+        user_card_entry.delete()
+
 
 
 @shared_task
