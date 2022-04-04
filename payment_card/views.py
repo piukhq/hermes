@@ -473,7 +473,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                         "from_status": current_status,
                         "to_status": new_status_code,
                     }
-                to_data_warehouse(payload)
+                    to_data_warehouse(payload)
 
         if response_state:
             # Only metis agents which send a response state will be retried
