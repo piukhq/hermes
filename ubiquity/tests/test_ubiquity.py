@@ -1650,7 +1650,7 @@ class TestResources(GlobalMockAPITestCase):
         external_id = "test patch user 1"
         user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
         auth_headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(user))}
-        sa = SchemeAccountFactory(scheme=self.scheme, card_number="12345")
+        sa = SchemeAccountFactory(scheme=self.scheme, card_number="12345", originating_journey=JourneyTypes.ADD)
         SchemeAccountEntryFactory(user=user, scheme_account=sa)
         SchemeCredentialAnswerFactory(question=self.scheme.manual_question, scheme_account=sa, answer="12345")
         SchemeCredentialAnswerFactory(question=self.secondary_question, scheme_account=sa, answer="name")
@@ -1678,7 +1678,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp_register.status_code, 200)
         sa.refresh_from_db()
         self.assertIn(sa.status, SchemeAccount.REGISTER_PENDING)
-        self.assertEqual(sa.originating_journey, JourneyTypes.REGISTER)
+        self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("scheme.mixins.analytics", autospec=True)
