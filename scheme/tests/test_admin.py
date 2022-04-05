@@ -60,6 +60,7 @@ class TestSchemeValidation(TestCase):
                 "point_name": "valid",
                 "max_points_value_length": 2,
                 "status": 0,
+                "balance_renew_period": 1200,
             },
         )
         self.assertTrue(form.is_valid(), msg=repr(form.errors))
