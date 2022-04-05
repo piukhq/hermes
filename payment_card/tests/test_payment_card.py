@@ -1,5 +1,6 @@
 from unittest import mock
 from unittest.mock import patch
+from uuid import UUID
 
 from django.conf import settings
 from django.utils import timezone
@@ -150,7 +151,8 @@ class TestPaymentCard(GlobalMockAPITestCase):
         self.assertEqual(passed_to_mock["internal_user_ref"], self.user.id)
         self.assertEqual(passed_to_mock["from_status"], 0)
         self.assertEqual(passed_to_mock["to_status"], 1)
-        self.assertEqual(passed_to_mock["email"], self.user.email)
+        self.assertEqual(passed_to_mock["payment_account_id"], self.payment_card_account.id)
+        self.assertEqual(UUID(passed_to_mock["fingerprint"]), self.payment_card_account.fingerprint)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["id"], self.payment_card_account.id)
