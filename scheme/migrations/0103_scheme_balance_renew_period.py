@@ -6,13 +6,15 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0102_alter_scheme_formatted_images_and_more'),
+        ("scheme", "0102_alter_scheme_formatted_images_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='scheme',
-            name='balance_renew_period',
-            field=models.IntegerField(default=1200, help_text='Time, in seconds, to allow before calling the merchant to refresh a balance'),
+            model_name="scheme",
+            name="balance_renew_period",
+            field=models.IntegerField(
+                default=1200, help_text="Time, in seconds, to allow before calling the merchant to refresh a balance"
+            ),
         ),
     ]

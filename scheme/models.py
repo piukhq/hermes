@@ -285,8 +285,8 @@ class Scheme(models.Model):
     formatted_images = JSONField(default=dict, blank=True)
     plan_popularity = models.PositiveSmallIntegerField(null=True, default=None, blank=True)
     balance_renew_period = models.IntegerField(
-        default=60*20, help_text="Time, in seconds, to allow before calling the merchant to refresh a balance"
-    )    # 20 minute default
+        default=60 * 20, help_text="Time, in seconds, to allow before calling the merchant to refresh a balance"
+    )  # 20 minute default
 
     @cached_property
     def manual_question(self):
