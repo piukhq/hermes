@@ -468,6 +468,8 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                         "external_user_id": wallet.user.external_id,
                         "internal_user_ref": wallet.user.id,
                         "email": wallet.user.email,
+                        "payment_account_id": payment_card_account.id,
+                        "fingerprint": payment_card_account.fingerprint,
                         "expiry_date": f"{payment_card_account.expiry_month}/{payment_card_account.expiry_year}",
                         "token": payment_card_account.token,
                         "from_status": current_status,
