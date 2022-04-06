@@ -386,7 +386,7 @@ def _delete_user_payment_cards(user: "CustomUser", run_async: bool = True) -> No
                 "origin": "channel",
                 "channel": cab.bundle_id,
                 "event_date_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
-                "external_user_id": user.external_id,
+                "external_user_ref": user.external_id,
                 "internal_user_ref": user.id,
                 "email": user.email,
                 "payment_account_id": pay_card.id,
