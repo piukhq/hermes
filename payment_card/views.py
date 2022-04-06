@@ -465,7 +465,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                         "origin": "scheme.callback",
                         "channel": cab.bundle_id,
                         "event_date_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
-                        "external_user_id": wallet.user.external_id,
+                        "external_user_ref": wallet.user.external_id,
                         "internal_user_ref": wallet.user.id,
                         "email": wallet.user.email,
                         "payment_account_id": payment_card_account.id,
