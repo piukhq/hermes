@@ -98,7 +98,7 @@ class CustomUserDetail(UserAdmin):
         "is_active",
         "is_staff",
     )
-    list_filter = ("is_staff",)
+    list_filter = ("is_staff", "is_tester")
     filter_horizontal = ()
     search_fields = (
         "email",
