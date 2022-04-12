@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from django.conf import settings
 
@@ -16,6 +17,25 @@ def to_data_warehouse(payload: dict) -> None:
     headers = {}
     if payload:
         message_sender.send(payload, headers, settings.WAREHOUSE_QUEUE_NAME)
+
+
+def remove_loyalty_card_event(user: object, scheme_account: object):
+    cabs = user.client.clientapplicationbundle_set.all()
+    for cab in cabs:
+        payload = {
+            "event_type": "lc.removed",
+            "origin": "channel",
+            "channel": cab.bundle_id,
+            "event_date_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "external_user_ref": user.external_id,
+            "internal_user_ref": user.id,
+            "email": user.email,
+            "scheme_account_id": scheme_account.id,
+            "loyalty_plan": scheme_account.scheme_id,
+            "main_answer": scheme_account.main_answer,
+            "status": scheme_account.status,
+        }
+        to_data_warehouse(payload)
 
 
 def pay_account_from_entry(data: dict) -> dict:
