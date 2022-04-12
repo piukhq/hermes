@@ -2250,8 +2250,9 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(mock_async_all_balance.call_args[0][0], self.user.id)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("ubiquity.tasks.remove_loyalty_card_event")
     @patch("ubiquity.tasks.metis", autospec=True)
-    def test_delete_service(self, _):
+    def test_delete_service(self, _, mock_to_warehouse):
         user = UserFactory(external_id="test@delete.user", client=self.client_app, email="test@delete.user")
         ServiceConsentFactory(user=user)
         pcard_delete = PaymentCardAccountFactory()
@@ -2285,6 +2286,9 @@ class TestResources(GlobalMockAPITestCase):
 
         non_deleted_links = SchemeAccountEntry.objects.filter(user_id=user.id).count()
         self.assertEqual(non_deleted_links, 0)
+
+        self.assertTrue(mock_to_warehouse.called)
+        self.assertEqual(mock_to_warehouse.call_count, 2)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("scheme.mixins.analytics", autospec=True)
@@ -2790,8 +2794,9 @@ class TestLastManStanding(GlobalMockAPITestCase):
         self.assertEqual(pcard.scheme_account_set.count(), 1)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("ubiquity.tasks.remove_loyalty_card_event")
     @patch("payment_card.metis.metis_delete_cards_and_activations", autospec=True)
-    def test_single_card_in_multiple_property_deletion(self, _):
+    def test_single_card_in_multiple_property_deletion(self, _, mock_to_warehouse):
         pcard_1 = PaymentCardAccountFactory()
         pcard_2 = PaymentCardAccountFactory()
         mcard = SchemeAccountFactory(scheme=self.scheme)
@@ -2815,6 +2820,8 @@ class TestLastManStanding(GlobalMockAPITestCase):
 
         self.client.delete(reverse("membership-card", args=[mcard.id]), **self.auth_headers_1)
         self.assertEqual(pcard_2.scheme_account_set.count(), 0)
+
+        self.assertEqual(mock_to_warehouse.call_count, 1)
 
     def test_destroy_link_in_multiple_wallet(self):
         pcard_1 = PaymentCardAccountFactory()
