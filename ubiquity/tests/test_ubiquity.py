@@ -1152,7 +1152,8 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.tasks.analytics", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    def test_membership_card_delete(self, *_):
+    @patch("ubiquity.tasks.remove_loyalty_card_event")
+    def test_membership_card_delete(self, mock_to_warehouse, *_):
         payload = {
             "membership_plan": self.scheme.id,
             "account": {
@@ -1184,6 +1185,7 @@ class TestResources(GlobalMockAPITestCase):
             reverse("membership-cards"), data=json.dumps(payload), content_type="application/json", **self.auth_headers
         )
         self.assertEqual(resp2.status_code, 201)
+        self.assertEqual(mock_to_warehouse.call_count, 1)
 
     def test_membership_card_delete_error_on_pending_join_mcard(self):
         scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS, scheme=self.scheme)
@@ -1236,8 +1238,11 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(len(link), 1)
     """
 
+    @patch("ubiquity.tasks.remove_loyalty_card_event")
     @patch("ubiquity.views.deleted_membership_card_cleanup.delay", autospec=True)
-    def test_membership_card_delete_removes_link_for_cards_not_shared_between_users(self, mock_delete):
+    def test_membership_card_delete_removes_link_for_cards_not_shared_between_users(
+        self, mock_delete, mock_to_warehouse
+    ):
         entry = PaymentCardSchemeEntry.objects.create(
             payment_card_account=self.payment_card_account, scheme_account=self.scheme_account
         )
@@ -1253,6 +1258,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 200)
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 0)
+        self.assertEqual(mock_to_warehouse.call_count, 1)
 
     """
     This test hangs up on web2 when tested on server but passes locally
@@ -2750,8 +2756,9 @@ class TestLastManStanding(GlobalMockAPITestCase):
         cls.version_header = {"HTTP_ACCEPT": "Application/json;v=1.1"}
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("ubiquity.tasks.remove_loyalty_card_event")
     @patch("payment_card.metis.metis_delete_cards_and_activations", autospec=True)
-    def test_cards_in_single_property_deletion(self, _):
+    def test_cards_in_single_property_deletion(self, _, mock_to_warehouse):
         pcard_1 = PaymentCardAccountFactory()
         pcard_2 = PaymentCardAccountFactory()
         mcard = SchemeAccountFactory(scheme=self.scheme)
@@ -2772,6 +2779,7 @@ class TestLastManStanding(GlobalMockAPITestCase):
 
         self.client.delete(reverse("membership-card", args=[mcard.id]), **self.auth_headers_1)
         self.assertEqual(pcard_2.scheme_account_set.count(), 0)
+        self.assertEqual(mock_to_warehouse.call_count, 1)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("payment_card.metis.metis_delete_cards_and_activations", autospec=True)
