@@ -2829,7 +2829,7 @@ class TestLastManStanding(GlobalMockAPITestCase):
         self.client.delete(reverse("membership-card", args=[mcard.id]), **self.auth_headers_1)
         self.assertEqual(pcard_2.scheme_account_set.count(), 0)
 
-        self.assertEqual(mock_to_warehouse.call_count, 1)
+        self.assertEqual(mock_to_warehouse.call_count, 2)
 
     def test_destroy_link_in_multiple_wallet(self):
         pcard_1 = PaymentCardAccountFactory()
