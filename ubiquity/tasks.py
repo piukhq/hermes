@@ -300,6 +300,8 @@ def deleted_membership_card_cleanup(
     )
     entries_query = SchemeAccountEntry.objects.filter(scheme_account=scheme_account)
 
+    remove_loyalty_card_event(user, scheme_account)
+
     if entries_query.count() <= 0:
         scheme_account.is_deleted = True
         scheme_account.save(update_fields=["is_deleted"])

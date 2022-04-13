@@ -1,6 +1,6 @@
 from celery import shared_task
 
-from history.data_warehouse import history_event
+from history.data_warehouse import history_event, join_outcome
 from history.models import get_historical_model
 from history.serializers import get_historical_serializer
 
@@ -11,6 +11,15 @@ def record_history(model_name: str, **kwargs) -> None:
     serializer.is_valid(raise_exception=True)
     history_event(model_name, serializer.validated_data)
     serializer.save()
+
+
+@shared_task
+def join_outcome_event(success: bool, scheme_account: object) -> None:
+    from ubiquity.models import SchemeAccountEntry
+
+    wallets = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
+    for wallet in wallets:
+        join_outcome(success, wallet.user, scheme_account)
 
 
 @shared_task
