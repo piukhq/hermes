@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TransactionTestCase
 
 from history import data_warehouse
 from scheme.models import SchemeBundleAssociation
@@ -13,7 +13,9 @@ from user.tests.factories import (
 )
 
 
-class TestEventHandlers(TestCase):
+class TestEventHandlers(TransactionTestCase):
+    reset_sequences = True
+
     @classmethod
     def setUpClass(cls):
         cls.organisation = OrganisationFactory(name="event_test_organisation")
