@@ -151,11 +151,14 @@ class TestVOP(GlobalMockAPITestCase):
     def register_unenrol_request(self):
         httpretty.register_uri(httpretty.DELETE, self.metis_payment_service_url, body=json.dumps({}), status=200)
 
+    @patch("ubiquity.tasks.remove_loyalty_card_event")
     @patch("ubiquity.models.send_deactivation.delay", autospec=True)
     @patch("hermes.vop_tasks.send_activation.delay", autospec=True)
     @patch("ubiquity.views.deleted_membership_card_cleanup.delay", autospec=True)
     @httpretty.activate
-    def test_activate_and_deactivate_on_membership_card_delete(self, mock_delete, mock_activate, mock_deactivate):
+    def test_activate_and_deactivate_on_membership_card_delete(
+        self, mock_delete, mock_activate, mock_deactivate, mock_to_warehouse
+    ):
         """
         :param mock_delete: Only the delay is mocked out allows call deleted_membership_card_cleanup with correct args
         :param mock_activate: Only the delay is mocked out allows call send_activation with correct args
@@ -222,6 +225,7 @@ class TestVOP(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 200)
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 0)
+        self.assertEqual(mock_to_warehouse.call_count, 1)
 
     @patch("hermes.vop_tasks.send_activation.delay", autospec=True)
     @patch("ubiquity.views.deleted_payment_card_cleanup.delay", autospec=True)
