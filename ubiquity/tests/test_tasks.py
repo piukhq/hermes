@@ -203,4 +203,4 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertTrue(answers.first().question.manual_question)
 
         self.assertTrue(mock_to_warehouse.called)
-        self.assertEqual(mock_to_warehouse.call_count, 1)
+        self.assertEqual(mock_to_warehouse.call_count, 2)
