@@ -1,12 +1,10 @@
 from unittest.mock import patch
 
-
 from django.test import TransactionTestCase
 
 from history.data_warehouse import join_outcome, remove_loyalty_card_event
 from scheme.models import SchemeBundleAssociation
 from scheme.tests.factories import SchemeAccountFactory, SchemeBundleAssociationFactory, SchemeFactory
-
 from user.tests.factories import (
     ClientApplicationBundleFactory,
     ClientApplicationFactory,
@@ -25,12 +23,10 @@ class TestEventHandlers(TransactionTestCase):
             organisation=cls.organisation,
             name="event test client application",
             client_id="2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VAbcdef",
-
         )
         cls.bundle = ClientApplicationBundleFactory(bundle_id="test.auth.fake", client=cls.client_app)
 
         cls.user = UserFactory(external_id="test@delete.user", client=cls.client_app, email="test@delete.user")
-        
 
         cls.scheme = SchemeFactory()
 
@@ -55,7 +51,6 @@ class TestEventHandlers(TransactionTestCase):
         self.assertEqual(data["loyalty_plan"], self.mcard.scheme_id)
         self.assertEqual(data["main_answer"], self.mcard.main_answer)
         self.assertEqual(data["status"], self.mcard.status)
-
 
     @classmethod
     def tearDownClass(cls):
