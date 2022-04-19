@@ -1,6 +1,6 @@
 from celery import shared_task
 
-from history.data_warehouse import history_event, join_outcome
+from history.data_warehouse import history_event, join_outcome, register_outcome
 from history.models import get_historical_model
 from history.serializers import get_historical_serializer
 
@@ -20,6 +20,15 @@ def join_outcome_event(success: bool, scheme_account: object) -> None:
     wallets = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
     for wallet in wallets:
         join_outcome(success, wallet.user, scheme_account)
+
+
+@shared_task
+def register_outcome_event(success: bool, scheme_account: object) -> None:
+    from ubiquity.models import SchemeAccountEntry
+
+    wallets = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
+    for wallet in wallets:
+        register_outcome(success, wallet.user, scheme_account)
 
 
 @shared_task
