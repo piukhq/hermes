@@ -23,7 +23,7 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
-from history.tasks import join_outcome_event
+from history.tasks import join_outcome_event, register_outcome_event
 from payment_card.payment import Payment
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme.account_status_summary import scheme_account_status_data
@@ -452,11 +452,17 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             # status event join failed
             if previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS:
                 join_outcome_event.delay(False, scheme_account)
+            if previous_status == SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS:
+                register_outcome_event.delay(False, scheme_account)
+
 
         if new_status_code == SchemeAccount.ACTIVE:
             # status event join success
             if previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS:
                 join_outcome_event.delay(True, scheme_account)
+            if previous_status == SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS:
+                register_outcome_event.delay(True, scheme_account)
+
 
             Payment.process_payment_success(scheme_account)
         elif new_status_code not in pending_statuses:
