@@ -21,6 +21,7 @@ def join_outcome_event(success: bool, scheme_account: object) -> None:
     for wallet in wallets:
         join_outcome(success, wallet.user, scheme_account)
 
+
 @shared_task
 def register_outcome_event(success: bool, scheme_account: object) -> None:
     from ubiquity.models import SchemeAccountEntry

@@ -64,6 +64,7 @@ def join_outcome(success: bool, user: object, scheme_account: object):
         }
         to_data_warehouse(payload)
 
+
 def register_outcome(success: bool, user: object, scheme_account: object):
     extra_data = {}
     if success:

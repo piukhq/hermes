@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 from django.test import TransactionTestCase
 
-from history.data_warehouse import join_outcome, remove_loyalty_card_event, register_outcome
+from history.data_warehouse import join_outcome, register_outcome, remove_loyalty_card_event
 from scheme.models import SchemeBundleAssociation
 from scheme.tests.factories import SchemeAccountFactory, SchemeBundleAssociationFactory, SchemeFactory
 from user.tests.factories import (
@@ -156,6 +156,7 @@ class TestJoinFailEventHandlers(TransactionTestCase):
         cls.client_app.delete()
         cls.organisation.delete()
         super().tearDownClass()
+
 
 class TestRegisterSuccessEventHandlers(TransactionTestCase):
     reset_sequences = True
