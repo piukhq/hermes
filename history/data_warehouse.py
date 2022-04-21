@@ -1,6 +1,6 @@
 import logging
-from datetime import datetime
 
+import arrow
 from django.conf import settings
 
 from api_messaging.message_broker import SendingService
@@ -19,6 +19,42 @@ def to_data_warehouse(payload: dict) -> None:
         message_sender.send(payload, headers, settings.WAREHOUSE_QUEUE_NAME)
 
 
+def add_and_auth_lc_event(user: object, scheme_account: object):
+    cabs = user.client.clientapplicationbundle_set.all()
+    for cab in cabs:
+        payload = {
+            "event_type": "lc.addandauth.request",
+            "origin": "channel",
+            "channel": cab.bundle_id,
+            "event_date_time": arrow.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "external_user_ref": user.external_id,
+            "internal_user_ref": user.id,
+            "email": user.email,
+            "scheme_account_id": scheme_account.id,
+            "loyalty_plan": scheme_account.scheme_id,
+            "main_answer": scheme_account.main_answer,
+        }
+        to_data_warehouse(payload)
+
+
+def register_lc_event(user: object, scheme_account: object):
+    cabs = user.client.clientapplicationbundle_set.all()
+    for cab in cabs:
+        payload = {
+            "event_type": "lc.register.request",
+            "origin": "channel",
+            "channel": cab.bundle_id,
+            "event_date_time": arrow.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "external_user_ref": user.external_id,
+            "internal_user_ref": user.id,
+            "email": user.email,
+            "scheme_account_id": scheme_account.id,
+            "loyalty_plan": scheme_account.scheme_id,
+            "main_answer": scheme_account.main_answer,
+        }
+        to_data_warehouse(payload)
+
+
 def remove_loyalty_card_event(user: object, scheme_account: object):
     cabs = user.client.clientapplicationbundle_set.all()
     for cab in cabs:
@@ -26,7 +62,7 @@ def remove_loyalty_card_event(user: object, scheme_account: object):
             "event_type": "lc.removed",
             "origin": "channel",
             "channel": cab.bundle_id,
-            "event_date_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "event_date_time": arrow.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
             "external_user_ref": user.external_id,
             "internal_user_ref": user.id,
             "email": user.email,
@@ -54,7 +90,7 @@ def join_outcome(success: bool, user: object, scheme_account: object):
             "event_type": event_type,
             "origin": "merchant.callback",
             "channel": cab.bundle_id,
-            "event_date_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "event_date_time": arrow.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
             "external_user_ref": user.external_id,
             "internal_user_ref": user.id,
             "email": user.email,
@@ -81,7 +117,7 @@ def register_outcome(success: bool, user: object, scheme_account: object):
             "event_type": event_type,
             "origin": "merchant.callback",
             "channel": cab.bundle_id,
-            "event_date_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "event_date_time": arrow.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
             "external_user_ref": user.external_id,
             "internal_user_ref": user.id,
             "email": user.email,
@@ -150,7 +186,7 @@ def history_event(model_name: str, data: dict):
             "event_type": event_info[0],
             "origin": origin,
             "channel": channel_slug,
-            "event_date_time": data["event_time"].strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "event_date_time": arrow.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
             **extra_data,
         }
         to_data_warehouse(payload)

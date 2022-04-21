@@ -452,14 +452,14 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             # status event join failed
             if previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS:
                 join_outcome_event.delay(False, scheme_account)
-            if previous_status == SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS:
+            elif previous_status == SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS:
                 register_outcome_event.delay(False, scheme_account)
 
         if new_status_code == SchemeAccount.ACTIVE:
             # status event join success
             if previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS:
                 join_outcome_event.delay(True, scheme_account)
-            if previous_status == SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS:
+            elif previous_status == SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS:
                 register_outcome_event.delay(True, scheme_account)
 
             Payment.process_payment_success(scheme_account)
