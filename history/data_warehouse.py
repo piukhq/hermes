@@ -188,7 +188,7 @@ def history_event(model_name: str, data: dict):
             "event_type": event_info[0],
             "origin": origin,
             "channel": channel_slug,
-            "event_date_time": data["event_time"].strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "event_date_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
             **extra_data,
         }
         to_data_warehouse(payload)
