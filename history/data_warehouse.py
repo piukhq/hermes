@@ -1,6 +1,5 @@
 import logging
-from datetime import datetime
-
+import arrow 
 from django.conf import settings
 
 from api_messaging.message_broker import SendingService
@@ -27,7 +26,7 @@ def add_and_auth_lc_event(user: object, scheme_account: object):
             # could be one of three values channel, django.admin, merchant.callback
             "origin": "channel",
             "channel": cab.bundle_id,
-            "event_date_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "event_date_time": arrow.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
             "external_user_ref": user.external_id,
             "internal_user_ref": user.id,
             "email": user.email,
@@ -46,7 +45,7 @@ def register_lc_event(user: object, scheme_account: object):
             # could be one of three values channel, django.admin, merchant.callback
             "origin": "channel",
             "channel": cab.bundle_id,
-            "event_date_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "event_date_time": arrow.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
             "external_user_ref": user.external_id,
             "internal_user_ref": user.id,
             "email": user.email,
@@ -64,7 +63,7 @@ def remove_loyalty_card_event(user: object, scheme_account: object):
             "event_type": "lc.removed",
             "origin": "channel",
             "channel": cab.bundle_id,
-            "event_date_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "event_date_time": arrow.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
             "external_user_ref": user.external_id,
             "internal_user_ref": user.id,
             "email": user.email,
@@ -92,7 +91,7 @@ def join_outcome(success: bool, user: object, scheme_account: object):
             "event_type": event_type,
             "origin": "merchant.callback",
             "channel": cab.bundle_id,
-            "event_date_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "event_date_time": arrow.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
             "external_user_ref": user.external_id,
             "internal_user_ref": user.id,
             "email": user.email,
@@ -119,7 +118,7 @@ def register_outcome(success: bool, user: object, scheme_account: object):
             "event_type": event_type,
             "origin": "merchant.callback",
             "channel": cab.bundle_id,
-            "event_date_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "event_date_time": arrow.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
             "external_user_ref": user.external_id,
             "internal_user_ref": user.id,
             "email": user.email,
@@ -188,7 +187,7 @@ def history_event(model_name: str, data: dict):
             "event_type": event_info[0],
             "origin": origin,
             "channel": channel_slug,
-            "event_date_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "event_date_time": arrow.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
             **extra_data,
         }
         to_data_warehouse(payload)
