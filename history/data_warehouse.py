@@ -1,5 +1,6 @@
 import logging
-import arrow 
+
+import arrow
 from django.conf import settings
 
 from api_messaging.message_broker import SendingService
