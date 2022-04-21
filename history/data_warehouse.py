@@ -24,7 +24,6 @@ def add_and_auth_lc_event(user: object, scheme_account: object):
     for cab in cabs:
         payload = {
             "event_type": "lc.addandauth.request",
-            # could be one of three values channel, django.admin, merchant.callback
             "origin": "channel",
             "channel": cab.bundle_id,
             "event_date_time": arrow.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
@@ -43,7 +42,6 @@ def register_lc_event(user: object, scheme_account: object):
     for cab in cabs:
         payload = {
             "event_type": "lc.register.request",
-            # could be one of three values channel, django.admin, merchant.callback
             "origin": "channel",
             "channel": cab.bundle_id,
             "event_date_time": arrow.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
