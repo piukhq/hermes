@@ -50,7 +50,7 @@ def route_message(headers: dict, message: dict):
         "post_payment_account": angelia_background.post_payment_account,
         "delete_payment_account": angelia_background.delete_payment_account,
         "loyalty_card_register": angelia_background.loyalty_card_register,
-        "loyalty_card_add_and_auth": angelia_background.loyalty_card_authorise,
+        "loyalty_card_add_and_authorise": angelia_background.loyalty_card_add_and_authorise,
         "loyalty_card_authorise": angelia_background.loyalty_card_authorise,
         "loyalty_card_join": angelia_background.loyalty_card_join,
         "delete_loyalty_card": angelia_background.delete_loyalty_card,

@@ -19,22 +19,31 @@ def to_data_warehouse(payload: dict) -> None:
         message_sender.send(payload, headers, settings.WAREHOUSE_QUEUE_NAME)
 
 
-def add_and_auth_lc_event(user: object, scheme_account: object):
-    cabs = user.client.clientapplicationbundle_set.all()
-    for cab in cabs:
-        payload = {
-            "event_type": "lc.addandauth.request",
-            "origin": "channel",
-            "channel": cab.bundle_id,
-            "event_date_time": arrow.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
-            "external_user_ref": user.external_id,
-            "internal_user_ref": user.id,
-            "email": user.email,
-            "scheme_account_id": scheme_account.id,
-            "loyalty_plan": scheme_account.scheme_id,
-            "main_answer": scheme_account.main_answer,
-        }
-        to_data_warehouse(payload)
+def add_and_auth_lc_event(user_id, scheme_account_id, bundle_id):
+    from user.models import CustomUser
+    from scheme.models import SchemeAccount
+
+
+
+    print("add_and_auth_lc_event called")
+    print(user_id, scheme_account_id, bundle_id)
+
+    user = CustomUser.objects.get(id=user_id)
+    scheme_account = SchemeAccount.objects.get(pk=scheme_account_id)
+
+    payload = {
+        "event_type": "lc.addandauth.request",
+        "origin": "channel",
+        "channel": bundle_id,
+        "event_date_time": arrow.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
+        "external_user_ref": user.external_id,
+        "internal_user_ref": user.id,
+        "email": user.email,
+        "scheme_account_id": scheme_account.id,
+        "loyalty_plan": scheme_account.scheme_id,
+        "main_answer": scheme_account.main_answer,
+    }
+    to_data_warehouse(payload)
 
 
 def register_lc_event(user: object, scheme_account: object):
