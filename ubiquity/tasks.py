@@ -79,10 +79,11 @@ def async_link(
 
         clean_history_kwargs(history_kwargs)
 
+        print(auth_fields)
         # check keys of auth_fields to see if both add and auth are present, if they are:
-        if all(key in auth_fields for key in ("authorise_fields", "add_fields")):
-            # send this event to data warehouse
-            add_and_auth_lc_event(user, scheme_account)
+        # if all(key in auth_fields for key in ("authorise_fields", "add_fields")):
+        #     # send this event to data warehouse
+        #     add_and_auth_lc_event(user, scheme_account)
 
     except serializers.ValidationError as e:
         scheme_account.status = scheme_account.INVALID_CREDENTIALS
@@ -228,7 +229,7 @@ def async_registration(
 
     clean_history_kwargs(history_kwargs)
 
-    # check keys of validated_data to see if ONLY registratopn data supplied.....
+    #~ check keys of validated_data to see if ONLY registratopn data supplied.....
     if "register_fields" in validated_data["consents"]:
         # send event to data warehouse
         register_lc_event(user, scheme_account)
