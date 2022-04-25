@@ -78,8 +78,11 @@ def async_link(
             auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
         clean_history_kwargs(history_kwargs)
-        # send this event to data warehouse
-        add_and_auth_lc_event(user, scheme_account)
+
+        # check keys of auth_fields to see if both add and auth are present, if they are:
+        if all(key in auth_fields for key in ("authorise_fields", "add_fields")):
+            # send this event to data warehouse
+            add_and_auth_lc_event(user, scheme_account)
 
     except serializers.ValidationError as e:
         scheme_account.status = scheme_account.INVALID_CREDENTIALS
@@ -224,8 +227,11 @@ def async_registration(
     )
 
     clean_history_kwargs(history_kwargs)
-    # send event to data warehouse
-    register_lc_event(user, scheme_account)
+
+    # check keys of validated_data to see if ONLY registratopn data supplied.....
+    if "register_fields" in validated_data["consents"]:
+        # send event to data warehouse
+        register_lc_event(user, scheme_account)
 
 
 @shared_task
