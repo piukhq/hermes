@@ -1268,7 +1268,6 @@ class ListMembershipCardView(MembershipCardView):
             if auth_fields:
                 auth_fields = detect_and_handle_escaped_unicode(auth_fields)
 
-
             account, sch_acc_entry, status_code, metrics_route = self._handle_create_link_route(
                 request.user, scheme, auth_fields, add_fields, payment_cards_to_link
             )
@@ -1280,8 +1279,6 @@ class ListMembershipCardView(MembershipCardView):
                 ## trigger task to send to data_warehouse - now I have enough context
                 # update the data_warehouse
                 add_and_auth_lc_event(request.user.id, account.id, account.scheme.slug)
-
-
 
         if scheme.slug in settings.SCHEMES_COLLECTING_METRICS:
             send_merchant_metrics_for_new_account.delay(request.user.id, account.id, account.scheme.slug)

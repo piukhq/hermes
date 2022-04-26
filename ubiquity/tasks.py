@@ -79,7 +79,6 @@ def async_link(
 
         clean_history_kwargs(history_kwargs)
 
-
     except serializers.ValidationError as e:
         scheme_account.status = scheme_account.INVALID_CREDENTIALS
         scheme_account.save()
@@ -224,7 +223,7 @@ def async_registration(
 
     clean_history_kwargs(history_kwargs)
 
-    #~ check keys of validated_data to see if ONLY registratopn data supplied.....
+    # ~ check keys of validated_data to see if ONLY registratopn data supplied.....
     if "register_fields" in validated_data["consents"]:
         # send event to data warehouse
         register_lc_event(user, scheme_account)

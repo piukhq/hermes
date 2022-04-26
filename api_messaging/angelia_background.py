@@ -142,15 +142,17 @@ def loyalty_card_register(message: dict) -> None:
             account=account,
         )
 
+
 def loyalty_card_authorise(message: dict) -> None:
     logger.info("Handling loyalty_card authorisation")
     ac = AngeliaContext(message)
-    
-    # update the data_warehouse will go here... 
+
+    # update the data_warehouse will go here...
     # for auth request only, not add & auth
-    
-    # send to hermes to process the actual data 
+
+    # send to hermes to process the actual data
     _loyalty_card_authorise(ac, message)
+
 
 def loyalty_card_add_and_authorise(message: dict) -> None:
     logger.info("Handling loyalty_card add and authorisation")
@@ -159,8 +161,9 @@ def loyalty_card_add_and_authorise(message: dict) -> None:
     # update the data_warehouse
     add_and_auth_lc_event(ac.user_id, message.get("loyalty_card_id"), ac.channel_slug)
 
-    # send to hermes to process the actual data 
+    # send to hermes to process the actual data
     _loyalty_card_authorise(ac, message)
+
 
 def _loyalty_card_authorise(ac: AngeliaContext, message: dict) -> None:
     with ac:

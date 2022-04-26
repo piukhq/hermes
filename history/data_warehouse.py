@@ -23,8 +23,6 @@ def add_and_auth_lc_event(user_id, scheme_account_id, bundle_id):
     from user.models import CustomUser
     from scheme.models import SchemeAccount
 
-
-
     print("add_and_auth_lc_event called")
     print(user_id, scheme_account_id, bundle_id)
 
