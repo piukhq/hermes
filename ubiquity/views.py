@@ -210,11 +210,8 @@ class PaymentCardCreationMixin:
         elif card.belongs_to_this_user:
             route = PaymentCardRoutes.ALREADY_IN_WALLET
             status_code = status.HTTP_200_OK
-        elif card.expiry_month == data["expiry_month"] and card.expiry_year == data["expiry_year"]:
-            route = PaymentCardRoutes.EXISTS_IN_OTHER_WALLET
         else:
-            route = PaymentCardRoutes.NEW_CARD
-
+            route = PaymentCardRoutes.EXISTS_IN_OTHER_WALLET
         return card, route, status_code
 
     @staticmethod
@@ -224,10 +221,14 @@ class PaymentCardCreationMixin:
             card.save(update_fields=["hash"])
 
     @staticmethod
-    def _link_account_to_new_user(account: PaymentCardAccount, user: CustomUser) -> None:
+    def _link_account_to_new_user(account: PaymentCardAccount, user: CustomUser, data: dict) -> None:
         try:
             with transaction.atomic():
                 PaymentCardAccountEntry.objects.create(user=user, payment_card_account=account)
+                if account.expiry_month != data["expiry_month"] or account.expiry_year != data["expiry_year"]:
+                    account.expiry_month = data["expiry_month"]
+                    account.expiry_year = data["expiry_year"]
+                    account.save(update_fields=["expiry_month", "expiry_year"])
         except IntegrityError:
             pass
 
@@ -458,7 +459,7 @@ class ListPaymentCardView(
 
         if route == PaymentCardRoutes.EXISTS_IN_OTHER_WALLET:
             self._add_hash(pcard_data.get("hash"), pcard)
-            self._link_account_to_new_user(pcard, request.user)
+            self._link_account_to_new_user(pcard, request.user, pcard_data)
             metrics_route = PaymentCardAddRoute.MULTI_WALLET
 
         elif route in [PaymentCardRoutes.NEW_CARD, PaymentCardRoutes.DELETED_CARD]:
