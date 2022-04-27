@@ -93,7 +93,7 @@ class TestRegisterLCEventHandlers(TransactionTestCase):
 
     @patch("history.data_warehouse.to_data_warehouse")
     def test_register_lc_event(self, mock_to_warehouse):
-        register_lc_event(self.user, self.mcard)
+        register_lc_event(self.user, self.mcard, "test.auth.fake")
 
         self.assertTrue(mock_to_warehouse.called)
         data = mock_to_warehouse.call_args.args[0]
@@ -142,7 +142,7 @@ class TestAAALCEventHandlers(TransactionTestCase):
 
     @patch("history.data_warehouse.to_data_warehouse")
     def test_add_and_auth_lc_event(self, mock_to_warehouse):
-        add_and_auth_lc_event(self.user, self.mcard)
+        add_and_auth_lc_event(self.user, self.mcard, "test.auth.fake")
 
         self.assertTrue(mock_to_warehouse.called)
         data = mock_to_warehouse.call_args.args[0]
