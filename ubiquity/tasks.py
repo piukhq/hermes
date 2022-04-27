@@ -14,12 +14,7 @@ from rest_framework.exceptions import ParseError
 
 import analytics
 from hermes.vop_tasks import activate, deactivate
-from history.data_warehouse import (
-    add_and_auth_lc_event,
-    register_lc_event,
-    remove_loyalty_card_event,
-    to_data_warehouse,
-)
+from history.data_warehouse import remove_loyalty_card_event, to_data_warehouse
 from history.utils import clean_history_kwargs, history_bulk_create, history_bulk_update, set_history_kwargs
 from payment_card import metis
 from payment_card.models import PaymentCard, PaymentCardAccount
@@ -222,11 +217,6 @@ def async_registration(
     )
 
     clean_history_kwargs(history_kwargs)
-
-    # ~ check keys of validated_data to see if ONLY registratopn data supplied.....
-    if "register_fields" in validated_data["consents"]:
-        # send event to data warehouse
-        register_lc_event(user, scheme_account)
 
 
 @shared_task

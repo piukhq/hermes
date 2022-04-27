@@ -20,7 +20,7 @@ from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 from hermes.channels import Permit
 from hermes.settings import Version
-from history.data_warehouse import add_and_auth_lc_event
+from history.data_warehouse import add_and_auth_lc_event, register_lc_event
 from history.enums import SchemeAccountJourney
 from history.signals import HISTORY_CONTEXT
 from history.utils import user_info
@@ -639,6 +639,9 @@ class MembershipCardView(
         validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
             data=registration_data, scheme_account=account, user=user, permit=permit, join_scheme=scheme
         )
+
+        # send this event to data_warehouse
+        register_lc_event(user, account, permit.bundle_id)
 
         # Todo: LOY-1953 - may need rework when implementing multi-wallet add_and_register.
         scheme_acc_entry.auth_provided = True
@@ -1276,9 +1279,8 @@ class ListMembershipCardView(MembershipCardView):
             account.set_add_originating_journey()
 
             if auth_fields and add_fields:
-                ## trigger task to send to data_warehouse - now I have enough context
                 # update the data_warehouse
-                add_and_auth_lc_event(request.user.id, account.id, account.scheme.slug)
+                add_and_auth_lc_event(request.user, account, request.channels_permit.bundle_id)
 
         if scheme.slug in settings.SCHEMES_COLLECTING_METRICS:
             send_merchant_metrics_for_new_account.delay(request.user.id, account.id, account.scheme.slug)

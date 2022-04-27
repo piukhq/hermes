@@ -5,7 +5,7 @@ import arrow
 from rest_framework.generics import get_object_or_404
 
 from hermes.channels import Permit
-from history.data_warehouse import add_and_auth_lc_event
+from history.data_warehouse import add_and_auth_lc_event, register_lc_event
 from history.enums import SchemeAccountJourney
 from history.models import get_required_extra_fields
 from history.serializers import get_body_serializer
@@ -112,6 +112,15 @@ def delete_payment_account(message: dict) -> None:
 
 def loyalty_card_register(message: dict) -> None:
     logger.info("Handling loyalty_card REGISTER journey")
+    _loyalty_card_register(message, path="loyalty_card_register")
+
+
+def loyalty_card_add_and_register(message: dict) -> None:
+    logger.info("Handling loyalty_card ADD and REGISTER journey")
+    _loyalty_card_register(message, path="loyalty_card_add_and_register")
+
+
+def _loyalty_card_register(message: dict, path: str) -> None:
     with AngeliaContext(message, SchemeAccountJourney.REGISTER.value) as ac:
         all_credentials_and_consents = {}
         all_credentials_and_consents.update(credentials_to_key_pairs(message.get("register_fields")))
@@ -125,6 +134,9 @@ def loyalty_card_register(message: dict) -> None:
         sch_acc_entry = account.schemeaccountentry_set.get(user=user)
         scheme = account.scheme
         questions = scheme.questions.all()
+
+        if path == "loyalty_card_register":
+            register_lc_event(user, account, ac.channel_slug)
 
         if message.get("auto_link"):
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=user.id).values_list(
@@ -145,28 +157,16 @@ def loyalty_card_register(message: dict) -> None:
 
 def loyalty_card_authorise(message: dict) -> None:
     logger.info("Handling loyalty_card authorisation")
-    ac = AngeliaContext(message)
-
-    # update the data_warehouse will go here...
-    # for auth request only, not add & auth
-
-    # send to hermes to process the actual data
-    _loyalty_card_authorise(ac, message)
+    _loyalty_card_authorise(message, path="loyalty_card_authorise")
 
 
 def loyalty_card_add_and_authorise(message: dict) -> None:
     logger.info("Handling loyalty_card add and authorisation")
-    ac = AngeliaContext(message)
-
-    # update the data_warehouse
-    add_and_auth_lc_event(ac.user_id, message.get("loyalty_card_id"), ac.channel_slug)
-
-    # send to hermes to process the actual data
-    _loyalty_card_authorise(ac, message)
+    _loyalty_card_authorise(message, path="loyalty_card_add_and_authorise")
 
 
-def _loyalty_card_authorise(ac: AngeliaContext, message: dict) -> None:
-    with ac:
+def _loyalty_card_authorise(message: dict, path: str) -> None:
+    with AngeliaContext(message) as ac:
         if message.get("auto_link"):
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=ac.user_id).values_list(
                 "payment_card_account_id", flat=True
@@ -183,6 +183,11 @@ def _loyalty_card_authorise(ac: AngeliaContext, message: dict) -> None:
         account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
 
         set_auth_provided(account, ac.user_id, True)
+
+        user = CustomUser.objects.get(pk=ac.user_id)
+
+        if path == "loyalty_card_add_and_authorise":
+            add_and_auth_lc_event(user, account, ac.channel_slug)
 
         if message.get("primary_auth"):
             # primary_auth is used to indicate that this user has demonstrated the authority to authorise and
