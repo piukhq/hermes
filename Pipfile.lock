@@ -853,14 +853,7 @@
         },
         "rusty-jeff": {
             "hashes": [
-                "sha256:046ca7cedde3d4b050de56347d67fa28e870e7eb9372c3f69f3ec54f5932db96",
-                "sha256:3e5486134de314b5ce663cbdebb03de05a337332da930b2aa64c1896b01f6208",
-                "sha256:4f68b0a04a82dc6bc9cdcc5c8443f85824daa26297dfe56519bc8801ae004e03",
-                "sha256:773312c0c01476ac94b8b69644d1bf4cc5fc516cbeb3c63e5f2207ad242c9201",
-                "sha256:979724d1dd3c7457675ceedce9d4e1740a574c56b58831bd6dbb38cc27731865",
-                "sha256:a045fe34ad19b4ac56d3f93657a3f98fe5d0336934dde30e265aefa933c7d814",
-                "sha256:c07d9af59ffb3f452e8a391203f02ac2dd3fd257364a31d47814ed358d151224",
-                "sha256:eb838f1f62a153e224a1fbdd654723fe3476e78c5705af0df61c8e33c187c914"
+                "sha256:4f68b0a04a82dc6bc9cdcc5c8443f85824daa26297dfe56519bc8801ae004e03"
             ],
             "index": "bink-pypi",
             "version": "==0.1.4"
@@ -1529,7 +1522,7 @@
                 "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc",
                 "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"
             ],
-            "markers": "python_version >= '3.7'",
+            "markers": "python_version < '3.11'",
             "version": "==2.0.1"
         },
         "typing-extensions": {
