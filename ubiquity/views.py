@@ -20,6 +20,7 @@ from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 from hermes.channels import Permit
 from hermes.settings import Version
+from history.data_warehouse import add_and_auth_lc_event, register_lc_event
 from history.enums import SchemeAccountJourney
 from history.signals import HISTORY_CONTEXT
 from history.utils import user_info
@@ -209,11 +210,8 @@ class PaymentCardCreationMixin:
         elif card.belongs_to_this_user:
             route = PaymentCardRoutes.ALREADY_IN_WALLET
             status_code = status.HTTP_200_OK
-        elif card.expiry_month == data["expiry_month"] and card.expiry_year == data["expiry_year"]:
-            route = PaymentCardRoutes.EXISTS_IN_OTHER_WALLET
         else:
-            route = PaymentCardRoutes.NEW_CARD
-
+            route = PaymentCardRoutes.EXISTS_IN_OTHER_WALLET
         return card, route, status_code
 
     @staticmethod
@@ -223,10 +221,14 @@ class PaymentCardCreationMixin:
             card.save(update_fields=["hash"])
 
     @staticmethod
-    def _link_account_to_new_user(account: PaymentCardAccount, user: CustomUser) -> None:
+    def _link_account_to_new_user(account: PaymentCardAccount, user: CustomUser, data: dict) -> None:
         try:
             with transaction.atomic():
                 PaymentCardAccountEntry.objects.create(user=user, payment_card_account=account)
+                if account.expiry_month != data["expiry_month"] or account.expiry_year != data["expiry_year"]:
+                    account.expiry_month = data["expiry_month"]
+                    account.expiry_year = data["expiry_year"]
+                    account.save(update_fields=["expiry_month", "expiry_year"])
         except IntegrityError:
             pass
 
@@ -457,7 +459,7 @@ class ListPaymentCardView(
 
         if route == PaymentCardRoutes.EXISTS_IN_OTHER_WALLET:
             self._add_hash(pcard_data.get("hash"), pcard)
-            self._link_account_to_new_user(pcard, request.user)
+            self._link_account_to_new_user(pcard, request.user, pcard_data)
             metrics_route = PaymentCardAddRoute.MULTI_WALLET
 
         elif route in [PaymentCardRoutes.NEW_CARD, PaymentCardRoutes.DELETED_CARD]:
@@ -638,6 +640,9 @@ class MembershipCardView(
         validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
             data=registration_data, scheme_account=account, user=user, permit=permit, join_scheme=scheme
         )
+
+        # send this event to data_warehouse
+        register_lc_event(user, account, permit.bundle_id)
 
         # Todo: LOY-1953 - may need rework when implementing multi-wallet add_and_register.
         scheme_acc_entry.auth_provided = True
@@ -1273,6 +1278,10 @@ class ListMembershipCardView(MembershipCardView):
 
             # Update originating journey type
             account.set_add_originating_journey()
+
+            if auth_fields and add_fields:
+                # update the data_warehouse
+                add_and_auth_lc_event(request.user, account, request.channels_permit.bundle_id)
 
         if scheme.slug in settings.SCHEMES_COLLECTING_METRICS:
             send_merchant_metrics_for_new_account.delay(request.user.id, account.id, account.scheme.slug)
