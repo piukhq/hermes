@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HERMES_DATABASE_URL: postgres://postgres@postgres:5432/postgres
-      RABBIT_DSN: amqp://guest:guest@rabbitmq:5672/    
+      RABBIT_DSN: amqp://guest:guest@rabbitmq:5672/
     services:
       postgres:
         image: postgres:latest

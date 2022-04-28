@@ -140,7 +140,9 @@ class TestResources(GlobalMockAPITestCase):
         )
         cls.bundle = ClientApplicationBundleFactory(bundle_id="test.auth.fake", client=cls.client_app)
         external_id = "test@user.com"
+        external_id2 = "test2@user.com"
         cls.user = UserFactory(external_id=external_id, client=cls.client_app, email=external_id)
+        cls.user2 = UserFactory(external_id=external_id2, client=cls.client_app, email=external_id2)
         cls.scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=cls.scheme)
 
@@ -176,6 +178,7 @@ class TestResources(GlobalMockAPITestCase):
         cls.pcard_hash2 = "5ae741975b4db7bc80072fe8f88f233ef4a67e1e1d7e3bbf68a314dfc6691636"
 
         cls.auth_headers = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user))}
+        cls.auth_headers_user2 = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user2))}
         cls.version_header = {"HTTP_ACCEPT": "Application/json;v=1.1"}
         cls.version_header_v1_2 = {"HTTP_ACCEPT": "Application/json;v=1.2"}
         cls.version_header_v1_3 = {"HTTP_ACCEPT": "Application/json;v=1.3"}
@@ -426,6 +429,7 @@ class TestResources(GlobalMockAPITestCase):
             },
             "account": {"consents": [{"timestamp": 1517549941, "type": 0}]},
         }
+
         resp = self.client.post(
             reverse("payment-cards"),
             data=json.dumps(payload),
@@ -434,6 +438,95 @@ class TestResources(GlobalMockAPITestCase):
             **self.version_header,
         )
         self.assertEqual(resp.status_code, 201)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("analytics.api")
+    @patch("payment_card.metis.enrol_new_payment_card")
+    def test_payment_card_creation_other_wallet_same_fingerprint(self, *_):
+        payload = {
+            "card": {
+                "last_four_digits": 5234,
+                "currency_code": "GBP",
+                "first_six_digits": 423456,
+                "name_on_card": "test user 2",
+                "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
+                "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
+                "year": 22,
+                "month": 3,
+                "order": 1,
+            },
+            "account": {"consents": [{"timestamp": 1517549941, "type": 0}]},
+        }
+
+        resp = self.client.post(
+            reverse("payment-cards"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self.auth_headers,
+            **self.version_header,
+        )
+        self.assertEqual(resp.status_code, 201)
+
+        resp2 = self.client.post(
+            reverse("payment-cards"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self.auth_headers_user2,
+            **self.version_header,
+        )
+        self.assertEqual(resp2.status_code, 201)
+        card = PaymentCardAccount.all_objects.get(fingerprint=payload["card"]["fingerprint"])
+        self.assertEqual(card.expiry_year, payload["card"]["year"])
+        self.assertEqual(card.expiry_month, payload["card"]["month"])
+        self.assertEqual(card.is_deleted, False)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("analytics.api")
+    @patch("payment_card.metis.enrol_new_payment_card")
+    def test_payment_card_creation_other_wallet_date_changed(self, *_):
+        payload = {
+            "card": {
+                "last_four_digits": 5234,
+                "currency_code": "GBP",
+                "first_six_digits": 423456,
+                "name_on_card": "test user 2",
+                "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
+                "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
+                "year": 22,
+                "month": 3,
+                "order": 1,
+            },
+            "account": {"consents": [{"timestamp": 1517549941, "type": 0}]},
+        }
+
+        resp = self.client.post(
+            reverse("payment-cards"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self.auth_headers,
+            **self.version_header,
+        )
+        self.assertEqual(resp.status_code, 201)
+        card = PaymentCardAccount.all_objects.get(fingerprint=payload["card"]["fingerprint"])
+        self.assertEqual(card.expiry_year, payload["card"]["year"])
+        self.assertEqual(card.expiry_month, payload["card"]["month"])
+        self.assertEqual(card.is_deleted, False)
+
+        payload["card"]["year"] = 24
+        payload["card"]["month"] = 6
+
+        resp2 = self.client.post(
+            reverse("payment-cards"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self.auth_headers_user2,
+            **self.version_header,
+        )
+        self.assertEqual(resp2.status_code, 201)
+        card = PaymentCardAccount.all_objects.get(fingerprint=payload["card"]["fingerprint"])
+        self.assertEqual(card.expiry_year, payload["card"]["year"])
+        self.assertEqual(card.expiry_month, payload["card"]["month"])
+        self.assertEqual(card.is_deleted, False)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("analytics.api")
