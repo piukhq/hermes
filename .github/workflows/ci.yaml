@@ -13,8 +13,8 @@ jobs:
     name: tests
     runs-on: ubuntu-latest
     env:
-      HERMES_DATABASE_URL: postgres://postgres@127.0.0.1:5432/postgres
-      RABBIT_DSN: amqp://guest:guest@127.0.0.1:5672/
+      HERMES_DATABASE_URL: postgres://postgres@postgres:5432/postgres
+      RABBIT_DSN: amqp://guest:guest@rabbitmq:5672/    
     services:
       postgres:
         image: postgres:latest
@@ -26,12 +26,9 @@ jobs:
         image: rabbitmq:latest
         ports:
           - 5672:5672
+    container: ghcr.io/binkhq/python:3.9-pipenv
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: "3.9"
-      - run: pip install pipenv
       - run: pipenv install --dev --system --deploy --ignore-pipfile
       - run: coverage run --source='.' manage.py test -v 2
       - run: coverage report
