@@ -14,12 +14,7 @@ from rest_framework.exceptions import ParseError
 
 import analytics
 from hermes.vop_tasks import activate, deactivate
-from history.data_warehouse import (
-    add_and_auth_lc_event,
-    register_lc_event,
-    remove_loyalty_card_event,
-    to_data_warehouse,
-)
+from history.data_warehouse import remove_loyalty_card_event, to_data_warehouse
 from history.utils import clean_history_kwargs, history_bulk_create, history_bulk_update, set_history_kwargs
 from payment_card import metis
 from payment_card.models import PaymentCard, PaymentCardAccount
@@ -78,8 +73,6 @@ def async_link(
             auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
         clean_history_kwargs(history_kwargs)
-        # send this event to data warehouse
-        add_and_auth_lc_event(user, scheme_account)
 
     except serializers.ValidationError as e:
         scheme_account.status = scheme_account.INVALID_CREDENTIALS
@@ -224,8 +217,6 @@ def async_registration(
     )
 
     clean_history_kwargs(history_kwargs)
-    # send event to data warehouse
-    register_lc_event(user, scheme_account)
 
 
 @shared_task
