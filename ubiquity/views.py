@@ -981,6 +981,13 @@ class MembershipCardView(
                 ),
                 "journey": history_journey,
             }
+
+            # this is add & auth *only*
+            # add *only* is done elsewhere
+            # auth *only* is done elsewhere, so...
+            # send to to event data warehouse
+            add_and_auth_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
+
             if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS:
                 metrics_route = MembershipCardAddRoute.LINK
             else:
@@ -1269,6 +1276,7 @@ class ListMembershipCardView(MembershipCardView):
                 request.user, request.channels_permit, scheme, enrol_fields, payment_cards_to_link
             )
         else:
+
             if auth_fields:
                 auth_fields = detect_and_handle_escaped_unicode(auth_fields)
 
@@ -1278,10 +1286,6 @@ class ListMembershipCardView(MembershipCardView):
 
             # Update originating journey type
             account.set_add_originating_journey()
-
-            if auth_fields and add_fields:
-                # update the data_warehouse
-                add_and_auth_lc_event(request.user, account, request.channels_permit.bundle_id)
 
         if scheme.slug in settings.SCHEMES_COLLECTING_METRICS:
             send_merchant_metrics_for_new_account.delay(request.user.id, account.id, account.scheme.slug)
