@@ -990,9 +990,8 @@ class MembershipCardView(
             sch_acc_entry = SchemeAccountEntry.create_link(user, scheme_account, auth_provided=True)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
 
-            # send add_and_auth event to data_warehouse NOPE
-            
-            add_and_auth_lc_event(user, scheme_account, self.request.channels_permit.channels_permit.bundle_id)
+            # send add_and_auth event to data_warehouse (not working)
+            add_and_auth_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
 
         elif not auth_fields:
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
@@ -1261,20 +1260,6 @@ class ListMembershipCardView(MembershipCardView):
         self.current_scheme = scheme
         self.scheme_questions = scheme.questions.all()
 
-        ## check if this was previously added, in which case this is AUTH only
-        ## too soon - account needed to exist at this point ?
-        ## would be nice to see if this MemberShip PLAN id is in this users wallet as a mambership card?
-        ## 
-        # AUTH_ONLY = False
-        # link_exists = scheme_account.schemeaccountentry_set.filter(
-        #         user=user, scheme_account=scheme_account, auth_provided=False
-        #     ).exists()
-
-        # if link_exists:
-        #     AUTH_ONLY = True
-
-
-
         if auto_link(request):
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=request.user.id).values_list(
                 "payment_card_account_id", flat=True
@@ -1289,7 +1274,6 @@ class ListMembershipCardView(MembershipCardView):
                 request.user, request.channels_permit, scheme, enrol_fields, payment_cards_to_link
             )
         else:
-
             if auth_fields:
                 auth_fields = detect_and_handle_escaped_unicode(auth_fields)
 
@@ -1299,10 +1283,6 @@ class ListMembershipCardView(MembershipCardView):
 
             # Update originating journey type
             account.set_add_originating_journey()
-
-            # send to to event data warehouse
-            # if add_fields and auth_fields:
-            #     add_and_auth_lc_event(request.user, account, request.channels_permit.bundle_id)
 
         if scheme.slug in settings.SCHEMES_COLLECTING_METRICS:
             send_merchant_metrics_for_new_account.delay(request.user.id, account.id, account.scheme.slug)
