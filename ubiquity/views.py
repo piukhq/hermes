@@ -982,12 +982,6 @@ class MembershipCardView(
                 "journey": history_journey,
             }
 
-            # this is add & auth *only*
-            # add *only* is done elsewhere
-            # auth *only* is done elsewhere, so...
-            # send to to event data warehouse
-            add_and_auth_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
-
             if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS:
                 metrics_route = MembershipCardAddRoute.LINK
             else:
@@ -995,6 +989,10 @@ class MembershipCardView(
 
             sch_acc_entry = SchemeAccountEntry.create_link(user, scheme_account, auth_provided=True)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
+
+            # send add_and_auth event to data_warehouse (not working)
+            add_and_auth_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
+
         elif not auth_fields:
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
             sch_acc_entry = self._handle_add_fields_only_link(user, scheme_account, account_created)
@@ -1276,7 +1274,6 @@ class ListMembershipCardView(MembershipCardView):
                 request.user, request.channels_permit, scheme, enrol_fields, payment_cards_to_link
             )
         else:
-
             if auth_fields:
                 auth_fields = detect_and_handle_escaped_unicode(auth_fields)
 
