@@ -42,7 +42,7 @@ from scheme.credentials import (
     POSTCODE,
 )
 from scheme.encryption import AESCipher
-from scheme.vouchers import VoucherStateStr, VoucherType
+from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import AESKeyNames
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.reason_codes import REASON_CODES
@@ -1164,14 +1164,10 @@ class SchemeAccount(models.Model):
         return [self.make_single_voucher(voucher_fields) for voucher_fields in vouchers]
 
     def make_single_voucher(self, voucher_fields):
-        voucher_type = vouchers.VoucherType(voucher_fields["type"])
 
         # this can fail with a VoucherScheme.DoesNotExist if the configuration is incorrect
         # i let this exception go as this is something we would want to know about & fix in the database.
-        voucher_scheme = VoucherScheme.objects.get(
-            scheme=self.scheme,
-            earn_type=VoucherScheme.earn_type_from_voucher_type(voucher_type),
-        )
+        voucher_scheme = VoucherScheme.objects.get(scheme=self.scheme)
 
         earn_target_value: float = voucher_scheme.get_earn_target_value(voucher_fields=voucher_fields)
         earn_value: [float, int] = voucher_scheme.get_earn_value(
@@ -1196,7 +1192,7 @@ class SchemeAccount(models.Model):
         voucher = {
             "state": voucher_fields["state"],
             "earn": {
-                "type": vouchers.voucher_type_names[voucher_type],
+                "type": voucher_scheme.earn_type,
                 "prefix": voucher_scheme.earn_prefix,
                 "suffix": voucher_scheme.earn_suffix,
                 "currency": voucher_scheme.earn_currency,
@@ -1669,14 +1665,6 @@ class VoucherScheme(models.Model):
             VoucherStateStr.REDEEMED: self.body_text_redeemed,
             VoucherStateStr.CANCELLED: self.body_text_cancelled,
         }[state]
-
-    @staticmethod
-    def earn_type_from_voucher_type(voucher_type: VoucherType):
-        return {
-            VoucherType.JOIN: VoucherScheme.EARNTYPE_JOIN,
-            VoucherType.ACCUMULATOR: VoucherScheme.EARNTYPE_ACCUMULATOR,
-            VoucherType.STAMPS: VoucherScheme.EARNTYPE_STAMPS,
-        }[voucher_type]
 
     def get_earn_target_value(self, voucher_fields: Dict) -> float:
         """
