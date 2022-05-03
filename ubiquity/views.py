@@ -981,6 +981,7 @@ class MembershipCardView(
                 ),
                 "journey": history_journey,
             }
+
             if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS:
                 metrics_route = MembershipCardAddRoute.LINK
             else:
@@ -988,6 +989,10 @@ class MembershipCardView(
 
             sch_acc_entry = SchemeAccountEntry.create_link(user, scheme_account, auth_provided=True)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
+
+            # send add_and_auth event to data_warehouse (not working)
+            add_and_auth_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
+
         elif not auth_fields:
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
             sch_acc_entry = self._handle_add_fields_only_link(user, scheme_account, account_created)
@@ -1278,10 +1283,6 @@ class ListMembershipCardView(MembershipCardView):
 
             # Update originating journey type
             account.set_add_originating_journey()
-
-            if auth_fields and add_fields:
-                # update the data_warehouse
-                add_and_auth_lc_event(request.user, account, request.channels_permit.bundle_id)
 
         if scheme.slug in settings.SCHEMES_COLLECTING_METRICS:
             send_merchant_metrics_for_new_account.delay(request.user.id, account.id, account.scheme.slug)
