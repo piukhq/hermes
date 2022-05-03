@@ -17,7 +17,7 @@ class TestVouchers(GlobalMockAPITestCase):
         cls.scheme_accumulator = Scheme.objects.create(
             tier=Scheme.ENGAGE, category=category, slug=TEST_SLUG_ACCUMULATOR
         )
-        cls.scheme_join - Scheme.objects.create(tier=Scheme.ENGAGE, category=category, slug=TEST_SLUG_JOIN)
+        cls.scheme_join = Scheme.objects.create(tier=Scheme.ENGAGE, category=category, slug=TEST_SLUG_JOIN)
         VoucherScheme.objects.create(
             scheme=cls.scheme_accumulator,
             barcode_type=1,
