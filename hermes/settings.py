@@ -343,6 +343,8 @@ LOGGING = {
 
 HERMES_SENTRY_DSN = env_var("HERMES_SENTRY_DSN", None)
 HERMES_SENTRY_ENV = env_var("HERMES_SENTRY_ENV", None)
+HERMES_SENTRY_MIDDLEWARE_SPANS = env_var("HERMES_SENTRY_MIDDLEWARE_SPANS", False)
+HERMES_SENTRY_SEND_PII = env_var("HERMES_SENTRY_SEND_PII", False)
 SENTRY_SAMPLE_RATE = float(env_var("SENTRY_SAMPLE_RATE", "0.0"))
 if HERMES_SENTRY_DSN:
     sentry_sdk.init(
@@ -350,12 +352,12 @@ if HERMES_SENTRY_DSN:
         environment=HERMES_SENTRY_ENV,
         release=__version__,
         integrations=[
-            DjangoIntegration(transaction_style="url", middleware_spans=False),
+            DjangoIntegration(transaction_style="url", middleware_spans=HERMES_SENTRY_MIDDLEWARE_SPANS),
             RedisIntegration(),
             CeleryIntegration(),
         ],
         traces_sample_rate=SENTRY_SAMPLE_RATE,
-        send_default_pii=False,
+        send_default_pii=HERMES_SENTRY_SEND_PII,
         before_send=strip_sensitive_data,
     )
     # Monkey patching sentry integrations to allow scrubbing of sensitive data in performance traces
