@@ -6,8 +6,8 @@ from ubiquity.models import PaymentCardSchemeEntry
 
 
 @receiver(post_save, sender=PaymentCardAccount)
-def update_pll_active_link(sender, instance, created, **kwargs):
+def update_pll_active_link(sender, instance, created, update_fields=None, **kwargs):
     # Checks if status has changed and then update active_link in the PaymentCardSchemeEntry model
     # Should only be active when both cards are active and authorised (PaymentCardAccount, SchemeAccount)
-    if not created:
+    if not created and update_fields and "status" in update_fields:
         PaymentCardSchemeEntry.update_active_link_status({"payment_card_account": instance})
