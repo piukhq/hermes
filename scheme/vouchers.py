@@ -4,14 +4,6 @@ import arrow
 from django.template import Context, Template
 
 
-# must match the enum in Midas - good candidate for moving into a shared library
-@enum.unique
-class VoucherType(enum.Enum):
-    JOIN = 0
-    ACCUMULATOR = 1
-    STAMPS = 2
-
-
 @enum.unique
 class VoucherState(enum.Enum):
     ISSUED = 0
@@ -27,9 +19,6 @@ class VoucherStateStr(str, enum.Enum):
     EXPIRED = "expired"
     REDEEMED = "redeemed"
     CANCELLED = "cancelled"
-
-
-voucher_type_names = {VoucherType.JOIN: "join", VoucherType.ACCUMULATOR: "accumulator", VoucherType.STAMPS: "stamps"}
 
 
 def apply_template(template_string, *, voucher_scheme, earn_value, earn_target_value):
