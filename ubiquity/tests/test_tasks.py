@@ -170,8 +170,9 @@ class TestTasks(GlobalMockAPITestCase):
         self.link_entry.scheme_account.refresh_from_db()
         self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.REGISTRATION_FAILED)
 
+    @patch("ubiquity.tasks.remove_loyalty_card_event")
     @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
-    def test_deleted_membership_card_cleanup_wallet_only(self, mock_metrics):
+    def test_deleted_membership_card_cleanup_wallet_only(self, mock_metrics, mock_to_warehouse):
         """
         Tests that auth credentials are deleted when only wallet only cards are left linked to
         a scheme account and that the status is set to WALLET_ONLY
@@ -200,3 +201,6 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertEqual(scheme_account.WALLET_ONLY, scheme_account.status)
         self.assertEqual(1, answers.count())
         self.assertTrue(answers.first().question.manual_question)
+
+        self.assertTrue(mock_to_warehouse.called)
+        self.assertEqual(mock_to_warehouse.call_count, 2)

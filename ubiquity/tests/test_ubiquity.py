@@ -140,7 +140,9 @@ class TestResources(GlobalMockAPITestCase):
         )
         cls.bundle = ClientApplicationBundleFactory(bundle_id="test.auth.fake", client=cls.client_app)
         external_id = "test@user.com"
+        external_id2 = "test2@user.com"
         cls.user = UserFactory(external_id=external_id, client=cls.client_app, email=external_id)
+        cls.user2 = UserFactory(external_id=external_id2, client=cls.client_app, email=external_id2)
         cls.scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=cls.scheme)
 
@@ -176,6 +178,7 @@ class TestResources(GlobalMockAPITestCase):
         cls.pcard_hash2 = "5ae741975b4db7bc80072fe8f88f233ef4a67e1e1d7e3bbf68a314dfc6691636"
 
         cls.auth_headers = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user))}
+        cls.auth_headers_user2 = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user2))}
         cls.version_header = {"HTTP_ACCEPT": "Application/json;v=1.1"}
         cls.version_header_v1_2 = {"HTTP_ACCEPT": "Application/json;v=1.2"}
         cls.version_header_v1_3 = {"HTTP_ACCEPT": "Application/json;v=1.3"}
@@ -426,6 +429,7 @@ class TestResources(GlobalMockAPITestCase):
             },
             "account": {"consents": [{"timestamp": 1517549941, "type": 0}]},
         }
+
         resp = self.client.post(
             reverse("payment-cards"),
             data=json.dumps(payload),
@@ -434,6 +438,95 @@ class TestResources(GlobalMockAPITestCase):
             **self.version_header,
         )
         self.assertEqual(resp.status_code, 201)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("analytics.api")
+    @patch("payment_card.metis.enrol_new_payment_card")
+    def test_payment_card_creation_other_wallet_same_fingerprint(self, *_):
+        payload = {
+            "card": {
+                "last_four_digits": 5234,
+                "currency_code": "GBP",
+                "first_six_digits": 423456,
+                "name_on_card": "test user 2",
+                "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
+                "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
+                "year": 22,
+                "month": 3,
+                "order": 1,
+            },
+            "account": {"consents": [{"timestamp": 1517549941, "type": 0}]},
+        }
+
+        resp = self.client.post(
+            reverse("payment-cards"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self.auth_headers,
+            **self.version_header,
+        )
+        self.assertEqual(resp.status_code, 201)
+
+        resp2 = self.client.post(
+            reverse("payment-cards"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self.auth_headers_user2,
+            **self.version_header,
+        )
+        self.assertEqual(resp2.status_code, 201)
+        card = PaymentCardAccount.all_objects.get(fingerprint=payload["card"]["fingerprint"])
+        self.assertEqual(card.expiry_year, payload["card"]["year"])
+        self.assertEqual(card.expiry_month, payload["card"]["month"])
+        self.assertEqual(card.is_deleted, False)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("analytics.api")
+    @patch("payment_card.metis.enrol_new_payment_card")
+    def test_payment_card_creation_other_wallet_date_changed(self, *_):
+        payload = {
+            "card": {
+                "last_four_digits": 5234,
+                "currency_code": "GBP",
+                "first_six_digits": 423456,
+                "name_on_card": "test user 2",
+                "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
+                "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
+                "year": 22,
+                "month": 3,
+                "order": 1,
+            },
+            "account": {"consents": [{"timestamp": 1517549941, "type": 0}]},
+        }
+
+        resp = self.client.post(
+            reverse("payment-cards"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self.auth_headers,
+            **self.version_header,
+        )
+        self.assertEqual(resp.status_code, 201)
+        card = PaymentCardAccount.all_objects.get(fingerprint=payload["card"]["fingerprint"])
+        self.assertEqual(card.expiry_year, payload["card"]["year"])
+        self.assertEqual(card.expiry_month, payload["card"]["month"])
+        self.assertEqual(card.is_deleted, False)
+
+        payload["card"]["year"] = 24
+        payload["card"]["month"] = 6
+
+        resp2 = self.client.post(
+            reverse("payment-cards"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self.auth_headers_user2,
+            **self.version_header,
+        )
+        self.assertEqual(resp2.status_code, 201)
+        card = PaymentCardAccount.all_objects.get(fingerprint=payload["card"]["fingerprint"])
+        self.assertEqual(card.expiry_year, payload["card"]["year"])
+        self.assertEqual(card.expiry_month, payload["card"]["month"])
+        self.assertEqual(card.is_deleted, False)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("analytics.api")
@@ -1152,7 +1245,8 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.tasks.analytics", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    def test_membership_card_delete(self, *_):
+    @patch("ubiquity.tasks.remove_loyalty_card_event")
+    def test_membership_card_delete(self, mock_to_warehouse, *_):
         payload = {
             "membership_plan": self.scheme.id,
             "account": {
@@ -1184,6 +1278,7 @@ class TestResources(GlobalMockAPITestCase):
             reverse("membership-cards"), data=json.dumps(payload), content_type="application/json", **self.auth_headers
         )
         self.assertEqual(resp2.status_code, 201)
+        self.assertEqual(mock_to_warehouse.call_count, 1)
 
     def test_membership_card_delete_error_on_pending_join_mcard(self):
         scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS, scheme=self.scheme)
@@ -1236,8 +1331,11 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(len(link), 1)
     """
 
+    @patch("ubiquity.tasks.remove_loyalty_card_event")
     @patch("ubiquity.views.deleted_membership_card_cleanup.delay", autospec=True)
-    def test_membership_card_delete_removes_link_for_cards_not_shared_between_users(self, mock_delete):
+    def test_membership_card_delete_removes_link_for_cards_not_shared_between_users(
+        self, mock_delete, mock_to_warehouse
+    ):
         entry = PaymentCardSchemeEntry.objects.create(
             payment_card_account=self.payment_card_account, scheme_account=self.scheme_account
         )
@@ -1253,6 +1351,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 200)
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 0)
+        self.assertEqual(mock_to_warehouse.call_count, 1)
 
     """
     This test hangs up on web2 when tested on server but passes locally
@@ -2250,8 +2349,9 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(mock_async_all_balance.call_args[0][0], self.user.id)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("ubiquity.tasks.remove_loyalty_card_event")
     @patch("ubiquity.tasks.metis", autospec=True)
-    def test_delete_service(self, _):
+    def test_delete_service(self, _, mock_to_warehouse):
         user = UserFactory(external_id="test@delete.user", client=self.client_app, email="test@delete.user")
         ServiceConsentFactory(user=user)
         pcard_delete = PaymentCardAccountFactory()
@@ -2285,6 +2385,9 @@ class TestResources(GlobalMockAPITestCase):
 
         non_deleted_links = SchemeAccountEntry.objects.filter(user_id=user.id).count()
         self.assertEqual(non_deleted_links, 0)
+
+        self.assertTrue(mock_to_warehouse.called)
+        self.assertEqual(mock_to_warehouse.call_count, 2)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("scheme.mixins.analytics", autospec=True)
@@ -2746,8 +2849,9 @@ class TestLastManStanding(GlobalMockAPITestCase):
         cls.version_header = {"HTTP_ACCEPT": "Application/json;v=1.1"}
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("ubiquity.tasks.remove_loyalty_card_event")
     @patch("payment_card.metis.metis_delete_cards_and_activations", autospec=True)
-    def test_cards_in_single_property_deletion(self, _):
+    def test_cards_in_single_property_deletion(self, _, mock_to_warehouse):
         pcard_1 = PaymentCardAccountFactory()
         pcard_2 = PaymentCardAccountFactory()
         mcard = SchemeAccountFactory(scheme=self.scheme)
@@ -2768,6 +2872,7 @@ class TestLastManStanding(GlobalMockAPITestCase):
 
         self.client.delete(reverse("membership-card", args=[mcard.id]), **self.auth_headers_1)
         self.assertEqual(pcard_2.scheme_account_set.count(), 0)
+        self.assertEqual(mock_to_warehouse.call_count, 1)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("payment_card.metis.metis_delete_cards_and_activations", autospec=True)
@@ -2790,8 +2895,9 @@ class TestLastManStanding(GlobalMockAPITestCase):
         self.assertEqual(pcard.scheme_account_set.count(), 1)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("ubiquity.tasks.remove_loyalty_card_event")
     @patch("payment_card.metis.metis_delete_cards_and_activations", autospec=True)
-    def test_single_card_in_multiple_property_deletion(self, _):
+    def test_single_card_in_multiple_property_deletion(self, _, mock_to_warehouse):
         pcard_1 = PaymentCardAccountFactory()
         pcard_2 = PaymentCardAccountFactory()
         mcard = SchemeAccountFactory(scheme=self.scheme)
@@ -2815,6 +2921,8 @@ class TestLastManStanding(GlobalMockAPITestCase):
 
         self.client.delete(reverse("membership-card", args=[mcard.id]), **self.auth_headers_1)
         self.assertEqual(pcard_2.scheme_account_set.count(), 0)
+
+        self.assertEqual(mock_to_warehouse.call_count, 2)
 
     def test_destroy_link_in_multiple_wallet(self):
         pcard_1 = PaymentCardAccountFactory()

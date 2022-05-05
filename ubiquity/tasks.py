@@ -14,7 +14,7 @@ from rest_framework.exceptions import ParseError
 
 import analytics
 from hermes.vop_tasks import activate, deactivate
-from history.data_warehouse import to_data_warehouse
+from history.data_warehouse import remove_loyalty_card_event, to_data_warehouse
 from history.utils import clean_history_kwargs, history_bulk_create, history_bulk_update, set_history_kwargs
 from payment_card import metis
 from payment_card.models import PaymentCard, PaymentCardAccount
@@ -73,6 +73,7 @@ def async_link(
             auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
         clean_history_kwargs(history_kwargs)
+
     except serializers.ValidationError as e:
         scheme_account.status = scheme_account.INVALID_CREDENTIALS
         scheme_account.save()
@@ -300,6 +301,8 @@ def deleted_membership_card_cleanup(
     )
     entries_query = SchemeAccountEntry.objects.filter(scheme_account=scheme_account)
 
+    remove_loyalty_card_event(user, scheme_account)
+
     if entries_query.count() <= 0:
         scheme_account.is_deleted = True
         scheme_account.save(update_fields=["is_deleted"])
@@ -310,6 +313,8 @@ def deleted_membership_card_cleanup(
             )
 
     else:
+        remove_loyalty_card_event(user, scheme_account)
+
         user_mcard_auth_provided = entries_query.values_list("auth_provided", flat=True)
         if all((status is False for status in user_mcard_auth_provided)):
             scheme_account.status = SchemeAccount.WALLET_ONLY
@@ -351,6 +356,12 @@ def _delete_user_membership_cards(user: "CustomUser", send_deactivation: bool = 
             card.is_deleted = True
             cards_to_delete.append(card)
 
+    user_card_entries = user.schemeaccountentry_set.all()
+
+    for user_card_entry in user_card_entries:
+        scheme_account = user_card_entry.scheme_account
+        remove_loyalty_card_event(user, scheme_account)
+
     # VOP deactivate
     links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account__in=cards_to_delete)
     if send_deactivation:
@@ -361,7 +372,7 @@ def _delete_user_membership_cards(user: "CustomUser", send_deactivation: bool = 
     # TODO check if signal picks up queryset.delete()
     links_to_remove.delete()
     history_bulk_update(SchemeAccount, cards_to_delete, ["is_deleted"])
-    user.schemeaccountentry_set.all().delete()
+    user_card_entries.delete()
 
 
 def _delete_user_payment_cards(user: "CustomUser", run_async: bool = True) -> None:
