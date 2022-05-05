@@ -1139,14 +1139,14 @@ class SchemeAccount(models.Model):
                 new_status=self.status,
             )
             update_fields.append("status")
+            logger.info("%s of id %s has been updated with status: %s", self.__class__.__name__, self.id, self.status)
 
         if update_fields:
             self.save(update_fields=update_fields)
 
-        # Update active_link status
-        if status_update:
-            logger.info("%s of id %s has been updated with status: %s", self.__class__.__name__, self.id, self.status)
-            PaymentCardSchemeEntry.update_active_link_status({"scheme_account": self})
+        # Update on each balance request to resolve any ubiquity collisions e.g if a link is in ubiquity collision
+        # state but the blocking scheme account was deleted then the link should be updated to active.
+        PaymentCardSchemeEntry.update_active_link_status({"scheme_account": self})
 
         return balance
 

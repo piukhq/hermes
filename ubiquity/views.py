@@ -947,7 +947,7 @@ class MembershipCardView(
 
             entry = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=True)
             if payment_cards_to_link:
-                auto_link_membership_to_payments(
+                auto_link_membership_to_payments.delay(
                     payment_cards_to_link,
                     scheme_account,
                     history_kwargs={

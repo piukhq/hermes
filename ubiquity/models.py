@@ -123,6 +123,68 @@ class VopActivation(models.Model):
 
 
 class PaymentCardSchemeEntry(models.Model):
+    # General state of a PLL link
+    PENDING = 0
+    ACTIVE = 1
+    INACTIVE = 2
+
+    PLL_STATES = (
+        (PENDING, "pending"),
+        (ACTIVE, "active"),
+        (INACTIVE, "inactive"),
+    )
+
+    # A more detailed status of a PLL Link
+    LOYALTY_CARD_PENDING = "LOYALTY_CARD_PENDING"
+    LOYALTY_CARD_NOT_AUTHORISED = "LOYALTY_CARD_NOT_AUTHORISED"
+    PAYMENT_ACCOUNT_PENDING = "PAYMENT_ACCOUNT_PENDING"
+    PAYMENT_ACCOUNT_INACTIVE = "PAYMENT_ACCOUNT_INACTIVE"
+    PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE = "PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE"
+    PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING = "PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING"
+    UBIQUITY_COLLISION = "UBIQUITY_COLLISION"
+
+    PLL_STATUSES = (
+        (
+            LOYALTY_CARD_PENDING,
+            "LOYALTY_CARD_PENDING",
+            "When the Loyalty Card becomes authorised, the PLL link will automatically go active.",
+        ),
+        (
+            LOYALTY_CARD_NOT_AUTHORISED,
+            "LOYALTY_CARD_NOT_AUTHORISED",
+            "The Loyalty Card is not authorised so no PLL link can be created.",
+        ),
+        (
+            PAYMENT_ACCOUNT_PENDING,
+            "PAYMENT_ACCOUNT_PENDING",
+            "When the Payment Account becomes active, the PLL link with automatically go active.",
+        ),
+        (
+            PAYMENT_ACCOUNT_INACTIVE,
+            "PAYMENT_ACCOUNT_INACTIVE",
+            "The Payment Account is not active so no PLL link can be created.",
+        ),
+        (
+            PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE,
+            "PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE",
+            "The Payment Account and Loyalty Card are not active/authorised so no PLL link can be created.",
+        ),
+        (
+            PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING,
+            "PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING",
+            "When the Payment Account and the Loyalty Card become active/authorised, "
+            "the PLL link with automatically go active.",
+        ),
+        (
+            UBIQUITY_COLLISION,
+            "UBIQUITY_COLLISION",
+            "There is already a Loyalty Card from the same Loyalty Plan linked to this Payment Account.",
+        ),
+    )
+
+    PLL_SLUGS = tuple(status[:2] for status in PLL_STATUSES)
+    PLL_DESCRIPTIONS = tuple(status[::2] for status in PLL_STATUSES)
+
     payment_card_account = models.ForeignKey(
         "payment_card.PaymentCardAccount", on_delete=models.CASCADE, verbose_name="Associated Payment Card Account"
     )
@@ -130,22 +192,102 @@ class PaymentCardSchemeEntry(models.Model):
         "scheme.SchemeAccount", on_delete=models.CASCADE, verbose_name="Associated Membership Card Account"
     )
     active_link = models.BooleanField(default=False)
+    state = models.IntegerField(default=PENDING, choices=PLL_STATES)
+    slug = models.SlugField(blank=True, default="", choices=PLL_SLUGS)
+    description = models.TextField(
+        blank=True,
+        default="",
+        help_text="Short description of the PLL link status. This is automatically populated based on the slug.",
+    )
 
     class Meta:
         unique_together = ("payment_card_account", "scheme_account")
         verbose_name = "Payment Card to Membership Card Association"
         verbose_name_plural = "".join([verbose_name, "s"])
 
+    def save(self, *args, **kwargs):
+        # This is to calculate and save the description when using the save method e.g saving via django admin.
+        # This will not save the description for updates or bulk create/update methods.
+        self.description = self.get_status_description()
+        super().save(*args, **kwargs)
+
     @property
-    def computed_active_link(self):
+    def computed_active_link(self) -> bool:
+        # a ubiquity collision is when an attempt is made to link a payment card to more than
+        # one loyalty card of the same scheme
+        if self.slug == self.UBIQUITY_COLLISION:
+            collision = self._ubiquity_collision_check()
+            if collision:
+                self.state = self.INACTIVE
+                self.description = self.get_status_description()
+                return False
+
         if (
-            self.payment_card_account.status == self.payment_card_account.ACTIVE
-            and not self.payment_card_account.is_deleted
-            and self.scheme_account.status == self.scheme_account.ACTIVE
+            not self.payment_card_account.is_deleted
             and not self.scheme_account.is_deleted
+            and self.payment_card_account.status == self.payment_card_account.ACTIVE
+            and self.scheme_account.status == self.scheme_account.ACTIVE
         ):
+            self.state = self.ACTIVE
+            self.slug = ""  # slugs are currently reserved to error states only
+            self.description = self.get_status_description()
             return True
+
+        self.set_status_slug()
+        self.description = self.get_status_description()
         return False
+
+    def set_status_slug(self):
+        pcard_active = self.payment_card_account.status == self.payment_card_account.ACTIVE
+        mcard_active = self.scheme_account.status == self.scheme_account.ACTIVE
+        pcard_pending = self.payment_card_account.status == self.payment_card_account.PENDING
+        mcard_pending = self.scheme_account.status == self.scheme_account.PENDING
+
+        # These method calls should really be one if block but apparently that's too complex for the xenon check
+        self._pending_check(pcard_active, pcard_pending, mcard_active, mcard_pending)
+        self._inactive_check(pcard_active, pcard_pending, mcard_active, mcard_pending)
+
+    def _pending_check(self, pcard_active: bool, mcard_active: bool, pcard_pending: bool, mcard_pending: bool) -> None:
+        if pcard_pending and mcard_active:
+            self.state = self.PENDING
+            self.slug = self.PAYMENT_ACCOUNT_PENDING
+        elif pcard_active and mcard_pending:
+            self.state = self.PENDING
+            self.slug = self.LOYALTY_CARD_PENDING
+        elif pcard_pending and mcard_pending:
+            self.state = self.PENDING
+            self.slug = self.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING
+
+    def _inactive_check(self, pcard_active: bool, mcard_active: bool, pcard_pending: bool, mcard_pending: bool) -> None:
+        if not pcard_active and (mcard_active or mcard_pending):
+            self.state = self.INACTIVE
+            self.slug = self.PAYMENT_ACCOUNT_INACTIVE
+        elif not mcard_active and (pcard_active or pcard_pending):
+            self.state = self.INACTIVE
+            self.slug = self.LOYALTY_CARD_NOT_AUTHORISED
+        else:
+            self.state = self.INACTIVE
+            self.slug = self.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE
+
+    def _ubiquity_collision_check(self) -> bool:
+        scheme_accounts_count = (
+            self.payment_card_account.scheme_account_set.filter(scheme=self.scheme_account.scheme_id)
+            .exclude(pk=self.scheme_account_id)
+            .count()
+        )
+
+        if scheme_accounts_count > 0:
+            return True
+        else:
+            return False
+
+    def get_status_description(self) -> str:
+        try:
+            if self.slug:
+                return dict(self.PLL_DESCRIPTIONS)[self.slug]
+            return ""
+        except KeyError:
+            raise ValueError(f'Invalid value set for "slug" property of PaymentCardSchemeEntry: "{self.slug}"')
 
     def vop_activate_check(self, prechecked=False):
         if prechecked or (self.payment_card_account.payment_card.slug == "visa" and self.active_link):
@@ -165,8 +307,8 @@ class PaymentCardSchemeEntry(models.Model):
 
             except IntegrityError:
                 logger.info(
-                    f"Ubiguity.models.PaymentCardSchemeEntry.vop_activate_check: integrity error prevented"
-                    f"- 2nd activation possible race condition, "
+                    "Ubiguity.models.PaymentCardSchemeEntry.vop_activate_check: integrity error prevented"
+                    "- 2nd activation possible race condition, "
                     f" card_id: {self.payment_card_account.id} scheme: {self.scheme_account.scheme.id}"
                 )
 
@@ -182,15 +324,18 @@ class PaymentCardSchemeEntry(models.Model):
         links = cls.objects.filter(**query)
         logger.info("updating pll links of id: %s", [link.id for link in links])
         for link in links:
-            current_state = link.active_link
-            update_link = link.get_instance_with_active_status()
+            old_active_link = link.active_link
+            old_slug = link.slug
+            updated_link = link.get_instance_with_active_status()
             try:
-                if current_state != update_link.active_link:
+                if old_active_link != updated_link.active_link or old_slug != updated_link.slug:
                     logger.debug(
-                        "active_link for the link of id %s has changed to %s", update_link.id, update_link.active_link
+                        f"Link status for the link of id {updated_link.id} has changed from "
+                        f'{{"active_link": "{old_active_link}", "slug": "{old_slug}"}} to '
+                        f'{{"active_link": "{updated_link.active_link}", "slug": "{updated_link.slug}"}}'
                     )
-                    update_link.save(update_fields=["active_link"])
-                    update_link.vop_activate_check()
+                    updated_link.save(update_fields=["active_link", "state", "slug", "description"])
+                    updated_link.vop_activate_check()
             except django.db.utils.DatabaseError:
                 # Handles race condition for when updating a link that has been deleted
                 pass

@@ -5,18 +5,27 @@ from rest_framework import serializers
 
 from hermes.channels import Permit
 from history.utils import GlobalMockAPITestCase
+from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.credentials import CARD_NUMBER, EMAIL, PASSWORD, POSTCODE
 from scheme.models import SchemeAccount, SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.serializers import JoinSerializer
 from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory
+from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.tasks import (
     async_all_balance,
     async_balance,
     async_link,
     async_registration,
     deleted_membership_card_cleanup,
+    deleted_payment_card_cleanup,
+    deleted_service_cleanup,
 )
-from ubiquity.tests.factories import SchemeAccountEntryFactory
+from ubiquity.tests.factories import (
+    PaymentCardAccountEntryFactory,
+    PaymentCardSchemeEntryFactory,
+    SchemeAccountEntryFactory,
+    ServiceConsentFactory,
+)
 from user.tests.factories import (
     ClientApplicationBundleFactory,
     ClientApplicationFactory,
@@ -170,6 +179,48 @@ class TestTasks(GlobalMockAPITestCase):
         self.link_entry.scheme_account.refresh_from_db()
         self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.REGISTRATION_FAILED)
 
+    @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
+    def test_deleted_membership_card_cleanup_ubiquity_collision(self, mock_metrics):
+        external_id_1 = "testuser@testbink.com"
+        user1 = UserFactory(external_id=external_id_1, email=external_id_1)
+        external_id_2 = "testuser2@testbink.com"
+        user2 = UserFactory(external_id=external_id_2, email=external_id_2)
+
+        # The mcard is not linked to user1 since this link should be deleted before the cleanup task is called
+        main_mcard = SchemeAccountFactory()
+
+        # Add an Active payment account and link mcard to test PLL link handling
+        payment_card = PaymentCardAccountFactory()
+        PaymentCardAccountEntryFactory(user=user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user2, payment_card_account=payment_card)
+
+        PaymentCardSchemeEntryFactory(payment_card_account=payment_card, scheme_account=main_mcard)
+
+        # Add second scheme account of the same scheme to user2 and link to shared payment account.
+        # This is a ubiquity collision
+        mcard2 = SchemeAccountFactory(scheme=main_mcard.scheme)
+        SchemeAccountEntryFactory(scheme_account=mcard2, user=user2)
+        PaymentCardSchemeEntryFactory(
+            payment_card_account=payment_card,
+            scheme_account=mcard2,
+            active_link=False,
+            slug=PaymentCardSchemeEntry.UBIQUITY_COLLISION,
+        )
+
+        # TEST
+        deleted_membership_card_cleanup(main_mcard.id, "", user1.id)
+
+        main_mcard.refresh_from_db()
+        self.assertTrue(main_mcard.is_deleted)
+
+        # PLL links deleted for mcards held by user1 and
+        # resolved to Active from UBIQUITY_COLLISION for mcard held by user2
+        pll_links = payment_card.paymentcardschemeentry_set.all()
+        self.assertEqual(len(pll_links), 1)
+        self.assertTrue(pll_links[0].active_link)
+        self.assertEqual(pll_links[0].slug, "")
+        self.assertEqual(pll_links[0].description, "")
+
     @patch("ubiquity.tasks.remove_loyalty_card_event")
     @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
     def test_deleted_membership_card_cleanup_wallet_only(self, mock_metrics, mock_to_warehouse):
@@ -204,3 +255,167 @@ class TestTasks(GlobalMockAPITestCase):
 
         self.assertTrue(mock_to_warehouse.called)
         self.assertEqual(mock_to_warehouse.call_count, 2)
+
+    @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
+    def test_deleted_payment_card_cleanup_ubiquity_collision(self, mock_metrics):
+        external_id_1 = "testuser@testbink.com"
+        user1 = UserFactory(external_id=external_id_1, email=external_id_1)
+        external_id_2 = "testuser2@testbink.com"
+        user2 = UserFactory(external_id=external_id_2, email=external_id_2)
+
+        # Add an Active payment account and link mcard to test PLL link handling
+        payment_card = PaymentCardAccountFactory()
+        # This link is not created for the test because it is deleted in the api before the cleanup task
+        # PaymentCardAccountEntryFactory(user=user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user2, payment_card_account=payment_card)
+
+        # Add scheme account of the same scheme to both users and link to shared payment account.
+        # First link will be active and the second will be a ubiquity collision
+        mcard1 = SchemeAccountFactory()
+        mcard2 = SchemeAccountFactory(scheme=mcard1.scheme)
+
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=user1)
+        SchemeAccountEntryFactory(scheme_account=mcard2, user=user2)
+
+        PaymentCardSchemeEntryFactory(payment_card_account=payment_card, scheme_account=mcard1, active_link=True)
+
+        PaymentCardSchemeEntryFactory(
+            payment_card_account=payment_card,
+            scheme_account=mcard2,
+            active_link=False,
+            slug=PaymentCardSchemeEntry.UBIQUITY_COLLISION,
+        )
+
+        # TEST
+        deleted_payment_card_cleanup(payment_card.id, None)
+
+        # PLL links deleted for mcards held by user1 and
+        # resolved to Active from UBIQUITY_COLLISION for mcard held by user2
+        pll_links = payment_card.paymentcardschemeentry_set.all()
+        self.assertEqual(len(pll_links), 1)
+        self.assertTrue(pll_links[0].active_link)
+        self.assertEqual(pll_links[0].slug, "")
+        self.assertEqual(pll_links[0].description, "")
+
+    @patch("ubiquity.tasks._send_data_to_atlas")
+    def test_deleted_service_cleanup(self, mock_atlas_request):
+        # This task is used for API 1.x and 2.x which would create service consents when
+        # creating the user.
+        ServiceConsentFactory(user=self.user)
+
+        linked_mcard_entries = self.user.schemeaccountentry_set.all()
+        self.assertEqual(len(linked_mcard_entries), 3)
+
+        # Add an Active payment account and link mcards to test PLL link handling
+        payment_card = PaymentCardAccountFactory()
+        PaymentCardAccountEntryFactory(user=self.user, payment_card_account=payment_card)
+
+        for entry in linked_mcard_entries:
+            PaymentCardSchemeEntryFactory(payment_card_account=payment_card, scheme_account=entry.scheme_account)
+
+        # TEST
+        deleted_service_cleanup(self.user.id, {})
+
+        self.assertTrue(mock_atlas_request.called)
+
+        # PLL links deleted
+        for entry in linked_mcard_entries:
+            pll_link = entry.scheme_account.paymentcardschemeentry_set.count()
+            self.assertEqual(pll_link, 0)
+
+        # Loyalty card links deleted
+        linked_mcard_entry_count = self.user.schemeaccountentry_set.count()
+        self.assertEqual(linked_mcard_entry_count, 0)
+
+        # Payment account links deleted
+        linked_pcard_entry_count = self.user.paymentcardaccountentry_set.count()
+        self.assertEqual(linked_pcard_entry_count, 0)
+
+    @patch("ubiquity.tasks._send_data_to_atlas")
+    def test_deleted_service_cleanup_shared_pcard_and_mcards(self, mock_atlas_request):
+        # This task is used for API 1.x and 2.x which would create service consents when
+        # creating the user.
+        ServiceConsentFactory(user=self.user)
+
+        linked_mcard_entries = self.user.schemeaccountentry_set.all()
+        self.assertEqual(len(linked_mcard_entries), 3)
+
+        external_id = "testdeleteservice@testbink.com"
+        user2 = UserFactory(external_id=external_id, email=external_id)
+
+        # Add an Active payment account and link mcards to test PLL link handling
+        payment_card = PaymentCardAccountFactory()
+        PaymentCardAccountEntryFactory(user=self.user, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user2, payment_card_account=payment_card)
+
+        for entry in linked_mcard_entries:
+            SchemeAccountEntryFactory(scheme_account=entry.scheme_account, user=user2)
+            PaymentCardSchemeEntryFactory(payment_card_account=payment_card, scheme_account=entry.scheme_account)
+
+        # TEST
+        deleted_service_cleanup(self.user.id, {})
+
+        self.assertTrue(mock_atlas_request.called)
+
+        # PLL links deleted
+        for entry in linked_mcard_entries:
+            pll_link = entry.scheme_account.paymentcardschemeentry_set.count()
+            self.assertEqual(pll_link, 1)
+
+        # Loyalty card links deleted for user 1
+        linked_mcard_entry_count = self.user.schemeaccountentry_set.count()
+        self.assertEqual(linked_mcard_entry_count, 0)
+
+        linked_mcard_entry_count = user2.schemeaccountentry_set.count()
+        self.assertEqual(linked_mcard_entry_count, 3)
+
+        # Payment account links deleted for user 1
+        linked_pcard_entry_count = self.user.paymentcardaccountentry_set.count()
+        self.assertEqual(linked_pcard_entry_count, 0)
+
+        linked_pcard_entry_count = user2.paymentcardaccountentry_set.count()
+        self.assertEqual(linked_pcard_entry_count, 1)
+
+    @patch("ubiquity.tasks._send_data_to_atlas")
+    def test_deleted_service_cleanup_ubiquity_collision(self, mock_atlas_request):
+        # This task is used for API 1.x and 2.x which would create service consents when
+        # creating the user.
+        ServiceConsentFactory(user=self.user)
+
+        linked_mcard_entries = self.user.schemeaccountentry_set.all()
+        self.assertEqual(len(linked_mcard_entries), 3)
+
+        external_id = "testdeleteservice@testbink.com"
+        user2 = UserFactory(external_id=external_id, email=external_id)
+
+        # Add an Active payment account and link mcards to test PLL link handling
+        payment_card = PaymentCardAccountFactory()
+        PaymentCardAccountEntryFactory(user=self.user, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user2, payment_card_account=payment_card)
+
+        for entry in linked_mcard_entries:
+            PaymentCardSchemeEntryFactory(payment_card_account=payment_card, scheme_account=entry.scheme_account)
+
+        # Add second scheme account of the same scheme to user2 and link to shared payment account.
+        # This is a ubiquity collision
+        mcard2 = SchemeAccountFactory(scheme=linked_mcard_entries[0].scheme_account.scheme)
+        SchemeAccountEntryFactory(scheme_account=mcard2, user=user2)
+        PaymentCardSchemeEntryFactory(
+            payment_card_account=payment_card,
+            scheme_account=mcard2,
+            active_link=False,
+            slug=PaymentCardSchemeEntry.UBIQUITY_COLLISION,
+        )
+
+        # TEST
+        deleted_service_cleanup(self.user.id, {})
+
+        self.assertTrue(mock_atlas_request.called)
+
+        # PLL links deleted for mcards held by user1 and
+        # resolved to Active from UBIQUITY_COLLISION for mcard held by user2
+        pll_links = payment_card.paymentcardschemeentry_set.all()
+        self.assertEqual(len(pll_links), 1)
+        self.assertTrue(pll_links[0].active_link)
+        self.assertEqual(pll_links[0].slug, "")
+        self.assertEqual(pll_links[0].description, "")

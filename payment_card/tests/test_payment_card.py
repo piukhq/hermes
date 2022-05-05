@@ -9,7 +9,7 @@ from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 import ubiquity.tests.factories
 from common.models import Image
 from history.utils import GlobalMockAPITestCase
-from payment_card.models import AuthTransaction
+from payment_card.models import AuthTransaction, PaymentCardAccount
 from payment_card.tests import factories
 from ubiquity.tests.factories import PaymentCardSchemeEntryFactory, SchemeAccountEntryFactory
 from user.models import ClientApplication, Organisation
@@ -43,7 +43,9 @@ class TestPaymentCardImages(GlobalMockAPITestCase):
 class TestPaymentCard(GlobalMockAPITestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token="token")
+        cls.payment_card_account = factories.PaymentCardAccountFactory(
+            psp_token="token", status=PaymentCardAccount.PENDING
+        )
         cls.payment_card = cls.payment_card_account.payment_card
         cls.payment_card_account_entry = ubiquity.tests.factories.PaymentCardAccountEntryFactory(
             payment_card_account=cls.payment_card_account
