@@ -65,7 +65,6 @@ CURRENT_STATUS_CODES = (
     (902, "Registration Failed"),
     (1001, "Add Auth Pending"),
     (2001, "Auth Pending"),
-
 )
 
 # status codes in SchemeAccount.SYSTEM_ACTION_REQUIRED will not have any reason code associated with them

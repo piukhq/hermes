@@ -646,7 +646,6 @@ class SchemeAccount(models.Model):
     REGISTRATION_FAILED = 902
     ADD_AUTH_PENDING = 1001
     AUTH_PENDING = 2001
-    
 
     EXTENDED_STATUSES = (
         (PENDING, "Pending", "PENDING"),
