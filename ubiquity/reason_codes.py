@@ -63,6 +63,9 @@ CURRENT_STATUS_CODES = (
     (900, "Join"),
     (901, "Enrol Failed"),
     (902, "Registration Failed"),
+    (1001, "Add Auth Pending"),
+    (2001, "Auth Pending"),
+
 )
 
 # status codes in SchemeAccount.SYSTEM_ACTION_REQUIRED will not have any reason code associated with them
@@ -107,6 +110,8 @@ reason_code_translation = {
     900: ["X201"],
     901: ["X201"],
     902: ["X105"],
+    1001: [],
+    2001: [],
 }
 
 ubiquity_status_translation = {
@@ -147,6 +152,8 @@ ubiquity_status_translation = {
     900: FAILED,
     901: FAILED,
     902: FAILED,
+    1001: PENDING,
+    2001: PENDING,
 }
 
 

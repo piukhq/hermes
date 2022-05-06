@@ -993,6 +993,8 @@ class MembershipCardView(
             sch_acc_entry = SchemeAccountEntry.create_link(user, scheme_account, auth_provided=True)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
 
+            print("**** ADD_AUTH_PENDING ****")
+            scheme_account.status = SchemeAccount.ADD_AUTH_PENDING
             # send add_and_auth event to data_warehouse
             add_and_auth_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
 
@@ -1001,6 +1003,7 @@ class MembershipCardView(
             # no auth provided, new scheme account screated
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
             sch_acc_entry = self._handle_add_fields_only_link(user, scheme_account, account_created)
+            # scheme_account.status = SchemeAccount.ADD_PENDING
         else:
             # print("**** auth only ****")
             # auth only (to existing scheme account)
@@ -1010,6 +1013,8 @@ class MembershipCardView(
             sch_acc_entry = self._handle_existing_scheme_account(
                 scheme_account, user, auth_fields, payment_cards_to_link
             )
+            print("**** AUTH_PENDING ****")
+            scheme_account.status = SchemeAccount.AUTH_PENDING
 
         return scheme_account, sch_acc_entry, return_status, metrics_route
 
@@ -1299,6 +1304,9 @@ class ListMembershipCardView(MembershipCardView):
             membership_card_add_counter.labels(
                 channel=request.channels_permit.bundle_id, scheme=scheme.slug, route=metrics_route.value
             ).inc()
+
+        # check the status of this scheme_account
+        print("**** scheme_account.status:", account.status, " ****")
 
         return Response(
             self.get_serializer_by_request(
