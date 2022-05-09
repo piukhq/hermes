@@ -297,8 +297,9 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertEqual(pll_links[0].slug, "")
         self.assertEqual(pll_links[0].description, "")
 
+    @patch("ubiquity.models.send_deactivation.delay", autospec=True)
     @patch("ubiquity.tasks._send_data_to_atlas")
-    def test_deleted_service_cleanup(self, mock_atlas_request):
+    def test_deleted_service_cleanup(self, mock_atlas_request, mock_deactivation_request):
         # This task is used for API 1.x and 2.x which would create service consents when
         # creating the user.
         ServiceConsentFactory(user=self.user)
