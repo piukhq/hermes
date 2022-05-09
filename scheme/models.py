@@ -1237,6 +1237,14 @@ class SchemeAccount(models.Model):
         self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
         self.save(update_fields=["status"])
 
+    def set_auth_pending(self) -> None:
+        self.status = SchemeAccount.AUTH_PENDING
+        self.save(update_fields=["status"])
+
+    def set_add_auth_pending(self) -> None:
+        self.status = SchemeAccount.ADD_AUTH_PENDING
+        self.save(update_fields=["status"])
+
     def set_async_join_status(self, *, commit_change=True) -> None:
         self.status = SchemeAccount.JOIN_ASYNC_IN_PROGRESS
         if commit_change:

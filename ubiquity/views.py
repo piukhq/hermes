@@ -995,6 +995,7 @@ class MembershipCardView(
 
             print("**** ADD_AUTH_PENDING ****")
             scheme_account.status = SchemeAccount.ADD_AUTH_PENDING
+            scheme_account.save(update_fields=["status"])
             # send add_and_auth event to data_warehouse
             add_and_auth_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
 
@@ -1015,6 +1016,7 @@ class MembershipCardView(
             )
             print("**** AUTH_PENDING ****")
             scheme_account.status = SchemeAccount.AUTH_PENDING
+            scheme_account.save(update_fields=["status"])
 
         return scheme_account, sch_acc_entry, return_status, metrics_route
 
