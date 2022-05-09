@@ -318,6 +318,7 @@ class TestTasks(GlobalMockAPITestCase):
         deleted_service_cleanup(self.user.id, {})
 
         self.assertTrue(mock_atlas_request.called)
+        self.assertTrue(mock_delete_payment_card)
 
         # PLL links deleted
         for entry in linked_mcard_entries:
