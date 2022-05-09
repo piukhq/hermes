@@ -191,7 +191,6 @@ def _loyalty_card_authorise(message: dict, path: str) -> None:
             add_and_auth_lc_event(user, account, ac.channel_slug)
         elif path == "loyalty_card_authorise":
             account.set_auth_pending()
-            
 
         if message.get("primary_auth"):
             # primary_auth is used to indicate that this user has demonstrated the authority to authorise and
