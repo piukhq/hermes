@@ -757,14 +757,21 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(sa.main_answer, payload["account"]["add_fields"][0]["value"])
         self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
 
-        # replay and check same data with 200 response
+        # replay and check data with 200 response
         resp = self.client.post(
             reverse("membership-cards"), data=json.dumps(payload), content_type="application/json", **self.auth_headers
         )
         self.assertEqual(resp.status_code, 200)
+        # data not the same since we added auth_pending / add_auth_pending status
+        status = {"state": "pending", "reason_codes": [], "error_text": "Auth Pending"}
+        self.assertEqual(status, resp.data["status"])
+        # remove the status field then check the dict's are equal
+        del resp.data["status"]
+        del create_data["status"]
         self.assertDictEqual(resp.data, create_data)
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
+
 
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("ubiquity.views.async_link", autospec=True)
@@ -872,7 +879,7 @@ class TestResources(GlobalMockAPITestCase):
         card_id = resp_json["id"]
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp_json["status"], {"state": "pending", "reason_codes": ["X100"], "error_text": "Pending"})
+        self.assertEqual(resp_json["status"], {"state": "pending", "reason_codes": [], "error_text": "Auth Pending"})
 
         user_links = SchemeAccountEntry.objects.filter(scheme_account=existing_scheme_account)
 
@@ -1264,6 +1271,12 @@ class TestResources(GlobalMockAPITestCase):
             reverse("membership-cards"), data=json.dumps(payload), content_type="application/json", **self.auth_headers
         )
         self.assertEqual(resp.status_code, 200)
+        # data not the same since we added auth_pending / add_auth_pending status
+        status = {"state": "pending", "reason_codes": [], "error_text": "Auth Pending"}
+        self.assertEqual(status, resp.data["status"])
+        # remove the status field then check the dict's are equal
+        del resp.data["status"]
+        del create_data["status"]
         self.assertDictEqual(resp.data, create_data)
         account_id = resp.data["id"]
 
