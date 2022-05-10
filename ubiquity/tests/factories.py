@@ -22,6 +22,10 @@ class PaymentCardSchemeEntryFactory(factory.django.DjangoModelFactory):
 
     payment_card_account = factory.SubFactory(PaymentCardAccountFactory)
     scheme_account = factory.SubFactory(SchemeAccountFactory)
+    active_link = True
+    state = PaymentCardSchemeEntry.ACTIVE
+    slug = ""
+    description = ""
 
 
 class SchemeAccountEntryFactory(factory.django.DjangoModelFactory):

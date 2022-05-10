@@ -20,7 +20,12 @@ from scheme.tests.factories import (
 )
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, VopActivation
 from ubiquity.tasks import deleted_membership_card_cleanup, deleted_payment_card_cleanup, deleted_service_cleanup
-from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
+from ubiquity.tests.factories import (
+    PaymentCardAccountEntryFactory,
+    PaymentCardSchemeEntryFactory,
+    SchemeAccountEntryFactory,
+    ServiceConsentFactory,
+)
 from ubiquity.tests.property_token import GenerateJWToken
 from user.tests.factories import (
     ClientApplicationBundleFactory,
@@ -226,6 +231,92 @@ class TestVOP(GlobalMockAPITestCase):
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 0)
         self.assertEqual(mock_to_warehouse.call_count, 1)
+
+    @patch("ubiquity.models.send_deactivation.delay", autospec=True)
+    @patch("hermes.vop_tasks.send_activation.delay", autospec=True)
+    @patch("ubiquity.views.deleted_membership_card_cleanup.delay", autospec=True)
+    @httpretty.activate
+    def test_activate_and_deactivate_on_membership_card_delete_ubiquity_collision(
+        self, mock_delete, mock_activate, mock_deactivate
+    ):
+        """
+        :param mock_delete: Only the delay is mocked out allows call deleted_membership_card_cleanup with correct args
+        :param mock_activate: Only the delay is mocked out allows call send_activation with correct args
+        :param mock_deactivate: Only the delay is mocked out allows call send_deactivation with correct args
+        """
+        activation_id = "1234_activation_id"
+        self.register_activation_request(
+            {
+                "response_status": "Success",
+                "agent_response_code": "Activate:SUCCESS",
+                "agent_response_message": "Success message;",
+                "activation_id": activation_id,
+            }
+        )
+
+        self.register_deactivation_request(
+            {
+                "response_status": "Success",
+                "agent_response_code": "Deactivate:SUCCESS",
+                "agent_response_message": "Success message;",
+            }
+        )
+
+        mcard_2 = SchemeAccountFactory(scheme=self.scheme)
+
+        entry1 = PaymentCardSchemeEntryFactory(
+            payment_card_account=self.payment_card_account, scheme_account=self.scheme_account
+        )
+        entry2 = PaymentCardSchemeEntryFactory(
+            payment_card_account=self.payment_card_account,
+            scheme_account=mcard_2,
+            active_link=False,
+            state=PaymentCardSchemeEntry.INACTIVE,
+            slug=PaymentCardSchemeEntry.UBIQUITY_COLLISION,
+        )
+
+        entry1.vop_activate_check()
+        self.assertTrue(mock_activate.called)
+
+        # By pass celery delay to send activations by mocking delay getting parameters and calling without delay
+        args = mock_activate.call_args
+
+        send_activation(*args[0], **args[1])
+
+        activations = VopActivation.objects.all()
+        activate = activations[0]
+        self.assertEqual(VopActivation.ACTIVATED, activate.status)
+        self.assertEqual(activation_id, activate.activation_id)
+
+        resp = self.client.delete(
+            reverse("membership-card", args=[self.scheme_account.id]),
+            data="{}",
+            content_type="application/json",
+            **self.auth_headers,
+        )
+
+        # Bypass deleted_membership_card_cleanup.delay by mocking delay getting parameters and calling without delay
+        clean_up_args = mock_delete.call_args
+        self.assertTrue(mock_delete.called)
+        deleted_membership_card_cleanup(*clean_up_args[0], **clean_up_args[1])
+
+        self.assertFalse(mock_deactivate.called)
+
+        activations = VopActivation.objects.all()
+        activate = activations[0]
+        self.assertEqual(VopActivation.ACTIVATED, activate.status)
+        self.assertEqual(activation_id, activate.activation_id)
+
+        self.assertEqual(resp.status_code, 200)
+        entry1_link = PaymentCardSchemeEntry.objects.filter(pk=entry1.pk).count()
+        self.assertEqual(entry1_link, 0)
+
+        entry2_link = PaymentCardSchemeEntry.objects.filter(pk=entry2.pk).all()
+        self.assertEqual(len(entry2_link), 1)
+        self.assertTrue(entry2_link[0].active_link)
+        self.assertEqual(entry2_link[0].state, PaymentCardSchemeEntry.ACTIVE)
+        self.assertEqual(entry2_link[0].slug, "")
+        self.assertEqual(entry2_link[0].description, "")
 
     @patch("hermes.vop_tasks.send_activation.delay", autospec=True)
     @patch("ubiquity.views.deleted_payment_card_cleanup.delay", autospec=True)

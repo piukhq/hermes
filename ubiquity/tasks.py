@@ -271,9 +271,9 @@ def deleted_payment_card_cleanup(
     else:
         query = {"hash": payment_card_hash}
 
-    payment_card_account = PaymentCardAccount.objects.get(**query)
+    payment_card_account = PaymentCardAccount.objects.prefetch_related("paymentcardschemeentry_set").get(**query)
     p_card_users = payment_card_account.user_set.values_list("id", flat=True).all()
-    pll_links = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=payment_card_account.id)
+    pll_links = payment_card_account.paymentcardschemeentry_set.all()
 
     if not p_card_users:
         payment_card_account.is_deleted = True
@@ -283,7 +283,13 @@ def deleted_payment_card_cleanup(
     else:
         pll_links = pll_links.exclude(scheme_account__user_set__id__in=p_card_users)
 
+    deleted_link_ids = [link.id for link in pll_links]
     pll_links.delete()
+
+    # Updates any ubiquity collisions linked to this payment card
+    for entry in payment_card_account.paymentcardschemeentry_set.exclude(id__in=deleted_link_ids).all():
+        entry.update_soft_links({"payment_card_account": payment_card_account})
+
     clean_history_kwargs(history_kwargs)
 
 
@@ -297,7 +303,7 @@ def deleted_membership_card_cleanup(
     scheme_slug = scheme_account.scheme.slug
 
     pll_links = PaymentCardSchemeEntry.objects.filter(scheme_account_id=scheme_account.id).prefetch_related(
-        "scheme_account"
+        "scheme_account", "payment_card_account", "payment_card_account__paymentcardschemeentry_set"
     )
     entries_query = SchemeAccountEntry.objects.filter(scheme_account=scheme_account)
 
@@ -330,7 +336,16 @@ def deleted_membership_card_cleanup(
         pll_links = pll_links.exclude(payment_card_account__user_set__in=m_card_users)
 
     activations = VopActivation.find_activations_matching_links(pll_links)
+
+    related_pcards = {link.payment_card_account for link in pll_links}
+    deleted_pll_link_ids = {link.id for link in pll_links}
     pll_links.delete()
+
+    # Resolve ubiquity collisions for any PLL links related to the linked payment card accounts
+    for pcard in related_pcards:
+        pcard_links = pcard.paymentcardschemeentry_set.exclude(id__in=deleted_pll_link_ids).all()
+        for pcard_link in pcard_links:
+            pcard_link.update_soft_links({"payment_card_account": pcard_link.payment_card_account_id})
 
     if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
         send_merchant_metrics_for_link_delete.delay(scheme_account.id, scheme_slug, delete_date, "delete")
@@ -377,13 +392,16 @@ def _delete_user_membership_cards(user: "CustomUser", send_deactivation: bool = 
 
 def _delete_user_payment_cards(user: "CustomUser", run_async: bool = True) -> None:
     cards_to_delete = []
-    for card in user.payment_card_account_set.prefetch_related("user_set").all():
+    for card in user.payment_card_account_set.prefetch_related("user_set", "paymentcardschemeentry_set").all():
         if card.user_set.count() == 1:
             card.is_deleted = True
             cards_to_delete.append(card)
             metis.delete_payment_card(card, run_async=run_async)
+        else:
+            # Updates any ubiquity collisions linked to this payment card
+            for entry in card.paymentcardschemeentry_set.all():
+                entry.update_soft_links({"payment_card_account": card})
 
-    # TODO check if signal picks up queryset.delete()
     PaymentCardSchemeEntry.objects.filter(payment_card_account_id__in=[card.id for card in cards_to_delete]).delete()
 
     user_card_entries = user.paymentcardaccountentry_set.all()
@@ -479,7 +497,6 @@ def auto_link_membership_to_payments(
 
     payment_cards_to_link = (
         PaymentCardAccount.all_objects.filter(id__in=payment_cards_to_link, is_deleted=False)
-        .exclude(id__in=excluded_payment_cards)
         .select_related("payment_card")
         .all()
     )
@@ -488,9 +505,17 @@ def auto_link_membership_to_payments(
     pll_activated_payment_cards = []
     vop_activated_cards = []
     for payment_card_account in payment_cards_to_link:
-        entry = PaymentCardSchemeEntry(
-            scheme_account=membership_card, payment_card_account=payment_card_account
-        ).get_instance_with_active_status()
+        if payment_card_account.id in excluded_payment_cards:
+            entry = PaymentCardSchemeEntry(
+                scheme_account=membership_card,
+                payment_card_account=payment_card_account,
+                slug=PaymentCardSchemeEntry.UBIQUITY_COLLISION,
+            ).get_instance_with_active_status()
+        else:
+            entry = PaymentCardSchemeEntry(
+                scheme_account=membership_card, payment_card_account=payment_card_account
+            ).get_instance_with_active_status()
+
         link_entries_to_create.append(entry)
         if entry.active_link:
             pll_activated_payment_cards.append(payment_card_account.id)

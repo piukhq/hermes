@@ -9,8 +9,9 @@ from ubiquity.models import MembershipPlanDocument, PaymentCardSchemeEntry, VopA
 @admin.register(PaymentCardSchemeEntry)
 class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
     list_display = (
-        "payment_card_account",
-        "scheme_account",
+        "id",
+        "state",
+        "slug",
         "active_link",
         "payment_card_account_link",
         "scheme_account_link",
@@ -30,18 +31,27 @@ class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
     )
 
     list_filter = (
-        ("payment_card_account__payment_card__name", titled_filter("payment card")),
-        ("scheme_account__scheme", titled_filter("membership card")),
         "active_link",
+        "state",
+        "slug",
         ("payment_card_account__issuer__name", titled_filter("payment card issuer")),
         ("payment_card_account__is_deleted", titled_filter("payment card is deleted")),
         ("scheme_account__is_deleted", titled_filter("membership card is deleted")),
         ("payment_card_account__status", titled_filter("payment card status")),
         ("scheme_account__status", titled_filter("membership card status")),
+        ("payment_card_account__payment_card__name", titled_filter("payment card")),
+        ("scheme_account__scheme", titled_filter("membership card")),
     )
     raw_id_fields = (
         "payment_card_account",
         "scheme_account",
+    )
+
+    readonly_fields = (
+        "active_link",
+        "state",
+        "slug",
+        "description",
     )
 
     def payment_card_account_link(self, obj):
