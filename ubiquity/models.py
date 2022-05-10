@@ -244,8 +244,9 @@ class PaymentCardSchemeEntry(models.Model):
         mcard_pending = self.scheme_account.status == self.scheme_account.PENDING
 
         # These method calls should really be one if block but apparently that's too complex for the xenon check
-        self._pending_check(pcard_active, pcard_pending, mcard_active, mcard_pending)
-        self._inactive_check(pcard_active, pcard_pending, mcard_active, mcard_pending)
+
+        self._pending_check(pcard_active, mcard_active, pcard_pending, mcard_pending)
+        self._inactive_check(pcard_active, mcard_active, pcard_pending, mcard_pending)
 
     def _pending_check(self, pcard_active: bool, mcard_active: bool, pcard_pending: bool, mcard_pending: bool) -> None:
         if pcard_pending and mcard_active:
@@ -265,7 +266,7 @@ class PaymentCardSchemeEntry(models.Model):
         elif not mcard_active and not mcard_pending and (pcard_active or pcard_pending):
             self.state = self.INACTIVE
             self.slug = self.LOYALTY_CARD_NOT_AUTHORISED
-        else:
+        elif not pcard_active and not pcard_pending and not mcard_active and not mcard_pending:
             self.state = self.INACTIVE
             self.slug = self.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE
 
