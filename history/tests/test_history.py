@@ -132,6 +132,6 @@ class TestTasks(APITestCase):
         historical_scheme_account_post = HistoricalSchemeAccount.objects.count()
         historical_vop_activation_post = HistoricalVopActivation.objects.count()
 
-        self.assertEqual(historical_payment_card_scheme_entry_post, historical_payment_card_scheme_entry_pre + 1)
-        self.assertEqual(historical_scheme_account_post, historical_scheme_account_pre + 6)
+        self.assertEqual(historical_payment_card_scheme_entry_post, historical_payment_card_scheme_entry_pre + 2)
+        self.assertEqual(historical_scheme_account_post, historical_scheme_account_pre + 7)
         self.assertEqual(historical_vop_activation_post, historical_vop_activation_pre + 2)

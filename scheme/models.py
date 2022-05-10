@@ -644,6 +644,8 @@ class SchemeAccount(models.Model):
     REGISTRATION_ASYNC_IN_PROGRESS = 443
     ENROL_FAILED = 901
     REGISTRATION_FAILED = 902
+    ADD_AUTH_PENDING = 1001
+    AUTH_PENDING = 2001
 
     EXTENDED_STATUSES = (
         (PENDING, "Pending", "PENDING"),
@@ -683,6 +685,8 @@ class SchemeAccount(models.Model):
         (REGISTRATION_ASYNC_IN_PROGRESS, "Asynchronous registration in progress", "REGISTRATION_ASYNC_IN_PROGRESS"),
         (ENROL_FAILED, "Enrol Failed", "ENROL_FAILED"),
         (REGISTRATION_FAILED, "Ghost Card Registration Failed", "REGISTRATION_FAILED"),
+        (ADD_AUTH_PENDING, "Add and Auth pending", "ADD_AUTH_PENDING"),
+        (AUTH_PENDING, "Auth pending", "AUTH_PENDING"),
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     JOIN_ACTION_REQUIRED = [
@@ -723,7 +727,9 @@ class SchemeAccount(models.Model):
         AGENT_NOT_FOUND,
     ]
     EXCLUDE_BALANCE_STATUSES = (
-        JOIN_ACTION_REQUIRED + USER_ACTION_REQUIRED + [PENDING, PENDING_MANUAL_CHECK, WALLET_ONLY]
+        JOIN_ACTION_REQUIRED
+        + USER_ACTION_REQUIRED
+        + [PENDING, PENDING_MANUAL_CHECK, WALLET_ONLY, ADD_AUTH_PENDING, AUTH_PENDING]
     )
     JOIN_EXCLUDE_BALANCE_STATUSES = [
         PENDING_MANUAL_CHECK,
@@ -1231,6 +1237,14 @@ class SchemeAccount(models.Model):
 
     def set_pending(self, manual_pending: bool = False) -> None:
         self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
+        self.save(update_fields=["status"])
+
+    def set_auth_pending(self) -> None:
+        self.status = SchemeAccount.AUTH_PENDING
+        self.save(update_fields=["status"])
+
+    def set_add_auth_pending(self) -> None:
+        self.status = SchemeAccount.ADD_AUTH_PENDING
         self.save(update_fields=["status"])
 
     def set_async_join_status(self, *, commit_change=True) -> None:
