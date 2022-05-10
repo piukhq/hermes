@@ -556,7 +556,6 @@ class MembershipCardView(
             )
             metrics_route = MembershipCardAddRoute.REGISTER
 
-            # print("**** register only ****")
             # send this event to data_warehouse
             register_lc_event(request.user, account, request.channels_permit.bundle_id)
         else:
@@ -975,7 +974,6 @@ class MembershipCardView(
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
         if account_created and auth_fields:
-            # print("**** add and auth ****")
             # scheme account created & user authorised to use it
             scheme_account.update_barcode_and_card_number()
             history_kwargs = {
@@ -1302,9 +1300,6 @@ class ListMembershipCardView(MembershipCardView):
             membership_card_add_counter.labels(
                 channel=request.channels_permit.bundle_id, scheme=scheme.slug, route=metrics_route.value
             ).inc()
-
-        # check the status of this scheme_account
-        print("**** scheme_account.status:", account.status, " ****")
 
         return Response(
             self.get_serializer_by_request(
