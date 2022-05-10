@@ -28,7 +28,6 @@ def mock_redis_init(**kwargs):
 
 
 class TestReadyZ(APITestCase):
-
     def test_ok(self):
         # We cannot test in our current deployment redis as it not available
         # The pod will not run anyway if on deployment 200 id not returned
