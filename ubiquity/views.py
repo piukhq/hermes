@@ -556,7 +556,6 @@ class MembershipCardView(
             )
             metrics_route = MembershipCardAddRoute.REGISTER
 
-            # print("**** register only ****")
             # send this event to data_warehouse
             register_lc_event(request.user, account, request.channels_permit.bundle_id)
         else:
@@ -975,7 +974,6 @@ class MembershipCardView(
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
         if account_created and auth_fields:
-            # print("**** add and auth ****")
             # scheme account created & user authorised to use it
             scheme_account.update_barcode_and_card_number()
             history_kwargs = {
@@ -993,16 +991,17 @@ class MembershipCardView(
             sch_acc_entry = SchemeAccountEntry.create_link(user, scheme_account, auth_provided=True)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
 
+            scheme_account.status = SchemeAccount.ADD_AUTH_PENDING
+            scheme_account.save(update_fields=["status"])
             # send add_and_auth event to data_warehouse
             add_and_auth_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
 
         elif not auth_fields:
-            # print("**** add only ****")
             # no auth provided, new scheme account screated
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
             sch_acc_entry = self._handle_add_fields_only_link(user, scheme_account, account_created)
+            # scheme_account.status = SchemeAccount.ADD_PENDING
         else:
-            # print("**** auth only ****")
             # auth only (to existing scheme account)
             # also called for add and auth to same wallet
             metrics_route = MembershipCardAddRoute.MULTI_WALLET
@@ -1010,6 +1009,8 @@ class MembershipCardView(
             sch_acc_entry = self._handle_existing_scheme_account(
                 scheme_account, user, auth_fields, payment_cards_to_link
             )
+            scheme_account.status = SchemeAccount.AUTH_PENDING
+            scheme_account.save(update_fields=["status"])
 
         return scheme_account, sch_acc_entry, return_status, metrics_route
 
