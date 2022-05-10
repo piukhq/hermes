@@ -2434,6 +2434,7 @@ class TestResources(GlobalMockAPITestCase):
         query["scheme_account_id"] = success_resp.json()["id"]
         self.assertTrue(PaymentCardSchemeEntry.objects.filter(**query).exists())
 
+        # linking a second loyalty card of the same plan to the same payment account. UBIQUITY_COLLISION scenario.
         payload = {
             "membership_plan": self.scheme.id,
             "account": {
@@ -2449,8 +2450,15 @@ class TestResources(GlobalMockAPITestCase):
         )
 
         self.assertEqual(fail_resp.status_code, 201)
-        query["scheme_account_id"] = fail_resp.json()["id"]
-        self.assertFalse(PaymentCardSchemeEntry.objects.filter(**query).exists())
+        entries = (
+            PaymentCardSchemeEntry.objects.filter(
+                payment_card_account=payment_card_account, scheme_account__scheme=self.scheme
+            )
+            .order_by("id")
+            .all()
+        )
+        self.assertEqual(len(entries), 2)
+        self.assertEqual(PaymentCardSchemeEntry.UBIQUITY_COLLISION, entries[1].slug)
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_join", autospec=True)

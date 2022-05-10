@@ -41,6 +41,7 @@ class PaymentCardAccountFactory(factory.django.DjangoModelFactory):
         model = models.PaymentCardAccount
 
     payment_card = factory.SubFactory(PaymentCardFactory)
+    status = models.PaymentCardAccount.ACTIVE
     name_on_card = fake.name()
     start_month = fake.month()
     start_year = fake.month()
