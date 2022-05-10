@@ -30,7 +30,9 @@ def mock_redis_init(**kwargs):
 class TestReadyZ(APITestCase):
     def test_ok(self):
         resp = self.client.get("/readyz")
-        self.assertEqual(resp.status_code, 200)
+        dict_resp = json.loads(resp.content)
+        print(dict_resp)
+        self.assertEqual(resp.status_code, 500)
         self.assertEqual(resp.content, b"{}")
 
     @patch.object(connection, "cursor")
