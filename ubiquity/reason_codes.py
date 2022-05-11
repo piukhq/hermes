@@ -109,8 +109,8 @@ reason_code_translation = {
     900: ["X201"],
     901: ["X201"],
     902: ["X105"],
-    1001: [],
-    2001: [],
+    1001: ["X100"],
+    2001: ["X100"],
 }
 
 ubiquity_status_translation = {

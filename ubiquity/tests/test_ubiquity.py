@@ -763,7 +763,8 @@ class TestResources(GlobalMockAPITestCase):
         )
         self.assertEqual(resp.status_code, 200)
         # data not the same since we added auth_pending / add_auth_pending status
-        status = {"state": "pending", "reason_codes": [], "error_text": "Auth Pending"}
+        status = {"state": "pending", "reason_codes": ["X100"], "error_text": "Auth Pending"}
+
         self.assertEqual(status, resp.data["status"])
         # remove the status field then check the dict's are equal
         del resp.data["status"]
@@ -878,7 +879,9 @@ class TestResources(GlobalMockAPITestCase):
         card_id = resp_json["id"]
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp_json["status"], {"state": "pending", "reason_codes": [], "error_text": "Auth Pending"})
+        self.assertEqual(
+            resp_json["status"], {"state": "pending", "reason_codes": ["X100"], "error_text": "Auth Pending"}
+        )
 
         user_links = SchemeAccountEntry.objects.filter(scheme_account=existing_scheme_account)
 
@@ -1271,7 +1274,8 @@ class TestResources(GlobalMockAPITestCase):
         )
         self.assertEqual(resp.status_code, 200)
         # data not the same since we added auth_pending / add_auth_pending status
-        status = {"state": "pending", "reason_codes": [], "error_text": "Auth Pending"}
+        status = {"state": "pending", "reason_codes": ["X100"], "error_text": "Auth Pending"}
+
         self.assertEqual(status, resp.data["status"])
         # remove the status field then check the dict's are equal
         del resp.data["status"]
