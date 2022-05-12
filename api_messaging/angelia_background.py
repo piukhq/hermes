@@ -186,7 +186,6 @@ def _loyalty_card_authorise(message: dict, path: str) -> None:
 
         user = CustomUser.objects.get(pk=ac.user_id)
 
-
         if message.get("primary_auth"):
             # Since we're primary auth we can update status
             if path == "loyalty_card_add_and_authorise":
