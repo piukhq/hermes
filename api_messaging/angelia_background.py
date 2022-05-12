@@ -186,13 +186,14 @@ def _loyalty_card_authorise(message: dict, path: str) -> None:
 
         user = CustomUser.objects.get(pk=ac.user_id)
 
-        if path == "loyalty_card_add_and_authorise":
-            account.set_add_auth_pending()
-            add_and_auth_lc_event(user, account, ac.channel_slug)
-        elif path == "loyalty_card_authorise":
-            account.set_auth_pending()
-
         if message.get("primary_auth"):
+            # Since we're primary auth we can update status
+            if path == "loyalty_card_add_and_authorise":
+                account.set_add_auth_pending()
+                add_and_auth_lc_event(user, account, ac.channel_slug)
+            elif path == "loyalty_card_authorise":
+                account.set_auth_pending()
+
             # primary_auth is used to indicate that this user has demonstrated the authority to authorise and
             # set the status of this card (i.e. they are not secondary to an authorised user of this card.)
             account.set_pending()
@@ -202,7 +203,6 @@ def _loyalty_card_authorise(message: dict, path: str) -> None:
                 user_id=ac.user_id,
                 payment_cards_to_link=payment_cards_to_link,
             )
-
         elif payment_cards_to_link:
             # if the request does not come from a primary_auth, then we will just auto-link this user's cards without
             # affecting the state of the loyalty card.
