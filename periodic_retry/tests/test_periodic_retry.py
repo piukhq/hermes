@@ -82,7 +82,9 @@ class TestPeriodicRetry(TestCase):
     def test_retry_generic_function(self, mock_redis_connection):
         mock_redis_connection.return_value = mock_redis
 
-        retry_obj = self.handler.new("periodic_retry.tests.test_periodic_retry", "support_test_generic_func", "some arg")
+        retry_obj = self.handler.new(
+            "periodic_retry.tests.test_periodic_retry", "support_test_generic_func", "some arg"
+        )
         self.assertEqual(retry_obj.status, PeriodicRetryStatus.PENDING)
 
         mock_retry_task(self.test_task_list)
@@ -176,7 +178,9 @@ class TestPeriodicRetry(TestCase):
     def test_cannot_set_task_already_in_queue(self, mock_redis_connection):
         mock_redis_connection.return_value = mock_redis
 
-        retry_obj = self.handler.new("periodic_retry.tests.test_periodic_retry", "support_test_generic_func", "some arg")
+        retry_obj = self.handler.new(
+            "periodic_retry.tests.test_periodic_retry", "support_test_generic_func", "some arg"
+        )
         self.assertEqual(len(self.handler.get_tasks_in_queue()), 1)
 
         self.handler.retry(retry_obj)
