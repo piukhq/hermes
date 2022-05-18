@@ -15,12 +15,12 @@ server = fakeredis.FakeServer()
 mock_redis = fakeredis.FakeStrictRedis(server=server)
 
 
-def test_generic_func(arg):
+def support_test_generic_func(arg):
     global test_generic_func_call_count
     test_generic_func_call_count += 1
 
 
-def test_retry_func(data):
+def support_test_retry_func(data):
     global test_retry_func_call_count
     test_retry_func_call_count += 1
 
@@ -82,7 +82,9 @@ class TestPeriodicRetry(TestCase):
     def test_retry_generic_function(self, mock_redis_connection):
         mock_redis_connection.return_value = mock_redis
 
-        retry_obj = self.handler.new("periodic_retry.tests.test_periodic_retry", "test_generic_func", "some arg")
+        retry_obj = self.handler.new(
+            "periodic_retry.tests.test_periodic_retry", "support_test_generic_func", "some arg"
+        )
         self.assertEqual(retry_obj.status, PeriodicRetryStatus.PENDING)
 
         mock_retry_task(self.test_task_list)
@@ -102,7 +104,7 @@ class TestPeriodicRetry(TestCase):
     def test_retry_tailored_retry_function(self, mock_redis_connection):
         mock_redis_connection.return_value = mock_redis
 
-        retry_obj = self.handler.new("periodic_retry.tests.test_periodic_retry", "test_retry_func")
+        retry_obj = self.handler.new("periodic_retry.tests.test_periodic_retry", "support_test_retry_func")
         self.assertEqual(retry_obj.status, PeriodicRetryStatus.PENDING)
 
         mock_retry_task(self.test_task_list)
@@ -130,7 +132,7 @@ class TestPeriodicRetry(TestCase):
         max_retry_attempts = 3
         retry_obj = self.handler.new(
             "periodic_retry.tests.test_periodic_retry",
-            "test_generic_func",
+            "support_test_generic_func",
             "some arg",
             retry_kwargs={"max_retry_attempts": max_retry_attempts},
         )
@@ -151,7 +153,7 @@ class TestPeriodicRetry(TestCase):
 
         retry_obj = self.handler.new(
             "periodic_retry.tests.test_periodic_retry",
-            "test_generic_func",
+            "support_test_generic_func",
             "some arg",
             retry_kwargs={"max_retry_attempts": 2},
         )
@@ -176,7 +178,9 @@ class TestPeriodicRetry(TestCase):
     def test_cannot_set_task_already_in_queue(self, mock_redis_connection):
         mock_redis_connection.return_value = mock_redis
 
-        retry_obj = self.handler.new("periodic_retry.tests.test_periodic_retry", "test_generic_func", "some arg")
+        retry_obj = self.handler.new(
+            "periodic_retry.tests.test_periodic_retry", "support_test_generic_func", "some arg"
+        )
         self.assertEqual(len(self.handler.get_tasks_in_queue()), 1)
 
         self.handler.retry(retry_obj)
@@ -189,7 +193,7 @@ class TestPeriodicRetry(TestCase):
         retry_count_success = self.handler.default_max_retry_count + 2
         retry_obj = self.handler.new(
             "periodic_retry.tests.test_periodic_retry",
-            "test_retry_func",
+            "support_test_retry_func",
             context={"disable_max_test": True},
             retry_kwargs={"max_retry_attempts": None},
         )
@@ -210,7 +214,7 @@ class TestPeriodicRetry(TestCase):
 
         retry_obj = self.handler.new(
             "periodic_retry.tests.test_periodic_retry",
-            "test_retry_func",
+            "support_test_retry_func",
             retry_kwargs={"next_retry_after": arrow.utcnow().shift(seconds=retry_after_seconds).datetime},
         )
         self.assertEqual(retry_obj.status, PeriodicRetryStatus.PENDING)
@@ -231,7 +235,7 @@ class TestPeriodicRetry(TestCase):
         retry_obj = PeriodicRetry.objects.create(
             task_group=RetryTaskList.METIS_REQUESTS,
             module="periodic_retry.tests.test_periodic_retry",
-            function="test_generic_func",
+            function="support_test_generic_func",
             next_retry_after=arrow.utcnow().shift(seconds=retry_after_seconds).datetime,
         )
         self.assertEqual(retry_obj.status, PeriodicRetryStatus.REQUIRED)
