@@ -20,7 +20,12 @@ from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 from hermes.channels import Permit
 from hermes.settings import Version
-from history.data_warehouse import add_and_auth_lc_event, join_request_lc_event, register_lc_event
+from history.data_warehouse import (
+    add_and_auth_lc_event,
+    auth_request_lc_event,
+    join_request_lc_event,
+    register_lc_event,
+)
 from history.enums import SchemeAccountJourney
 from history.signals import HISTORY_CONTEXT
 from history.utils import user_info
@@ -1003,6 +1008,8 @@ class MembershipCardView(
             # scheme_account.status = SchemeAccount.ADD_PENDING
         else:
             # auth only (to existing scheme account)
+            auth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
+
             # also called for add and auth to same wallet
             metrics_route = MembershipCardAddRoute.MULTI_WALLET
             auth_fields = auth_fields or {}
