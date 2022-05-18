@@ -5,6 +5,7 @@ from django.test import TransactionTestCase
 from history.data_warehouse import (
     add_and_auth_lc_event,
     join_outcome,
+    join_request_lc_event,
     register_lc_event,
     register_outcome,
     remove_loyalty_card_event,
@@ -106,6 +107,53 @@ class TestRegisterLCEventHandlers(TransactionTestCase):
         self.assertEqual(data["scheme_account_id"], self.mcard.id)
         self.assertEqual(data["loyalty_plan"], self.mcard.scheme_id)
         self.assertEqual(data["main_answer"], self.mcard.main_answer)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.mcard.delete()
+        cls.scheme.delete()
+        cls.user.delete()
+        cls.bundle.delete()
+        cls.client_app.delete()
+        cls.organisation.delete()
+        super().tearDownClass()
+
+class TestJoinRequestLCEventHandlers(TransactionTestCase):
+    reset_sequences = True
+
+    @classmethod
+    def setUpClass(cls):
+        cls.organisation = OrganisationFactory(name="event_test_organisation")
+        cls.client_app = ClientApplicationFactory(
+            organisation=cls.organisation,
+            name="event test client application",
+            client_id="2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VAbcdef",
+        )
+        cls.bundle = ClientApplicationBundleFactory(bundle_id="test.auth.fake", client=cls.client_app)
+
+        cls.user = UserFactory(external_id="test@delete.user", client=cls.client_app, email="test@delete.user")
+
+        cls.scheme = SchemeFactory()
+
+        SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE)
+
+        cls.mcard = SchemeAccountFactory(scheme=cls.scheme)
+        super().setUpClass()
+
+    @patch("history.data_warehouse.to_data_warehouse")
+    def test_join_request_lc_event(self, mock_to_warehouse):
+        join_request_lc_event(self.user, self.mcard, "test.auth.fake")
+
+        self.assertTrue(mock_to_warehouse.called)
+        data = mock_to_warehouse.call_args.args[0]
+        self.assertEqual(data["event_type"], "lc.join.request")
+        self.assertEqual(data["origin"], "channel")
+        self.assertEqual(data["channel"], "test.auth.fake")
+        self.assertEqual(data["external_user_ref"], self.user.external_id)
+        self.assertEqual(data["internal_user_ref"], self.user.id)
+        self.assertEqual(data["email"], self.user.email)
+        self.assertEqual(data["scheme_account_id"], self.mcard.id)
+        self.assertEqual(data["loyalty_plan"], self.mcard.scheme_id)
 
     @classmethod
     def tearDownClass(cls):
