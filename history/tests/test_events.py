@@ -118,6 +118,7 @@ class TestRegisterLCEventHandlers(TransactionTestCase):
         cls.organisation.delete()
         super().tearDownClass()
 
+
 class TestJoinRequestLCEventHandlers(TransactionTestCase):
     reset_sequences = True
 
