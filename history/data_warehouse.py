@@ -50,6 +50,7 @@ def register_lc_event(user: object, scheme_account: object, bundle_id: str):
     }
     to_data_warehouse(payload)
 
+
 def join_request_lc_event(user: object, scheme_account: object, bundle_id: str):
     payload = {
         "event_type": "lc.join.request",
