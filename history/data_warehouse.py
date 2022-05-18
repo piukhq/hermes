@@ -50,6 +50,20 @@ def register_lc_event(user: object, scheme_account: object, bundle_id: str):
     }
     to_data_warehouse(payload)
 
+def join_request_lc_event(user: object, scheme_account: object, bundle_id: str):
+    payload = {
+        "event_type": "lc.join.request",
+        "origin": "channel",
+        "channel": bundle_id,
+        "event_date_time": arrow.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
+        "external_user_ref": user.external_id,
+        "internal_user_ref": user.id,
+        "email": user.email,
+        "scheme_account_id": scheme_account.id,
+        "loyalty_plan": scheme_account.scheme_id,
+    }
+    to_data_warehouse(payload)
+
 
 def remove_loyalty_card_event(user: object, scheme_account: object):
     cabs = user.client.clientapplicationbundle_set.all()

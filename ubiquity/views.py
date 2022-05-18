@@ -20,7 +20,7 @@ from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 from hermes.channels import Permit
 from hermes.settings import Version
-from history.data_warehouse import add_and_auth_lc_event, register_lc_event
+from history.data_warehouse import add_and_auth_lc_event, join_request_lc_event, register_lc_event
 from history.enums import SchemeAccountJourney
 from history.signals import HISTORY_CONTEXT
 from history.utils import user_info
@@ -1076,6 +1076,10 @@ class MembershipCardView(
 
         scheme_account.save()
         sch_acc_entry = SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account, auth_provided=True)
+
+        # send this event to data_warehouse
+        join_request_lc_event(user, scheme_account, channels_permit.bundle_id)
+
         async_join.delay(
             scheme_account.id,
             user.id,
