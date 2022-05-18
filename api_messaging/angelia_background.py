@@ -5,7 +5,7 @@ import arrow
 from rest_framework.generics import get_object_or_404
 
 from hermes.channels import Permit
-from history.data_warehouse import add_and_auth_lc_event, register_lc_event, join_request_lc_event
+from history.data_warehouse import add_and_auth_lc_event, join_request_lc_event, register_lc_event
 from history.enums import SchemeAccountJourney
 from history.models import get_required_extra_fields
 from history.serializers import get_body_serializer
@@ -236,7 +236,7 @@ def loyalty_card_join(message: dict) -> None:
             permit=permit,
             join_scheme=scheme,
         )
-        
+
         # send event to data warehouse
         join_request_lc_event(user, account, ac.channel_slug)
 
