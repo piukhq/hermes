@@ -1,4 +1,5 @@
 import csv
+from hashlib import new
 import json
 import logging
 from io import StringIO
@@ -23,6 +24,7 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
+from history.data_warehouse import add_auth_outcome
 from history.tasks import join_outcome_event, register_outcome_event
 from payment_card.payment import Payment
 from prometheus.utils import capture_membership_card_status_change_metric
@@ -465,6 +467,15 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             Payment.process_payment_success(scheme_account)
         elif new_status_code not in pending_statuses:
             Payment.process_payment_void(scheme_account)
+
+        else:
+            if previous_status == SchemeAccount.ADD_AUTH_PENDING: 
+                if new_status_code == SchemeAccount.PENDING:
+                    # success and and auth
+                    add_auth_outcome(True, scheme_account)
+                else:
+                    # failed add and auth
+                    add_auth_outcome(False, scheme_account)
 
         UpdateSchemeAccountStatus.set_user_authorisations_and_status(new_status_code, scheme_account)
         update_fields.append("status")
