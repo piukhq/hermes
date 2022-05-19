@@ -2,6 +2,7 @@ from django.contrib import admin, messages
 from django.template.response import TemplateResponse
 from django.urls import path
 
+from .actions.paymentaccount_actions import PaymentAccountCorrection, do_update_hash
 from .actions.schemeaccount_actions import SchemeAccountCorrection, do_mark_as_unknown, do_refresh_balance
 from .actions.vop_actions import (
     Correction,
@@ -32,6 +33,7 @@ def get_correction(entry):
         Correction.SET_ACTIVE: do_set_account_and_links_active,
         SchemeAccountCorrection.MARK_AS_UNKNOWN: do_mark_as_unknown,
         SchemeAccountCorrection.REFRESH_BALANCE: do_refresh_balance,
+        PaymentAccountCorrection.UPDATE_CARD_HASH: do_update_hash,
     }
     if entry.apply not in actions.keys():
         return False
