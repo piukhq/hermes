@@ -570,6 +570,9 @@ class MembershipCardView(
                     "via POST /membership_cards endpoint first."
                 )
 
+            # send auth request to data warehouse as this is a patch with auth creds in
+            auth_request_lc_event(request.user, account, request.channels_permit.bundle_id)
+
             if update_fields:
                 update_fields = detect_and_handle_escaped_unicode(update_fields)
 
