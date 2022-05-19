@@ -1,10 +1,15 @@
 from django.db import models
 from django.db.models import JSONField
 
+from .actions.paymentaccount_actions import PaymentAccountCorrection
 from .actions.schemeaccount_actions import SchemeAccountCorrection
 from .actions.vop_actions import Correction
 
-CHOICES = Correction.CORRECTION_SCRIPTS + SchemeAccountCorrection.CORRECTION_SCRIPTS
+CHOICES = (
+    Correction.CORRECTION_SCRIPTS
+    + SchemeAccountCorrection.CORRECTION_SCRIPTS
+    + PaymentAccountCorrection.CORRECTION_SCRIPTS
+)
 
 
 class ScriptResult(models.Model):
