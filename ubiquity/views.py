@@ -574,7 +574,7 @@ class MembershipCardView(
             # as this is a PATCH_AUTH
             try:
                 auth_fields = request.data["account"]["authorise_fields"]
-            except:
+            except (KeyError, TypeError):
                 auth_fields = None
             if auth_fields:
                 auth_request_lc_event(request.user, account, request.channels_permit.bundle_id)
