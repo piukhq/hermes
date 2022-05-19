@@ -570,8 +570,14 @@ class MembershipCardView(
                     "via POST /membership_cards endpoint first."
                 )
 
-            # send auth request to data warehouse as this is a patch with auth creds in
-            auth_request_lc_event(request.user, account, request.channels_permit.bundle_id)
+            # send auth request to data warehouseif we see authorise_fields in request data
+            # as this is a PATCH_AUTH
+            try:
+                auth_fields = request.data["account"]["authorise_fields"]
+            except:
+                auth_fields = None
+            if auth_fields:
+                auth_request_lc_event(request.user, account, request.channels_permit.bundle_id)
 
             if update_fields:
                 update_fields = detect_and_handle_escaped_unicode(update_fields)
