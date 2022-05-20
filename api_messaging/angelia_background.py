@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from enum import Enum
 
 import arrow
 from rest_framework.generics import get_object_or_404
@@ -35,6 +36,13 @@ from user.models import CustomUser
 from user.serializers import HistoryUserSerializer
 
 logger = logging.getLogger("messaging")
+
+
+class LoyaltyCardPath(Enum):
+    AUTHORISE = 1
+    ADD_AND_AUTHORISE = 2
+    REGISTER = 3
+    ADD_AND_REGISTER = 3
 
 
 class AngeliaContext:
@@ -117,12 +125,12 @@ def delete_payment_account(message: dict) -> None:
 
 def loyalty_card_register(message: dict) -> None:
     logger.info("Handling loyalty_card REGISTER journey")
-    _loyalty_card_register(message, path="loyalty_card_register")
+    _loyalty_card_register(message, path=LoyaltyCardPath.REGISTER)
 
 
 def loyalty_card_add_and_register(message: dict) -> None:
     logger.info("Handling loyalty_card ADD and REGISTER journey")
-    _loyalty_card_register(message, path="loyalty_card_add_and_register")
+    _loyalty_card_register(message, path=LoyaltyCardPath.ADD_AND_REGISTER)
 
 
 def _loyalty_card_register(message: dict, path: str) -> None:
@@ -140,7 +148,7 @@ def _loyalty_card_register(message: dict, path: str) -> None:
         scheme = account.scheme
         questions = scheme.questions.all()
 
-        if path == "loyalty_card_register":
+        if path == LoyaltyCardPath.REGISTER:
             register_lc_event(user, account, ac.channel_slug)
 
         if message.get("auto_link"):
@@ -162,12 +170,12 @@ def _loyalty_card_register(message: dict, path: str) -> None:
 
 def loyalty_card_authorise(message: dict) -> None:
     logger.info("Handling loyalty_card authorisation")
-    _loyalty_card_authorise(message, path="loyalty_card_authorise")
+    _loyalty_card_authorise(message, path=LoyaltyCardPath.AUTHORISE)
 
 
 def loyalty_card_add_and_authorise(message: dict) -> None:
     logger.info("Handling loyalty_card add and authorisation")
-    _loyalty_card_authorise(message, path="loyalty_card_add_and_authorise")
+    _loyalty_card_authorise(message, path=LoyaltyCardPath.ADD_AND_AUTHORISE)
 
 
 def _loyalty_card_authorise(message: dict, path: str) -> None:
@@ -193,10 +201,10 @@ def _loyalty_card_authorise(message: dict, path: str) -> None:
 
         if message.get("primary_auth"):
             # Since we're primary auth we can update status
-            if path == "loyalty_card_add_and_authorise":
+            if path == LoyaltyCardPath.ADD_AND_AUTHORISE:
                 account.set_add_auth_pending()
                 add_and_auth_lc_event(user, account, ac.channel_slug)
-            elif path == "loyalty_card_authorise":
+            elif path == LoyaltyCardPath.AUTHORISE:
                 account.set_auth_pending()
                 auth_request_lc_event(user, account, ac.channel_slug)
 
@@ -209,16 +217,17 @@ def _loyalty_card_authorise(message: dict, path: str) -> None:
                 user_id=ac.user_id,
                 payment_cards_to_link=payment_cards_to_link,
             )
-        elif payment_cards_to_link:
-            # if the request does not come from a primary_auth, then we will just auto-link this user's cards without
-            # affecting the state of the loyalty card.
-            auto_link_membership_to_payments(payment_cards_to_link=payment_cards_to_link, membership_card=account)
-
+        else:
             # not primary_auth so no status update but request event still sent
-            if path == "loyalty_card_add_and_authorise":
+            if path == LoyaltyCardPath.ADD_AND_AUTHORISE:
                 add_and_auth_lc_event(user, account, ac.channel_slug)
-            elif path == "loyalty_card_authorise":
+            elif path == LoyaltyCardPath.AUTHORISE:
                 auth_request_lc_event(user, account, ac.channel_slug)
+
+            if payment_cards_to_link:
+                # if the request does not come from a primary_auth, then we will just auto-link this user's
+                # cards without affecting the state of the loyalty card.
+                auto_link_membership_to_payments(payment_cards_to_link=payment_cards_to_link, membership_card=account)
 
 
 def loyalty_card_join(message: dict) -> None:
