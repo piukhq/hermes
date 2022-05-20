@@ -42,7 +42,7 @@ class LoyaltyCardPath(Enum):
     AUTHORISE = 1
     ADD_AND_AUTHORISE = 2
     REGISTER = 3
-    ADD_AND_REGISTER = 3
+    ADD_AND_REGISTER = 4
 
 
 class AngeliaContext:
