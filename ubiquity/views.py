@@ -1016,8 +1016,12 @@ class MembershipCardView(
             sch_acc_entry = self._handle_existing_scheme_account(
                 scheme_account, user, auth_fields, payment_cards_to_link
             )
-            scheme_account.status = SchemeAccount.AUTH_PENDING
-            scheme_account.save(update_fields=["status"])
+
+            # set auth pending unless this scheme account already passed that stage in another wallet
+            if scheme_account.status not in (SchemeAccount.PENDING, SchemeAccount.ACTIVE):
+                scheme_account.status = SchemeAccount.AUTH_PENDING
+                scheme_account.save(update_fields=["status"])
+            
 
         return scheme_account, sch_acc_entry, return_status, metrics_route
 

@@ -468,6 +468,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             Payment.process_payment_void(scheme_account)
 
         else:
+            # PENDING status checking
             if previous_status == SchemeAccount.ADD_AUTH_PENDING:
                 if new_status_code == SchemeAccount.PENDING:
                     # success and and auth
