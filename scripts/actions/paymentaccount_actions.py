@@ -14,5 +14,5 @@ class PaymentAccountCorrection:
 def do_update_hash(entry):
     acc = PaymentCardAccount.objects.get(id=entry.data["payment_card_account_id"])
     acc.hash = entry.data["new_hash"]
-    acc.save(update_fields=["hash"])
+    acc.save(update_fields=["hash", "updated"])
     return True
