@@ -214,7 +214,7 @@ def _loyalty_card_authorise(message: dict, path: str) -> None:
             # affecting the state of the loyalty card.
             auto_link_membership_to_payments(payment_cards_to_link=payment_cards_to_link, membership_card=account)
 
-            # not primary_auth so no status update but request event still sent 
+            # not primary_auth so no status update but request event still sent
             if path == "loyalty_card_add_and_authorise":
                 add_and_auth_lc_event(user, account, ac.channel_slug)
             elif path == "loyalty_card_authorise":
