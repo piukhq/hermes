@@ -34,7 +34,7 @@ SCRIPT_TITLES = {
     DataScripts.FIX_STUCK_IN_DEACTIVATING: "VOP Activations stuck in deactivating",
     DataScripts.VISA_DUPLICATE_CARDS: "Visa card accounts in 'duplicate card' status",
     DataScripts.SCHEMEACCOUNT_INVALIDCREDS: "SchemeAccounts stuck in Invalid Credentials status",
-    DataScripts.BARCLAYS_HASH_UPLOAD: "Upload from Azure Blob storage - hash data corrections",
+    DataScripts.BARCLAYS_HASH_UPLOAD: "Barclays hash replacement using Azure upload files",
 }
 
 SCRIPT_CLASSES = {
