@@ -879,9 +879,7 @@ class TestResources(GlobalMockAPITestCase):
         card_id = resp_json["id"]
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(
-            resp_json["status"], {"state": "pending", "reason_codes": ["X100"], "error_text": "Pending"}
-        )
+        self.assertEqual(resp_json["status"], {"state": "pending", "reason_codes": ["X100"], "error_text": "Pending"})
 
         user_links = SchemeAccountEntry.objects.filter(scheme_account=existing_scheme_account)
 
