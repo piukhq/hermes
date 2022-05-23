@@ -1021,8 +1021,6 @@ class MembershipCardView(
             if scheme_account.status not in (SchemeAccount.PENDING, SchemeAccount.ACTIVE):
                 scheme_account.status = SchemeAccount.AUTH_PENDING
                 scheme_account.save(update_fields=["status"])
-            
-
         return scheme_account, sch_acc_entry, return_status, metrics_route
 
     @staticmethod
