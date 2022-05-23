@@ -227,6 +227,8 @@ AUTHENTICATION_BACKENDS = [
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
 NO_AZURE_STORAGE = env_var("NO_AZURE_STORAGE", True)
+UPLOAD_CONTAINER_NAME = env_var("UPLOAD_CONTAINER_NAME", "hermes-imports")
+ARCHIVE_CONTAINER_NAME = env_var("ARCHIVE_CONTAINER_NAME", "hermes-archive")
 
 if not NO_AZURE_STORAGE:
     DEFAULT_FILE_STORAGE = "hermes.storage.CustomAzureStorage"
