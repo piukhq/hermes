@@ -764,6 +764,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 200)
         # data not the same since we added auth_pending / add_auth_pending status
         status = {"state": "pending", "reason_codes": ["X100"], "error_text": "Auth Pending"}
+
         self.assertEqual(status, resp.data["status"])
         # remove the status field then check the dict's are equal
         del resp.data["status"]
@@ -1274,6 +1275,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 200)
         # data not the same since we added auth_pending / add_auth_pending status
         status = {"state": "pending", "reason_codes": ["X100"], "error_text": "Auth Pending"}
+
         self.assertEqual(status, resp.data["status"])
         # remove the status field then check the dict's are equal
         del resp.data["status"]
