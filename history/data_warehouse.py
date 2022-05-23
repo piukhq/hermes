@@ -128,6 +128,33 @@ def join_outcome(success: bool, user: object, scheme_account: object):
         to_data_warehouse(payload)
 
 
+def add_auth_outcome(success: bool, user: object, scheme_account: object):
+    extra_data = {}
+    if success:
+        event_type = "lc.addandauth.success"
+        extra_data["main_answer"] = scheme_account.main_answer
+    else:
+        event_type = "lc.addandauth.failed"
+
+    extra_data["status"] = scheme_account.status
+
+    cabs = user.client.clientapplicationbundle_set.all()
+    for cab in cabs:
+        payload = {
+            "event_type": event_type,
+            "origin": "merchant.callback",
+            "channel": cab.bundle_id,
+            "event_date_time": arrow.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "external_user_ref": user.external_id,
+            "internal_user_ref": user.id,
+            "email": user.email,
+            "scheme_account_id": scheme_account.id,
+            "loyalty_plan": scheme_account.scheme_id,
+            **extra_data,
+        }
+        to_data_warehouse(payload)
+
+
 def register_outcome(success: bool, user: object, scheme_account: object):
     extra_data = {}
     if success:
