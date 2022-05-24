@@ -14,15 +14,16 @@ def process_files(file_list: list):
     from scripts.scripts import SCRIPT_TITLES, DataScripts
 
     now = datetime.now()
-    now_str = now.strftime("%Y%m%d_%H%M")
+    now_str = now.strftime("%H%M")
+    date_str = now.strftime("%Y/%m/%d/")
     blob_service_client = BlobServiceClient.from_connection_string(settings.AZURE_CONNECTION_STRING)
     container_client = blob_service_client.get_container_client(settings.UPLOAD_CONTAINER_NAME)
     archive_client = blob_service_client.get_container_client(settings.ARCHIVE_CONTAINER_NAME)
-    failures = []
     item_no = 0
     for upload_file in file_list:
+        failures = []
         line_no = 0
-        archive_file = upload_file.replace("hash-files/", f"processed_{now_str}/imported/")
+        archive_file = date_str + upload_file.replace("hash-files/", f"processed_{now_str}/imported/")
         bytes_io = container_client.download_blob(upload_file).readall()
         archive_client.get_blob_client(archive_file).upload_blob(bytes_io)
         contents = str(bytes_io, "utf-8").split("\n")
