@@ -14,14 +14,14 @@ class BarclaysHashCorrectionsUpload(BaseScript):
             # List the blobs in the container
             blob_list = container_client.list_blobs(name_starts_with="barclays/hash/hash-files/")
             file_list = []
+            self.result.append("Files found to process in Background")
             for blob in blob_list:
                 file_list.append(blob.name)
+                self.result.append(f"&nbsp;&nbsp;&nbsp;&nbsp;{blob.name}")
             if container_client:
-                self.result.append("Files found to process in Background\n\t")
-                self.result.append("\n\t".join(file_list))
                 process_files.delay(file_list)
             else:
-                self.result.append("Did not access Azure Container\n")
+                self.result.append(f"Could not find/access Azure Container {settings.UPLOAD_CONTAINER_NAME}")
 
         except Exception as ex:
             self.result.append(f"Failed Exception Occurred {ex}\n")
