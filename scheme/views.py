@@ -23,7 +23,7 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
-from history.tasks import add_auth_outcome_event, join_outcome_event, register_outcome_event
+from history.tasks import join_outcome_event, register_outcome_event
 from payment_card.payment import Payment
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme.account_status_summary import scheme_account_status_data
@@ -63,7 +63,6 @@ logger = logging.getLogger(__name__)
 OUTCOME_EVENT = {
     SchemeAccount.JOIN_ASYNC_IN_PROGRESS: join_outcome_event,
     SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS: register_outcome_event,
-    SchemeAccount.ADD_AUTH_PENDING: add_auth_outcome_event,
 }
 
 
@@ -443,7 +442,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         pending_failed_statuses = (
             SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
             SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS,
-            SchemeAccount.ADD_AUTH_PENDING,
         )
 
         capture_membership_card_status_change_metric(
@@ -452,9 +450,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             new_status=new_status_code,
         )
         PaymentCardSchemeEntry.update_active_link_status({"scheme_account": scheme_account})
-
-        # clickhouse status change event goes here, probably
-
         # delete main answer credential if an async join failed
         if previous_status in pending_failed_statuses and new_status_code != SchemeAccount.ACTIVE:
             scheme_account.main_answer = ""
