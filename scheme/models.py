@@ -742,7 +742,7 @@ class SchemeAccount(models.Model):
     JOIN_PENDING = [JOIN_ASYNC_IN_PROGRESS]
     REGISTER_PENDING = [REGISTRATION_ASYNC_IN_PROGRESS]
 
-    PRE_PENDING_STATUS = [AUTH_PENDING, ADD_AUTH_PENDING]
+    PRE_PENDING_STATUSES = [AUTH_PENDING, ADD_AUTH_PENDING]
     OUTCOME_EVENT = {
         ADD_AUTH_PENDING: add_auth_outcome_event,
         AUTH_PENDING: auth_outcome_event,
@@ -978,7 +978,7 @@ class SchemeAccount(models.Model):
             logger.info(f"Ignoring Midas {self.status} response code")
 
         # check here for data warehouse event
-        if current_status in self.PRE_PENDING_STATUS:
+        if current_status in self.PRE_PENDING_STATUSES:
             if self.status == SchemeAccount.ACTIVE:
                 self.OUTCOME_EVENT[current_status].delay(True, self)
             else:
