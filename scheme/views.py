@@ -442,7 +442,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         pending_failed_statuses = (
             SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
             SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS,
-            SchemeAccount.ADD_AUTH_PENDING,
         )
 
         capture_membership_card_status_change_metric(
@@ -451,9 +450,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             new_status=new_status_code,
         )
         PaymentCardSchemeEntry.update_active_link_status({"scheme_account": scheme_account})
-
-        # clickhouse status change event goes here, probably
-
         # delete main answer credential if an async join failed
         if previous_status in pending_failed_statuses and new_status_code != SchemeAccount.ACTIVE:
             scheme_account.main_answer = ""
