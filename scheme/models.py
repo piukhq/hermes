@@ -45,7 +45,6 @@ from scheme.credentials import (
 from scheme.encryption import AESCipher
 from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import AESKeyNames
-from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.reason_codes import REASON_CODES
 
 if TYPE_CHECKING:
@@ -743,6 +742,12 @@ class SchemeAccount(models.Model):
     JOIN_PENDING = [JOIN_ASYNC_IN_PROGRESS]
     REGISTER_PENDING = [REGISTRATION_ASYNC_IN_PROGRESS]
 
+    PRE_PENDING_STATUS = [AUTH_PENDING, ADD_AUTH_PENDING]
+    OUTCOME_EVENT = {
+        ADD_AUTH_PENDING: add_auth_outcome_event,
+        AUTH_PENDING: auth_outcome_event,
+    }
+
     # Journey types
     JOURNEYS = (
         (JourneyTypes.UNKNOWN, "Unknown"),
@@ -955,40 +960,28 @@ class SchemeAccount(models.Model):
 
     def _process_midas_response(self, response):
         points = None
-        current_status = self.status        
+        current_status = self.status
         self.status = response.status_code
         if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
             self.status = SchemeAccount.UNKNOWN_ERROR
-            # send fail event to data warehouse
-            if current_status == SchemeAccount.ADD_AUTH_PENDING:
-                add_auth_outcome_event(False, self)
-            elif current_status == SchemeAccount.AUTH_PENDING:
-                auth_outcome_event(False, self)
 
         if response.status_code == 200:
             points = response.json()
             self.status = SchemeAccount.PENDING if points.get("pending") else SchemeAccount.ACTIVE
             points["balance"] = points.get("balance")  # serializers.DecimalField does not allow blank fields
             points["is_stale"] = False
-            # check if actve or not here too
-            if self.status == SchemeAccount.ACTIVE:
-                # send success event to data warehouse
-                if current_status == SchemeAccount.ADD_AUTH_PENDING:
-                    add_auth_outcome_event(True, self)
-                elif current_status == SchemeAccount.AUTH_PENDING:
-                    auth_outcome_event(True, self)
-            else:
-                # send fail event to data warehouse
-                if current_status == SchemeAccount.ADD_AUTH_PENDING:
-                    add_auth_outcome_event(False, self)
-                elif current_status == SchemeAccount.AUTH_PENDING:
-                    auth_outcome_event(False, self)
 
         # When receiving a 500 error from Midas, keep SchemeAccount active only
         # if it's already active.
         elif response.status_code >= 500 and current_status == SchemeAccount.ACTIVE:
             self.status = SchemeAccount.ACTIVE
             logger.info(f"Ignoring Midas {self.status} response code")
+
+        # check here for data warehouse event
+        if self.status == SchemeAccount.ACTIVE and current_status in self.PRE_PENDING_STATUS:
+            self.OUTCOME_EVENT[current_status].delay(True, self)
+        else:
+            self.OUTCOME_EVENT[current_status].delay(False, self)
 
         return points
 
@@ -1166,8 +1159,6 @@ class SchemeAccount(models.Model):
             )
             update_fields.append("status")
             logger.info("%s of id %s has been updated with status: %s", self.__class__.__name__, self.id, self.status)
-
-
 
         if update_fields:
             self.save(update_fields=update_fields)

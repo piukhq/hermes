@@ -62,7 +62,7 @@ logger = logging.getLogger(__name__)
 
 OUTCOME_EVENT = {
     SchemeAccount.JOIN_ASYNC_IN_PROGRESS: join_outcome_event,
-    SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS: register_outcome_event
+    SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS: register_outcome_event,
 }
 
 

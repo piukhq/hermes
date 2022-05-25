@@ -30,6 +30,7 @@ def add_auth_outcome_event(success: bool, scheme_account: object) -> None:
     for wallet in wallets:
         add_auth_outcome(success, wallet.user, scheme_account)
 
+
 @shared_task
 def auth_outcome_event(success: bool, scheme_account: object) -> None:
     from ubiquity.models import SchemeAccountEntry

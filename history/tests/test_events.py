@@ -457,6 +457,7 @@ class TestAddAndAuthFailEventHandlers(TransactionTestCase):
         cls.organisation.delete()
         super().tearDownClass()
 
+
 class TestAuthSuccessEventHandlers(TransactionTestCase):
     reset_sequences = True
 
