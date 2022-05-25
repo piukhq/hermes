@@ -978,10 +978,11 @@ class SchemeAccount(models.Model):
             logger.info(f"Ignoring Midas {self.status} response code")
 
         # check here for data warehouse event
-        if self.status == SchemeAccount.ACTIVE and current_status in self.PRE_PENDING_STATUS:
-            self.OUTCOME_EVENT[current_status].delay(True, self)
-        else:
-            self.OUTCOME_EVENT[current_status].delay(False, self)
+        if current_status in self.PRE_PENDING_STATUS:
+            if self.status == SchemeAccount.ACTIVE:
+                self.OUTCOME_EVENT[current_status].delay(True, self)
+            else:
+                self.OUTCOME_EVENT[current_status].delay(False, self)
 
         return points
 
