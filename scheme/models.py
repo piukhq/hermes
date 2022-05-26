@@ -28,6 +28,7 @@ from rest_framework.exceptions import ParseError
 
 from analytics.api import update_scheme_account_attribute, update_scheme_account_attribute_new_status
 from common.models import Image
+from history.tasks import add_auth_outcome_event, auth_outcome_event
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
 from scheme.credentials import (
@@ -44,7 +45,6 @@ from scheme.credentials import (
 from scheme.encryption import AESCipher
 from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import AESKeyNames
-from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.reason_codes import REASON_CODES
 
 if TYPE_CHECKING:
@@ -742,6 +742,12 @@ class SchemeAccount(models.Model):
     JOIN_PENDING = [JOIN_ASYNC_IN_PROGRESS]
     REGISTER_PENDING = [REGISTRATION_ASYNC_IN_PROGRESS]
 
+    PRE_PENDING_STATUSES = [AUTH_PENDING, ADD_AUTH_PENDING]
+    OUTCOME_EVENT = {
+        ADD_AUTH_PENDING: add_auth_outcome_event,
+        AUTH_PENDING: auth_outcome_event,
+    }
+
     # Journey types
     JOURNEYS = (
         (JourneyTypes.UNKNOWN, "Unknown"),
@@ -958,6 +964,7 @@ class SchemeAccount(models.Model):
         self.status = response.status_code
         if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
             self.status = SchemeAccount.UNKNOWN_ERROR
+
         if response.status_code == 200:
             points = response.json()
             self.status = SchemeAccount.PENDING if points.get("pending") else SchemeAccount.ACTIVE
@@ -969,6 +976,13 @@ class SchemeAccount(models.Model):
         elif response.status_code >= 500 and current_status == SchemeAccount.ACTIVE:
             self.status = SchemeAccount.ACTIVE
             logger.info(f"Ignoring Midas {self.status} response code")
+
+        # check here for data warehouse event
+        if current_status in self.PRE_PENDING_STATUSES:
+            if self.status == SchemeAccount.ACTIVE:
+                self.OUTCOME_EVENT[current_status].delay(True, self)
+            else:
+                self.OUTCOME_EVENT[current_status].delay(False, self)
 
         return points
 
@@ -1152,7 +1166,6 @@ class SchemeAccount(models.Model):
 
         # Update on each balance request to resolve any ubiquity collisions e.g if a link is in ubiquity collision
         # state but the blocking scheme account was deleted then the link should be updated to active.
-        PaymentCardSchemeEntry.update_active_link_status({"scheme_account": self})
 
         return balance
 
