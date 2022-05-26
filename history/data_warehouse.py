@@ -230,23 +230,25 @@ def pay_account_from_entry(data: dict) -> dict:
 
 def scheme_account_status_update(data: dict) -> dict:
     from scheme.models import SchemeAccount
-    from user.models import CustomUser
-    extra_datas = []
+    from ubiquity.models import SchemeAccountEntry
+
+    extras = []
     if "status" in data.get("change_details"):
-        # for each wallet:
         scheme_account = SchemeAccount.objects.get(id=data.get("scheme_account_id"))
-        user_info = CustomUser.objects.get(id=data.get("user_id"))
-        extra_data = {
-            "external_user_ref": user_info.external_id,
-            "internal_user_ref": user_info.id,
-            "email": user_info.email,
-            "scheme_account_id": scheme_account.id,
-            "loyalty_plan": scheme_account.scheme_id,
-            "main_answer": scheme_account.main_answer,
-            "to_status": scheme_account.status,
-        }
-        extara_datas.append(0)
-    return extra_datas
+        wallets = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
+        for wallet in wallets:
+            user = wallet.user
+            extra_data = {
+                "external_user_ref": user.external_id,
+                "internal_user_ref": user.id,
+                "email": user.email,
+                "scheme_account_id": scheme_account.id,
+                "loyalty_plan": scheme_account.scheme_id,
+                "main_answer": scheme_account.main_answer,
+                "to_status": scheme_account.status,
+            }
+            extras.append(extra_data)
+    return extras
 
 
 def user_data(data: dict) -> dict:
