@@ -506,9 +506,19 @@ class UpdateCredentialsMixin:
 
     def update_credentials(self, scheme_account: SchemeAccount, data: dict, questions=None) -> dict:
         if questions is None:
-            questions = SchemeCredentialQuestion.objects.filter(scheme=scheme_account.scheme).only("id", "type")
+            questions = (
+                SchemeCredentialQuestion.objects.filter(scheme=scheme_account.scheme)
+                .only("id", "type")
+                .annotate(is_main_question=Q(manual_question=True) | Q(scan_question=True) | Q(one_question_link=True))
+            )
+        else:
+            questions = questions.annotate(
+                is_main_question=Q(manual_question=True) | Q(scan_question=True) | Q(one_question_link=True)
+            )
 
-        serializer = UpdateCredentialSerializer(data=data, context={"questions": questions})
+        serializer = UpdateCredentialSerializer(
+            data=data, context={"questions": questions, "scheme_account": scheme_account}
+        )
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         if "consents" in data:
