@@ -225,7 +225,28 @@ def pay_account_from_entry(data: dict) -> dict:
         "token": pay_card_account.token,
         "status": pay_card_account.status,
     }
-    return extra_data
+    return [extra_data]
+
+
+def scheme_account_status_update(data: dict) -> dict:
+    from scheme.models import SchemeAccount
+    from user.models import CustomUser
+    extra_datas = []
+    if "status" in data.get("change_details"):
+        # for each wallet:
+        scheme_account = SchemeAccount.objects.get(id=data.get("scheme_account_id"))
+        user_info = CustomUser.objects.get(id=data.get("user_id"))
+        extra_data = {
+            "external_user_ref": user_info.external_id,
+            "internal_user_ref": user_info.id,
+            "email": user_info.email,
+            "scheme_account_id": scheme_account.id,
+            "loyalty_plan": scheme_account.scheme_id,
+            "main_answer": scheme_account.main_answer,
+            "to_status": scheme_account.status,
+        }
+        extara_datas.append(0)
+    return extra_datas
 
 
 def user_data(data: dict) -> dict:
@@ -235,7 +256,7 @@ def user_data(data: dict) -> dict:
         "internal_user_ref": body.get("id"),
         "email": body.get("email"),
     }
-    return extra_data
+    return [extra_data]
 
 
 event_map = {
@@ -244,6 +265,9 @@ event_map = {
         "delete": ("payment.account.removed", pay_account_from_entry),
     },
     "CustomUser": {"create": ("user.created", user_data), "delete": ("user.deleted", user_data)},
+    "SchemeAccount": {
+        "update": ("lc.statuschange", scheme_account_status_update),
+    },
 }
 
 
@@ -260,14 +284,15 @@ def history_event(model_name: str, data: dict):
             #  due to a merchant callback and decide what to do if it is due to some other cause
             origin = "merchant.callback"
             channel_slug = ""
-        extra_data = {}
+        extra_datas = []
         if event_info[1]:
-            extra_data = event_info[1](data)
-        payload = {
-            "event_type": event_info[0],
-            "origin": origin,
-            "channel": channel_slug,
-            "event_date_time": arrow.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
-            **extra_data,
-        }
-        to_data_warehouse(payload)
+            extra_datas = event_info[1](data)
+            for extra_data in extra_datas:
+                payload = {
+                    "event_type": event_info[0],
+                    "origin": origin,
+                    "channel": channel_slug,
+                    "event_date_time": arrow.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
+                    **extra_data,
+                }
+                to_data_warehouse(payload)
