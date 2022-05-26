@@ -234,7 +234,7 @@ def scheme_account_status_update(data: dict) -> dict:
 
     extras = []
     if "status" in data.get("change_details"):
-        scheme_account = SchemeAccount.objects.get(id=data.get("scheme_account_id"))
+        scheme_account = SchemeAccount.objects.get(id=data.get("id"))
         wallets = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
         for wallet in wallets:
             user = wallet.user
