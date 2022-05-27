@@ -441,7 +441,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         response = self.client.post(
             reverse("change_account_status", args=[scheme_account.id]), data, format="json", **self.auth_service_headers
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["id"], scheme_account.id)
         self.assertEqual(response.data["status"], SchemeAccount.ACCOUNT_ALREADY_EXISTS)
 
