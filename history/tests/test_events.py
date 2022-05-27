@@ -7,7 +7,6 @@ from history.data_warehouse import (
     add_auth_outcome,
     auth_outcome,
     auth_request_lc_event,
-    history_event,
     join_outcome,
     join_request_lc_event,
     register_lc_event,
