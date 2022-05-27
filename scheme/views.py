@@ -395,7 +395,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
                 "Cannot change a scheme account with ACCOUNT_ALREADY_EXISTS status to ACTIVE "
                 f"during the join journey - SchemeAccount id: {scheme_account.id}"
             )
-            return Response({"id": scheme_account.id, "status": previous_status}, status=400)
+            return Response({"id": scheme_account.id, "status": previous_status}, status=200)
 
         # method that sends data to Mnemosyne
         self.send_to_intercom(new_status_code, scheme_account)
