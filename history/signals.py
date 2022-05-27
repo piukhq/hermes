@@ -1,5 +1,6 @@
 from threading import local
 from typing import Optional, Tuple
+from uuid import uuid4
 
 import sentry_sdk
 from django.db.models import signals
@@ -94,6 +95,9 @@ def signal_record_history(sender, instance, **kwargs) -> None:
         if "journey" in required_extra_fields and hasattr(HISTORY_CONTEXT, "journey"):
             extra["journey"] = HISTORY_CONTEXT.journey
             del HISTORY_CONTEXT.journey
+
+        if "uuid" in required_extra_fields:
+            extra["uuid"] = str(uuid4())
 
         for field in required_extra_fields:
             if field not in extra and hasattr(instance, field):

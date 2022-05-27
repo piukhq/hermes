@@ -32,6 +32,7 @@ class HistoricalCustomUser(HistoricalBase):
     body = JSONField()
     email = models.EmailField(verbose_name="email address", max_length=255, blank=True)
     external_id = models.CharField(max_length=255, blank=True)
+    uuid = models.UUIDField(blank=True, null=True)
 
 
 class HistoricalPaymentCardAccount(HistoricalBase):
