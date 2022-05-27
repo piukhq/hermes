@@ -428,6 +428,26 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(scheme_account.main_answer, "")
         self.assertEqual(scheme_account.status, SchemeAccount.ENROL_FAILED)
 
+    @patch("analytics.api.requests.post")
+    @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
+    def test_scheme_account_update_join_acc_already_exists_fails(self, *_):
+        client_app = ClientApplicationFactory(name="barclays")
+        scheme_account = SchemeAccountFactory(status=SchemeAccount.ACCOUNT_ALREADY_EXISTS)
+        user = UserFactory(client=client_app)
+        SchemeAccountEntryFactory(scheme_account=scheme_account, user=user)
+        user_set = str(user.id)
+
+        data = {"status": SchemeAccount.ACTIVE, "journey": "join", "user_info": {"user_set": user_set}}
+        response = self.client.post(
+            reverse("change_account_status", args=[scheme_account.id]), data, format="json", **self.auth_service_headers
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["id"], scheme_account.id)
+        self.assertEqual(response.data["status"], SchemeAccount.ACCOUNT_ALREADY_EXISTS)
+
+        scheme_account.refresh_from_db()
+        self.assertEqual(scheme_account.status, SchemeAccount.ACCOUNT_ALREADY_EXISTS)
+
     def test_scheme_account_update_transactions(self):
         transactions = [
             {
