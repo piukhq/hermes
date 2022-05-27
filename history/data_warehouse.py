@@ -209,7 +209,7 @@ def register_outcome(success: bool, user: object, scheme_account: object):
         to_data_warehouse(payload)
 
 
-def pay_account_from_entry(data: dict) -> dict:
+def pay_account_from_entry(data: dict) -> list:
     from payment_card.models import PaymentCardAccount
     from user.models import CustomUser
 
@@ -228,7 +228,7 @@ def pay_account_from_entry(data: dict) -> dict:
     return [extra_data]
 
 
-def scheme_account_status_update(data: dict) -> dict:
+def scheme_account_status_update(data: dict) -> list:
     from scheme.models import SchemeAccount
     from ubiquity.models import SchemeAccountEntry
 
@@ -252,7 +252,7 @@ def scheme_account_status_update(data: dict) -> dict:
     return extras
 
 
-def user_data(data: dict) -> dict:
+def user_data(data: dict) -> list:
     body = data.get("body", {})
     extra_data = {
         "external_user_ref": body.get("external_id"),
