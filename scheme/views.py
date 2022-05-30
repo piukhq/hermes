@@ -60,11 +60,6 @@ from user.models import CustomUser, UserSetting
 
 logger = logging.getLogger(__name__)
 
-OUTCOME_EVENT = {
-    SchemeAccount.JOIN_ASYNC_IN_PROGRESS: join_outcome_event,
-    SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS: register_outcome_event,
-}
-
 
 class SchemeAccountQuery(APIView):
     authentication_classes = (ServiceAuthentication,)
@@ -442,16 +437,12 @@ class UpdateSchemeAccountStatus(GenericAPIView):
     def process_new_status(new_status_code, previous_status, scheme_account):
         update_fields = []
 
-        pending_active_statuses = (
+        pending_statuses = (
             SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
             SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS,
             SchemeAccount.JOIN_IN_PROGRESS,
             SchemeAccount.PENDING,
             SchemeAccount.PENDING_MANUAL_CHECK,
-        )
-        pending_failed_statuses = (
-            SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
-            SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS,
         )
 
         capture_membership_card_status_change_metric(
@@ -460,16 +451,29 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             new_status=new_status_code,
         )
         PaymentCardSchemeEntry.update_active_link_status({"scheme_account": scheme_account})
+
         # delete main answer credential if an async join failed
-        if previous_status in pending_failed_statuses and new_status_code != SchemeAccount.ACTIVE:
+        if (
+            previous_status in [SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS]
+            and new_status_code != SchemeAccount.ACTIVE
+        ):
             scheme_account.main_answer = ""
             update_fields.append("main_answer")
-            OUTCOME_EVENT[previous_status].delay(False, scheme_account)
+            # status event join failed
+            if previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS:
+                join_outcome_event.delay(success=False, scheme_account=scheme_account)
+            elif previous_status == SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS:
+                register_outcome_event.delay(success=False, scheme_account=scheme_account)
 
         if new_status_code == SchemeAccount.ACTIVE:
-            OUTCOME_EVENT[previous_status].delay(True, scheme_account)
+            # status event join success
+            if previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS:
+                join_outcome_event.delay(success=True, scheme_account=scheme_account)
+            elif previous_status == SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS:
+                register_outcome_event.delay(success=True, scheme_account=scheme_account)
+
             Payment.process_payment_success(scheme_account)
-        elif new_status_code not in pending_active_statuses:
+        elif new_status_code not in pending_statuses:
             Payment.process_payment_void(scheme_account)
 
         UpdateSchemeAccountStatus.set_user_authorisations_and_status(new_status_code, scheme_account)

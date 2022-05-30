@@ -980,9 +980,9 @@ class SchemeAccount(models.Model):
         # check here for data warehouse event
         if current_status in self.PRE_PENDING_STATUSES:
             if self.status == SchemeAccount.ACTIVE:
-                self.OUTCOME_EVENT[current_status].delay(True, self)
+                self.OUTCOME_EVENT[current_status].delay(success=True, scheme_account=self)
             else:
-                self.OUTCOME_EVENT[current_status].delay(False, self)
+                self.OUTCOME_EVENT[current_status].delay(success=False, scheme_account=self)
 
         return points
 
