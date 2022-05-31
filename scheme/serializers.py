@@ -1,10 +1,12 @@
+import logging
 from copy import copy
 
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
 
 from common.models import Image
-from scheme.credentials import credential_types_set
+from scheme.credentials import BARCODE, CARD_NUMBER, CASE_SENSITIVE_CREDENTIALS, credential_types_set
 from scheme.models import (
     Consent,
     ConsentStatus,
@@ -20,6 +22,8 @@ from scheme.models import (
 )
 from ubiquity.models import PaymentCardAccountEntry
 from user.models import CustomUser
+
+logger = logging.getLogger(__name__)
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
@@ -636,15 +640,59 @@ class DeleteCredentialSerializer(serializers.Serializer):
 
 class UpdateCredentialSerializer(SchemeAnswerSerializer):
     def validate(self, credentials):
+        scheme_account = self.context["scheme_account"]
+        questions = self.context["questions"]
+
         # Validate all credential types
-        scheme_fields = [question.type for question in self.context["questions"]]
+        scheme_fields = [question.type for question in questions]
         unknown = set(self.initial_data) - set(scheme_fields)
         if "consents" in unknown:
             unknown.remove("consents")
         if unknown:
             raise serializers.ValidationError("field(s) not found for scheme: {}".format(", ".join(unknown)))
 
+        self._validate_existing_main_answer(credentials, questions, scheme_account)
+
         return credentials
+
+    @staticmethod
+    def _build_q_objects(query_args) -> Q:
+        # filter with OR conditions with each main credential to check for existing scheme accounts
+        q_objs = Q()
+        for key, val in query_args.items():
+            if key not in CASE_SENSITIVE_CREDENTIALS:
+                val = val.lower()
+
+            if key in [CARD_NUMBER, BARCODE]:
+                q_objs |= Q(**{key: val})
+            else:
+                q_objs |= Q(main_answer=val)
+
+        return q_objs
+
+    def _validate_existing_main_answer(self, credentials, questions, scheme_account) -> None:
+        main_question_types = {question.type for question in questions if question.is_main_question}
+
+        query_args = {
+            answer_type: credentials[answer_type] for answer_type in credentials if answer_type in main_question_types
+        }
+
+        if query_args:
+            q_objs = self._build_q_objects(query_args)
+
+            existing_accounts = (
+                SchemeAccount.objects.filter(q_objs, scheme=scheme_account.scheme).values_list("id").all()
+            )
+            if len(existing_accounts) > 1:
+                logger.error(
+                    "More than one account found with the same main credential. "
+                    "One of the following credentials are the same for scheme account ids "
+                    f"{[acc.id for acc in existing_accounts]}: {query_args.keys()}"
+                )
+            elif len(existing_accounts) == 1:
+                scheme_account.status = scheme_account.ACCOUNT_ALREADY_EXISTS
+                scheme_account.save(update_fields=["status"])
+                raise serializers.ValidationError("An account already exists with the given credentials")
 
 
 class UpdateUserConsentSerializer(serializers.ModelSerializer):

@@ -382,6 +382,16 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id, is_deleted=False)
         previous_status = scheme_account.status
 
+        if journey == "join" and previous_status == scheme_account.ACCOUNT_ALREADY_EXISTS:
+            # This prevents midas from setting an account to active when joining with a card that already exists.
+            # The attempt to update credentials will set the account to ACCOUNT_ALREADY_EXISTS, but midas will
+            # then attempt to set the status to active.
+            logger.debug(
+                "Cannot change a scheme account with ACCOUNT_ALREADY_EXISTS status to ACTIVE "
+                f"during the join journey - SchemeAccount id: {scheme_account.id}"
+            )
+            return Response({"id": scheme_account.id, "status": previous_status}, status=200)
+
         # method that sends data to Mnemosyne
         self.send_to_intercom(new_status_code, scheme_account)
         self.process_active_accounts(scheme_account, journey, new_status_code)
