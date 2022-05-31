@@ -390,8 +390,8 @@ class TestAddAndAuthSuccessEventHandlers(TransactionTestCase):
         self.assertTrue(mock_to_warehouse.called)
         data = mock_to_warehouse.call_args.args[0]
         self.assertEqual(data["event_type"], "lc.addandauth.success")
-        self.assertEqual(data["origin"], "merchant.callback")
-        self.assertEqual(data["channel"], "test.auth.fake")
+        self.assertEqual(data["origin"], "channel")
+        self.assertEqual(data["channel"], None)
         self.assertEqual(data["external_user_ref"], self.user.external_id)
         self.assertEqual(data["internal_user_ref"], self.user.id)
         self.assertEqual(data["email"], self.user.email)
@@ -438,8 +438,8 @@ class TestAddAndAuthFailEventHandlers(TransactionTestCase):
         self.assertTrue(mock_to_warehouse.called)
         data = mock_to_warehouse.call_args.args[0]
         self.assertEqual(data["event_type"], "lc.addandauth.failed")
-        self.assertEqual(data["origin"], "merchant.callback")
-        self.assertEqual(data["channel"], "test.auth.fake")
+        self.assertEqual(data["origin"], "channel")
+        self.assertEqual(data["channel"], self.user.bundle_id)
         self.assertEqual(data["external_user_ref"], self.user.external_id)
         self.assertEqual(data["internal_user_ref"], self.user.id)
         self.assertEqual(data["email"], self.user.email)
@@ -485,8 +485,8 @@ class TestAuthSuccessEventHandlers(TransactionTestCase):
         self.assertTrue(mock_to_warehouse.called)
         data = mock_to_warehouse.call_args.args[0]
         self.assertEqual(data["event_type"], "lc.auth.success")
-        self.assertEqual(data["origin"], "merchant.callback")
-        self.assertEqual(data["channel"], "test.auth.fake")
+        self.assertEqual(data["origin"], "channel")
+        self.assertEqual(data["channel"], self.user.bundle_id)
         self.assertEqual(data["external_user_ref"], self.user.external_id)
         self.assertEqual(data["internal_user_ref"], self.user.id)
         self.assertEqual(data["email"], self.user.email)
@@ -533,8 +533,8 @@ class TestAuthFailEventHandlers(TransactionTestCase):
         self.assertTrue(mock_to_warehouse.called)
         data = mock_to_warehouse.call_args.args[0]
         self.assertEqual(data["event_type"], "lc.auth.failed")
-        self.assertEqual(data["origin"], "merchant.callback")
-        self.assertEqual(data["channel"], "test.auth.fake")
+        self.assertEqual(data["origin"], "channel")
+        self.assertEqual(data["channel"], self.user.bundle_id)
         self.assertEqual(data["external_user_ref"], self.user.external_id)
         self.assertEqual(data["internal_user_ref"], self.user.id)
         self.assertEqual(data["email"], self.user.email)
