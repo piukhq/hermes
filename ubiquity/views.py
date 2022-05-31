@@ -28,7 +28,6 @@ from history.data_warehouse import (
 )
 from history.enums import SchemeAccountJourney
 from history.signals import HISTORY_CONTEXT
-from history.tasks import add_auth_outcome_event, auth_outcome_event
 from history.utils import user_info
 from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
@@ -965,10 +964,10 @@ class MembershipCardView(
             try:
                 scheme_account.validate_auth_fields(auth_fields, existing_answers)
             except ParseError:
-                if add_fields:
-                    add_auth_outcome_event.delay(success=False, scheme_account=scheme_account)
-                else:
-                    auth_outcome_event.delay(success=False, scheme_account=scheme_account)
+                # if add_fields:
+                #     add_auth_outcome_event.delay(success=False, scheme_account=scheme_account)
+                # else:
+                #     auth_outcome_event.delay(success=False, scheme_account=scheme_account)
                 raise
             else:
                 entry = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=True)
@@ -980,10 +979,10 @@ class MembershipCardView(
                             "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
                         },
                     )
-                if add_fields:
-                    add_auth_outcome_event.delay(success=True, scheme_account=scheme_account)
-                else:
-                    auth_outcome_event.delay(success=True, scheme_account=scheme_account)
+                # if add_fields:
+                #     add_auth_outcome_event.delay(success=True, scheme_account=scheme_account)
+                # else:
+                #     auth_outcome_event.delay(success=True, scheme_account=scheme_account)
         return entry
 
     def _handle_create_link_route(
