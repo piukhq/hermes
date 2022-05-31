@@ -947,10 +947,14 @@ class MembershipCardView(
         return scheme, auth_fields, enrol_fields, add_fields
 
     def _handle_existing_scheme_account(
-        self, scheme_account: SchemeAccount, user: CustomUser, auth_fields: dict, payment_cards_to_link: list
+        self,
+        scheme_account: SchemeAccount,
+        user: CustomUser,
+        add_fields: dict,
+        auth_fields: dict,
+        payment_cards_to_link: list,
     ) -> SchemeAccountEntry:
         """This function assumes that auth fields are always provided"""
-        old_status = scheme_account.status
         if scheme_account.status == SchemeAccount.WALLET_ONLY:
             scheme_account.update_barcode_and_card_number()
             scheme_account.set_auth_pending()
@@ -961,10 +965,10 @@ class MembershipCardView(
             try:
                 scheme_account.validate_auth_fields(auth_fields, existing_answers)
             except ParseError:
-                if old_status == SchemeAccount.AUTH_PENDING:
-                    auth_outcome_event.delay(success=False, scheme_account=scheme_account)
-                elif old_status == SchemeAccount.ADD_AUTH_PENDING:
+                if add_fields:
                     add_auth_outcome_event.delay(success=False, scheme_account=scheme_account)
+                else:
+                    auth_outcome_event.delay(success=False, scheme_account=scheme_account)
                 raise
             else:
                 entry = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=True)
@@ -976,11 +980,10 @@ class MembershipCardView(
                             "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
                         },
                     )
-                if old_status == SchemeAccount.AUTH_PENDING:
-                    auth_outcome_event.delay(success=True, scheme_account=scheme_account)
-                elif old_status == SchemeAccount.ADD_AUTH_PENDING:
+                if add_fields:
                     add_auth_outcome_event.delay(success=True, scheme_account=scheme_account)
-
+                else:
+                    auth_outcome_event.delay(success=True, scheme_account=scheme_account)
         return entry
 
     def _handle_create_link_route(
@@ -1035,7 +1038,7 @@ class MembershipCardView(
             metrics_route = MembershipCardAddRoute.MULTI_WALLET
             auth_fields = auth_fields or {}
             sch_acc_entry = self._handle_existing_scheme_account(
-                scheme_account, user, auth_fields, payment_cards_to_link
+                scheme_account, user, add_fields, auth_fields, payment_cards_to_link
             )
 
         return scheme_account, sch_acc_entry, return_status, metrics_route
