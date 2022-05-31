@@ -28,7 +28,7 @@ from history.data_warehouse import (
 )
 from history.enums import SchemeAccountJourney
 from history.signals import HISTORY_CONTEXT
-from history.tasks import auth_outcome_event
+from history.tasks import add_auth_outcome_event, auth_outcome_event
 from history.utils import user_info
 from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
@@ -950,6 +950,7 @@ class MembershipCardView(
         self, scheme_account: SchemeAccount, user: CustomUser, auth_fields: dict, payment_cards_to_link: list
     ) -> SchemeAccountEntry:
         """This function assumes that auth fields are always provided"""
+        old_status = scheme_account.status
         if scheme_account.status == SchemeAccount.WALLET_ONLY:
             scheme_account.update_barcode_and_card_number()
             scheme_account.set_auth_pending()
@@ -960,7 +961,10 @@ class MembershipCardView(
             try:
                 scheme_account.validate_auth_fields(auth_fields, existing_answers)
             except ParseError:
-                auth_outcome_event.delay(success=False, scheme_account=scheme_account)
+                if old_status == SchemeAccount.AUTH_PENDING:
+                    auth_outcome_event.delay(success=False, scheme_account=scheme_account)
+                elif old_status == SchemeAccount.ADD_AUTH_PENDING:
+                    add_auth_outcome_event.delay(success=False, scheme_account=scheme_account)
                 raise
             else:
                 entry = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=True)
@@ -972,7 +976,10 @@ class MembershipCardView(
                             "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
                         },
                     )
-                auth_outcome_event.delay(success=True, scheme_account=scheme_account)
+                if old_status == SchemeAccount.AUTH_PENDING:
+                    auth_outcome_event.delay(success=True, scheme_account=scheme_account)
+                elif old_status == SchemeAccount.ADD_AUTH_PENDING:
+                    add_auth_outcome_event.delay(success=True, scheme_account=scheme_account)
 
         return entry
 

@@ -1,6 +1,5 @@
 import logging
 import typing as t
-from datetime import datetime
 from enum import Enum
 
 import arrow
@@ -414,7 +413,7 @@ def _delete_user_payment_cards(user: "CustomUser", run_async: bool = True) -> No
                 "event_type": "payment.account.removed",
                 "origin": "channel",
                 "channel": cab.bundle_id,
-                "event_date_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f"),
+                "event_date_time": arrow.utcnow().isoformat(),
                 "external_user_ref": user.external_id,
                 "internal_user_ref": user.id,
                 "email": user.email,
