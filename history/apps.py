@@ -19,7 +19,11 @@ class HistoryConfig(AppConfig):
             logger.info("Connecting History signals.")
             load_body_serializers()
             for sender in HistoryModel:
-                signals.post_save.connect(signal_record_history, sender=sender.value)
-                signals.pre_delete.connect(signal_record_history, sender=sender.value)
+                signals.post_save.connect(
+                    signal_record_history, sender=sender.value, dispatch_uid=f"{sender.value}_post_save"
+                )
+                signals.pre_delete.connect(
+                    signal_record_history, sender=sender.value, dispatch_uid=f"{sender.value}_pre_delete"
+                )
         else:
             logger.info("History signals not connected as this is either a migration or statics collection")

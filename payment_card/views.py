@@ -1,8 +1,8 @@
 import csv
 import json
-from datetime import datetime
 from io import StringIO
 
+import arrow
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseBadRequest, JsonResponse
@@ -464,7 +464,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                         "event_type": "payment.account.status.change",
                         "origin": "scheme.callback",
                         "channel": cab.bundle_id,
-                        "event_date_time": datetime.utcnow().isoformat(),
+                        "event_date_time": arrow.utcnow().isoformat(),
                         "external_user_ref": wallet.user.external_id,
                         "internal_user_ref": wallet.user.id,
                         "email": wallet.user.email,

@@ -1,7 +1,8 @@
 from celery import shared_task
 
 from history.data_warehouse import add_auth_outcome, auth_outcome, history_event, join_outcome, register_outcome
-from history.models import get_historical_model
+from history.enums import HistoryModel
+from history.models import HistoricalBase, HistoricalCustomUser, get_historical_model
 from history.serializers import get_historical_serializer
 
 
@@ -9,8 +10,15 @@ from history.serializers import get_historical_serializer
 def record_history(model_name: str, **kwargs) -> None:
     serializer = get_historical_serializer(model_name)(data=kwargs)
     serializer.is_valid(raise_exception=True)
-    history_event(model_name, serializer.validated_data)
-    serializer.save()
+    if model_name == HistoryModel.CUSTOM_USER.value:
+        if HistoricalCustomUser.objects.filter(
+            instance_id=kwargs["instance"], change_type=HistoricalBase.CREATE
+        ).exists():
+            # Do nothing if create object is already there
+            pass
+    else:
+        history_event(model_name, serializer.validated_data)
+        serializer.save()
 
 
 @shared_task
