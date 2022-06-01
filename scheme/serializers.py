@@ -681,7 +681,10 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
             q_objs = self._build_q_objects(query_args)
 
             existing_accounts = (
-                SchemeAccount.objects.filter(q_objs, scheme=scheme_account.scheme).values_list("id").all()
+                SchemeAccount.objects.filter(q_objs, scheme=scheme_account.scheme)
+                .exclude(id=scheme_account.id)
+                .values_list("id")
+                .all()
             )
             if len(existing_accounts) > 1:
                 logger.error(

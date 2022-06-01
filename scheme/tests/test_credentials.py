@@ -1,11 +1,12 @@
 import json
 
+import pytest
 from django.conf import settings
 from django.urls import reverse
 from rest_framework.exceptions import ErrorDetail
 
 from history.utils import GlobalMockAPITestCase
-from scheme.credentials import CARD_NUMBER, LAST_NAME, PASSWORD
+from scheme.credentials import CARD_NUMBER, LAST_NAME, PASSWORD, BARCODE
 from scheme.models import SchemeAccountCredentialAnswer, SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.tests.factories import (
     SchemeAccountFactory,
@@ -41,6 +42,10 @@ class TestCredentials(GlobalMockAPITestCase):
         SchemeCredentialQuestionFactory(
             scheme=cls.scheme, type=CARD_NUMBER, label=CARD_NUMBER, manual_question=True, add_field=True
         )
+        SchemeCredentialQuestionFactory(
+            scheme=cls.scheme, type=BARCODE, label=BARCODE, scan_question=True, add_field=True
+        )
+
         SchemeCredentialQuestionFactory(scheme=cls.scheme, type=PASSWORD, label=PASSWORD, auth_field=True)
         SchemeCredentialQuestionFactory(
             scheme=cls.scheme,
@@ -61,36 +66,67 @@ class TestCredentials(GlobalMockAPITestCase):
     def test_internal_update_main_answer_to_existing_credential_fails(self):
         # The credential lookup to check for existing accounts is done on the scheme account
         # fields "card_number", "barcode", and/or "main_answer", not on the SchemeCredentialAnswer records.
+        for field in [CARD_NUMBER, BARCODE]:
+            with self.subTest(field=field):
+                answer = "1111"
+                SchemeAccountFactory(scheme=self.scheme, **{field: answer})
 
-        answer = "1111"
-        SchemeAccountFactory(scheme=self.scheme, card_number=answer)
+                scheme_account2 = SchemeAccountFactory(scheme=self.scheme)
+                SchemeAccountEntryFactory(scheme_account=scheme_account2, user=self.user)
 
-        scheme_account2 = SchemeAccountFactory(scheme=self.scheme)
-        SchemeAccountEntryFactory(scheme_account=scheme_account2, user=self.user)
-        SchemeCredentialAnswerFactory(
-            question=self.scheme.manual_question, scheme_account=scheme_account2, answer="2222"
-        )
+                if field == BARCODE:
+                    SchemeCredentialAnswerFactory(
+                        question=self.scheme.scan_question, scheme_account=scheme_account2, answer="2222"
+                    )
+                else:
+                    SchemeCredentialAnswerFactory(
+                        question=self.scheme.manual_question, scheme_account=scheme_account2, answer="2222"
+                    )
 
-        payload = {CARD_NUMBER: answer}
-        resp = self.client.put(
-            reverse("change_account_credentials", args=[scheme_account2.id]),
-            data=json.dumps(payload),
-            content_type="application/json",
-            **self.auth_headers,
-        )
-        self.assertEqual(400, resp.status_code)
-        self.assertEqual(
-            {
-                "non_field_errors": [
-                    ErrorDetail(string="An account already exists with the given credentials", code="invalid")
-                ]
-            },
-            resp.data,
-        )
+                payload = {field: answer}
+                resp = self.client.put(
+                    reverse("change_account_credentials", args=[scheme_account2.id]),
+                    data=json.dumps(payload),
+                    content_type="application/json",
+                    **self.auth_headers,
+                )
+                self.assertEqual(400, resp.status_code)
+                self.assertEqual(
+                    {
+                        "non_field_errors": [
+                            ErrorDetail(string="An account already exists with the given credentials", code="invalid")
+                        ]
+                    },
+                    resp.data,
+                )
 
-        ans = SchemeAccountCredentialAnswer.objects.get(
-            scheme_account=scheme_account2, question=self.scheme.manual_question
-        )
-        self.assertNotEqual(ans, answer)
-        scheme_account2.refresh_from_db()
-        self.assertEqual(scheme_account2.ACCOUNT_ALREADY_EXISTS, scheme_account2.status)
+                if field == BARCODE:
+                    ans = SchemeAccountCredentialAnswer.objects.get(
+                        scheme_account=scheme_account2, question=self.scheme.scan_question
+                    )
+                else:
+                    ans = SchemeAccountCredentialAnswer.objects.get(
+                        scheme_account=scheme_account2, question=self.scheme.manual_question
+                    )
+
+                self.assertNotEqual(ans, answer)
+                scheme_account2.refresh_from_db()
+                self.assertEqual(scheme_account2.ACCOUNT_ALREADY_EXISTS, scheme_account2.status)
+
+    def test_internal_update_existing_main_answer_with_same_credential_is_accepted(self):
+        for field in [CARD_NUMBER, BARCODE]:
+            with self.subTest(field=field):
+                answer = "1111"
+                scheme_account = SchemeAccountFactory(scheme=self.scheme, **{field: answer})
+
+                SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+
+                payload = {field: answer}
+                resp = self.client.put(
+                    reverse("change_account_credentials", args=[scheme_account.id]),
+                    data=json.dumps(payload),
+                    content_type="application/json",
+                    **self.auth_headers,
+                )
+                self.assertEqual(200, resp.status_code)
+                self.assertEqual({'updated': [field]}, resp.data)
