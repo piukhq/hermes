@@ -28,6 +28,7 @@ from history.data_warehouse import (
 )
 from history.enums import SchemeAccountJourney
 from history.signals import HISTORY_CONTEXT
+from history.tasks import auth_outcome_event
 from history.utils import user_info
 from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
@@ -626,11 +627,14 @@ class MembershipCardView(
         ):
             account.status = account.FAILED_UPDATE
             account.save()
+            # send to data warehouse 
+            auth_outcome_event.delay(succcess=False, scheme_account=account)
             return account
 
         account.set_pending()
         async_balance_with_updated_credentials.delay(account.id, user_id, update_fields, scheme_questions)
-
+        # send to data warehouse 
+        auth_outcome_event.delay(succcess=True, scheme_account=account)
         return account
 
     @staticmethod
