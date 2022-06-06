@@ -1,12 +1,11 @@
 import json
 
-import pytest
 from django.conf import settings
 from django.urls import reverse
 from rest_framework.exceptions import ErrorDetail
 
 from history.utils import GlobalMockAPITestCase
-from scheme.credentials import CARD_NUMBER, LAST_NAME, PASSWORD, BARCODE
+from scheme.credentials import BARCODE, CARD_NUMBER, LAST_NAME, PASSWORD
 from scheme.models import SchemeAccountCredentialAnswer, SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.tests.factories import (
     SchemeAccountFactory,
@@ -129,4 +128,4 @@ class TestCredentials(GlobalMockAPITestCase):
                     **self.auth_headers,
                 )
                 self.assertEqual(200, resp.status_code)
-                self.assertEqual({'updated': [field]}, resp.data)
+                self.assertEqual({"updated": [field]}, resp.data)
