@@ -228,9 +228,10 @@ def scheme_account_status_update(data: dict) -> list:
     from scheme.models import SchemeAccount
     from ubiquity.models import SchemeAccountEntry
 
+    body = data.get("body", {})
     extras = []
-    if "status" in data.get("change_details"):
-        scheme_account_id = data.get("body").get("id")
+    if "status" in data.get("change_details") and body:
+        scheme_account_id = body.get("id")
         scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
         wallets = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
         for wallet in wallets:
@@ -239,10 +240,10 @@ def scheme_account_status_update(data: dict) -> list:
                 "external_user_ref": user.external_id,
                 "internal_user_ref": user.id,
                 "email": user.email,
-                "scheme_account_id": scheme_account.id,
-                "loyalty_plan": scheme_account.scheme_id,
-                "main_answer": scheme_account.main_answer,
-                "to_status": scheme_account.status,
+                "scheme_account_id": scheme_account_id,
+                "loyalty_plan": body.get("scheme"),
+                "main_answer": body.get("main_answer"),
+                "to_status": body.get("status"),
             }
             extras.append(extra_data)
     return extras
