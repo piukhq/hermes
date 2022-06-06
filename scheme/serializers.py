@@ -690,7 +690,7 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
                 logger.error(
                     "More than one account found with the same main credential. "
                     "One of the following credentials are the same for scheme account ids "
-                    f"{[acc.id for acc in existing_accounts]}: {query_args.keys()}"
+                    f"{[acc[0] for acc in existing_accounts]}: {query_args.keys()}"
                 )
             elif len(existing_accounts) == 1:
                 scheme_account.status = scheme_account.ACCOUNT_ALREADY_EXISTS
