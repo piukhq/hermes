@@ -571,7 +571,7 @@ class MembershipCardView(
                     "via POST /membership_cards endpoint first."
                 )
 
-            # send auth request to data warehouseif we see authorise_fields in request data
+            # send auth request to data warehouse if we see authorise_fields in request data
             # as this is a PATCH_AUTH
             try:
                 auth_fields = request.data["account"]["authorise_fields"]
@@ -627,14 +627,10 @@ class MembershipCardView(
         ):
             account.status = account.FAILED_UPDATE
             account.save()
-            # send to data warehouse 
-            auth_outcome_event.delay(success=False, scheme_account=account)
             return account
 
-        account.set_pending()
+        account.set_auth_pending()
         async_balance_with_updated_credentials.delay(account.id, user_id, update_fields, scheme_questions)
-        # send to data warehouse 
-        auth_outcome_event.delay(success=True, scheme_account=account)
         return account
 
     @staticmethod
