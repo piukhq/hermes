@@ -1,12 +1,15 @@
+import string
 from datetime import datetime
 
 from azure.storage.blob import BlobServiceClient
 from celery import shared_task
 from django.conf import settings
+from shared_config_storage.credentials.encryption import BLAKE2sHash
 
 from payment_card.models import PaymentCardAccount
 from scripts.actions.paymentaccount_actions import PaymentAccountCorrection
 from scripts.find_errors.base_script import BaseScript
+from ubiquity.channel_vault import SecretKeyName, get_secret_key
 
 
 @shared_task()
@@ -20,6 +23,7 @@ def process_files(file_list: list):
     container_client = blob_service_client.get_container_client(settings.UPLOAD_CONTAINER_NAME)
     archive_client = blob_service_client.get_container_client(settings.ARCHIVE_CONTAINER_NAME)
     item_no = 0
+    remove_white_space = str.maketrans("", "", string.whitespace)
     for upload_file in file_list:
         failures = []
         line_no = 0
@@ -31,11 +35,15 @@ def process_files(file_list: list):
         correction_script = BaseScript(script_id, SCRIPT_TITLES[script_id])
         correction_script.set_correction(PaymentAccountCorrection.UPDATE_CARD_HASH)
         for hash_pair in contents:
-            line_no += 1
-            item_no += 1
+            hash_pair.translate(remove_white_space)
             if len(hash_pair) > 1:
-                old_hash, new_hash = hash_pair.split(",")
-                print(old_hash, new_hash)
+                line_no += 1
+                item_no += 1
+                ext_old_hash, ext_new_hash = hash_pair.split(",")
+                key_hash = get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
+                old_hash = BLAKE2sHash().new(obj=ext_old_hash, key=key_hash)
+                new_hash = BLAKE2sHash().new(obj=ext_new_hash, key=key_hash)
+
                 try:
                     account = PaymentCardAccount.objects.get(hash=old_hash)
                     if account and account.hash == old_hash:
@@ -46,6 +54,8 @@ def process_files(file_list: list):
                                 "payment_card_account_id": account.id,
                                 "old_hash": old_hash,
                                 "new_hash": new_hash,
+                                "ext_old_hash": ext_old_hash,
+                                "ext_new_hash": ext_new_hash,
                                 "status": account.status,
                                 "upload_file": upload_file,
                                 "line_no": line_no,
@@ -54,8 +64,7 @@ def process_files(file_list: list):
                         )
 
                 except Exception as ex:
-                    print(f"Exception {ex}")
-                    failures.append(f"{old_hash},{new_hash},{upload_file},{line_no},{item_no},{ex}")
+                    failures.append(f"{ext_old_hash},{ext_new_hash},{upload_file},{line_no},{item_no},{ex}")
         if failures:
             failed_file = archive_file.replace("imported/", "failures/failed_")
             data = "\n".join(failures)
