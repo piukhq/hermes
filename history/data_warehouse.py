@@ -239,10 +239,10 @@ def scheme_account_status_update(data: dict) -> list:
                 "external_user_ref": user.external_id,
                 "internal_user_ref": user.id,
                 "email": user.email,
-                "scheme_account_id": scheme_account.id,
-                "loyalty_plan": scheme_account.scheme_id,
-                "main_answer": scheme_account.main_answer,
-                "to_status": scheme_account.status,
+                "scheme_account_id": scheme_account_id,
+                "loyalty_plan": data.get("body").get("scheme"),
+                "main_answer": data.get("body").get("main_answer"),
+                "to_status": data.get("body").get("status"),
             }
             extras.append(extra_data)
     return extras
