@@ -628,13 +628,13 @@ class MembershipCardView(
             account.status = account.FAILED_UPDATE
             account.save()
             # send to data warehouse 
-            auth_outcome_event.delay(succcess=False, scheme_account=account)
+            auth_outcome_event.delay(success=False, scheme_account=account)
             return account
 
         account.set_pending()
         async_balance_with_updated_credentials.delay(account.id, user_id, update_fields, scheme_questions)
         # send to data warehouse 
-        auth_outcome_event.delay(succcess=True, scheme_account=account)
+        auth_outcome_event.delay(success=True, scheme_account=account)
         return account
 
     @staticmethod
