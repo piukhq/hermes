@@ -686,13 +686,13 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
                 .values_list("id")
                 .all()
             )
-            if len(existing_accounts) > 1:
-                logger.error(
-                    "More than one account found with the same main credential. "
-                    "One of the following credentials are the same for scheme account ids "
-                    f"{[acc[0] for acc in existing_accounts]}: {query_args.keys()}"
-                )
-            elif len(existing_accounts) == 1:
+            if len(existing_accounts) > 0:
+                if len(existing_accounts) > 1:
+                    logger.error(
+                        "More than one account found with the same main credential. "
+                        "One of the following credentials are the same for scheme account ids "
+                        f"{[acc[0] for acc in existing_accounts]}: {query_args.keys()}"
+                    )
                 scheme_account.status = scheme_account.ACCOUNT_ALREADY_EXISTS
                 scheme_account.save(update_fields=["status"])
                 raise serializers.ValidationError("An account already exists with the given credentials")
