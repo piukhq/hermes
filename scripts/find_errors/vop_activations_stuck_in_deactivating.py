@@ -1,6 +1,6 @@
-from scripts.models import Correction
 from ubiquity.models import VopActivation
 
+from ..actions.corrections import Correction
 from .base_script import BaseScript
 
 
