@@ -208,8 +208,6 @@ def _loyalty_card_authorise(message: dict, path: str) -> None:
             elif path == LoyaltyCardPath.AUTHORISE:
                 account.set_auth_pending()
                 auth_request_lc_event(user, account, ac.channel_slug)
-            else:
-                account.set_pending()
             async_link(
                 auth_fields=all_credentials_and_consents,
                 scheme_account_id=account.id,
