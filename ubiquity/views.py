@@ -970,7 +970,9 @@ class MembershipCardView(
                     auth_outcome_event.delay(success=False, scheme_account=scheme_account)
                 raise
             else:
-                entry, created = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=True)
+                entry, created = SchemeAccountEntry.create_link(
+                    user=user, scheme_account=scheme_account, auth_provided=True
+                )
                 if payment_cards_to_link:
                     auto_link_membership_to_payments.delay(
                         payment_cards_to_link,
@@ -982,7 +984,7 @@ class MembershipCardView(
                 if created:
                     add_auth_outcome_event.delay(success=True, scheme_account=scheme_account)
                 else:
-                    auth_outcome_event.delay(success=True, scheme_account=scheme_account)        
+                    auth_outcome_event.delay(success=True, scheme_account=scheme_account)
         return entry
 
     def _handle_create_link_route(
