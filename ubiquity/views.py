@@ -28,6 +28,7 @@ from history.data_warehouse import (
 )
 from history.enums import SchemeAccountJourney
 from history.signals import HISTORY_CONTEXT
+from history.tasks import add_auth_outcome_event, auth_outcome_event
 from history.utils import user_info
 from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
@@ -956,20 +957,20 @@ class MembershipCardView(
         if scheme_account.status == SchemeAccount.WALLET_ONLY:
             scheme_account.update_barcode_and_card_number()
             scheme_account.set_auth_pending()
-            entry = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=True)
+            entry, _ = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=True)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link)
         else:
             existing_answers = scheme_account.get_auth_credentials()
             try:
                 scheme_account.validate_auth_fields(auth_fields, existing_answers)
             except ParseError:
-                # if add_fields:
-                #     add_auth_outcome_event.delay(success=False, scheme_account=scheme_account)
-                # else:
-                #     auth_outcome_event.delay(success=False, scheme_account=scheme_account)
+                if add_fields:
+                    add_auth_outcome_event.delay(success=False, scheme_account=scheme_account)
+                else:
+                    auth_outcome_event.delay(success=False, scheme_account=scheme_account)
                 raise
             else:
-                entry = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=True)
+                entry, created = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=True)
                 if payment_cards_to_link:
                     auto_link_membership_to_payments.delay(
                         payment_cards_to_link,
@@ -978,10 +979,10 @@ class MembershipCardView(
                             "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
                         },
                     )
-                # if add_fields:
-                #     add_auth_outcome_event.delay(success=True, scheme_account=scheme_account)
-                # else:
-                #     auth_outcome_event.delay(success=True, scheme_account=scheme_account)
+                if created:
+                    add_auth_outcome_event.delay(success=True, scheme_account=scheme_account)
+                else:
+                    auth_outcome_event.delay(success=True, scheme_account=scheme_account)        
         return entry
 
     def _handle_create_link_route(
@@ -1016,7 +1017,7 @@ class MembershipCardView(
             else:
                 metrics_route = MembershipCardAddRoute.WALLET_ONLY
 
-            sch_acc_entry = SchemeAccountEntry.create_link(user, scheme_account, auth_provided=True)
+            sch_acc_entry, _ = SchemeAccountEntry.create_link(user, scheme_account, auth_provided=True)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
 
             scheme_account.status = SchemeAccount.ADD_AUTH_PENDING
@@ -1080,7 +1081,7 @@ class MembershipCardView(
             )
             if other_accounts.exists():
                 scheme_account = other_accounts.first()
-                sch_acc_entry = SchemeAccountEntry.create_link(
+                sch_acc_entry, _ = SchemeAccountEntry.create_link(
                     user=user, scheme_account=scheme_account, auth_provided=True
                 )
                 return scheme_account, sch_acc_entry, status.HTTP_201_CREATED
@@ -1252,7 +1253,7 @@ class MembershipCardView(
             if authed_link_exists:
                 raise AlreadyExistsError
 
-        entry = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=False)
+        entry, _ = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=False)
 
         scheme_account.update_barcode_and_card_number()
         return entry
