@@ -15,7 +15,7 @@ class FindVOPActivationsStuckInDeactivating(BaseScript):
         for d in deactivating:
             pcd = d.payment_card_account
             scheme = d.scheme
-            self.set_correction(Correction.DEACTIVATE)
+            self.set_correction(Correction.VOP_DEACTIVATE)
 
             self.result.append(
                 f"Activation ID: {d.id}, "

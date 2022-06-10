@@ -26,7 +26,7 @@ class FindVOPActivationsStuckInActivating(BaseScript):
 
             active_link_str = "True" if active_link else "*NO ACTIVE LINK FOUND!*"
             if active_link:
-                self.set_correction(Correction.ACTIVATE)
+                self.set_correction(Correction.VOP_ACTIVATE)
             else:
                 self.set_correction(Correction.NO_CORRECTION)
 

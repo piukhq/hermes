@@ -16,7 +16,7 @@ class FindVOPCardsInDuplicateCardStatus(BaseScript):
         )
 
         for card in duplicate_cards:
-            self.set_correction(Correction.RETRY_ENROLL)
+            self.set_correction(Correction.VOP_RETRY_ENROLL)
 
             self.result.append(
                 f"Payment Card Account ID: {card.id}, "

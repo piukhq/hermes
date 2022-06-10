@@ -1,8 +1,5 @@
 from time import sleep
 
-from django.conf import settings
-from requests import request
-
 from hermes.vop_tasks import activate
 from payment_card.enums import RequestMethod
 from payment_card.metis import enrol_existing_payment_card
@@ -10,15 +7,7 @@ from payment_card.models import PaymentCardAccount
 from scheme.models import Scheme
 from ubiquity.models import PaymentCardSchemeEntry, VopActivation
 
-
-def metis_request(method: RequestMethod, endpoint: str, payload: dict) -> object:
-    response = request(
-        method.value,
-        settings.METIS_URL + endpoint,
-        json=payload,
-        headers={"Authorization": "Token {}".format(settings.SERVICE_API_KEY), "Content-Type": "application/json"},
-    )
-    return response.json()
+from .metis_foundation import metis_foundation_request
 
 
 def do_fix_enroll(entry):
@@ -35,23 +24,14 @@ def do_fix_enroll(entry):
     return False
 
 
-def do_retain(entry):
-    card = PaymentCardAccount.objects.get(id=entry.data["card_id"])
-    data = {"payment_token": entry.data["payment_token"], "id": entry.data["card_id"]}
-    reply = metis_request(RequestMethod.POST, f"/foundation/spreedly/{card.payment_card.slug}/retain", data)
-    if reply.get("status_code") == 200 and reply.get("reason") == "OK":
-        return True
-    return False
-
-
-def do_un_enroll(entry):
+def do_vop_un_enroll(entry):
     """Un-enrolls the Payment Card via the Foundational Metis endpoint"""
     data = {
         "payment_token": entry.data["payment_token"],
         "id": entry.data["card_id"],
         "partner_slug": entry.data["partner_slug"],
     }
-    reply = metis_request(RequestMethod.POST, "/foundation/visa/remove", data)
+    reply = metis_foundation_request(RequestMethod.POST, "/foundation/visa/remove", data)
     if reply.get("agent_response_code") == "Delete:SUCCESS" and reply.get("status_code") == 201:
         return True
     return False
@@ -63,7 +43,7 @@ def do_deactivate(entry):
         "activation_id": entry.data["activation_id"],
         "id": entry.data["card_id"],
     }
-    reply = metis_request(RequestMethod.POST, "/visa/deactivate", data)
+    reply = metis_foundation_request(RequestMethod.POST, "/visa/deactivate", data)
     if reply.get("agent_response_code") == "Deactivate:SUCCESS":
         do_mark_as_deactivated(entry)
         return True
@@ -77,7 +57,7 @@ def do_re_enroll(entry):
         "card_token": entry.data["card_token"],
         "id": entry.data["card_id"],
     }
-    reply = metis_request(RequestMethod.POST, "/foundation/spreedly/visa/add", data)
+    reply = metis_foundation_request(RequestMethod.POST, "/foundation/spreedly/visa/add", data)
     if reply.get("agent_response_code") == "Add:SUCCESS" and reply.get("status_code") == 200:
         return True
     return False
@@ -117,10 +97,36 @@ def do_mark_as_deactivated(entry):
 
 
 def do_set_account_and_links_active(entry):
-    """Sets Payment Card Account to ACTIVE, along with any existing PLL soft-links. We do not call autolinking, as we
-    don't know what the original intention of the payment card was RE: auto-linking."""
+
     pca = PaymentCardAccount.objects.get(pk=entry.data["card_id"])
     pca.status = PaymentCardAccount.ACTIVE
     pca.save()
     PaymentCardSchemeEntry.update_soft_links({"payment_card_account": pca})
     return True
+
+
+def do_multiple_deactivate(entry: dict) -> bool:
+    """Sets removes list of activations and sets each to deactivated if found.  This is not as controllable
+    as doing one at a time so it will do best endeavours to deactivate but will return True in any case.
+    That will not therefore block the next action or completion of the script.  This was first used for
+    Barclays payment card delete where it was not so critical that an activation remains on a deleted card.
+    Deactivations will only be marked on success so other scripts might be able to correct the situation"""
+    deactivate_list = entry.get("deactivations")
+    for deactivate in deactivate_list:
+        do_deactivate(deactivate)
+
+    return True
+
+
+def do_multiple_deactivate_unenroll(entry: dict) -> bool:
+    """Sets removes list of activations, setting each to deactivated if found. Then unenrols VOP card.
+    This is not as controllable as doing each action one step at a time so it will do best endeavours to deactivate
+    and will return True if unenrol exceeds or False if not.
+    This was first used for Barclays payment card delete where it was not so critical that an activation remains on
+    a deleted card.
+    Deactivations will only be marked on success so other scripts might be able to correct any errors due to remaining
+    activation. This will require using the scrip that enrols, removes activation and unerols"""
+    deactivate_list = entry.get("deactivations")
+    for deactivate in deactivate_list:
+        do_deactivate(deactivate)
+    return do_vop_un_enroll(entry)

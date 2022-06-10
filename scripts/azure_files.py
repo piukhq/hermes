@@ -5,7 +5,7 @@ from azure.storage.blob import BlobServiceClient
 from django.conf import settings
 
 
-def upload_files_and_process(location: str, func: Callable[[dict]]) -> list:
+def upload_files_and_process(correction_script: object, location: str, func: Callable[[dict]]) -> list:
     results = []
     try:
         blob_service_client = BlobServiceClient.from_connection_string(settings.AZURE_CONNECTION_STRING)
@@ -19,7 +19,7 @@ def upload_files_and_process(location: str, func: Callable[[dict]]) -> list:
             file_list.append(blob.name)
             results.append(f"&nbsp;&nbsp;&nbsp;&nbsp;{blob.name}")
         if container_client:
-            func.delay(file_list)
+            func.delay(correction_script, file_list)
         else:
             results.append(f"Could not find/access Azure Container {settings.UPLOAD_CONTAINER_NAME}")
 
@@ -29,7 +29,7 @@ def upload_files_and_process(location: str, func: Callable[[dict]]) -> list:
     return results
 
 
-def process_files(file_list: list, type_dir: str, func: Callable[[list, int], list, int]):
+def process_files(correction_script: object, file_list: list, type_dir: str, func: Callable[[list, int], list, int]):
     now = datetime.now()
     now_str = now.strftime("%H%M")
     date_str = now.strftime("%Y/%m/%d/")
@@ -45,7 +45,7 @@ def process_files(file_list: list, type_dir: str, func: Callable[[list, int], li
         archive_client.get_blob_client(archive_file).upload_blob(bytes_io)
         contents = str(bytes_io, "utf-8").split("\n")
 
-        failures, item_no = func(upload_file, contents, item_no)
+        failures, item_no = func(correction_script, upload_file, contents, item_no)
 
         if failures:
             failed_file = archive_file.replace("imported/", "failures/failed_")
