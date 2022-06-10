@@ -385,7 +385,8 @@ def mapper_history(message: dict) -> None:
     else:
         logger.error(f"Failed to process history entry for {model_name}")
 
-def add_auth_outcome_event(message:dict) -> None:
+
+def add_auth_outcome_event(message: dict) -> None:
     success = message.get("success")
     journey = message.get("journey")
     user_id = message.get("user_id")
@@ -395,11 +396,11 @@ def add_auth_outcome_event(message:dict) -> None:
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(pk=loyalty_card_id)
 
-    if  journey == "ADD_AND_AUTH":
+    if journey == "ADD_AND_AUTH":
         add_auth_outcome(success=success, user=user, scheme_account=scheme_account)
     elif journey == "AUTH":
         auth_outcome(success=success, user=user, scheme_account=scheme_account)
-    
+
 
 def sql_history(message: dict) -> None:
     """This message assumes Angelia logged history via sql and no event was raised ie the model data
