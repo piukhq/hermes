@@ -967,6 +967,7 @@ class MembershipCardView(
                 if add_fields:
                     add_auth_outcome_event.delay(success=False, scheme_account=scheme_account)
                 else:
+                    # API1 does not suppoert AUTH only fields in this POST request
                     auth_outcome_event.delay(success=False, scheme_account=scheme_account)
                 raise
             else:
@@ -1032,10 +1033,11 @@ class MembershipCardView(
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
             sch_acc_entry = self._handle_add_fields_only_link(user, scheme_account, account_created)
         else:
-            # auth only (to existing scheme account)
+            # auth only (to existing scheme account) also add & auth for second+subsequent wallets
+            # jira ticket outlines this compromise:
+            # https://hellobink.atlassian.net/browse/LOY-2404
             auth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
 
-            # also called for add and auth to same wallet
             metrics_route = MembershipCardAddRoute.MULTI_WALLET
             auth_fields = auth_fields or {}
             sch_acc_entry = self._handle_existing_scheme_account(
