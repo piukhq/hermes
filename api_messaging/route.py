@@ -58,6 +58,7 @@ def route_message(headers: dict, message: dict):
         "delete_user": angelia_background.delete_user,
         "refresh_balances": angelia_background.refresh_balances,
         "mapped_history": angelia_background.mapper_history,
+        "add_auth_outcome_event": angelia_background.add_auth_outcome_event,
         "sql_history": angelia_background.sql_history,
     }
 
