@@ -26,7 +26,8 @@ class BaseScript:
     def run(self):
         try:
             self.script()
-            self.summary = f"Found {self.found} Issues and added {self.new_corrections} correction_count"
+            if not self.summary:
+                self.summary = f"Found {self.found} Issues and added {self.new_corrections} correction_count"
         except BaseException as e:
             self.summary = f"Exception {e}"
         return self.summary, self.correction_count, "<br/>".join(self.result)
