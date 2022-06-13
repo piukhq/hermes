@@ -15,6 +15,7 @@ from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
 
 import analytics
+from api_messaging.midas_messaging import send_midas_join_request
 from hermes.channels import Permit
 from payment_card.payment import Payment, PaymentError
 from scheme.credentials import (
@@ -447,20 +448,9 @@ class SchemeAccountJoinMixin:
 
         encrypted_credentials = AESCipher(AESKeyNames.AES_KEY).encrypt(json.dumps(updated_credentials)).decode("utf-8")
 
-        data = {
-            "scheme_account_id": scheme_account.id,
-            "credentials": encrypted_credentials,
-            "user_id": user_id,
-            "status": scheme_account.status,
-            "journey_type": JourneyTypes.JOIN.value,
-            "channel": channel,
-        }
-        headers = {"transaction": str(uuid.uuid1()), "User-agent": "Hermes on {0}".format(socket.gethostname())}
-        response = requests.post("{}/{}/register".format(settings.MIDAS_URL, slug), json=data, headers=headers)
-
-        message = response.json().get("message")
-        if not message == "success":
-            raise RequestException("Error creating join task in Midas. Response message :{}".format(message))
+        # via RabbitMQ
+        send_midas_join_request(channel=channel, loyalty_plan=slug, bink_user_id=user_id, request_id=scheme_account.id,
+                                account_id=scheme_account.main_answer, join_data=encrypted_credentials)
 
 
 class UpdateCredentialsMixin:
