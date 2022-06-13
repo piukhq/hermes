@@ -170,7 +170,6 @@ def _loyalty_card_register(message: dict, path: str) -> None:
         )
 
 
-
 def loyalty_card_add_authorise(message: dict) -> None:
     with AngeliaContext(message) as ac:
         journey = message.get("journey")
@@ -191,7 +190,6 @@ def loyalty_card_add_authorise(message: dict) -> None:
         account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
 
         set_auth_provided(account, ac.user_id, True)
-
 
         if message.get("primary_auth"):
             # primary_auth is used to indicate that this user has demonstrated the authority to authorise and
@@ -385,6 +383,7 @@ def add_auth_outcome_event(message: dict) -> None:
     elif journey == "AUTH":
         auth_outcome(success=success, user=user, scheme_account=scheme_account)
 
+
 def add_auth_request_event(message: dict) -> None:
     journey = message.get("journey")
     user_id = message.get("user_id")
@@ -392,12 +391,11 @@ def add_auth_request_event(message: dict) -> None:
     channel_slug = message.get("channel_slug")
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(pk=loyalty_card_id)
-    
+
     if journey == "ADD_AND_AUTH":
         add_and_auth_lc_event(user, scheme_account, channel_slug)
     elif journey == "AUTH":
         auth_request_lc_event(user, scheme_account, channel_slug)
-
 
 
 def sql_history(message: dict) -> None:
