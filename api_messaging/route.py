@@ -51,14 +51,14 @@ def route_message(headers: dict, message: dict):
         "delete_payment_account": angelia_background.delete_payment_account,
         "loyalty_card_register": angelia_background.loyalty_card_register,
         "loyalty_card_add_and_register": angelia_background.loyalty_card_add_and_register,
-        "loyalty_card_authorise": angelia_background.loyalty_card_authorise,
-        "loyalty_card_add_and_authorise": angelia_background.loyalty_card_add_and_authorise,
+        "loyalty_card_add_authorise": angelia_background.loyalty_card_add_authorise,
         "loyalty_card_join": angelia_background.loyalty_card_join,
         "delete_loyalty_card": angelia_background.delete_loyalty_card,
         "delete_user": angelia_background.delete_user,
         "refresh_balances": angelia_background.refresh_balances,
         "mapped_history": angelia_background.mapper_history,
         "add_auth_outcome_event": angelia_background.add_auth_outcome_event,
+        "add_auth_request_event": angelia_background.add_auth_request_event,
         "sql_history": angelia_background.sql_history,
     }
 
