@@ -30,8 +30,11 @@ class SchemeAccountEntry(models.Model):
         unique_together = ("scheme_account", "user")
 
     @staticmethod
-    def create_link(user: "CustomUser", scheme_account: "SchemeAccount", auth_provided: bool) -> "SchemeAccountEntry":
+    def create_link(
+        user: "CustomUser", scheme_account: "SchemeAccount", auth_provided: bool
+    ) -> tuple(("SchemeAccountEntry", bool)):
         entry = SchemeAccountEntry(user=user, scheme_account=scheme_account, auth_provided=auth_provided)
+        created = True
         try:
             # required to rollback transactions when running into an expected IntegrityError
             # tests will fail without this as TestCase already wraps tests in an atomic
@@ -46,8 +49,9 @@ class SchemeAccountEntry(models.Model):
             SchemeAccountEntry.objects.filter(user=user, scheme_account=scheme_account).update(
                 auth_provided=auth_provided
             )
+            created = False
 
-        return entry
+        return entry, created
 
 
 class PaymentCardAccountEntry(models.Model):

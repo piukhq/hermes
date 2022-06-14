@@ -31,7 +31,7 @@ def join_outcome_event(success: bool, scheme_account: object) -> None:
 
 
 @shared_task
-def add_auth_outcome_event(success: bool, scheme_account: object) -> None:
+def add_auth_outcome_task(success: bool, scheme_account: object) -> None:
     from ubiquity.models import SchemeAccountEntry
 
     wallets = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
@@ -40,7 +40,7 @@ def add_auth_outcome_event(success: bool, scheme_account: object) -> None:
 
 
 @shared_task
-def auth_outcome_event(success: bool, scheme_account: object) -> None:
+def auth_outcome_task(success: bool, scheme_account: object) -> None:
     from ubiquity.models import SchemeAccountEntry
 
     wallets = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
