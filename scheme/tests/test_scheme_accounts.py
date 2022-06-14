@@ -895,17 +895,18 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
         self.assertTrue(mock_message.called)
         payload = mock_message.call_args.kwargs["payload"]
-        self.assertEqual(payload["type"], "loyalty_account.join.application")
-        self.assertEqual(payload["channel"], "com.bink.wallet")
-        self.assertEqual(payload["loyalty_plan"], scheme.slug)
-        self.assertEqual(payload["request_id"], str(new_scheme_account.id))
-        self.assertEqual(payload["account_id"], new_scheme_account.main_answer)
-        self.assertEqual(payload["bink_user_id"], str(self.user.id))
+        headers = mock_message.call_args.kwargs["headers"]
+        self.assertEqual(headers["message_type"], "loyalty_account.join.application")
+        self.assertEqual(headers["channel"], "com.bink.wallet")
+        self.assertEqual(headers["loyalty_plan"], scheme.slug)
+        self.assertEqual(headers["request_id"], str(new_scheme_account.id))
+        self.assertEqual(headers["account_id"], new_scheme_account.main_answer)
+        self.assertEqual(headers["bink_user_id"], str(self.user.id))
+        self.assertIsInstance(headers["transaction_id"], str)
+        self.assertIsInstance(payload["join_data"], str)
 
     @patch("api_messaging.midas_messaging.to_midas", auto_spec=True, return_value=MagicMock())
-    def test_register_join_endpoint_optional_join_not_required(self, mock_request):
-        mock_request.return_value.status_code = 200
-        mock_request.return_value.json.return_value = {"message": "success"}
+    def test_register_join_endpoint_optional_join_not_required(self, _mock_message):
 
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
@@ -921,9 +922,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 201)
 
     @patch("api_messaging.midas_messaging.to_midas", auto_spec=True, return_value=MagicMock())
-    def test_register_join_endpoint_saves_user_profile(self, mock_request):
-        mock_request.return_value.status_code = 200
-        mock_request.return_value.json.return_value = {"message": "success"}
+    def test_register_join_endpoint_saves_user_profile(self, _mock_message):
 
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
@@ -974,9 +973,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(user_profile.city, town_city)
 
     @patch("api_messaging.midas_messaging.to_midas", auto_spec=True, return_value=MagicMock())
-    def test_register_join_endpoint_set_scheme_status_to_join_on_fail(self, mock_request):
-        mock_request.return_value.status_code = 200
-        mock_request.return_value.json.return_value = {"message": "fail"}
+    def test_register_join_endpoint_set_scheme_status_to_join_on_fail(self, _mock_message):
 
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(
