@@ -28,7 +28,7 @@ from rest_framework.exceptions import ParseError
 
 from analytics.api import update_scheme_account_attribute, update_scheme_account_attribute_new_status
 from common.models import Image
-from history.tasks import add_auth_outcome_event, auth_outcome_event
+from history.tasks import add_auth_outcome_task, auth_outcome_task
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
 from scheme.credentials import (
@@ -744,8 +744,8 @@ class SchemeAccount(models.Model):
 
     PRE_PENDING_STATUSES = [AUTH_PENDING, ADD_AUTH_PENDING]
     OUTCOME_EVENT = {
-        ADD_AUTH_PENDING: add_auth_outcome_event,
-        AUTH_PENDING: auth_outcome_event,
+        ADD_AUTH_PENDING: add_auth_outcome_task,
+        AUTH_PENDING: auth_outcome_task,
     }
 
     # Journey types
