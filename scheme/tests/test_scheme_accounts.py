@@ -761,19 +761,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         json = resp.json()
         self.assertEqual(json, {"non_field_errors": ["username field required"]})
 
-    def test_register_join_endpoint_missing_save_user_information(self):
-        scheme = SchemeFactory()
-        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK_AND_JOIN)
-        SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
-        data = {"order": 2, "username": "testbink", "password": "password"}
-        resp = self.client.post("/schemes/{}/join".format(scheme.id), **self.auth_headers, data=data)
-
-        self.assertEqual(resp.status_code, 200)
-        json = resp.json()
-        self.assertEqual(json, {"message": "Unknown error with join"})
-
     def test_register_join_endpoint_scheme_has_no_join_questions(self):
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME)
