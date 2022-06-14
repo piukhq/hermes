@@ -818,10 +818,8 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             )
         )
 
-    @patch("requests.post", auto_spec=True, return_value=MagicMock())
-    def test_register_join_endpoint_create_scheme_account(self, mock_request):
-        mock_request.return_value.status_code = 200
-        mock_request.return_value.json.return_value = {"message": "success"}
+    @patch("api_messaging.midas_messaging.to_midas", auto_spec=True, return_value=MagicMock())
+    def test_register_join_endpoint_create_scheme_account(self, mock_message):
 
         scheme = SchemeFactory()
         link_question = SchemeCredentialQuestionFactory(
@@ -857,7 +855,14 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
                 self.assertTrue(False, "Consent not set")
 
         self.assertEqual(resp.status_code, 201)
-        self.assertTrue(mock_request.called)
+        self.assertTrue(mock_message.called)
+        payload = mock_message.call_args.kwargs["payload"]
+        self.assertEqual(payload["type"], "loyalty_account.join.application")
+        self.assertEqual(payload["channel"], "com.bink.wallet")
+        self.assertEqual(payload["loyalty_plan"], scheme.slug)
+        self.assertEqual(payload["request_id"], str(new_scheme_account.id))
+        self.assertEqual(payload["account_id"], new_scheme_account.main_answer)
+        self.assertEqual(payload["bink_user_id"], str(self.user.id))
 
         resp_json = resp.json()
         self.assertEqual(resp_json["scheme"], scheme.id)
