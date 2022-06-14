@@ -1,6 +1,5 @@
 import json
 import logging
-import socket
 import typing as t
 import uuid
 
@@ -10,7 +9,6 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
-from requests import RequestException
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
 
@@ -449,8 +447,14 @@ class SchemeAccountJoinMixin:
         encrypted_credentials = AESCipher(AESKeyNames.AES_KEY).encrypt(json.dumps(updated_credentials)).decode("utf-8")
 
         # via RabbitMQ
-        send_midas_join_request(channel=channel, loyalty_plan=slug, bink_user_id=user_id, request_id=scheme_account.id,
-                                account_id=scheme_account.main_answer, join_data=encrypted_credentials)
+        send_midas_join_request(
+            channel=channel,
+            loyalty_plan=slug,
+            bink_user_id=user_id,
+            request_id=scheme_account.id,
+            account_id=scheme_account.main_answer,
+            join_data=encrypted_credentials,
+        )
 
 
 class UpdateCredentialsMixin:
