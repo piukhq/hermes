@@ -24,6 +24,9 @@ def send_midas_join_request(
 
     to_midas(
         payload={
+            "join_data": join_data,
+        },
+        headers={
             "type": "loyalty_account.join.application",
             "channel": channel,
             "transaction_id": uuid.uuid1(),
@@ -31,6 +34,5 @@ def send_midas_join_request(
             "request_id": str(request_id),
             "loyalty_plan": loyalty_plan,
             "account_id": account_id,
-            "join_data": join_data,
         }
     )
