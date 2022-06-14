@@ -972,37 +972,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(user_profile.address_line_2, address_2)
         self.assertEqual(user_profile.city, town_city)
 
-    @patch("api_messaging.midas_messaging.to_midas", auto_spec=True, return_value=MagicMock())
-    def test_register_join_endpoint_set_scheme_status_to_join_on_fail(self, mock_message):
-
-        scheme = SchemeFactory()
-        SchemeCredentialQuestionFactory(
-            scheme=scheme, type=USER_NAME, manual_question=True, options=SchemeCredentialQuestion.LINK_AND_JOIN
-        )
-        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
-        consent = ConsentFactory(scheme=scheme)
-        SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
-        data = {
-            "save_user_information": False,
-            "order": 2,
-            "username": "testbink",
-            "password": "password",
-            "consents": [{"id": consent.id, "value": True}],
-        }
-
-        resp = self.client.post("/schemes/{}/join".format(scheme.id), **self.auth_headers, data=data)
-        self.assertEqual(resp.status_code, 200)
-        self.assertTrue(mock_message.called)
-
-        resp_json = resp.json()
-        self.assertIn("Unknown error with join", resp_json["message"])
-        sae = SchemeAccountEntry.objects.get(user=self.user, scheme_account__scheme__id=scheme.id)
-        self.assertEqual(sae.scheme_account.status_name, "Enrol Failed")
-        with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):
-            SchemeAccountCredentialAnswer.objects.get(scheme_account_id=sae.scheme_account.id)
-        with self.assertRaises(UserConsent.DoesNotExist):
-            UserConsent.objects.get(scheme_account_id=sae.scheme_account.id)
-
     def test_update_user_consent(self):
         user_consent = UserConsentFactory(status=ConsentStatus.PENDING)
         data = {"status": ConsentStatus.SUCCESS.value}
