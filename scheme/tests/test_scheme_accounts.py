@@ -973,7 +973,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(user_profile.city, town_city)
 
     @patch("api_messaging.midas_messaging.to_midas", auto_spec=True, return_value=MagicMock())
-    def test_register_join_endpoint_set_scheme_status_to_join_on_fail(self, _mock_message):
+    def test_register_join_endpoint_set_scheme_status_to_join_on_fail(self, mock_message):
 
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(
@@ -992,7 +992,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
         resp = self.client.post("/schemes/{}/join".format(scheme.id), **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(mock_request.called)
+        self.assertTrue(mock_message.called)
 
         resp_json = resp.json()
         self.assertIn("Unknown error with join", resp_json["message"])
