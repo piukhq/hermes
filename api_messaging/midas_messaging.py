@@ -27,7 +27,7 @@ def send_midas_join_request(
             "join_data": join_data,
         },
         headers={
-            "type": "loyalty_account.join.application",
+            "message_type": "loyalty_account.join.application",
             "channel": channel,
             "transaction_id": str(uuid.uuid1()),
             "bink_user_id": str(bink_user_id),
