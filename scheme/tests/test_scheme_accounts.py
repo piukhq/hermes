@@ -1113,6 +1113,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
         points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
         self.assertTrue(mock_credentials.called)
@@ -1124,6 +1125,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
         points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+
         self.assertIsNone(dw_event)
         self.assertEqual(points["points"], 500)
         self.assertFalse(points["is_stale"])
@@ -1134,6 +1136,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
         points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
@@ -1149,6 +1152,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         # check this status hasn't been added to scheme account status
         self.assertNotIn(invalid_status, [status[0] for status in SchemeAccount.EXTENDED_STATUSES])
 
+        self.assertIsNone(dw_event)
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
@@ -1186,6 +1190,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         scheme_account = SchemeAccountFactory()
         points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
 
+        self.assertIsNone(dw_event)
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, test_status)
@@ -1198,6 +1203,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         scheme_account = SchemeAccountFactory()
         points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
 
+        self.assertIsNone(dw_event)
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, test_status)
@@ -1336,14 +1342,17 @@ class TestAccessTokens(GlobalMockAPITestCase):
 
     @patch.object(SchemeAccount, "get_midas_balance")
     def test_get_scheme_accounts_credentials(self, mock_get_midas_balance):
-        mock_get_midas_balance.return_value = {
-            "value": Decimal("10"),
-            "points": Decimal("100"),
-            "value_label": "$10",
-            "reward_tier": 0,
-            "balance": Decimal("20"),
-            "is_stale": False,
-        }
+        mock_get_midas_balance.return_value = (
+            {
+                "value": Decimal("10"),
+                "points": Decimal("100"),
+                "value_label": "$10",
+                "reward_tier": 0,
+                "balance": Decimal("20"),
+                "is_stale": False,
+            },
+            None,
+        )
         # Test with service headers
         response = self.client.get(
             "/schemes/accounts/{0}/credentials".format(self.scheme_account.id), **self.auth_service_headers

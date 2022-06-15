@@ -976,7 +976,7 @@ class SchemeAccount(models.Model):
         # data warehouse event, not used for subsequent midas calls
         # only when a scheme_account was in a pre-pending status
         if current_status in self.PRE_PENDING_STATUSES:
-            # dw_event is a tuple(success: bool, SchemeAccount STATUS)
+            # dw_event is a tuple(success: bool, SchemeAccount.STATUS: int)
             if self.status == SchemeAccount.ACTIVE:
                 dw_event = (True, current_status)
             else:
