@@ -19,7 +19,7 @@ def to_midas(message: JoinApplication) -> None:
 
 
 def send_midas_join_request(
-    channel: str, bink_user_id: int, request_id: int, loyalty_plan: str, account_id: str, join_data: str
+    channel: str, bink_user_id: int, request_id: int, loyalty_plan: str, account_id: str, encrypted_credentials: str
 ) -> None:
 
     message = JoinApplication(
@@ -29,7 +29,7 @@ def send_midas_join_request(
         request_id=str(request_id),
         loyalty_plan=loyalty_plan,
         account_id=account_id,
-        join_data=join_data,
+        join_data={"encrypted_credentials": encrypted_credentials},
     )
 
     to_midas(message)

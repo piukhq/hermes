@@ -453,7 +453,7 @@ class SchemeAccountJoinMixin:
             bink_user_id=user_id,
             request_id=scheme_account.id,
             account_id=scheme_account.main_answer,
-            join_data=encrypted_credentials,
+            encrypted_credentials=encrypted_credentials,
         )
 
 

@@ -1226,7 +1226,7 @@ class TestResources(GlobalMockAPITestCase):
         body = message.body
         self.assertIsInstance(message, JoinApplication)
         self.assertEqual(len(body), 1)
-        self.assertIsInstance(body["join_data"], str)
+        self.assertIsInstance(body["join_data"]["encrypted_credentials"], str)
         self.assertEqual(headers["type"], "loyalty_account.join.application")
         self.assertEqual(headers["channel"], "test.auth.fake")
         self.assertEqual(headers["loyalty-plan"], scheme_account.scheme.slug)
