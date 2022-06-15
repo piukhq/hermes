@@ -2,7 +2,7 @@ import logging
 import uuid
 
 from django.conf import settings
-from olympus_messaging import JoinApplication
+from olympus_messaging import JoinApplication, Message
 
 from api_messaging.message_broker import SendingService
 
@@ -14,7 +14,7 @@ message_sender = SendingService(
 )
 
 
-def to_midas(message: JoinApplication) -> None:
+def to_midas(message: Message) -> None:
     message_sender.send(message.body, message.metadata, settings.MIDAS_QUEUE_NAME)
 
 
