@@ -956,6 +956,7 @@ class SchemeAccount(models.Model):
     def _process_midas_response(self, response):
         points = None
         current_status = self.status
+        dw_event = None
         self.status = response.status_code
         if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
             self.status = SchemeAccount.UNKNOWN_ERROR
@@ -974,7 +975,6 @@ class SchemeAccount(models.Model):
 
         # data warehouse event, not used for subsequent midas calls
         # only when a scheme_account was in a pre-pending status
-        dw_event = None
         if current_status in self.PRE_PENDING_STATUSES:
             # dw_event is a tuple(success: bool, SchemeAccount STATUS)
             if self.status == SchemeAccount.ACTIVE:
@@ -987,6 +987,7 @@ class SchemeAccount(models.Model):
     def get_midas_balance(self, journey, credentials_override: dict = None):
         points = None
         old_status = self.status
+        dw_event = None
 
         if self.status in self.JOIN_EXCLUDE_BALANCE_STATUSES:
             return points
@@ -994,7 +995,7 @@ class SchemeAccount(models.Model):
         try:
             credentials = self.credentials(credentials_override)
             if not credentials:
-                return points
+                return points, dw_event
             response = self._get_balance(credentials, journey)
             points, dw_event = self._process_midas_response(response)
 
