@@ -31,7 +31,6 @@ from scheme.models import (
     JourneyTypes,
     Scheme,
     SchemeAccount,
-    SchemeAccountCredentialAnswer,
     SchemeBundleAssociation,
     SchemeCredentialQuestion,
     UserConsent,
