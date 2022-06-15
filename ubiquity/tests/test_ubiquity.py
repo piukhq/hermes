@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import httpretty
 from django.conf import settings
 from django.test import RequestFactory, override_settings
+from olympus_messaging import JoinApplication
 from rest_framework.reverse import reverse
 from shared_config_storage.credentials.encryption import BLAKE2sHash, RSACipher
 from shared_config_storage.credentials.utils import AnswerTypeChoices
@@ -1176,6 +1177,63 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(scheme_account.main_answer, main_answer)
         self.assertIn(scheme_account.status, SchemeAccount.JOIN_PENDING)
         self.assertEqual(scheme_account.originating_journey, JourneyTypes.JOIN)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
+    @patch("api_messaging.midas_messaging.to_midas", autospec=True, return_value=MagicMock())
+    @patch("payment_card.payment.get_secret_key", autospec=True)
+    def test_membership_card_enrol_midas_message(self, mock_secret, mock_message, mock_async_balance):
+        mock_secret.return_value = "test_secret"
+        external_id = "anothertest@user.com"
+        user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
+        auth_headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(user))}
+
+        consent_label = "Consent 1"
+        consent = ConsentFactory.create(scheme=self.scheme, journey=JourneyTypes.JOIN.value)
+
+        ThirdPartyConsentLink.objects.create(
+            consent_label=consent_label,
+            client_app=self.client_app,
+            scheme=self.scheme,
+            consent=consent,
+            add_field=False,
+            auth_field=False,
+            register_field=True,
+            enrol_field=True,
+        )
+
+        main_answer = "1111111111111111111"
+
+        payload = {
+            "account": {
+                "enrol_fields": [
+                    {"column": BARCODE, "value": main_answer},
+                    {"column": LAST_NAME, "value": "New last name"},
+                    {"column": consent_label, "value": "True"},
+                ]
+            },
+            "membership_plan": self.scheme.id,
+        }
+        response = self.client.post(
+            reverse("membership-cards"), data=json.dumps(payload), content_type="application/json", **auth_headers
+        )
+
+        scheme_account = SchemeAccount.objects.get(pk=response.json()["id"])
+
+        self.assertTrue(mock_message.called)
+        message = mock_message.call_args.args[0]
+        headers = message.metadata
+        body = message.body
+        self.assertIsInstance(message, JoinApplication)
+        self.assertEqual(len(body), 1)
+        self.assertIsInstance(body["join_data"], str)
+        self.assertEqual(headers["type"], "loyalty_account.join.application")
+        self.assertEqual(headers["channel"], "test.auth.fake")
+        self.assertEqual(headers["loyalty-plan"], scheme_account.scheme.slug)
+        self.assertEqual(headers["request-id"], str(scheme_account.id))
+        self.assertEqual(headers["account-id"], scheme_account.main_answer)
+        self.assertEqual(headers["bink-user-id"], str(user.id))
+        self.assertIsInstance(headers["transaction-id"], str)
 
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("analytics.api")
