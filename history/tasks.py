@@ -31,21 +31,13 @@ def join_outcome_event(success: bool, scheme_account: object) -> None:
 
 
 @shared_task
-def add_auth_outcome_task(success: bool, scheme_account: object) -> None:
-    from ubiquity.models import SchemeAccountEntry
-
-    wallets = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
-    for wallet in wallets:
-        add_auth_outcome(success, wallet.user, scheme_account)
+def add_auth_outcome_task(success: bool, user: object, scheme_account: object) -> None:
+    add_auth_outcome(success, user, scheme_account)
 
 
 @shared_task
-def auth_outcome_task(success: bool, scheme_account: object) -> None:
-    from ubiquity.models import SchemeAccountEntry
-
-    wallets = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
-    for wallet in wallets:
-        auth_outcome(success, wallet.user, scheme_account)
+def auth_outcome_task(success: bool, user: object, scheme_account: object) -> None:
+    auth_outcome(success, user, scheme_account)
 
 
 @shared_task
