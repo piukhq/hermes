@@ -630,10 +630,8 @@ class MembershipCardView(
             return account
 
         # does not check for "prim auth" user so is set *by* all wallets/users
-        # this used to call set_pending() but that caused a stuck in pending error
-        # basically this method does *not* work as *I* think we expect
         account.set_auth_pending()
-        # this call then sets scheme_account status... depending on balance return 
+        # this call *should* (re)set scheme_account status...
         async_balance_with_updated_credentials.delay(account.id, user_id, update_fields, scheme_questions)
         return account
 
@@ -1037,7 +1035,9 @@ class MembershipCardView(
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
             sch_acc_entry = self._handle_add_fields_only_link(user, scheme_account, account_created)
         else:
-            entry_exists = SchemeAccountEntry.objects.filter(user_id=user.id, scheme_account_id=scheme_account.id).exists()             
+            entry_exists = SchemeAccountEntry.objects.filter(
+                user_id=user.id, scheme_account_id=scheme_account.id
+            ).exists()
             if entry_exists:
                 auth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
             else:

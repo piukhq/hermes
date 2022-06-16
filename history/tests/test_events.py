@@ -3,8 +3,8 @@ from unittest.mock import patch
 from django.test import TransactionTestCase
 
 from history.data_warehouse import (
-    addauth_request_lc_event,
     add_auth_outcome,
+    addauth_request_lc_event,
     auth_outcome,
     auth_request_lc_event,
     join_outcome,
