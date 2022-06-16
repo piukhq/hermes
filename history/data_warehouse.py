@@ -19,7 +19,7 @@ def to_data_warehouse(payload: dict) -> None:
         message_sender.send(payload, headers, settings.WAREHOUSE_QUEUE_NAME)
 
 
-def add_and_auth_lc_event(user: object, scheme_account: object, bundle_id: str):
+def addauth_request_lc_event(user: object, scheme_account: object, bundle_id: str):
     payload = {
         "event_type": "lc.addandauth.request",
         "origin": "channel",

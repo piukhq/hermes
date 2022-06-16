@@ -7,7 +7,7 @@ from rest_framework.generics import get_object_or_404
 
 from hermes.channels import Permit
 from history.data_warehouse import (
-    add_and_auth_lc_event,
+    addauth_request_lc_event,
     auth_request_lc_event,
     join_request_lc_event,
     register_lc_event,
@@ -368,14 +368,16 @@ def mapper_history(message: dict) -> None:
 
 def add_auth_outcome_event(message: dict) -> None:
     success = message.get("success")
+    user_id = message.get("user_id")
     journey = message.get("journey")
     loyalty_card_id = message.get("loyalty_card_id")
+    user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(pk=loyalty_card_id)
 
     if journey == "ADD_AND_AUTH":
-        add_auth_outcome_task(success=success, scheme_account=scheme_account)
+        add_auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
     elif journey == "AUTH":
-        auth_outcome_task(success=success, scheme_account=scheme_account)
+        auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
 
 
 def add_auth_request_event(message: dict) -> None:
@@ -387,7 +389,7 @@ def add_auth_request_event(message: dict) -> None:
     scheme_account = SchemeAccount.objects.get(pk=loyalty_card_id)
 
     if journey == "ADD_AND_AUTH":
-        add_and_auth_lc_event(user, scheme_account, channel_slug)
+        addauth_request_lc_event(user, scheme_account, channel_slug)
     elif journey == "AUTH":
         auth_request_lc_event(user, scheme_account, channel_slug)
 

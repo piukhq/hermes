@@ -16,6 +16,7 @@ from rest_framework.exceptions import ValidationError
 
 import analytics
 from hermes.channels import Permit
+from history.tasks import add_auth_outcome_task, auth_outcome_task
 from payment_card.payment import Payment, PaymentError
 from scheme.credentials import (
     BARCODE,
@@ -45,6 +46,12 @@ from scheme.serializers import (
 )
 from ubiquity.channel_vault import AESKeyNames
 from ubiquity.models import SchemeAccountEntry
+
+DATAWAREHOUSE_EVENTS = {
+    SchemeAccount.ADD_AUTH_PENDING: add_auth_outcome_task,
+    SchemeAccount.AUTH_PENDING: auth_outcome_task,
+}
+
 
 if t.TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -102,7 +109,13 @@ class BaseLinkMixin(object):
                 defaults={"answer": answer},
             )
 
-        midas_information = scheme_account.get_cached_balance()
+        midas_information, dw_event = scheme_account.get_cached_balance()
+
+        # dw_event is a two peice tuple, succes: bool, journey: SchemeAccount STATUS
+        #  - not present for cached balances only fresh crepes
+        if dw_event:
+            success, journey = dw_event
+            DATAWAREHOUSE_EVENTS[journey].delay(success=success, user=user, scheme_account=scheme_account)
 
         response_data = {
             "balance": midas_information,
