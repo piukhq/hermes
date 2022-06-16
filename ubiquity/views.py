@@ -21,7 +21,7 @@ from shared_config_storage.credentials.utils import AnswerTypeChoices
 from hermes.channels import Permit
 from hermes.settings import Version
 from history.data_warehouse import (
-    add_and_auth_lc_event,
+    addauth_request_lc_event,
     auth_request_lc_event,
     join_request_lc_event,
     register_lc_event,
@@ -629,7 +629,11 @@ class MembershipCardView(
             account.save()
             return account
 
+        # does not check for "prim auth" user so is set *by* all wallets/users
+        # this used to call set_pending() but that caused a stuck in pending error
+        # basically this method does *not* work as *I* think we expect
         account.set_auth_pending()
+        # this call then sets scheme_account status... depending on balance return 
         async_balance_with_updated_credentials.delay(account.id, user_id, update_fields, scheme_questions)
         return account
 
@@ -952,6 +956,7 @@ class MembershipCardView(
         add_fields: dict,
         auth_fields: dict,
         payment_cards_to_link: list,
+        entry_exists: bool,
     ) -> SchemeAccountEntry:
         """This function assumes that auth fields are always provided"""
         if scheme_account.status == SchemeAccount.WALLET_ONLY:
@@ -964,11 +969,10 @@ class MembershipCardView(
             try:
                 scheme_account.validate_auth_fields(auth_fields, existing_answers)
             except ParseError:
-                if add_fields:
-                    add_auth_outcome_task.delay(success=False, user=user, scheme_account=scheme_account)
-                else:
-                    # API1 does not suppoert AUTH only fields in this POST request
+                if entry_exists:
                     auth_outcome_task.delay(success=False, user=user, scheme_account=scheme_account)
+                else:
+                    add_auth_outcome_task.delay(success=False, user=user, scheme_account=scheme_account)
                 raise
             else:
                 entry, created = SchemeAccountEntry.create_link(
@@ -1026,22 +1030,23 @@ class MembershipCardView(
             scheme_account.status = SchemeAccount.ADD_AUTH_PENDING
             scheme_account.save(update_fields=["status"])
             # send add_and_auth event to data_warehouse
-            add_and_auth_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
+            addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
 
         elif not auth_fields:
             # no auth provided, new scheme account created
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
             sch_acc_entry = self._handle_add_fields_only_link(user, scheme_account, account_created)
         else:
-            # auth only (to existing scheme account) also add & auth for second+subsequent wallets
-            # jira ticket outlines this compromise:
-            # https://hellobink.atlassian.net/browse/LOY-2404
-            auth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
+            entry_exists = SchemeAccountEntry.objects.filter(user_id=user.id, scheme_account_id=scheme_account.id).exists()             
+            if entry_exists:
+                auth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
+            else:
+                addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
 
             metrics_route = MembershipCardAddRoute.MULTI_WALLET
             auth_fields = auth_fields or {}
             sch_acc_entry = self._handle_existing_scheme_account(
-                scheme_account, user, add_fields, auth_fields, payment_cards_to_link
+                scheme_account, user, add_fields, auth_fields, payment_cards_to_link, entry_exists
             )
 
         return scheme_account, sch_acc_entry, return_status, metrics_route

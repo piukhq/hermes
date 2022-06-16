@@ -7,7 +7,7 @@ from rest_framework.generics import get_object_or_404
 
 from hermes.channels import Permit
 from history.data_warehouse import (
-    add_and_auth_lc_event,
+    addauth_request_lc_event,
     auth_request_lc_event,
     join_request_lc_event,
     register_lc_event,
@@ -389,7 +389,7 @@ def add_auth_request_event(message: dict) -> None:
     scheme_account = SchemeAccount.objects.get(pk=loyalty_card_id)
 
     if journey == "ADD_AND_AUTH":
-        add_and_auth_lc_event(user, scheme_account, channel_slug)
+        addauth_request_lc_event(user, scheme_account, channel_slug)
     elif journey == "AUTH":
         auth_request_lc_event(user, scheme_account, channel_slug)
 
