@@ -1921,15 +1921,19 @@ class TestResources(GlobalMockAPITestCase):
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     @patch.object(SchemeAccount, "get_midas_balance")
     def test_membership_card_balance(self, mock_get_midas_balance, *_):
-        mock_get_midas_balance.return_value = {
-            "value": Decimal("10"),
-            "points": Decimal("100"),
-            "points_label": "100",
-            "value_label": "$10",
-            "reward_tier": 0,
-            "balance": Decimal("20"),
-            "is_stale": False,
-        }
+        mock_get_midas_balance.return_value = (
+            {
+                "value": Decimal("10"),
+                "points": Decimal("100"),
+                "points_label": "100",
+                "value_label": "$10",
+                "reward_tier": 0,
+                "balance": Decimal("20"),
+                "is_stale": False,
+            },
+            (True, SchemeAccount.PENDING),
+        )
+
         expected_keys = {"value", "currency", "updated_at"}
         self.scheme_account.get_cached_balance()
         resp = self.client.get(reverse("membership-card", args=[self.scheme_account.id]), **self.auth_headers)
@@ -1942,15 +1946,18 @@ class TestResources(GlobalMockAPITestCase):
     @patch.object(SchemeAccount, "get_midas_balance")
     def test_get_cached_balance_link(self, mock_get_midas_balance, *_):
         test_scheme_account = SchemeAccountFactory(scheme=self.scheme)
-        mock_get_midas_balance.return_value = {
-            "value": Decimal("10"),
-            "points": Decimal("100"),
-            "points_label": "100",
-            "value_label": "$10",
-            "reward_tier": 0,
-            "balance": Decimal("20"),
-            "is_stale": False,
-        }
+        mock_get_midas_balance.return_value = (
+            {
+                "value": Decimal("10"),
+                "points": Decimal("100"),
+                "points_label": "100",
+                "value_label": "$10",
+                "reward_tier": 0,
+                "balance": Decimal("20"),
+                "is_stale": False,
+            },
+            (True, SchemeAccount.PENDING),
+        )
 
         self.assertFalse(test_scheme_account.balances)
         test_scheme_account.get_cached_balance()

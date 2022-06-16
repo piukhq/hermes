@@ -3,8 +3,8 @@ from unittest.mock import patch
 from django.test import TransactionTestCase
 
 from history.data_warehouse import (
-    add_and_auth_lc_event,
     add_auth_outcome,
+    addauth_request_lc_event,
     auth_outcome,
     auth_request_lc_event,
     join_outcome,
@@ -193,8 +193,8 @@ class TestAAALCEventHandlers(TransactionTestCase):
         super().setUpClass()
 
     @patch("history.data_warehouse.to_data_warehouse")
-    def test_add_and_auth_lc_event(self, mock_to_warehouse):
-        add_and_auth_lc_event(self.user, self.mcard, "test.auth.fake")
+    def test_addauth_request_lc_event(self, mock_to_warehouse):
+        addauth_request_lc_event(self.user, self.mcard, "test.auth.fake")
 
         self.assertTrue(mock_to_warehouse.called)
         data = mock_to_warehouse.call_args.args[0]
