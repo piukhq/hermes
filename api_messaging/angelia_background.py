@@ -7,7 +7,7 @@ from rest_framework.generics import get_object_or_404
 
 from hermes.channels import Permit
 from history.data_warehouse import (
-    add_and_auth_lc_event,
+    addauth_request_lc_event,
     auth_request_lc_event,
     join_request_lc_event,
     register_lc_event,
@@ -15,7 +15,7 @@ from history.data_warehouse import (
 from history.enums import SchemeAccountJourney
 from history.models import get_required_extra_fields
 from history.serializers import get_body_serializer
-from history.tasks import record_history
+from history.tasks import add_auth_outcome_task, auth_outcome_task, record_history
 from history.utils import clean_history_kwargs, set_history_kwargs, user_info
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
@@ -168,18 +168,10 @@ def _loyalty_card_register(message: dict, path: str) -> None:
         )
 
 
-def loyalty_card_authorise(message: dict) -> None:
-    logger.info("Handling loyalty_card authorisation")
-    _loyalty_card_authorise(message, path=LoyaltyCardPath.AUTHORISE)
-
-
-def loyalty_card_add_and_authorise(message: dict) -> None:
-    logger.info("Handling loyalty_card add and authorisation")
-    _loyalty_card_authorise(message, path=LoyaltyCardPath.ADD_AND_AUTHORISE)
-
-
-def _loyalty_card_authorise(message: dict, path: str) -> None:
+def loyalty_card_add_authorise(message: dict) -> None:
     with AngeliaContext(message) as ac:
+        journey = message.get("journey")
+
         if message.get("auto_link"):
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=ac.user_id).values_list(
                 "payment_card_account_id", flat=True
@@ -197,36 +189,25 @@ def _loyalty_card_authorise(message: dict, path: str) -> None:
 
         set_auth_provided(account, ac.user_id, True)
 
-        user = CustomUser.objects.get(pk=ac.user_id)
-
         if message.get("primary_auth"):
             # primary_auth is used to indicate that this user has demonstrated the authority to authorise and
             # set the status of this card (i.e. they are not secondary to an authorised user of this card.)
-            if path == LoyaltyCardPath.ADD_AND_AUTHORISE:
+            if journey == "ADD_AND_AUTH":
                 account.set_add_auth_pending()
-                add_and_auth_lc_event(user, account, ac.channel_slug)
-            elif path == LoyaltyCardPath.AUTHORISE:
+            elif journey == "AUTH":
                 account.set_auth_pending()
-                auth_request_lc_event(user, account, ac.channel_slug)
-            else:
-                account.set_pending()
+
             async_link(
                 auth_fields=all_credentials_and_consents,
                 scheme_account_id=account.id,
                 user_id=ac.user_id,
                 payment_cards_to_link=payment_cards_to_link,
             )
-        else:
-            # not primary_auth so no status update but request event still sent
-            if path == LoyaltyCardPath.ADD_AND_AUTHORISE:
-                add_and_auth_lc_event(user, account, ac.channel_slug)
-            elif path == LoyaltyCardPath.AUTHORISE:
-                auth_request_lc_event(user, account, ac.channel_slug)
 
-            if payment_cards_to_link:
-                # if the request does not come from a primary_auth, then we will just auto-link this user's
-                # cards without affecting the state of the loyalty card.
-                auto_link_membership_to_payments(payment_cards_to_link=payment_cards_to_link, membership_card=account)
+        if payment_cards_to_link:
+            # if the request does not come from a primary_auth, then we will just auto-link this user's
+            # cards without affecting the state of the loyalty card.
+            auto_link_membership_to_payments(payment_cards_to_link=payment_cards_to_link, membership_card=account)
 
 
 def loyalty_card_join(message: dict) -> None:
@@ -383,6 +364,34 @@ def mapper_history(message: dict) -> None:
             record_mapper_history(model_name, ac, message)
     else:
         logger.error(f"Failed to process history entry for {model_name}")
+
+
+def add_auth_outcome_event(message: dict) -> None:
+    success = message.get("success")
+    user_id = message.get("user_id")
+    journey = message.get("journey")
+    loyalty_card_id = message.get("loyalty_card_id")
+    user = CustomUser.objects.get(id=user_id)
+    scheme_account = SchemeAccount.objects.get(pk=loyalty_card_id)
+
+    if journey == "ADD_AND_AUTH":
+        add_auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
+    elif journey == "AUTH":
+        auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
+
+
+def add_auth_request_event(message: dict) -> None:
+    journey = message.get("journey")
+    user_id = message.get("user_id")
+    loyalty_card_id = message.get("loyalty_card_id")
+    channel_slug = message.get("channel_slug")
+    user = CustomUser.objects.get(id=user_id)
+    scheme_account = SchemeAccount.objects.get(pk=loyalty_card_id)
+
+    if journey == "ADD_AND_AUTH":
+        addauth_request_lc_event(user, scheme_account, channel_slug)
+    elif journey == "AUTH":
+        auth_request_lc_event(user, scheme_account, channel_slug)
 
 
 def sql_history(message: dict) -> None:

@@ -21,13 +21,14 @@ from shared_config_storage.credentials.utils import AnswerTypeChoices
 from hermes.channels import Permit
 from hermes.settings import Version
 from history.data_warehouse import (
-    add_and_auth_lc_event,
+    addauth_request_lc_event,
     auth_request_lc_event,
     join_request_lc_event,
     register_lc_event,
 )
 from history.enums import SchemeAccountJourney
 from history.signals import HISTORY_CONTEXT
+from history.tasks import add_auth_outcome_task, auth_outcome_task
 from history.utils import user_info
 from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
@@ -628,7 +629,9 @@ class MembershipCardView(
             account.save()
             return account
 
+        # does not check for "prim auth" user so is set *by* all wallets/users
         account.set_auth_pending()
+        # this call *should* (re)set scheme_account status...
         async_balance_with_updated_credentials.delay(account.id, user_id, update_fields, scheme_questions)
         return account
 
@@ -951,25 +954,28 @@ class MembershipCardView(
         add_fields: dict,
         auth_fields: dict,
         payment_cards_to_link: list,
+        entry_exists: bool,
     ) -> SchemeAccountEntry:
         """This function assumes that auth fields are always provided"""
         if scheme_account.status == SchemeAccount.WALLET_ONLY:
             scheme_account.update_barcode_and_card_number()
             scheme_account.set_auth_pending()
-            entry = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=True)
+            entry, _ = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=True)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link)
         else:
             existing_answers = scheme_account.get_auth_credentials()
             try:
                 scheme_account.validate_auth_fields(auth_fields, existing_answers)
             except ParseError:
-                # if add_fields:
-                #     add_auth_outcome_event.delay(success=False, scheme_account=scheme_account)
-                # else:
-                #     auth_outcome_event.delay(success=False, scheme_account=scheme_account)
+                if entry_exists:
+                    auth_outcome_task.delay(success=False, user=user, scheme_account=scheme_account)
+                else:
+                    add_auth_outcome_task.delay(success=False, user=user, scheme_account=scheme_account)
                 raise
             else:
-                entry = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=True)
+                entry, created = SchemeAccountEntry.create_link(
+                    user=user, scheme_account=scheme_account, auth_provided=True
+                )
                 if payment_cards_to_link:
                     auto_link_membership_to_payments.delay(
                         payment_cards_to_link,
@@ -978,10 +984,10 @@ class MembershipCardView(
                             "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
                         },
                     )
-                # if add_fields:
-                #     add_auth_outcome_event.delay(success=True, scheme_account=scheme_account)
-                # else:
-                #     auth_outcome_event.delay(success=True, scheme_account=scheme_account)
+                if created:
+                    add_auth_outcome_task.delay(success=True, user=user, scheme_account=scheme_account)
+                else:
+                    auth_outcome_task.delay(success=True, user=user, scheme_account=scheme_account)
         return entry
 
     def _handle_create_link_route(
@@ -1016,27 +1022,31 @@ class MembershipCardView(
             else:
                 metrics_route = MembershipCardAddRoute.WALLET_ONLY
 
-            sch_acc_entry = SchemeAccountEntry.create_link(user, scheme_account, auth_provided=True)
+            sch_acc_entry, _ = SchemeAccountEntry.create_link(user, scheme_account, auth_provided=True)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
 
             scheme_account.status = SchemeAccount.ADD_AUTH_PENDING
             scheme_account.save(update_fields=["status"])
             # send add_and_auth event to data_warehouse
-            add_and_auth_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
+            addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
 
         elif not auth_fields:
             # no auth provided, new scheme account created
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
             sch_acc_entry = self._handle_add_fields_only_link(user, scheme_account, account_created)
         else:
-            # auth only (to existing scheme account)
-            auth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
+            entry_exists = SchemeAccountEntry.objects.filter(
+                user_id=user.id, scheme_account_id=scheme_account.id
+            ).exists()
+            if entry_exists:
+                auth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
+            else:
+                addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
 
-            # also called for add and auth to same wallet
             metrics_route = MembershipCardAddRoute.MULTI_WALLET
             auth_fields = auth_fields or {}
             sch_acc_entry = self._handle_existing_scheme_account(
-                scheme_account, user, add_fields, auth_fields, payment_cards_to_link
+                scheme_account, user, add_fields, auth_fields, payment_cards_to_link, entry_exists
             )
 
         return scheme_account, sch_acc_entry, return_status, metrics_route
@@ -1080,7 +1090,7 @@ class MembershipCardView(
             )
             if other_accounts.exists():
                 scheme_account = other_accounts.first()
-                sch_acc_entry = SchemeAccountEntry.create_link(
+                sch_acc_entry, _ = SchemeAccountEntry.create_link(
                     user=user, scheme_account=scheme_account, auth_provided=True
                 )
                 return scheme_account, sch_acc_entry, status.HTTP_201_CREATED
@@ -1252,7 +1262,7 @@ class MembershipCardView(
             if authed_link_exists:
                 raise AlreadyExistsError
 
-        entry = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=False)
+        entry, _ = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=False)
 
         scheme_account.update_barcode_and_card_number()
         return entry

@@ -40,10 +40,11 @@ def mock_get_cached_balance(self):
             "reward_tier": 1,
         }
     ]
+    dw_event = None
     self.status = 1
     self.balances = balances
     self.save(update_fields=["balances", "status"])
-    return balances
+    return balances, dw_event
 
 
 @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")

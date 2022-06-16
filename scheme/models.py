@@ -28,7 +28,6 @@ from rest_framework.exceptions import ParseError
 
 from analytics.api import update_scheme_account_attribute, update_scheme_account_attribute_new_status
 from common.models import Image
-from history.tasks import add_auth_outcome_event, auth_outcome_event
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
 from scheme.credentials import (
@@ -743,10 +742,6 @@ class SchemeAccount(models.Model):
     REGISTER_PENDING = [REGISTRATION_ASYNC_IN_PROGRESS]
 
     PRE_PENDING_STATUSES = [AUTH_PENDING, ADD_AUTH_PENDING]
-    OUTCOME_EVENT = {
-        ADD_AUTH_PENDING: add_auth_outcome_event,
-        AUTH_PENDING: auth_outcome_event,
-    }
 
     # Journey types
     JOURNEYS = (
@@ -961,6 +956,7 @@ class SchemeAccount(models.Model):
     def _process_midas_response(self, response):
         points = None
         current_status = self.status
+        dw_event = None
         self.status = response.status_code
         if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
             self.status = SchemeAccount.UNKNOWN_ERROR
@@ -977,18 +973,21 @@ class SchemeAccount(models.Model):
             self.status = SchemeAccount.ACTIVE
             logger.info(f"Ignoring Midas {self.status} response code")
 
-        # check here for data warehouse event
+        # data warehouse event, not used for subsequent midas calls
+        # only when a scheme_account was in a pre-pending status
         if current_status in self.PRE_PENDING_STATUSES:
+            # dw_event is a tuple(success: bool, SchemeAccount.STATUS: int)
             if self.status == SchemeAccount.ACTIVE:
-                self.OUTCOME_EVENT[current_status].delay(success=True, scheme_account=self)
+                dw_event = (True, current_status)
             else:
-                self.OUTCOME_EVENT[current_status].delay(success=False, scheme_account=self)
+                dw_event = (False, current_status)
 
-        return points
+        return points, dw_event
 
     def get_midas_balance(self, journey, credentials_override: dict = None):
         points = None
         old_status = self.status
+        dw_event = None
 
         if self.status in self.JOIN_EXCLUDE_BALANCE_STATUSES:
             return points
@@ -996,15 +995,15 @@ class SchemeAccount(models.Model):
         try:
             credentials = self.credentials(credentials_override)
             if not credentials:
-                return points
+                return points, dw_event
             response = self._get_balance(credentials, journey)
-            points = self._process_midas_response(response)
+            points, dw_event = self._process_midas_response(response)
 
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
         self._received_balance_checks(old_status)
-        return points
+        return points, dw_event
 
     def _received_balance_checks(self, old_status):
         saved = False
@@ -1047,7 +1046,7 @@ class SchemeAccount(models.Model):
 
     def update_cached_balance(self, cache_key, credentials_override: dict = None):
         journey = self.get_journey_type()
-        balance = self.get_midas_balance(journey=journey, credentials_override=credentials_override)
+        balance, dw_event = self.get_midas_balance(journey=journey, credentials_override=credentials_override)
         vouchers = None
 
         if balance:
@@ -1059,7 +1058,7 @@ class SchemeAccount(models.Model):
             balance = UbiquityBalanceHandler(balance).data
             cache.set(cache_key, balance, self.scheme.balance_renew_period)
 
-        return balance, vouchers
+        return balance, vouchers, dw_event
 
     def update_barcode_and_card_number(self):
 
@@ -1139,16 +1138,17 @@ class SchemeAccount(models.Model):
 
         return update_fields
 
-    def get_cached_balance(self, credentials_override: dict = None):
+    def get_cached_balance(self, credentials_override: dict = None, user: object = None):
         # Gets scheme account balance from cache if existing, else updates the cache.
 
         cache_key = "scheme_{}".format(self.pk)
         old_status = self.status
         balance = cache.get(cache_key)
         vouchers = None  # should we cache these too?
+        dw_event = None
 
         if not balance:
-            balance, vouchers = self.update_cached_balance(cache_key, credentials_override)
+            balance, vouchers, dw_event = self.update_cached_balance(cache_key, credentials_override)
 
         update_fields = self.check_balance_and_vouchers(balance=balance, vouchers=vouchers)
         status_update = old_status != self.status
@@ -1167,7 +1167,7 @@ class SchemeAccount(models.Model):
         # Update on each balance request to resolve any ubiquity collisions e.g if a link is in ubiquity collision
         # state but the blocking scheme account was deleted then the link should be updated to active.
 
-        return balance
+        return balance, dw_event
 
     def make_vouchers_response(self, vouchers: list):
         """
@@ -1189,7 +1189,7 @@ class SchemeAccount(models.Model):
         voucher_scheme = VoucherScheme.objects.get(scheme=self.scheme)
 
         earn_target_value: float = voucher_scheme.get_earn_target_value(voucher_fields=voucher_fields)
-        earn_value: [float, int] = voucher_scheme.get_earn_value(
+        earn_value: list[float, int] = voucher_scheme.get_earn_value(
             voucher_fields=voucher_fields, earn_target_value=earn_target_value
         )
 
