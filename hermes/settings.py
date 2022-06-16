@@ -262,8 +262,6 @@ MNEMOSYNE_URL = env_var("MNEMOSYNE_URL", None)
 MY360_SCHEME_URL = "https://mygravity.co/my360/"
 MY360_SCHEME_API_URL = "https://rewards.api.mygravity.co/v3/reward_scheme/{}/schemes"
 
-MIDAS_QUEUE_NAME = env_var("MIDAS_QUEUE_NAME", "loyalty-request")
-
 FACEBOOK_CLIENT_SECRET = env_var("FACEBOOK_CLIENT_SECRET", "5da7b80e9e0e25d24097515eb7d506da")
 
 TWITTER_CONSUMER_KEY = env_var("TWITTER_CONSUMER_KEY", "XhCHpBxJg4YdM5raN2z2GoyAR")
