@@ -14,6 +14,7 @@ from rest_framework.exceptions import ParseError
 import analytics
 from hermes.vop_tasks import activate, deactivate
 from history.data_warehouse import remove_loyalty_card_event, to_data_warehouse
+from history.tasks import auth_outcome_task
 from history.utils import clean_history_kwargs, history_bulk_create, history_bulk_update, set_history_kwargs
 from payment_card import metis
 from payment_card.models import PaymentCard, PaymentCardAccount
@@ -115,7 +116,12 @@ def async_balance_with_updated_credentials(
             pass
 
     logger.debug(f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})")
-    balance, _, _ = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
+    balance, _, dw_event = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
+
+    # data warehouse event
+    user = CustomUser.objects.get(id=user_id)
+    success, _ = dw_event
+    auth_outcome_task.delay(success=success, user=user, scheme_account=scheme_account)
 
     if balance:
         logger.debug(
