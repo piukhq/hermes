@@ -115,7 +115,7 @@ def async_balance_with_updated_credentials(
             pass
 
     logger.debug(f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})")
-    balance, _ = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
+    balance, _, _ = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
 
     if balance:
         logger.debug(

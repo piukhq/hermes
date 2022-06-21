@@ -990,7 +990,7 @@ class SchemeAccount(models.Model):
         dw_event = None
 
         if self.status in self.JOIN_EXCLUDE_BALANCE_STATUSES:
-            return points
+            return points, dw_event
 
         try:
             credentials = self.credentials(credentials_override)
