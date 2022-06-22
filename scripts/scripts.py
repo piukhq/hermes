@@ -1,6 +1,7 @@
 from enum import IntEnum, auto
 
-from .find_errors.barclays_hash_uploads import BarclaysDeleteUpload, BarclaysHashCorrectionsUpload
+# from .find_errors.barclays_hash_uploads import BarclaysDeleteUpload, BarclaysHashCorrectionsUpload
+from .find_errors.barclays_hash_uploads import BarclaysHashCorrectionsUpload
 from .find_errors.cards_stuck_in_pending import FindCardsStuckInPending
 from .find_errors.deleted_vop_cards_with_activations import FindDeletedVopCardsWithActivations
 from .find_errors.scheme_accounts_invalid_creds import FindSchemeAccountsStuckInInvalidCreds
@@ -23,7 +24,7 @@ class DataScripts(IntEnum):
     VISA_DUPLICATE_CARDS = auto()
     SCHEMEACCOUNT_INVALIDCREDS = auto()
     BARCLAYS_HASH_UPLOAD = auto()
-    DELETE_LISTED_PAYMENT_ACCOUNTS = auto()
+    # DELETE_LISTED_PAYMENT_ACCOUNTS = auto()
 
 
 SCRIPT_TITLES = {
@@ -36,7 +37,7 @@ SCRIPT_TITLES = {
     DataScripts.VISA_DUPLICATE_CARDS: "Visa card accounts in 'duplicate card' status",
     DataScripts.SCHEMEACCOUNT_INVALIDCREDS: "SchemeAccounts stuck in Invalid Credentials status",
     DataScripts.BARCLAYS_HASH_UPLOAD: "Barclays hash replacement using Azure upload files",
-    DataScripts.DELETE_LISTED_PAYMENT_ACCOUNTS: "Remove Payment Accounts in supplied CSV File",
+    # DataScripts.DELETE_LISTED_PAYMENT_ACCOUNTS: "Remove Payment Accounts in supplied CSV File",
 }
 
 SCRIPT_CLASSES = {
@@ -48,7 +49,7 @@ SCRIPT_CLASSES = {
     DataScripts.VISA_DUPLICATE_CARDS: FindVOPCardsInDuplicateCardStatus,
     DataScripts.SCHEMEACCOUNT_INVALIDCREDS: FindSchemeAccountsStuckInInvalidCreds,
     DataScripts.BARCLAYS_HASH_UPLOAD: BarclaysHashCorrectionsUpload,
-    DataScripts.DELETE_LISTED_PAYMENT_ACCOUNTS: BarclaysDeleteUpload,
+    # DataScripts.DELETE_LISTED_PAYMENT_ACCOUNTS: BarclaysDeleteUpload,
 }
 # End of new script definition - you do not need to do anything else to add a new find script
 # But you may need to add one or more corrective actions see actions/corrections.py
