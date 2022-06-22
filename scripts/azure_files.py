@@ -14,7 +14,7 @@ def upload_files_and_process(correction_script: object, location: str, func: Cal
         # List the blobs in the container
         blob_list = container_client.list_blobs(name_starts_with=location)
         file_list = []
-        results.append("Files found to process in Background")
+        results.append("The following files were discovered on Azure and will be process in background:")
         for blob in blob_list:
             file_list.append(blob.name)
             results.append(f"&nbsp;&nbsp;&nbsp;&nbsp;{blob.name}")
@@ -38,7 +38,6 @@ def process_files(correction_script: object, file_list: list, type_dir: str, fun
     archive_client = blob_service_client.get_container_client(settings.ARCHIVE_CONTAINER_NAME)
     item_no = 0
     for upload_file in file_list:
-        failures = []
         line_no = 0
         archive_file = date_str + upload_file.replace(type_dir, f"processed_{now_str}/imported/")
         bytes_io = container_client.download_blob(upload_file).readall()
