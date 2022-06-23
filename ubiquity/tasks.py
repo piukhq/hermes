@@ -98,7 +98,9 @@ def async_balance_with_updated_credentials(
     scheme_account = SchemeAccount.objects.get(id=instance_id)
     scheme_account.delete_cached_balance()
     scheme_account.delete_saved_balance()
+    old_status = scheme_account.status
     cache_key = "scheme_{}".format(scheme_account.pk)
+    user = CustomUser.objects.get(id=user_id)
 
     # If updated credentials match existing credentials then update balance to change the status from pending
     # If a card was added with invalid credentials, the auth credentials are deleted and so may not exist.
@@ -110,7 +112,13 @@ def async_balance_with_updated_credentials(
                 "Updated credentials match existing stored credentials. "
                 f"Updating balance for SchemeAccount (id={scheme_account.id})"
             )
-            scheme_account.update_cached_balance(cache_key=cache_key)
+            balance, _, dw_event = scheme_account.update_cached_balance(cache_key=cache_key)
+            # save the status if we went from AUTH_PENDING to Anything else
+            if old_status == SchemeAccount.AUTH_PENDING and scheme_account.status != old_status:
+                scheme_account.save(update_fields=["status"])
+            if dw_event:
+                success, _ = dw_event
+                auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
             return
         except ParseError:
             pass
@@ -118,11 +126,16 @@ def async_balance_with_updated_credentials(
     logger.debug(f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})")
     balance, _, dw_event = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
 
-    # data warehouse event
-    user = CustomUser.objects.get(id=user_id)
-    success, _ = dw_event
-    auth_outcome_task.delay(success=success, user=user, scheme_account=scheme_account)
-
+    # save the status if we went from AUTH_PENDING to Anything else
+    if old_status == SchemeAccount.AUTH_PENDING and scheme_account.status != old_status:
+        scheme_account.save(update_fields=["status"])
+    
+    # data warehouse event could be success or failed (depends on midas response etc)
+    # since we're in this function is is always AUTH_PENDING
+    if dw_event:
+        success, _ = dw_event
+        auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
+    
     if balance:
         logger.debug(
             "Balance returned from balance call with updated credentials - SchemeAccount (id={scheme_account.id}) - "

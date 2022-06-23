@@ -1248,6 +1248,10 @@ class SchemeAccount(models.Model):
 
         return voucher
 
+    def set_active(self) -> None:
+        self.status = SchemeAccount.ACTIVE
+        self.save(update_fields=["status"])
+        
     def set_pending(self, manual_pending: bool = False) -> None:
         self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
         self.save(update_fields=["status"])
