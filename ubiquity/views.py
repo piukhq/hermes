@@ -566,8 +566,6 @@ class MembershipCardView(
             register_lc_event(request.user, account, request.channels_permit.bundle_id)
         else:
             if not sch_acc_entry.auth_provided:
-                # second wallet PATCH auth failed event
-                auth_outcome_task.delay(success=False, user=request.user, scheme_account=account)
                 raise CardAuthError(
                     "Cannot update authorise fields for Store type card. Card must be authorised "
                     "via POST /membership_cards endpoint first."
