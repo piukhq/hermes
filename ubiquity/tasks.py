@@ -98,7 +98,6 @@ def async_balance_with_updated_credentials(
     scheme_account = SchemeAccount.objects.get(id=instance_id)
     scheme_account.delete_cached_balance()
     scheme_account.delete_saved_balance()
-    old_status = scheme_account.status
     cache_key = "scheme_{}".format(scheme_account.pk)
     user = CustomUser.objects.get(id=user_id)
 
@@ -122,13 +121,13 @@ def async_balance_with_updated_credentials(
 
     logger.debug(f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})")
     balance, _, dw_event = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
-    
+
     # data warehouse event could be success or failed (depends on midas response etc)
     # since we're in this function is is always AUTH_PENDING
     if dw_event:
         success, _ = dw_event
         auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
-    
+
     if balance:
         logger.debug(
             "Balance returned from balance call with updated credentials - SchemeAccount (id={scheme_account.id}) - "
