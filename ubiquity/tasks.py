@@ -113,9 +113,6 @@ def async_balance_with_updated_credentials(
                 f"Updating balance for SchemeAccount (id={scheme_account.id})"
             )
             balance, _, dw_event = scheme_account.update_cached_balance(cache_key=cache_key)
-            # save the status if we went from AUTH_PENDING to Anything else
-            if old_status == SchemeAccount.AUTH_PENDING and scheme_account.status != old_status:
-                scheme_account.save(update_fields=["status"])
             if dw_event:
                 success, _ = dw_event
                 auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
@@ -125,10 +122,6 @@ def async_balance_with_updated_credentials(
 
     logger.debug(f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})")
     balance, _, dw_event = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
-
-    # save the status if we went from AUTH_PENDING to Anything else
-    if old_status == SchemeAccount.AUTH_PENDING and scheme_account.status != old_status:
-        scheme_account.save(update_fields=["status"])
     
     # data warehouse event could be success or failed (depends on midas response etc)
     # since we're in this function is is always AUTH_PENDING
