@@ -631,7 +631,7 @@ class MembershipCardView(
 
         # does not check for "prim auth" user so is set *by* all wallets/users
         account.set_auth_pending()
-        # this call *should* (re)set scheme_account status...
+        # ask for a balance refresh with new creds
         async_balance_with_updated_credentials.delay(account.id, user_id, update_fields, scheme_questions)
         return account
 

@@ -14,6 +14,7 @@ from rest_framework.exceptions import ParseError
 import analytics
 from hermes.vop_tasks import activate, deactivate
 from history.data_warehouse import remove_loyalty_card_event, to_data_warehouse
+from history.tasks import auth_outcome_task
 from history.utils import clean_history_kwargs, history_bulk_create, history_bulk_update, set_history_kwargs
 from payment_card import metis
 from payment_card.models import PaymentCard, PaymentCardAccount
@@ -98,6 +99,7 @@ def async_balance_with_updated_credentials(
     scheme_account.delete_cached_balance()
     scheme_account.delete_saved_balance()
     cache_key = "scheme_{}".format(scheme_account.pk)
+    user = CustomUser.objects.get(id=user_id)
 
     # If updated credentials match existing credentials then update balance to change the status from pending
     # If a card was added with invalid credentials, the auth credentials are deleted and so may not exist.
@@ -109,13 +111,22 @@ def async_balance_with_updated_credentials(
                 "Updated credentials match existing stored credentials. "
                 f"Updating balance for SchemeAccount (id={scheme_account.id})"
             )
-            scheme_account.update_cached_balance(cache_key=cache_key)
+            balance, _, dw_event = scheme_account.update_cached_balance(cache_key=cache_key)
+            if dw_event:
+                success, _ = dw_event
+                auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
             return
         except ParseError:
             pass
 
     logger.debug(f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})")
-    balance, _ = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
+    balance, _, dw_event = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
+
+    # data warehouse event could be success or failed (depends on midas response etc)
+    # since we're in this function is is always AUTH_PENDING
+    if dw_event:
+        success, _ = dw_event
+        auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
 
     if balance:
         logger.debug(

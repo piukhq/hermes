@@ -990,7 +990,7 @@ class SchemeAccount(models.Model):
         dw_event = None
 
         if self.status in self.JOIN_EXCLUDE_BALANCE_STATUSES:
-            return points
+            return points, dw_event
 
         try:
             credentials = self.credentials(credentials_override)
@@ -1403,6 +1403,7 @@ class SchemeOverrideError(models.Model):
     reason_code = models.CharField(max_length=50, choices=REASON_CODE_CHOICES)
     error_slug = models.CharField(max_length=50, choices=ERROR_SLUG_CHOICES)
     message = models.TextField()
+    channel = models.ForeignKey("user.ClientApplicationBundle", on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return "({}) {}: {}".format(self.reason_code, self.scheme.name, self.message)
