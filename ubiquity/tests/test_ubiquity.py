@@ -1008,7 +1008,7 @@ class TestResources(GlobalMockAPITestCase):
         )
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(None, ""))
+    @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(None, "", None))
     def test_wallet_only_card_patch_fails_multi_user(self, mock_update_balance):
         """Test auth_provided user doing a PATCH with incorrect credentials willdelete auth credentials
         and delete payment scheme entries if all remaining linked users are wallet only users
@@ -1757,7 +1757,7 @@ class TestResources(GlobalMockAPITestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("scheme.mixins.analytics", autospec=True)
-    @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(10, ""))
+    @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(10, "", None))
     @patch("ubiquity.tasks.async_balance", autospec=True)
     @patch("ubiquity.views.async_registration", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
@@ -1797,7 +1797,7 @@ class TestResources(GlobalMockAPITestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("scheme.mixins.analytics", autospec=True)
-    @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(10, ""))
+    @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(10, "", None))
     @patch("ubiquity.tasks.async_balance", autospec=True)
     @patch("ubiquity.views.async_registration", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
