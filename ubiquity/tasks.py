@@ -121,7 +121,6 @@ def async_balance_with_updated_credentials(
                 success, journey = dw_event
                 DATAWAREHOUSE_EVENTS[journey].delay(success=success, user=user, scheme_account=scheme_account)
 
-
             return
         except ParseError:
             pass
