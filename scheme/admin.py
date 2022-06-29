@@ -527,7 +527,7 @@ class ExchangeAdmin(admin.ModelAdmin):
 
 @admin.register(SchemeOverrideError)
 class SchemeOverrideErrorAdmin(admin.ModelAdmin):
-    list_display = ("id", "error_code", "scheme", "message", "reason_code")
+    list_display = ("id", "error_code", "scheme", "message", "reason_code", "channel")
 
 
 @admin.register(UserConsent)
