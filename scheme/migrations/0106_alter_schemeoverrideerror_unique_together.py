@@ -6,13 +6,13 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0055_alter_customuser_bundle_id'),
-        ('scheme', '0105_schemeoverrideerror_channel'),
+        ("user", "0055_alter_customuser_bundle_id"),
+        ("scheme", "0105_schemeoverrideerror_channel"),
     ]
 
     operations = [
         migrations.AlterUniqueTogether(
-            name='schemeoverrideerror',
-            unique_together={('error_code', 'scheme', 'channel')},
+            name="schemeoverrideerror",
+            unique_together={("error_code", "scheme", "channel")},
         ),
     ]
