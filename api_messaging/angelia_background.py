@@ -191,7 +191,7 @@ def loyalty_card_add_authorise(message: dict) -> None:
 
         if message.get("primary_auth"):
             # primary_auth is used to indicate that this user has demonstrated the authority to authorise and
-            # set the status of this card (i.e. they are not secondary to an authorised user of this card.)
+            # set the status of this card (i.e. they are not secondary to an authorised user of this card)
             if journey == "ADD_AND_AUTH":
                 account.set_add_auth_pending()
             elif journey == "AUTH":
