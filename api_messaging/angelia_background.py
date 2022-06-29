@@ -24,8 +24,8 @@ from scheme.models import Scheme, SchemeAccount
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent
 from ubiquity.tasks import (
     async_all_balance,
+    async_balance_with_updated_credentials,
     async_join,
-    async_link,
     auto_link_membership_to_payments,
     deleted_membership_card_cleanup,
     deleted_payment_card_cleanup,
@@ -197,11 +197,9 @@ def loyalty_card_add_authorise(message: dict) -> None:
             elif journey == "AUTH":
                 account.set_auth_pending()
 
-            async_link(
-                auth_fields=all_credentials_and_consents,
-                scheme_account_id=account.id,
-                user_id=ac.user_id,
-                payment_cards_to_link=payment_cards_to_link,
+            scheme_questions = account.scheme.questions.all()
+            async_balance_with_updated_credentials(
+                account.id, ac.user_id, all_credentials_and_consents, scheme_questions
             )
 
         if payment_cards_to_link:
