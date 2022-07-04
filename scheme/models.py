@@ -884,7 +884,7 @@ class SchemeAccount(models.Model):
 
     def _iceland_hack(self, credentials: dict = None, credentials_override: dict = None) -> bool:
         if (
-            credentials_override or self.missing_credentials(credentials.keys())
+            not credentials_override or self.missing_credentials(credentials.keys())
         ) and self.status not in SchemeAccount.ALL_PENDING_STATUSES:
             bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
             for user in bink_users:
