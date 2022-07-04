@@ -883,9 +883,12 @@ class SchemeAccount(models.Model):
         return answer
 
     def _iceland_hack(self, credentials: dict = None, credentials_override: dict = None) -> bool:
-        if (
-            not credentials_override or self.missing_credentials(credentials.keys())
-        ) and self.status not in SchemeAccount.ALL_PENDING_STATUSES:
+        if self.status in SchemeAccount.ALL_PENDING_STATUSES:
+            return False
+
+        missing = self.missing_credentials(credentials.keys())
+
+        if missing and not credentials_override:
             bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
             for user in bink_users:
                 update_scheme_account_attribute_new_status(
@@ -893,7 +896,7 @@ class SchemeAccount(models.Model):
                 )
             self.status = SchemeAccount.INCOMPLETE
             self.save()
-            return True
+            return True  # triggers return None from calling method
         return False
 
     def credentials(self, credentials_override: dict = None):
