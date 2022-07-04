@@ -742,6 +742,7 @@ class SchemeAccount(models.Model):
     REGISTER_PENDING = [REGISTRATION_ASYNC_IN_PROGRESS]
 
     PRE_PENDING_STATUSES = [AUTH_PENDING, ADD_AUTH_PENDING]
+    ALL_PENDING_STATUSES = [PENDING, AUTH_PENDING, ADD_AUTH_PENDING]
 
     # Journey types
     JOURNEYS = (
@@ -881,18 +882,28 @@ class SchemeAccount(models.Model):
             answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(answer)
         return answer
 
+    def _iceland_hack(self, credentials: dict = None, credentials_override: dict = None) -> bool:
+        if self.status in SchemeAccount.ALL_PENDING_STATUSES:
+            return False
+
+        missing = self.missing_credentials(credentials.keys())
+
+        if missing and not credentials_override:
+            bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
+            for user in bink_users:
+                update_scheme_account_attribute_new_status(
+                    self, user, dict(self.STATUSES).get(SchemeAccount.INCOMPLETE)
+                )
+            self.status = SchemeAccount.INCOMPLETE
+            self.save()
+            return True  # triggers return None from calling method
+        return False
+
     def credentials(self, credentials_override: dict = None):
         credentials = self._collect_credentials()
-        if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
-            # temporary fix for iceland
-            if self.scheme.slug != "iceland-bonus-card":
-                bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
-                for user in bink_users:
-                    update_scheme_account_attribute_new_status(
-                        self, user, dict(self.STATUSES).get(SchemeAccount.INCOMPLETE)
-                    )
-                self.status = SchemeAccount.INCOMPLETE
-                self.save()
+
+        if self.scheme.slug != "iceland-bonus-card":
+            if self._iceland_hack(credentials, credentials_override):
                 return None
 
         for credential in credentials.keys():
