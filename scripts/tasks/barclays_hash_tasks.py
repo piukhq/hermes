@@ -17,16 +17,15 @@ def process_barclays_hash_contents(correction_script: object, upload_file: str, 
     line_no = 0
     remove_white_space = str.maketrans("", "", string.whitespace)
     correction_script.set_correction(Correction.NO_CORRECTION)
+    key_hash = get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
     for hash_pair in contents:
-        hash_pair.translate(remove_white_space)
+        hash_pair_trans = hash_pair.translate(remove_white_space)
         if len(hash_pair) > 1:
             line_no += 1
             item_no += 1
-            ext_old_hash, ext_new_hash = hash_pair.split(",")
-            key_hash = get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
+            ext_old_hash, ext_new_hash = hash_pair_trans.split(",")
             old_hash = BLAKE2sHash().new(obj=ext_old_hash, key=key_hash)
             new_hash = BLAKE2sHash().new(obj=ext_new_hash, key=key_hash)
-
             try:
                 account = PaymentCardAccount.objects.get(hash=old_hash)
                 if account and account.hash == old_hash:
