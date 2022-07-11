@@ -1,6 +1,7 @@
 from payment_card.models import PaymentCard, PaymentCardAccount
 
-from .base_script import BaseScript, Correction
+from ..actions.corrections import Correction
+from .base_script import BaseScript
 
 
 class FindVOPCardsInDuplicateCardStatus(BaseScript):
@@ -15,7 +16,7 @@ class FindVOPCardsInDuplicateCardStatus(BaseScript):
         )
 
         for card in duplicate_cards:
-            self.set_correction(Correction.RETRY_ENROLL)
+            self.set_correction(Correction.VOP_RETRY_ENROLL)
 
             self.result.append(
                 f"Payment Card Account ID: {card.id}, "

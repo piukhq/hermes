@@ -1,6 +1,7 @@
 from ubiquity.models import PaymentCardSchemeEntry, VopActivation
 
-from .base_script import BaseScript, Correction
+from ..actions.corrections import Correction
+from .base_script import BaseScript
 
 
 class FindVopCardsNeedingActivation(BaseScript):
@@ -19,7 +20,7 @@ class FindVopCardsNeedingActivation(BaseScript):
         for link in active_visa_links:
             scheme = link.scheme_account.scheme
             pca = link.payment_card_account
-            self.set_correction(Correction.ACTIVATE)
+            self.set_correction(Correction.VOP_ACTIVATE)
 
             vop_object = VopActivation.objects.filter(payment_card_account=pca.id, scheme=scheme.id)
             if vop_object.count() >= 1:

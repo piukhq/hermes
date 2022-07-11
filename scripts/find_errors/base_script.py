@@ -1,6 +1,6 @@
-from scripts.actions.schemeaccount_actions import SchemeAccountCorrection
-from scripts.actions.vop_actions import Correction
 from scripts.models import ScriptResult
+
+from ..actions.corrections import Correction
 
 
 class BaseScript:
@@ -8,7 +8,6 @@ class BaseScript:
         self.script_id = script_id
         self.script_name = script_name
         self._correction_titles = dict(Correction.CORRECTION_SCRIPTS)
-        self._correction_titles.update(dict(SchemeAccountCorrection.CORRECTION_SCRIPTS))
         self.result = []
         self.correction_count = 0
         self.new_corrections = 0
@@ -27,7 +26,8 @@ class BaseScript:
     def run(self):
         try:
             self.script()
-            self.summary = f"Found {self.found} Issues and added {self.new_corrections} correction_count"
+            if not self.summary:
+                self.summary = f"Found {self.found} Issues and added {self.new_corrections} correction_count"
         except BaseException as e:
             self.summary = f"Exception {e}"
         return self.summary, self.correction_count, "<br/>".join(self.result)
@@ -36,8 +36,6 @@ class BaseScript:
         unique_ref = f"{unique_id_string}.{self.script_id}"
 
         all_corrections = Correction.COMPOUND_CORRECTION_SCRIPTS
-        all_corrections.update(SchemeAccountCorrection.COMPOUND_CORRECTION_SCRIPTS)
-
         self._sequence = all_corrections.get(self.correction_function, [self.correction_function])
 
         data["script_id"] = self.script_id

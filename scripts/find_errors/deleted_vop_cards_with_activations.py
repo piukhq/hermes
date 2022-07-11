@@ -1,7 +1,8 @@
 from payment_card.models import PaymentCardAccount
 from ubiquity.models import VopActivation
 
-from .base_script import BaseScript, Correction
+from ..actions.corrections import Correction
+from .base_script import BaseScript
 
 
 class FindDeletedVopCardsWithActivations(BaseScript):
@@ -25,13 +26,13 @@ class FindDeletedVopCardsWithActivations(BaseScript):
                 duplicate_activations = False
 
                 dup_card_id = None
-                self.set_correction(Correction.DEACTIVATE_UN_ENROLLED)
+                self.set_correction(Correction.VOP_DEACTIVATE_UN_ENROLLED)
                 for dup in duplicated_card_tokens:
                     dup_card_id = dup.id
                     if dup.status == PaymentCardAccount.ACTIVE:
                         # we can't correct by re-enrolling because VOP should be enrolled still
                         # best try just activating
-                        self.set_correction(Correction.DEACTIVATE)
+                        self.set_correction(Correction.VOP_DEACTIVATE)
                     dup_active = VopActivation.objects.filter(
                         payment_card_account=dup, scheme=a.scheme, status=VopActivation.ACTIVATED
                     )
@@ -39,7 +40,7 @@ class FindDeletedVopCardsWithActivations(BaseScript):
                         # This token and merchant are already activated on another card
                         # so safe to mark this deleted card as having been deactivated
                         duplicate_activations = True
-                        self.set_correction(Correction.MARK_AS_DEACTIVATED)
+                        self.set_correction(Correction.VOP_MARK_AS_DEACTIVATED)
                         break
 
                 self.result.append(
