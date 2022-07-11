@@ -2,66 +2,32 @@ from django.contrib import admin, messages
 from django.template.response import TemplateResponse
 from django.urls import path
 
-from .actions.paymentaccount_actions import PaymentAccountCorrection, do_update_hash
-from .actions.schemeaccount_actions import SchemeAccountCorrection, do_mark_as_unknown, do_refresh_balance
-from .actions.vop_actions import (
-    Correction,
-    do_activation,
-    do_deactivate,
-    do_fix_enroll,
-    do_mark_as_deactivated,
-    do_re_enroll,
-    do_retain,
-    do_set_account_and_links_active,
-    do_un_enroll,
-)
+from .actions.corrections import Correction
 from .models import ScriptResult
 from .scripts import SCRIPT_CLASSES, SCRIPT_TITLES
+from .tasks.async_corrections import background_corrections
 
 # See scripts.py on how to add a new script find records function
 
 
-def get_correction(entry):
-    actions = {
-        Correction.UN_ENROLL: do_un_enroll,
-        Correction.DEACTIVATE: do_deactivate,
-        Correction.RE_ENROLL: do_re_enroll,
-        Correction.ACTIVATE: do_activation,
-        Correction.MARK_AS_DEACTIVATED: do_mark_as_deactivated,
-        Correction.FIX_ENROLL: do_fix_enroll,
-        Correction.RETAIN: do_retain,
-        Correction.SET_ACTIVE: do_set_account_and_links_active,
-        SchemeAccountCorrection.MARK_AS_UNKNOWN: do_mark_as_unknown,
-        SchemeAccountCorrection.REFRESH_BALANCE: do_refresh_balance,
-        PaymentAccountCorrection.UPDATE_CARD_HASH: do_update_hash,
-    }
-    if entry.apply not in actions.keys():
-        return False
-    return actions[entry.apply](entry)
-
-
-def apply_correction(modeladmin, request, queryset):
+def apply_correction(_, request, queryset):
     count = len(queryset)
     success_count = 0
     failed_count = 0
     done_count = 0
-    correction_titles = dict(
-        Correction.CORRECTION_SCRIPTS
-        + SchemeAccountCorrection.CORRECTION_SCRIPTS
-        + PaymentAccountCorrection.CORRECTION_SCRIPTS
-    )
 
     if not user_can_run_script(request):
         messages.add_message(request, messages.WARNING, "Could not execute the script: Access Denied")
     else:
         for entry in queryset:
             if not entry.done:
-                success = get_correction(entry)
+                title = Correction.TITLES[entry.apply]
+                success = Correction.do(entry)
                 if success:
                     success_count += 1
                     sequence = entry.data["sequence"]
                     sequence_pos = entry.data["sequence_pos"] + 1
-                    entry.results.append(f"{correction_titles[entry.apply]}: success")
+                    entry.results.append(f"{title}: success")
                     if sequence_pos >= len(sequence):
                         entry.done = True
                         entry.apply = Correction.NO_CORRECTION
@@ -72,13 +38,25 @@ def apply_correction(modeladmin, request, queryset):
                         entry.apply = sequence[sequence_pos]
                 else:
                     failed_count += 1
-                    entry.results.append(f"{correction_titles[entry.apply]}: failed")
+                    entry.results.append(f"{title}: failed")
                 entry.save()
         messages.add_message(
             request,
             messages.INFO,
             f"Process {count} corrections - {success_count} successful,"
             f" {failed_count} failed, {done_count} completed",
+        )
+
+
+def apply_correction_in_background(_, request, queryset):
+    count = len(queryset)
+
+    if not user_can_run_script(request):
+        messages.add_message(request, messages.WARNING, "Could not execute the script: Access Denied")
+    else:
+        background_corrections.delay(queryset)
+        messages.add_message(
+            request, messages.INFO, f"Processing {count} corrections in background - search results to see progress"
         )
 
 
@@ -98,7 +76,7 @@ class ScriptResultAdmin(admin.ModelAdmin):
     readonly_fields = ("script_name", "item_id", "data", "results", "correction", "apply", "done")
     search_fields = ("script_name", "done", "data", "results")
     list_per_page = 500
-    actions = [apply_correction]
+    actions = [apply_correction, apply_correction_in_background]
 
     def get_urls(self):
         urls = super().get_urls()

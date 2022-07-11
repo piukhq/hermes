@@ -1,6 +1,6 @@
-from scripts.models import Correction
 from ubiquity.models import VopActivation
 
+from ..actions.corrections import Correction
 from .base_script import BaseScript
 
 
@@ -15,7 +15,7 @@ class FindVOPActivationsStuckInDeactivating(BaseScript):
         for d in deactivating:
             pcd = d.payment_card_account
             scheme = d.scheme
-            self.set_correction(Correction.DEACTIVATE)
+            self.set_correction(Correction.VOP_DEACTIVATE)
 
             self.result.append(
                 f"Activation ID: {d.id}, "

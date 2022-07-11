@@ -168,8 +168,14 @@ def async_balance_with_updated_credentials(
                 question__auth_field=True,
                 question__manual_question=False,
             ).delete()
+            # nobody left with auth_provided = True
+            # must have given invalid creds
+            scheme_account.status = scheme_account.INVALID_CREDENTIALS
+            scheme_account.save()
         else:
-            # Call balance to correctly reset the scheme account balance using the stored credentials
+            # someone left with auth_provided = True so....
+            # Call balance to correctly reset the scheme account
+            # balance using the stored credentials
             scheme_account.get_cached_balance()
 
 
