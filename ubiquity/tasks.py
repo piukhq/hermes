@@ -14,7 +14,7 @@ from rest_framework.exceptions import ParseError
 import analytics
 from hermes.vop_tasks import activate, deactivate
 from history.data_warehouse import remove_loyalty_card_event, to_data_warehouse
-from history.tasks import add_auth_outcome_task, auth_outcome_task
+from history.tasks import auth_outcome_task
 from history.utils import clean_history_kwargs, history_bulk_create, history_bulk_update, set_history_kwargs
 from payment_card import metis
 from payment_card.models import PaymentCard, PaymentCardAccount
@@ -28,11 +28,6 @@ if t.TYPE_CHECKING:
     from rest_framework.serializers import Serializer
 
 logger = logging.getLogger(__name__)
-
-DATAWAREHOUSE_EVENTS = {
-    SchemeAccount.ADD_AUTH_PENDING: add_auth_outcome_task,
-    SchemeAccount.AUTH_PENDING: auth_outcome_task,
-}
 
 
 class UpdateCardType(Enum):
@@ -118,9 +113,8 @@ def async_balance_with_updated_credentials(
             )
             balance, _, dw_event = scheme_account.update_cached_balance(cache_key=cache_key)
             if dw_event:
-                success, journey = dw_event
-                DATAWAREHOUSE_EVENTS[journey].delay(success=success, user=user, scheme_account=scheme_account)
-
+                success, _ = dw_event
+                auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
             return
         except ParseError:
             pass
@@ -128,9 +122,11 @@ def async_balance_with_updated_credentials(
     logger.debug(f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})")
     balance, _, dw_event = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
 
+    # data warehouse event could be success or failed (depends on midas response etc)
+    # since we're in this function is is always AUTH_PENDING
     if dw_event:
-        success, journey = dw_event
-        DATAWAREHOUSE_EVENTS[journey].delay(success=success, user=user, scheme_account=scheme_account)
+        success, _ = dw_event
+        auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
 
     if balance:
         logger.debug(
@@ -168,14 +164,8 @@ def async_balance_with_updated_credentials(
                 question__auth_field=True,
                 question__manual_question=False,
             ).delete()
-            # nobody left with auth_provided = True
-            # must have given invalid creds
-            scheme_account.status = scheme_account.INVALID_CREDENTIALS
-            scheme_account.save()
         else:
-            # someone left with auth_provided = True so....
-            # Call balance to correctly reset the scheme account
-            # balance using the stored credentials
+            # Call balance to correctly reset the scheme account balance using the stored credentials
             scheme_account.get_cached_balance()
 
 
@@ -339,6 +329,8 @@ def deleted_membership_card_cleanup(
             )
 
     else:
+        remove_loyalty_card_event(user, scheme_account)
+
         user_mcard_auth_provided = entries_query.values_list("auth_provided", flat=True)
         if all((status is False for status in user_mcard_auth_provided)):
             scheme_account.status = SchemeAccount.WALLET_ONLY
