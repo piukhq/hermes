@@ -254,7 +254,7 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertTrue(answers.first().question.manual_question)
 
         self.assertTrue(mock_to_warehouse.called)
-        self.assertEqual(mock_to_warehouse.call_count, 2)
+        self.assertEqual(mock_to_warehouse.call_count, 1)
 
     @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
     def test_deleted_payment_card_cleanup_ubiquity_collision(self, mock_metrics):
