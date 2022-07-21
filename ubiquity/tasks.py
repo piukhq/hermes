@@ -329,8 +329,6 @@ def deleted_membership_card_cleanup(
             )
 
     else:
-        remove_loyalty_card_event(user, scheme_account)
-
         user_mcard_auth_provided = entries_query.values_list("auth_provided", flat=True)
         if all((status is False for status in user_mcard_auth_provided)):
             scheme_account.status = SchemeAccount.WALLET_ONLY
