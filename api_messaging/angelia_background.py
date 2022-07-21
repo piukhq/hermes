@@ -285,6 +285,7 @@ def refresh_balances(message: dict) -> None:
         async_all_balance(ac.user_id, permit)
         logger.info(f"User {ac.user_id} refresh balances called. ")
 
+
 table_to_model = {
     "user": "CustomUser",
     "scheme_schemeaccount": "SchemeAccount",
