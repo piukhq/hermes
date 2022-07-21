@@ -339,10 +339,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         self.delete_token = uuid.uuid4()
         self.save(update_fields=["is_active", "delete_token"])
 
-    def set_last_accessed(self, timestamp):
-        self.last_accessed = timestamp
-        self.save(update_fields=["last_accessed"])
-
     # Admin required fields
     # @property
     # def is_superuser(self):
