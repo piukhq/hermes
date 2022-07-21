@@ -60,7 +60,6 @@ def route_message(headers: dict, message: dict):
         "add_auth_outcome_event": angelia_background.add_auth_outcome_event,
         "add_auth_request_event": angelia_background.add_auth_request_event,
         "sql_history": angelia_background.sql_history,
-        "set_last_accessed": angelia_background.set_last_accessed,
     }
 
     try:

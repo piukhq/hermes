@@ -285,12 +285,6 @@ def refresh_balances(message: dict) -> None:
         async_all_balance(ac.user_id, permit)
         logger.info(f"User {ac.user_id} refresh balances called. ")
 
-
-def set_last_accessed(message: dict) -> None:
-    user = CustomUser.objects.get(pk=message.get("user_id"))
-    user.set_last_accessed(message.get("last_accessed"))
-
-
 table_to_model = {
     "user": "CustomUser",
     "scheme_schemeaccount": "SchemeAccount",
