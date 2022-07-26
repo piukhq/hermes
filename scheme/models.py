@@ -842,6 +842,7 @@ class SchemeAccount(models.Model):
 
     @staticmethod
     def validate_auth_fields(auth_fields, existing_answers):
+        #todo: existing answers need to come from the link object, not the scheme account
         for question_type, existing_value in existing_answers.items():
             provided_value = auth_fields.get(question_type)
 
