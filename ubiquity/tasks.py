@@ -101,29 +101,14 @@ def async_balance_with_updated_credentials(
     cache_key = "scheme_{}".format(scheme_account.pk)
     user = CustomUser.objects.get(id=user_id)
 
-    # If updated credentials match existing credentials then update balance to change the status from pending
-    # If a card was added with invalid credentials, the auth credentials are deleted and so may not exist.
-    existing_answers = scheme_account.get_auth_credentials(force_all=True)
-    if existing_answers:
-        try:
-            scheme_account.validate_auth_fields(update_fields, existing_answers)
-            logger.debug(
-                "Updated credentials match existing stored credentials. "
-                f"Updating balance for SchemeAccount (id={scheme_account.id})"
-            )
-            balance, _, dw_event = scheme_account.update_cached_balance(cache_key=cache_key)
-            if dw_event:
-                success, _ = dw_event
-                auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
-            return
-        except ParseError:
-            pass
+    # todo: We may want to think about what happens if updated credentials match that user's existing credentials.
+    #  Do we want to contact Midas in this case?
 
     logger.debug(f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})")
     balance, _, dw_event = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
 
     # data warehouse event could be success or failed (depends on midas response etc)
-    # since we're in this function is is always AUTH_PENDING
+    # since we're in this function i is always AUTH_PENDING
     if dw_event:
         success, _ = dw_event
         auth_outcome_task(success=success, user=user, scheme_account=scheme_account)

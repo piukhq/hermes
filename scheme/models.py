@@ -842,7 +842,8 @@ class SchemeAccount(models.Model):
 
     @staticmethod
     def validate_auth_fields(auth_fields, existing_answers):
-        #todo: existing answers need to come from the link object, not the scheme account
+        # todo: could be used to compare a user's credentials to their own existing credentials. Otherwise this should
+        #  be deleted.
         for question_type, existing_value in existing_answers.items():
             provided_value = auth_fields.get(question_type)
 
