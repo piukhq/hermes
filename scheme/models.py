@@ -1558,7 +1558,7 @@ class SchemeAccountCredentialAnswer(models.Model):
         return self.clean_answer()
 
     class Meta:
-        unique_together = ("scheme_account", "question")
+        unique_together = ("scheme_account_entry", "question")
 
 
 @receiver(signals.pre_save, sender=SchemeAccountCredentialAnswer)
