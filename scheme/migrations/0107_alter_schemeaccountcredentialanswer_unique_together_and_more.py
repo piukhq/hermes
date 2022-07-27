@@ -15,7 +15,19 @@ def populate_answers(*stuff):
     for entry_id, scheme_account_id, user_id, auth_provided in SchemeAccountEntry.objects.values_list(): 
         ## fetch the answers for this scheme account, insert them back into the answers table with tyhe extra FK
         answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_account_id).values()
-        
+        for answer in answers:
+            saca = SchemeAccountCredentialAnswer.objects.create(
+                scheme_account_id=answer.get("scheme_account_id"),
+                question_id=answer.get("question_id"), 
+                answer=answer.get("answer"),
+                scheme_account_entry=entry_id
+            )
+            # save every row... expensive
+            saca.save()
+    ## now clean up the answers table - remove all entries without scheme_account_entry
+
+    ## now make scheme_account_entry not nullable
+
 
 def depopulate_answers(*stuff):
     ## honestly I have no idea
