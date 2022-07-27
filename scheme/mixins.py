@@ -110,7 +110,7 @@ class BaseLinkMixin(object):
 
         midas_information, dw_event = scheme_account.get_cached_balance()
 
-        # dw_event is a two peice tuple, succes: bool, journey: SchemeAccount STATUS
+        # dw_event is a two piece tuple, succes: bool, journey: SchemeAccount STATUS
         #  - not present for cached balances only fresh crepes
         if dw_event:
             success, journey = dw_event
@@ -561,6 +561,8 @@ class UpdateCredentialsMixin:
 
     @staticmethod
     def card_with_same_data_already_exists(account: SchemeAccount, scheme_id: int, main_answer: str) -> bool:
+        # todo: This will need to be changed to check other Scheme Accounts directly via main_answer, or by adapting
+        #  this query to search on the scheme_account_entry.
         return (
             SchemeAccountCredentialAnswer.objects.filter(
                 scheme_account__scheme_id=scheme_id, scheme_account__is_deleted=False, answer=main_answer

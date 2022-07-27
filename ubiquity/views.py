@@ -814,19 +814,19 @@ class MembershipCardView(
         else:
             metrics_route = MembershipCardAddRoute.UPDATE
 
-            scheme_acc_entry.auth_provided = True
-            scheme_acc_entry.save(update_fields=["auth_provided"])
-            self.replace_credentials_and_scheme(account, new_answers, scheme)
-            account.update_barcode_and_card_number()
-            account.set_pending()
-            async_balance.delay(account.id)
+        scheme_acc_entry.auth_provided = True
+        scheme_acc_entry.save(update_fields=["auth_provided"])
+        self.replace_credentials_and_scheme(account, new_answers, scheme)
+        account.update_barcode_and_card_number()
+        account.set_pending()
+        async_balance.delay(account.id)
 
-            if payment_cards_to_link:
-                auto_link_membership_to_payments.delay(
-                    payment_cards_to_link,
-                    account.id,
-                    history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
-                )
+        if payment_cards_to_link:
+            auto_link_membership_to_payments.delay(
+                payment_cards_to_link,
+                account.id,
+                history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
+            )
 
         return metrics_route
 
@@ -979,7 +979,7 @@ class MembershipCardView(
             else:
                 metrics_route = MembershipCardAddRoute.WALLET_ONLY
 
-            sch_acc_entry, _ = SchemeAccountEntry.create_link(user, scheme_account, auth_provided=True)
+            sch_acc_entry, _ = SchemeAccountEntry.create_or_retrieve_link(user, scheme_account, auth_provided=True)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
 
             scheme_account.status = SchemeAccount.ADD_AUTH_PENDING
@@ -1003,11 +1003,11 @@ class MembershipCardView(
 
             metrics_route = MembershipCardAddRoute.MULTI_WALLET
 
-            scheme_account.update_barcode_and_card_number()
-            scheme_account.set_auth_pending()
-            sch_acc_entry, _ = SchemeAccountEntry.create_link(user=user,
-                                                              scheme_account=scheme_account,
-                                                              auth_provided=True)
+            # todo: set link_status of newly created link to some sort of pending state (P2)
+
+            sch_acc_entry, _ = SchemeAccountEntry.create_or_retrieve_link(user=user,
+                                                                          scheme_account=scheme_account,
+                                                                          auth_provided=True)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs={
                             "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
                         })
@@ -1053,7 +1053,7 @@ class MembershipCardView(
             )
             if other_accounts.exists():
                 scheme_account = other_accounts.first()
-                sch_acc_entry, _ = SchemeAccountEntry.create_link(
+                sch_acc_entry, _ = SchemeAccountEntry.create_or_retrieve_link(
                     user=user, scheme_account=scheme_account, auth_provided=True
                 )
                 return scheme_account, sch_acc_entry, status.HTTP_201_CREATED
@@ -1225,7 +1225,7 @@ class MembershipCardView(
             if authed_link_exists:
                 raise AlreadyExistsError
 
-        entry, _ = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=False)
+        entry, _ = SchemeAccountEntry.create_or_retrieve_link(user=user, scheme_account=scheme_account, auth_provided=False)
 
         scheme_account.update_barcode_and_card_number()
         return entry
