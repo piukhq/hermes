@@ -1545,7 +1545,8 @@ class SchemeBalanceDetails(models.Model):
 
 
 class SchemeAccountCredentialAnswer(models.Model):
-    scheme_account_entry = models.ForeignKey(SchemeAccountEntry, on_delete=models.CASCADE)
+    # scheme_account_entry = models.ForeignKey(SchemeAccountEntry, on_delete=models.CASCADE, null=True)
+    scheme_account = models.ForeignKey(SchemeAccount, on_delete=models.CASCADE)
     question = models.ForeignKey(SchemeCredentialQuestion, null=True, on_delete=models.PROTECT)
     answer = models.CharField(max_length=250)
 
