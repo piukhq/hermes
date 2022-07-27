@@ -133,7 +133,7 @@ def loyalty_card_add_and_register(message: dict) -> None:
     _loyalty_card_register(message, path=LoyaltyCardPath.ADD_AND_REGISTER)
 
 
-def _loyalty_card_register(message: dict, path: str) -> None:
+def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
     with AngeliaContext(message, SchemeAccountJourney.REGISTER.value) as ac:
         all_credentials_and_consents = {}
         all_credentials_and_consents.update(credentials_to_key_pairs(message.get("register_fields")))
@@ -189,25 +189,17 @@ def loyalty_card_add_authorise(message: dict) -> None:
 
         set_auth_provided(account, ac.user_id, True)
 
-        if message.get("primary_auth"):
-            # primary_auth is used to indicate that this user has demonstrated the authority to authorise and
-            # set the status of this card (i.e. they are not secondary to an authorised user of this card.)
-            if journey == "ADD_AND_AUTH":
-                account.set_add_auth_pending()
-            elif journey == "AUTH":
-                account.set_auth_pending()
+        if journey == "ADD_AND_AUTH":
+            account.set_add_auth_pending()
+        elif journey == "AUTH":
+            account.set_auth_pending()
 
-            async_link(
-                auth_fields=all_credentials_and_consents,
-                scheme_account_id=account.id,
-                user_id=ac.user_id,
-                payment_cards_to_link=payment_cards_to_link,
-            )
-
-        if payment_cards_to_link:
-            # if the request does not come from a primary_auth, then we will just auto-link this user's
-            # cards without affecting the state of the loyalty card.
-            auto_link_membership_to_payments(payment_cards_to_link=payment_cards_to_link, membership_card=account)
+        async_link(
+            auth_fields=all_credentials_and_consents,
+            scheme_account_id=account.id,
+            user_id=ac.user_id,
+            payment_cards_to_link=payment_cards_to_link,
+        )
 
 
 def loyalty_card_join(message: dict) -> None:
