@@ -17,17 +17,11 @@ from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactor
 from scheme.credentials import (
     BARCODE,
     CARD_NUMBER,
-    CASE_SENSITIVE_CREDENTIALS,
-    CREDENTIAL_TYPES,
-    DATE_TYPE_CREDENTIALS,
     EMAIL,
-    ENCRYPTED_CREDENTIALS,
     LAST_NAME,
     MERCHANT_IDENTIFIER,
     PASSWORD,
     PAYMENT_CARD_HASH,
-    PHONE,
-    PHONE_2,
     POSTCODE,
     USER_NAME,
 )
@@ -2069,7 +2063,6 @@ class TestResources(GlobalMockAPITestCase):
         # remove additional question/answer from test scheme
         new_answer.delete()
         merch_identifier.delete()
-
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("ubiquity.influx_audit.InfluxDBClient")

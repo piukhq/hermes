@@ -9,7 +9,6 @@ from celery import shared_task
 from django.conf import settings
 from django.db.models import Q
 from rest_framework import serializers
-from rest_framework.exceptions import ParseError
 
 import analytics
 from hermes.vop_tasks import activate, deactivate

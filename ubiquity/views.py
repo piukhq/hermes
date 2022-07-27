@@ -28,7 +28,6 @@ from history.data_warehouse import (
 )
 from history.enums import SchemeAccountJourney
 from history.signals import HISTORY_CONTEXT
-from history.tasks import add_auth_outcome_task, auth_outcome_task
 from history.utils import user_info
 from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
@@ -1005,12 +1004,18 @@ class MembershipCardView(
 
             # todo: set link_status of newly created link to some sort of pending state (P2)
 
-            sch_acc_entry, _ = SchemeAccountEntry.create_or_retrieve_link(user=user,
-                                                                          scheme_account=scheme_account,
-                                                                          auth_provided=True)
-            async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs={
-                            "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
-                        })
+            sch_acc_entry, _ = SchemeAccountEntry.create_or_retrieve_link(
+                user=user, scheme_account=scheme_account, auth_provided=True
+            )
+            async_link.delay(
+                auth_fields,
+                scheme_account.id,
+                user.id,
+                payment_cards_to_link,
+                history_kwargs={
+                    "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
+                },
+            )
 
         return scheme_account, sch_acc_entry, return_status, metrics_route
 
@@ -1225,7 +1230,9 @@ class MembershipCardView(
             if authed_link_exists:
                 raise AlreadyExistsError
 
-        entry, _ = SchemeAccountEntry.create_or_retrieve_link(user=user, scheme_account=scheme_account, auth_provided=False)
+        entry, _ = SchemeAccountEntry.create_or_retrieve_link(
+            user=user, scheme_account=scheme_account, auth_provided=False
+        )
 
         scheme_account.update_barcode_and_card_number()
         return entry
