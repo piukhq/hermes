@@ -26,7 +26,7 @@ def populate_answers(apps, *stuff):
             if len(bulk_answers) > 999:
                 SchemeAccountCredentialAnswer.objects.bulk_create(bulk_answers)
                 bulk_answers = []
-                
+
         # commit the reminaing answers if less thabn 1000 left
         SchemeAccountCredentialAnswer.objects.bulk_create(bulk_answers)
 
@@ -36,14 +36,8 @@ def populate_answers(apps, *stuff):
     print("...removed null's")
 
 
-def depopulate_answers(*stuff):
-    # loop through the duplicted answers
-    # de-duplicate them
-    # remove the newscheme_account_entry column
-    #
-    #
-    #
-    # profit
+def depopulate_answers(apps, *stuff):
+    # big bang deployment, no going back
     pass
 
 
@@ -76,6 +70,4 @@ class Migration(migrations.Migration):
         ),
         # data population
         migrations.RunPython(populate_answers, reverse_code=depopulate_answers),
-        # not nullable now we can without getting an error
-        # migrations.AlterField("SchemeAccountCredentialAnswer", "scheme_account_entry_id", models.CharField(null=False))
     ]
