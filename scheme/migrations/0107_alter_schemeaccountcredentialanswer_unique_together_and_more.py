@@ -26,19 +26,30 @@ def populate_answers(apps, *stuff):
             if len(bulk_answers) > 999:
                 SchemeAccountCredentialAnswer.objects.bulk_create(bulk_answers)
                 bulk_answers = []
-
-        # commit the reminaing answers if less thabn 1000 left
         SchemeAccountCredentialAnswer.objects.bulk_create(bulk_answers)
 
     ## now clean up the answers table - remove all entries without scheme_account_entry
-    print("Remove null's...")
     SchemeAccountCredentialAnswer.objects.filter(scheme_account_entry__isnull=True).delete()
-    print("...removed null's")
 
 
 def depopulate_answers(apps, *stuff):
-    # big bang deployment, no going back
-    pass
+    SchemeAccountCredentialAnswer = apps.get_model("scheme", "SchemeAccountCredentialAnswer")
+
+    old_answers = SchemeAccountCredentialAnswer.objects.distinct('scheme_account_id', 'question_id')
+    for answer in old_answers:
+        saca = SchemeAccountCredentialAnswer(
+            scheme_account_id=answer.get("scheme_account_id"),
+            question_id=answer.get("question_id"),
+            answer=answer.get("answer"),
+        )
+        bulk_answers.append(saca)
+        if len(bulk_answers) > 999:
+            SchemeAccountCredentialAnswer.objects.bulk_create(bulk_answers)
+            bulk_answers = []
+    SchemeAccountCredentialAnswer.objects.bulk_create(bulk_answers)
+        
+    ## now clean up the answers table - remove all entries WITH scheme_account_entry
+    SchemeAccountCredentialAnswer.objects.filter(scheme_account_entry__notnull=True).delete()
 
 
 class Migration(migrations.Migration):
