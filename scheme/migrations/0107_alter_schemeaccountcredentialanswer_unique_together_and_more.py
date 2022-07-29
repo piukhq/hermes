@@ -9,11 +9,8 @@ def populate_answers(apps, *stuff):
     SchemeAccountCredentialAnswer = apps.get_model("scheme", "SchemeAccountCredentialAnswer")
     SchemeAccountEntry = apps.get_model("ubiquity", "SchemeAccountEntry")
 
-    # for each scheme account in schemeaccountcredentialanswer
-    # scheme_accounts = SchemeAccountCredentialAnswer.objects.values_list("scheme_account_id", flat=True).distinct()
-
     for entry_id, scheme_account_id, user_id, auth_provided in SchemeAccountEntry.objects.values_list():
-        ## fetch the answers for this scheme account, insert them back into the answers table with tyhe extra FK
+        ## fetch the answers for this scheme account
         answers = SchemeAccountCredentialAnswer.objects.filter(
             scheme_account_id=scheme_account_id, scheme_account_entry__isnull=True
         ).values()
@@ -26,6 +23,11 @@ def populate_answers(apps, *stuff):
                 scheme_account_entry_id=entry_id,
             )
             bulk_answers.append(saca)
+            if len(bulk_answers) > 999:
+                SchemeAccountCredentialAnswer.objects.bulk_create(bulk_answers)
+                bulk_answers = []
+                
+        # commit the reminaing answers if less thabn 1000 left
         SchemeAccountCredentialAnswer.objects.bulk_create(bulk_answers)
 
     ## now clean up the answers table - remove all entries without scheme_account_entry
