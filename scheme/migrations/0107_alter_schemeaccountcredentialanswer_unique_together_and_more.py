@@ -35,7 +35,8 @@ def populate_answers(apps, *stuff):
 def depopulate_answers(apps, *stuff):
     SchemeAccountCredentialAnswer = apps.get_model("scheme", "SchemeAccountCredentialAnswer")
 
-    old_answers = SchemeAccountCredentialAnswer.objects.distinct('scheme_account_id', 'question_id')
+    old_answers = SchemeAccountCredentialAnswer.objects.distinct("scheme_account_id", "question_id").values()
+    bulk_answers = []
     for answer in old_answers:
         saca = SchemeAccountCredentialAnswer(
             scheme_account_id=answer.get("scheme_account_id"),
@@ -43,13 +44,12 @@ def depopulate_answers(apps, *stuff):
             answer=answer.get("answer"),
         )
         bulk_answers.append(saca)
-        if len(bulk_answers) > 999:
-            SchemeAccountCredentialAnswer.objects.bulk_create(bulk_answers)
-            bulk_answers = []
-    SchemeAccountCredentialAnswer.objects.bulk_create(bulk_answers)
-        
+
     ## now clean up the answers table - remove all entries WITH scheme_account_entry
-    SchemeAccountCredentialAnswer.objects.filter(scheme_account_entry__notnull=True).delete()
+    SchemeAccountCredentialAnswer.objects.filter(scheme_account_entry__isnull=False).delete()
+
+    ## now save the updated data
+    SchemeAccountCredentialAnswer.objects.bulk_create(bulk_answers)
 
 
 class Migration(migrations.Migration):
