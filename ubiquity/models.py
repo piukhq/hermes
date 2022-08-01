@@ -30,7 +30,7 @@ class SchemeAccountEntry(models.Model):
         unique_together = ("scheme_account", "user")
 
     @staticmethod
-    def create_link(
+    def create_or_retrieve_link(
         user: "CustomUser", scheme_account: "SchemeAccount", auth_provided: bool
     ) -> tuple(("SchemeAccountEntry", bool)):
         entry = SchemeAccountEntry(user=user, scheme_account=scheme_account, auth_provided=auth_provided)

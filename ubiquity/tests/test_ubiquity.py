@@ -17,17 +17,11 @@ from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactor
 from scheme.credentials import (
     BARCODE,
     CARD_NUMBER,
-    CASE_SENSITIVE_CREDENTIALS,
-    CREDENTIAL_TYPES,
-    DATE_TYPE_CREDENTIALS,
     EMAIL,
-    ENCRYPTED_CREDENTIALS,
     LAST_NAME,
     MERCHANT_IDENTIFIER,
     PASSWORD,
     PAYMENT_CARD_HASH,
-    PHONE,
-    PHONE_2,
     POSTCODE,
     USER_NAME,
 )
@@ -881,7 +875,7 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(
-            resp_json["status"], {"state": "pending", "reason_codes": ["X100"], "error_text": "Auth Pending"}
+            resp_json["status"], {"state": "pending", "reason_codes": ["X100"], "error_text": "Add Auth Pending"}
         )
 
         user_links = SchemeAccountEntry.objects.filter(scheme_account=existing_scheme_account)
@@ -2070,105 +2064,6 @@ class TestResources(GlobalMockAPITestCase):
         new_answer.delete()
         merch_identifier.delete()
 
-    @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch("ubiquity.views.async_link", autospec=True)
-    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
-    def test_existing_membership_card_creation_non_case_sensitive_auth_fields(self, *_):
-        # Setup new scheme with all question types as auth fields and create existing scheme account
-        new_external_id = "Test User non case sensitive auth fields"
-        new_user = UserFactory(external_id=new_external_id, client=self.client_app, email=new_external_id)
-        auth_header = self._get_auth_header(new_user)
-        scheme = SchemeFactory()
-        scheme_account = SchemeAccountFactory(scheme=scheme)
-        scheme_account.main_answer = fake.email()
-        scheme_account.save(update_fields=["main_answer"])
-        SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
-        SchemeCredentialQuestionFactory(
-            scheme=scheme, type=EMAIL, label=EMAIL, manual_question=True, add_field=True, enrol_field=True
-        )
-        email = SchemeCredentialAnswerFactory(
-            question=scheme.manual_question, scheme_account=scheme_account, answer=scheme_account.main_answer
-        )
-        scheme_account.update_barcode_and_card_number()
-
-        payload = {
-            "membership_plan": scheme.id,
-            "account": {"add_fields": [{"column": EMAIL, "value": email.answer}], "authorise_fields": []},
-        }
-
-        test_question_types = [
-            q
-            for q, _ in CREDENTIAL_TYPES
-            if q not in DATE_TYPE_CREDENTIALS and q not in [CARD_NUMBER, BARCODE, PHONE, PHONE_2, EMAIL]
-        ]
-        question_answer_map = {}
-        for question_type in test_question_types:
-            question = SchemeCredentialQuestionFactory(
-                scheme=scheme,
-                type=question_type,
-                label=question_type,
-                third_party_identifier=False,
-                options=SchemeCredentialQuestion.LINK_AND_JOIN,
-                auth_field=True,
-                enrol_field=True,
-                register_field=True,
-            )
-
-            answer = SchemeCredentialAnswerFactory(question=question, scheme_account=scheme_account).answer
-
-            if question_type in ENCRYPTED_CREDENTIALS:
-                answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(answer)
-
-            question_answer_map[question_type] = answer
-
-        # Test modifying all credentials will fail since case sensitive fields are included
-        payload["account"]["authorise_fields"] = [
-            {"column": question_type, "value": answer.upper()} for question_type, answer in question_answer_map.items()
-        ]
-        resp = self.client.post(
-            reverse("membership-cards"),
-            data=json.dumps(payload),
-            content_type="application/json",
-            HTTP_AUTHORIZATION=auth_header,
-        )
-        self.assertEqual(resp.status_code, 400)
-        linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account).exists()
-        self.assertFalse(linked)
-
-        # Test modifying only non case-sensitive credentials passes
-        case_modified_auth_fields = []
-        for question_type, answer in question_answer_map.items():
-            if question_type not in CASE_SENSITIVE_CREDENTIALS and isinstance(answer, str):
-                answer = answer.upper()
-
-            case_modified_auth_fields.append({"column": question_type, "value": answer})
-
-        payload["account"]["authorise_fields"] = case_modified_auth_fields
-        resp = self.client.post(
-            reverse("membership-cards"),
-            data=json.dumps(payload),
-            content_type="application/json",
-            HTTP_AUTHORIZATION=auth_header,
-        )
-        self.assertEqual(resp.status_code, 200)
-        link = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account)
-        self.assertTrue(link.exists())
-        link.delete()
-
-        # Test modifying string-based manual question passes
-        payload["account"]["add_fields"] = [{"column": EMAIL, "value": email.answer.upper()}]
-        resp = self.client.post(
-            reverse("membership-cards"),
-            data=json.dumps(payload),
-            content_type="application/json",
-            HTTP_AUTHORIZATION=auth_header,
-        )
-        self.assertEqual(resp.status_code, 200)
-        linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account).exists()
-        self.assertTrue(linked)
-
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch.object(SchemeAccount, "get_midas_balance")
@@ -2352,33 +2247,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 200)
         link = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account)
         self.assertTrue(link.exists())
-
-    @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch("ubiquity.views.async_link", autospec=True)
-    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
-    def test_existing_membership_card_creation_fail(self, mock_date, *_):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        payload = {
-            "membership_plan": self.scheme.id,
-            "account": {
-                "add_fields": [{"column": "barcode", "value": self.scheme_account.barcode}],
-                "authorise_fields": [{"column": "last_name", "value": "Test Fail"}],
-            },
-        }
-        new_external_id = "Test User 2"
-        new_user = UserFactory(external_id=new_external_id, client=self.client_app, email=new_external_id)
-        PaymentCardAccountEntryFactory(user=new_user, payment_card_account=self.payment_card_account)
-        auth_header = self._get_auth_header(new_user)
-        resp = self.client.post(
-            reverse("membership-cards"),
-            data=json.dumps(payload),
-            content_type="application/json",
-            HTTP_AUTHORIZATION=auth_header,
-        )
-        self.assertEqual(resp.status_code, 400)
-        self.assertIn("This card already exists, but the provided credentials do not match.", resp.json().get("detail"))
 
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("ubiquity.views.async_link", autospec=True)

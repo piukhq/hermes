@@ -28,7 +28,6 @@ from history.data_warehouse import (
 )
 from history.enums import SchemeAccountJourney
 from history.signals import HISTORY_CONTEXT
-from history.tasks import add_auth_outcome_task, auth_outcome_task
 from history.utils import user_info
 from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
@@ -814,19 +813,19 @@ class MembershipCardView(
         else:
             metrics_route = MembershipCardAddRoute.UPDATE
 
-            scheme_acc_entry.auth_provided = True
-            scheme_acc_entry.save(update_fields=["auth_provided"])
-            self.replace_credentials_and_scheme(account, new_answers, scheme)
-            account.update_barcode_and_card_number()
-            account.set_pending()
-            async_balance.delay(account.id)
+        scheme_acc_entry.auth_provided = True
+        scheme_acc_entry.save(update_fields=["auth_provided"])
+        self.replace_credentials_and_scheme(account, new_answers, scheme)
+        account.update_barcode_and_card_number()
+        account.set_pending()
+        async_balance.delay(account.id)
 
-            if payment_cards_to_link:
-                auto_link_membership_to_payments.delay(
-                    payment_cards_to_link,
-                    account.id,
-                    history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
-                )
+        if payment_cards_to_link:
+            auto_link_membership_to_payments.delay(
+                payment_cards_to_link,
+                account.id,
+                history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
+            )
 
         return metrics_route
 
@@ -947,49 +946,6 @@ class MembershipCardView(
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(self.request.data, scheme=scheme)
         return scheme, auth_fields, enrol_fields, add_fields
 
-    def _handle_existing_scheme_account(
-        self,
-        scheme_account: SchemeAccount,
-        user: CustomUser,
-        add_fields: dict,
-        auth_fields: dict,
-        payment_cards_to_link: list,
-        entry_exists: bool,
-    ) -> SchemeAccountEntry:
-        """This function assumes that auth fields are always provided"""
-        if scheme_account.status == SchemeAccount.WALLET_ONLY:
-            scheme_account.update_barcode_and_card_number()
-            scheme_account.set_auth_pending()
-            entry, _ = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=True)
-            async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link)
-        else:
-            existing_answers = scheme_account.get_auth_credentials()
-            try:
-                scheme_account.validate_auth_fields(auth_fields, existing_answers)
-            except ParseError:
-                if entry_exists:
-                    auth_outcome_task.delay(success=False, user=user, scheme_account=scheme_account)
-                else:
-                    add_auth_outcome_task.delay(success=False, user=user, scheme_account=scheme_account)
-                raise
-            else:
-                entry, created = SchemeAccountEntry.create_link(
-                    user=user, scheme_account=scheme_account, auth_provided=True
-                )
-                if payment_cards_to_link:
-                    auto_link_membership_to_payments.delay(
-                        payment_cards_to_link,
-                        scheme_account,
-                        history_kwargs={
-                            "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
-                        },
-                    )
-                if created:
-                    add_auth_outcome_task.delay(success=True, user=user, scheme_account=scheme_account)
-                else:
-                    auth_outcome_task.delay(success=True, user=user, scheme_account=scheme_account)
-        return entry
-
     def _handle_create_link_route(
         self, user: CustomUser, scheme: Scheme, auth_fields: dict, add_fields: dict, payment_cards_to_link: list
     ) -> t.Tuple[SchemeAccount, SchemeAccountEntry, int, MembershipCardAddRoute]:
@@ -1022,7 +978,7 @@ class MembershipCardView(
             else:
                 metrics_route = MembershipCardAddRoute.WALLET_ONLY
 
-            sch_acc_entry, _ = SchemeAccountEntry.create_link(user, scheme_account, auth_provided=True)
+            sch_acc_entry, _ = SchemeAccountEntry.create_or_retrieve_link(user, scheme_account, auth_provided=True)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
 
             scheme_account.status = SchemeAccount.ADD_AUTH_PENDING
@@ -1035,6 +991,7 @@ class MembershipCardView(
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
             sch_acc_entry = self._handle_add_fields_only_link(user, scheme_account, account_created)
         else:
+            # new scheme account not created, auth fields provided (linking to existing scheme account)
             entry_exists = SchemeAccountEntry.objects.filter(
                 user_id=user.id, scheme_account_id=scheme_account.id
             ).exists()
@@ -1044,9 +1001,20 @@ class MembershipCardView(
                 addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
 
             metrics_route = MembershipCardAddRoute.MULTI_WALLET
-            auth_fields = auth_fields or {}
-            sch_acc_entry = self._handle_existing_scheme_account(
-                scheme_account, user, add_fields, auth_fields, payment_cards_to_link, entry_exists
+
+            # todo: set link_status of newly created link to some sort of pending state (P2)
+
+            sch_acc_entry, _ = SchemeAccountEntry.create_or_retrieve_link(
+                user=user, scheme_account=scheme_account, auth_provided=True
+            )
+            async_link.delay(
+                auth_fields,
+                scheme_account.id,
+                user.id,
+                payment_cards_to_link,
+                history_kwargs={
+                    "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
+                },
             )
 
         return scheme_account, sch_acc_entry, return_status, metrics_route
@@ -1090,7 +1058,7 @@ class MembershipCardView(
             )
             if other_accounts.exists():
                 scheme_account = other_accounts.first()
-                sch_acc_entry, _ = SchemeAccountEntry.create_link(
+                sch_acc_entry, _ = SchemeAccountEntry.create_or_retrieve_link(
                     user=user, scheme_account=scheme_account, auth_provided=True
                 )
                 return scheme_account, sch_acc_entry, status.HTTP_201_CREATED
@@ -1262,7 +1230,9 @@ class MembershipCardView(
             if authed_link_exists:
                 raise AlreadyExistsError
 
-        entry, _ = SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account, auth_provided=False)
+        entry, _ = SchemeAccountEntry.create_or_retrieve_link(
+            user=user, scheme_account=scheme_account, auth_provided=False
+        )
 
         scheme_account.update_barcode_and_card_number()
         return entry

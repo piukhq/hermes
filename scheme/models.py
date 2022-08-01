@@ -843,6 +843,8 @@ class SchemeAccount(models.Model):
 
     @staticmethod
     def validate_auth_fields(auth_fields, existing_answers):
+        # todo: could be used to compare a user's credentials to their own existing credentials. Otherwise this should
+        #  be deleted.
         for question_type, existing_value in existing_answers.items():
             provided_value = auth_fields.get(question_type)
 
@@ -1159,6 +1161,8 @@ class SchemeAccount(models.Model):
         vouchers = None  # should we cache these too?
         dw_event = None
 
+        # todo: We will need to change this so that we force an update (and therefore the auth check) when a new link is
+        #  created (otherwise user 2 will not be sent to Midas)
         if not balance:
             balance, vouchers, dw_event = self.update_cached_balance(cache_key, credentials_override)
 
