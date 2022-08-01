@@ -232,12 +232,14 @@ class SchemeImageAdmin(CacheResetAdmin):
 class SchemeAccountCredentialAnswerInline(admin.TabularInline):
     model = SchemeAccountCredentialAnswer
     extra = 0
+    fields = ("question", "answer")
+    raw_id_fields = ("scheme_account", "scheme_account_entry")
 
     def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
         if db_field.name == "question":
             try:
                 pk = int(request.path.split("/")[-3])
-                scheme_account = SchemeAccount.all_objects.get(id=pk)
+                scheme_account = SchemeAccountEntry.objects.get(id=pk).scheme_account
                 kwargs["queryset"] = SchemeCredentialQuestion.objects.filter(scheme_id=scheme_account.scheme.id)
             except ValueError:
                 kwargs["queryset"] = SchemeCredentialQuestion.objects.none()
@@ -314,10 +316,7 @@ class SchemeAccountEntryInline(admin.TabularInline):
 
 @admin.register(SchemeAccount)
 class SchemeAccountAdmin(HistoryAdmin):
-    inlines = (
-        SchemeAccountEntryInline,
-        SchemeAccountCredentialAnswerInline,
-    )
+    inlines = (SchemeAccountEntryInline,)
     list_filter = (
         BarcodeFilter,
         CardNumberFilter,
@@ -424,6 +423,7 @@ class AssocUserEmailFilter(InputFilter):
 
 @admin.register(SchemeUserAssociation)
 class SchemeUserAssociationAdmin(HistoryAdmin):
+    inlines = (SchemeAccountCredentialAnswerInline,)
     list_display = (
         "scheme_account",
         "user",

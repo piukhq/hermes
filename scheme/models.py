@@ -44,6 +44,7 @@ from scheme.credentials import (
 from scheme.encryption import AESCipher
 from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import AESKeyNames
+from ubiquity.models import SchemeAccountEntry
 from ubiquity.reason_codes import REASON_CODES
 
 if TYPE_CHECKING:
@@ -1544,6 +1545,7 @@ class SchemeBalanceDetails(models.Model):
 
 
 class SchemeAccountCredentialAnswer(models.Model):
+    scheme_account_entry = models.ForeignKey(SchemeAccountEntry, on_delete=models.CASCADE, null=True)
     scheme_account = models.ForeignKey(SchemeAccount, on_delete=models.CASCADE)
     question = models.ForeignKey(SchemeCredentialQuestion, null=True, on_delete=models.PROTECT)
     answer = models.CharField(max_length=250)
@@ -1557,7 +1559,7 @@ class SchemeAccountCredentialAnswer(models.Model):
         return self.clean_answer()
 
     class Meta:
-        unique_together = ("scheme_account", "question")
+        unique_together = ("scheme_account_entry", "question")
 
 
 @receiver(signals.pre_save, sender=SchemeAccountCredentialAnswer)
