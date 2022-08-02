@@ -781,8 +781,11 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
     def to_representation(self, instance: "SchemeAccount") -> dict:
         # todo: this is a tricky one!
+
+        scheme_account_entry= instance.schemeaccountentry_set.get(user_id=self.context["user_id"])
+
         if instance.status not in instance.EXCLUDE_BALANCE_STATUSES:
-            async_balance.delay(instance.id)
+            async_balance.delay(scheme_account_entry)
         try:
             reward_tier = instance.balances[0]["reward_tier"]
         except (ValueError, KeyError):

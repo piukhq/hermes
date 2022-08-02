@@ -130,8 +130,8 @@ def async_balance_with_updated_credentials(
             f"No balance returned from balance call with updated credentials - SchemeAccount (id={scheme_account.id}) -"
             " Unauthorising user."
         )
-        mcard_entries = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
-        for entry in mcard_entries:
+        scheme_account_entries = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
+        for entry in scheme_account_entries:
             if entry.user_id == user_id:
                 entry.auth_provided = False
                 entry.save()
@@ -141,7 +141,10 @@ def async_balance_with_updated_credentials(
             scheme_account=scheme_account, payment_card_account__user_set=user_id
         ).delete()
 
-        if all(entry.auth_provided is False for entry in mcard_entries):
+        # todo: changed from - if all saes linked to sa are ap=false then delete all non-manual creds. This logic will
+        #  change, but we need to decide upon how/why based on status, perhaps. This is more P2/P3 so will leave for
+        #  now.
+        if scheme_account_entry.auth_provided is False:
             scheme_account_entry.schemeaccountcredentialanswer_set.filter(
                 question__auth_field=True,
                 question__manual_question=False,
@@ -315,11 +318,10 @@ def deleted_membership_card_cleanup(
             )
 
     else:
-        user_mcard_auth_provided = scheme_account_entries.values_list("auth_provided", flat=True)
-
         for sae in scheme_account_entries:
+            # Only delete the credential answers for this user.
             if sae.user == user:
-                scheme_account.schemeaccountcredentialanswer_set.filter(
+                sae.schemeaccountcredentialanswer_set.filter(
                     question__auth_field=True,
                     question__manual_question=False,
                 ).delete()
@@ -377,7 +379,6 @@ def _delete_user_membership_cards(user: "CustomUser", send_deactivation: bool = 
         activations = VopActivation.find_activations_matching_links(vop_links)
         PaymentCardSchemeEntry.deactivate_activations(activations)
 
-    # TODO check if signal picks up queryset.delete()
     links_to_remove.delete()
     history_bulk_update(SchemeAccount, cards_to_delete, ["is_deleted"])
     user_card_entries.delete()

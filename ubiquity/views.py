@@ -524,7 +524,7 @@ class MembershipCardView(
         auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, account)
         return Response(
             self.get_serializer_by_request(
-                account, context={"mcard_user_auth_provided_map": auth_provided_mapping}
+                account, context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": self.request.user.id}
             ).data
         )
 
@@ -595,7 +595,8 @@ class MembershipCardView(
             self.get_serializer_by_request(
                 updated_account,
                 context={
-                    "mcard_user_auth_provided_map": {sch_acc_entry.scheme_account_id: sch_acc_entry.auth_provided}
+                    "mcard_user_auth_provided_map": {sch_acc_entry.scheme_account_id: sch_acc_entry.auth_provided},
+                    "user_id": self.request.user.id
                 },
             ).data,
             status=status.HTTP_200_OK,
@@ -737,7 +738,8 @@ class MembershipCardView(
         auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, account)
         return Response(
             self.get_serializer_by_request(
-                account, context={"mcard_user_auth_provided_map": auth_provided_mapping}
+                account, context={"mcard_user_auth_provided_map": auth_provided_mapping,
+                                  "user_id": self.request.user.id}
             ).data,
             status=status.HTTP_200_OK,
         )
@@ -818,7 +820,7 @@ class MembershipCardView(
         self.replace_credentials_and_scheme(account, new_answers, scheme, scheme_acc_entry)
         scheme_acc_entry.update_barcode_and_card_number()
         account.set_pending()
-        async_balance.delay(account.id)
+        async_balance.delay(scheme_acc_entry)
 
         if payment_cards_to_link:
             auto_link_membership_to_payments.delay(
