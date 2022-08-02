@@ -524,7 +524,8 @@ class MembershipCardView(
         auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, account)
         return Response(
             self.get_serializer_by_request(
-                account, context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": self.request.user.id}
+                account,
+                context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": self.request.user.id},
             ).data
         )
 
@@ -583,7 +584,8 @@ class MembershipCardView(
                 update_fields = detect_and_handle_escaped_unicode(update_fields)
 
             updated_account = self._handle_update_fields(
-                account, scheme, update_fields, scheme_questions, request.user.id, sch_acc_entry)
+                account, scheme, update_fields, scheme_questions, request.user.id, sch_acc_entry
+            )
             metrics_route = MembershipCardAddRoute.UPDATE
 
         if metrics_route:
@@ -596,7 +598,7 @@ class MembershipCardView(
                 updated_account,
                 context={
                     "mcard_user_auth_provided_map": {sch_acc_entry.scheme_account_id: sch_acc_entry.auth_provided},
-                    "user_id": self.request.user.id
+                    "user_id": self.request.user.id,
                 },
             ).data,
             status=status.HTTP_200_OK,
@@ -609,7 +611,7 @@ class MembershipCardView(
         update_fields: dict,
         scheme_questions: list,
         user_id: int,
-        scheme_account_entry: SchemeAccountEntry
+        scheme_account_entry: SchemeAccountEntry,
     ) -> SchemeAccount:
         if "consents" in update_fields:
             del update_fields["consents"]
@@ -632,8 +634,9 @@ class MembershipCardView(
         # does not check for "prim auth" user so is set *by* all wallets/users
         account.set_auth_pending()
         # ask for a balance refresh with new creds
-        async_balance_with_updated_credentials.delay(account.id, user_id, update_fields, scheme_questions,
-                                                     scheme_account_entry)
+        async_balance_with_updated_credentials.delay(
+            account.id, user_id, update_fields, scheme_questions, scheme_account_entry
+        )
         return account
 
     @staticmethod
@@ -738,8 +741,8 @@ class MembershipCardView(
         auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, account)
         return Response(
             self.get_serializer_by_request(
-                account, context={"mcard_user_auth_provided_map": auth_provided_mapping,
-                                  "user_id": self.request.user.id}
+                account,
+                context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": self.request.user.id},
             ).data,
             status=status.HTTP_200_OK,
         )
@@ -963,7 +966,9 @@ class MembershipCardView(
         serializer.is_valid(raise_exception=True)
 
         # Create or retrieve scheme_account
-        scheme_account, _, account_created, answer_type, main_answer = self.create_account_with_valid_data(serializer, user, scheme)
+        scheme_account, _, account_created, answer_type, main_answer = self.create_account_with_valid_data(
+            serializer, user, scheme
+        )
 
         # Create or retrieve scheme_account_entry and create main answer creds for this entry if necessary
         ap = True
@@ -972,14 +977,14 @@ class MembershipCardView(
             self._handle_add_fields_only_link(user, scheme_account, account_created)
             ap = False
 
-        sch_acc_entry, sch_acc_created = SchemeAccountEntry.create_or_retrieve_link(user=user,
-                                                                                    scheme_account=scheme_account,
-                                                                                    auth_provided=ap)
+        sch_acc_entry, sch_acc_created = SchemeAccountEntry.create_or_retrieve_link(
+            user=user, scheme_account=scheme_account, auth_provided=ap
+        )
 
         if sch_acc_created:
-            self.create_main_answer_credential(answer_type=answer_type,
-                                               scheme_account_entry=sch_acc_entry,
-                                               main_answer=main_answer)
+            self.create_main_answer_credential(
+                answer_type=answer_type, scheme_account_entry=sch_acc_entry, main_answer=main_answer
+            )
 
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 

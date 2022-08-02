@@ -7,7 +7,6 @@ import requests
 import sentry_sdk
 from celery import shared_task
 from django.conf import settings
-from django.db.models import Q
 from rest_framework import serializers
 
 import analytics
@@ -105,9 +104,9 @@ def async_balance_with_updated_credentials(
     #  Do we want to contact Midas in this case?
 
     logger.debug(f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})")
-    balance, _, dw_event = scheme_account.update_cached_balance(scheme_account_entry=scheme_account_entry,
-                                                                cache_key=cache_key,
-                                                                credentials_override=update_fields)
+    balance, _, dw_event = scheme_account.update_cached_balance(
+        scheme_account_entry=scheme_account_entry, cache_key=cache_key, credentials_override=update_fields
+    )
 
     # data warehouse event could be success or failed (depends on midas response etc)
     # since we're in this function i is always AUTH_PENDING
@@ -121,9 +120,12 @@ def async_balance_with_updated_credentials(
             "Updating credentials."
         )
         # update credentials and set all other linked users to unauthorised if they're different to the stored ones
-        UpdateCredentialsMixin().update_credentials(scheme_account=scheme_account, data=update_fields,
-                                                    questions=scheme_questions,
-                                                    scheme_account_entry=scheme_account_entry)
+        UpdateCredentialsMixin().update_credentials(
+            scheme_account=scheme_account,
+            data=update_fields,
+            questions=scheme_questions,
+            scheme_account_entry=scheme_account_entry,
+        )
 
     else:
         logger.debug(

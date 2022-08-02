@@ -1,28 +1,28 @@
+import json
 import logging
 import re
 import sre_constants
-import json
-from typing import TYPE_CHECKING, Type, Union, Iterable
+from typing import TYPE_CHECKING, Iterable, Type, Union
 
 import django
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, models, transaction
-from django.db.models import signals, F
+from django.db.models import F, signals
 from django.dispatch import receiver
 from django.utils.functional import cached_property
 
-from scheme.credentials import CARD_NUMBER, BARCODE, ENCRYPTED_CREDENTIALS, PASSWORD_2, PASSWORD
-from scheme.encryption import AESCipher
 from hermes.vop_tasks import send_deactivation, vop_activate_request
 from history.signals import HISTORY_CONTEXT
+from scheme.credentials import BARCODE, CARD_NUMBER, ENCRYPTED_CREDENTIALS, PASSWORD, PASSWORD_2
+from scheme.encryption import AESCipher
 from ubiquity.channel_vault import AESKeyNames
 
 if TYPE_CHECKING:
     from payment_card.models import PaymentCardAccount  # noqa
     from scheme.models import SchemeAccount  # noqa
-    from user.models import CustomUser
     from scheme.models import SchemeAccountCredentialAnswer
+    from user.models import CustomUser
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +39,9 @@ class SchemeAccountEntry(models.Model):
 
     @cached_property
     def credential_answers(self):
-        return self.schemeaccountcredentialanswer_set.filter(question__scheme_id=self.scheme_account.scheme_id).select_related(
-            "question"
-        )
+        return self.schemeaccountcredentialanswer_set.filter(
+            question__scheme_id=self.scheme_account.scheme_id
+        ).select_related("question")
 
     @staticmethod
     def create_or_retrieve_link(
@@ -75,7 +75,8 @@ class SchemeAccountEntry(models.Model):
         :return: credentials
         """
         new_credentials = {
-            question["type"]: credentials.get(question["type"]) for question in self.scheme_account.scheme.get_required_questions
+            question["type"]: credentials.get(question["type"])
+            for question in self.scheme_account.scheme.get_required_questions
         }
 
         for k, v in new_credentials.items():
@@ -84,7 +85,7 @@ class SchemeAccountEntry(models.Model):
                     question=self.scheme_account.question(k),
                     scheme_account=self.scheme_account,
                     scheme_account_entry=self,
-                    defaults={"answer": v}
+                    defaults={"answer": v},
                 )
 
         self.update_barcode_and_card_number()
@@ -113,10 +114,10 @@ class SchemeAccountEntry(models.Model):
         self.scheme_account.save(update_fields=["barcode", "card_number"])
 
     def _update_barcode_and_card_number(
-            self,
-            primary_cred: "SchemeAccountCredentialAnswer",
-            answers: Iterable["SchemeAccountCredentialAnswer"],
-            primary_cred_type: str,
+        self,
+        primary_cred: "SchemeAccountCredentialAnswer",
+        answers: Iterable["SchemeAccountCredentialAnswer"],
+        primary_cred_type: str,
     ) -> None:
         """
         Updates the given primary credential of either card number or barcode. The non-provided (secondary)

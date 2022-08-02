@@ -364,7 +364,8 @@ class CreateJoinSchemeAccount(APIView):
 
 
 class UpdateSchemeAccountStatus(GenericAPIView):
-    # todo: this will all need to change to an 'UpdateSchemeAccountEntryStatus'-type endpoint. This will be straight-up broken for now.
+    # todo: this will all need to change to an 'UpdateSchemeAccountEntryStatus'-type endpoint. This will be straight-up
+    #  broken for now.
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
     serializer_class = StatusSerializer

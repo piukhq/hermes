@@ -37,11 +37,7 @@ from scheme.models import (
     SchemeCredentialQuestion,
     UserConsent,
 )
-from scheme.serializers import (
-    UbiquityJoinSerializer,
-    UpdateCredentialSerializer,
-    UserConsentSerializer,
-)
+from scheme.serializers import UbiquityJoinSerializer, UpdateCredentialSerializer, UserConsentSerializer
 from ubiquity.channel_vault import AESKeyNames
 from ubiquity.models import SchemeAccountEntry
 
@@ -62,14 +58,19 @@ logger = logging.getLogger(__name__)
 
 class BaseLinkMixin(object):
     @staticmethod
-    def link_account(serializer: "Serializer", scheme_account: SchemeAccount, user: "CustomUser",
-                     scheme_account_entry: "SchemeAccountEntry") -> dict:
+    def link_account(
+        serializer: "Serializer",
+        scheme_account: SchemeAccount,
+        user: "CustomUser",
+        scheme_account_entry: "SchemeAccountEntry",
+    ) -> dict:
         serializer.is_valid(raise_exception=True)
         return BaseLinkMixin._link_account(serializer.validated_data, scheme_account, user, scheme_account_entry)
 
     @staticmethod
-    def _link_account(data: dict, scheme_account: "SchemeAccount", user: "CustomUser",
-                      scheme_account_entry: "SchemeAccountEntry") -> dict:
+    def _link_account(
+        data: dict, scheme_account: "SchemeAccount", user: "CustomUser", scheme_account_entry: "SchemeAccountEntry"
+    ) -> dict:
         user_consents = []
 
         if "consents" in data:
@@ -88,7 +89,7 @@ class BaseLinkMixin(object):
                 question=scheme_account.question(answer_type),
                 scheme_account=scheme_account,
                 defaults={"answer": answer},
-                scheme_account_entry=scheme_account_entry
+                scheme_account_entry=scheme_account_entry,
             )
 
         midas_information, dw_event = scheme_account.get_cached_balance(scheme_account_entry)
@@ -326,8 +327,9 @@ class SchemeAccountJoinMixin:
             if data.get("save_user_information"):
                 self.save_user_profile(data["credentials"], user)
 
-            self.post_midas_join(scheme_account, data["credentials"], scheme_account.scheme.slug, user.id, channel,
-                                 scheme_account_entry)
+            self.post_midas_join(
+                scheme_account, data["credentials"], scheme_account.scheme.slug, user.id, channel, scheme_account_entry
+            )
 
             keys_to_remove = ["save_user_information", "credentials"]
             response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
@@ -338,7 +340,7 @@ class SchemeAccountJoinMixin:
             raise
         except Exception as e:
             logger.exception(repr(e))
-            self.handle_failed_join(scheme_account, user,scheme_account_entry)
+            self.handle_failed_join(scheme_account, user, scheme_account_entry)
             return {"message": "Unknown error with join"}, status.HTTP_200_OK, scheme_account
 
     @staticmethod
@@ -359,7 +361,9 @@ class SchemeAccountJoinMixin:
             data["credentials"].update(consents=user_consents)
 
     @staticmethod
-    def handle_failed_join(scheme_account: SchemeAccount, user: "CustomUser", scheme_account_entry: "SchemeAccountEntry") -> None:
+    def handle_failed_join(
+        scheme_account: SchemeAccount, user: "CustomUser", scheme_account_entry: "SchemeAccountEntry"
+    ) -> None:
         queryset = scheme_account_entry.schemeaccountcredentialanswer_set
         card_number = scheme_account.card_number
         if card_number:
@@ -423,8 +427,12 @@ class SchemeAccountJoinMixin:
 
     @staticmethod
     def post_midas_join(
-        scheme_account: SchemeAccount, credentials_dict: dict, slug: str, user_id: int, channel: str,
-            scheme_account_entry: SchemeAccountEntry
+        scheme_account: SchemeAccount,
+        credentials_dict: dict,
+        slug: str,
+        user_id: int,
+        channel: str,
+        scheme_account_entry: SchemeAccountEntry,
     ) -> None:
         for question in scheme_account.scheme.link_questions:
             question_type = question.type
@@ -442,7 +450,7 @@ class SchemeAccountJoinMixin:
                 question=scheme_account.question(question_type),
                 scheme_account=scheme_account,
                 defaults={"answer": answer},
-                scheme_account_entry=scheme_account_entry
+                scheme_account_entry=scheme_account_entry,
             )
 
         updated_credentials = scheme_account_entry.update_or_create_primary_credentials(credentials_dict)
@@ -464,8 +472,10 @@ class SchemeAccountJoinMixin:
 class UpdateCredentialsMixin:
     @staticmethod
     def _update_credentials(
-        scheme_account: SchemeAccount, question_id_and_data: dict, existing_credentials: dict,
-            scheme_account_entry: SchemeAccountEntry
+        scheme_account: SchemeAccount,
+        question_id_and_data: dict,
+        existing_credentials: dict,
+        scheme_account_entry: SchemeAccountEntry,
     ) -> list:
         create_credentials = []
         update_credentials = []
@@ -481,7 +491,8 @@ class UpdateCredentialsMixin:
                 credential = existing_credentials[question_id]
 
                 if credential.answer == main_answer and new_answer != main_answer:
-                    # todo: this means that one user may be able to update the central 'main answer' on a scheme account. Are we okay with this?
+                    # todo: this means that one user may be able to update the central 'main answer' on a scheme
+                    #  account. Are we okay with this?
                     scheme_account.main_answer = new_answer
                     scheme_account.save(update_fields=["main_answer"])
 
@@ -491,8 +502,10 @@ class UpdateCredentialsMixin:
             else:
                 create_credentials.append(
                     SchemeAccountCredentialAnswer(
-                        question_id=question_id, scheme_account=scheme_account, answer=new_answer,
-                        scheme_account_entry=scheme_account_entry
+                        question_id=question_id,
+                        scheme_account=scheme_account,
+                        answer=new_answer,
+                        scheme_account_entry=scheme_account_entry,
                     )
                 )
 
@@ -505,8 +518,9 @@ class UpdateCredentialsMixin:
 
         return updated_types
 
-    def update_credentials(self, scheme_account: SchemeAccount, data: dict, scheme_account_entry: SchemeAccountEntry,
-                           questions=None) -> dict:
+    def update_credentials(
+        self, scheme_account: SchemeAccount, data: dict, scheme_account_entry: SchemeAccountEntry, questions=None
+    ) -> dict:
         if questions is None:
             questions = (
                 SchemeCredentialQuestion.objects.filter(scheme=scheme_account.scheme)
@@ -532,7 +546,7 @@ class UpdateCredentialsMixin:
             for credential in SchemeAccountCredentialAnswer.objects.filter(
                 question_id__in=[question_id_from_type[credential_type] for credential_type in data.keys()],
                 scheme_account=scheme_account,
-                scheme_account_entry=scheme_account_entry
+                scheme_account_entry=scheme_account_entry,
             ).all()
         }
         question_id_and_data = {
@@ -542,12 +556,13 @@ class UpdateCredentialsMixin:
             scheme_account=scheme_account,
             question_id_and_data=question_id_and_data,
             existing_credentials=existing_credentials,
-            scheme_account_entry=scheme_account_entry
+            scheme_account_entry=scheme_account_entry,
         )
         return {"updated": updated_types}
 
-    def replace_credentials_and_scheme(self, scheme_account: SchemeAccount, data: dict, scheme: Scheme,
-                                       scheme_account_entry: SchemeAccountEntry) -> dict:
+    def replace_credentials_and_scheme(
+        self, scheme_account: SchemeAccount, data: dict, scheme: Scheme, scheme_account_entry: SchemeAccountEntry
+    ) -> dict:
         self._check_required_data_presence(scheme, data)
 
         if scheme_account.scheme != scheme:

@@ -28,17 +28,7 @@ from analytics.api import update_scheme_account_attribute, update_scheme_account
 from common.models import Image
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
-from scheme.credentials import (
-    BARCODE,
-    CARD_NUMBER,
-    CASE_SENSITIVE_CREDENTIALS,
-    CREDENTIAL_TYPES,
-    DATE_TYPE_CREDENTIALS,
-    ENCRYPTED_CREDENTIALS,
-    PASSWORD,
-    PASSWORD_2,
-    POSTCODE,
-)
+from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encryption import AESCipher
 from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import AESKeyNames
@@ -926,12 +916,13 @@ class SchemeAccount(models.Model):
         else:
             return JourneyTypes.LINK
 
-    def update_cached_balance(self, cache_key, scheme_account_entry: SchemeAccountEntry,
-                              credentials_override: dict = None):
+    def update_cached_balance(
+        self, cache_key, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None
+    ):
         journey = self.get_journey_type()
-        balance, dw_event = self.get_midas_balance(journey=journey,
-                                                   credentials_override=credentials_override,
-                                                   scheme_account_entry=scheme_account_entry)
+        balance, dw_event = self.get_midas_balance(
+            journey=journey, credentials_override=credentials_override, scheme_account_entry=scheme_account_entry
+        )
         vouchers = None
 
         if balance:
@@ -958,8 +949,9 @@ class SchemeAccount(models.Model):
 
         return update_fields
 
-    def get_cached_balance(self, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None,
-                           user: object = None):
+    def get_cached_balance(
+        self, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None, user: object = None
+    ):
         # Gets scheme account balance from cache if existing, else updates the cache.
 
         cache_key = "scheme_{}".format(self.pk)
@@ -971,9 +963,9 @@ class SchemeAccount(models.Model):
         # todo: We will need to change this so that we force an update (and therefore the auth check) when a new link is
         #  created (otherwise user 2 will not be sent to Midas). For now, bypassing the cache entirely.
         # if not balance:
-        balance, vouchers, dw_event = self.update_cached_balance(cache_key=cache_key,
-                                                                 credentials_override=credentials_override,
-                                                                 scheme_account_entry=scheme_account_entry)
+        balance, vouchers, dw_event = self.update_cached_balance(
+            cache_key=cache_key, credentials_override=credentials_override, scheme_account_entry=scheme_account_entry
+        )
 
         update_fields = self.check_balance_and_vouchers(balance=balance, vouchers=vouchers)
         status_update = old_status != self.status
