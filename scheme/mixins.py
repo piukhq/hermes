@@ -326,18 +326,19 @@ class SchemeAccountJoinMixin:
             if data.get("save_user_information"):
                 self.save_user_profile(data["credentials"], user)
 
-            self.post_midas_join(scheme_account, data["credentials"], scheme_account.scheme.slug, user.id, channel, scheme_account_entry)
+            self.post_midas_join(scheme_account, data["credentials"], scheme_account.scheme.slug, user.id, channel,
+                                 scheme_account_entry)
 
             keys_to_remove = ["save_user_information", "credentials"]
             response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
 
             return response_dict, status.HTTP_201_CREATED, scheme_account
         except PaymentError:
-            self.handle_failed_join(scheme_account, user)
+            self.handle_failed_join(scheme_account, user, scheme_account_entry)
             raise
         except Exception as e:
             logger.exception(repr(e))
-            self.handle_failed_join(scheme_account, user)
+            self.handle_failed_join(scheme_account, user,scheme_account_entry)
             return {"message": "Unknown error with join"}, status.HTTP_200_OK, scheme_account
 
     @staticmethod
@@ -358,8 +359,8 @@ class SchemeAccountJoinMixin:
             data["credentials"].update(consents=user_consents)
 
     @staticmethod
-    def handle_failed_join(scheme_account: SchemeAccount, user: "CustomUser") -> None:
-        queryset = scheme_account.schemeaccountcredentialanswer_set
+    def handle_failed_join(scheme_account: SchemeAccount, user: "CustomUser", scheme_account_entry: "SchemeAccountEntry") -> None:
+        queryset = scheme_account_entry.schemeaccountcredentialanswer_set
         card_number = scheme_account.card_number
         if card_number:
             queryset = queryset.exclude(answer=card_number)
@@ -444,11 +445,12 @@ class SchemeAccountJoinMixin:
                 scheme_account_entry=scheme_account_entry
             )
 
-        updated_credentials = scheme_account.update_or_create_primary_credentials(credentials_dict)
+        updated_credentials = scheme_account_entry.update_or_create_primary_credentials(credentials_dict)
 
         encrypted_credentials = AESCipher(AESKeyNames.AES_KEY).encrypt(json.dumps(updated_credentials)).decode("utf-8")
 
         # via RabbitMQ
+        # todo: Liaise with Merchant Team - what else needs adding here to help callbacks?
         send_midas_join_request(
             channel=channel,
             loyalty_plan=slug,
@@ -544,20 +546,24 @@ class UpdateCredentialsMixin:
         )
         return {"updated": updated_types}
 
-    def replace_credentials_and_scheme(self, scheme_account: SchemeAccount, data: dict, scheme: Scheme) -> dict:
+    def replace_credentials_and_scheme(self, scheme_account: SchemeAccount, data: dict, scheme: Scheme,
+                                       scheme_account_entry: SchemeAccountEntry) -> dict:
         self._check_required_data_presence(scheme, data)
 
         if scheme_account.scheme != scheme:
             scheme_account.scheme = scheme
             scheme_account.save(update_fields=["scheme"])
 
+        # todo: some funky behaviour here - we could call PATCH membership_cards to change a scheme_account's scheme!?
+        #  How do we handle credentials in this case? Do we loop through for all users?
+
         scheme_account.schemeaccountcredentialanswer_set.exclude(question__type__in=data.keys()).delete()
-        return self.update_credentials(scheme_account, data)
+        return self.update_credentials(scheme_account, data, scheme_account_entry=scheme_account_entry)
 
     @staticmethod
     def card_with_same_data_already_exists(account: SchemeAccount, scheme_id: int, main_answer: str) -> bool:
-        # todo: This will need to be changed to check other Scheme Accounts directly via main_answer, or by adapting
-        #  this query to search on the scheme_account_entry.
+        # i.e. if any schemeaccountcredential answers exist with this main answer (for any user), we conclude that an
+        # account already exists
         return (
             SchemeAccountCredentialAnswer.objects.filter(
                 scheme_account__scheme_id=scheme_id, scheme_account__is_deleted=False, answer=main_answer

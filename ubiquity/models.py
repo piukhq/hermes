@@ -67,6 +67,34 @@ class SchemeAccountEntry(models.Model):
 
         return entry, created
 
+    def update_or_create_primary_credentials(self, credentials):
+        """
+        Creates or updates scheme account credential answer objects for manual or scan questions. If only one is
+        given and the scheme has a regex conversion for the property, both will be saved.
+        :param credentials: dict of credentials
+        :return: credentials
+        """
+        new_credentials = {
+            question["type"]: credentials.get(question["type"]) for question in self.scheme_account.scheme.get_required_questions
+        }
+
+        for k, v in new_credentials.items():
+            if v:
+                SchemeAccountCredentialAnswer.objects.update_or_create(
+                    question=self.scheme_account.question(k),
+                    scheme_account=self.scheme_account,
+                    scheme_account_entry=self,
+                    defaults={"answer": v}
+                )
+
+        self.update_barcode_and_card_number()
+        for question in ["card_number", "barcode"]:
+            value = getattr(self, question)
+            if not credentials.get(question) and value:
+                credentials.update({question: value})
+
+        return credentials
+
     def update_barcode_and_card_number(self):
 
         answers = {answer for answer in self.credential_answers if answer.question.type in [CARD_NUMBER, BARCODE]}

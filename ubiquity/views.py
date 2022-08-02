@@ -773,7 +773,7 @@ class MembershipCardView(
         scheme_acc_entry.auth_provided = True
         scheme_acc_entry.save(update_fields=["auth_provided"])
 
-        account.schemeaccountcredentialanswer_set.all().delete()
+        scheme_acc_entry.schemeaccountcredentialanswer_set.all().delete()
         account.set_async_join_status(commit_change=False)
         account.save(update_fields=["status", "main_answer"])
         async_join.delay(
@@ -815,8 +815,8 @@ class MembershipCardView(
 
         scheme_acc_entry.auth_provided = True
         scheme_acc_entry.save(update_fields=["auth_provided"])
-        self.replace_credentials_and_scheme(account, new_answers, scheme)
-        account.update_barcode_and_card_number()
+        self.replace_credentials_and_scheme(account, new_answers, scheme, scheme_acc_entry)
+        scheme_acc_entry.update_barcode_and_card_number()
         account.set_pending()
         async_balance.delay(account.id)
 
@@ -1070,12 +1070,13 @@ class MembershipCardView(
             # if this changes, we'll need to rework this code.
             email = enrol_fields["email"]
 
-            other_accounts = SchemeAccount.objects.filter(
-                scheme_id=scheme.id,
+            other_scheme_links = SchemeAccountEntry.objects.filter(
+                schemeaccount__scheme_id=scheme.id,
                 schemeaccountcredentialanswer__answer=email,
             )
-            if other_accounts.exists():
-                scheme_account = other_accounts.first()
+
+            if other_scheme_links.exists():
+                scheme_account = other_scheme_links.first().scheme_account
                 sch_acc_entry, _ = SchemeAccountEntry.create_or_retrieve_link(
                     user=user, scheme_account=scheme_account, auth_provided=True
                 )

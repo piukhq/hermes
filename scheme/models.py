@@ -816,31 +816,6 @@ class SchemeAccount(models.Model):
             return True  # triggers return None from calling method
         return False
 
-    def update_or_create_primary_credentials(self, credentials):
-        """
-        Creates or updates scheme account credential answer objects for manual or scan questions. If only one is
-        given and the scheme has a regex conversion for the property, both will be saved.
-        :param credentials: dict of credentials
-        :return: credentials
-        """
-        new_credentials = {
-            question["type"]: credentials.get(question["type"]) for question in self.scheme.get_required_questions
-        }
-
-        for k, v in new_credentials.items():
-            if v:
-                SchemeAccountCredentialAnswer.objects.update_or_create(
-                    question=self.question(k), scheme_account=self, defaults={"answer": v}
-                )
-
-        self.update_barcode_and_card_number()
-        for question in ["card_number", "barcode"]:
-            value = getattr(self, question)
-            if not credentials.get(question) and value:
-                credentials.update({question: value})
-
-        return credentials
-
     def collect_pending_consents(self):
         user_consents = self.userconsent_set.filter(status=ConsentStatus.PENDING).values()
         return self.format_user_consents(user_consents)
@@ -908,13 +883,13 @@ class SchemeAccount(models.Model):
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
-        self._received_balance_checks(old_status)
+        self._received_balance_checks(old_status, scheme_account_entry)
         return points, dw_event
 
-    def _received_balance_checks(self, old_status):
+    def _received_balance_checks(self, old_status, scheme_account_entry):
         saved = False
         if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:
-            queryset = self.schemeaccountcredentialanswer_set
+            queryset = scheme_account_entry.schemeaccountcredentialanswer_set
             card_number = self.card_number
             if card_number:
                 queryset = queryset.exclude(answer=card_number)
@@ -1149,17 +1124,15 @@ class SchemeAccount(models.Model):
 
     @property
     def card_label(self):
-        manual_answer = self.manual_answer
-        if self.manual_answer:
-            return manual_answer.answer
+        if self.main_answer:
+            return self.main_answer
 
-        barcode_answer = self.barcode_answer
-        if not barcode_answer:
+        if not self.barcode:
             return None
 
         if self.scheme.card_number_regex:
             try:
-                regex_match = re.search(self.scheme.card_number_regex, barcode_answer.answer)
+                regex_match = re.search(self.scheme.card_number_regex, self.barcode)
             except sre_constants.error:
                 return None
             if regex_match:
@@ -1167,7 +1140,7 @@ class SchemeAccount(models.Model):
                     return self.scheme.card_number_prefix + regex_match.group(1)
                 except IndexError:
                     return None
-        return barcode_answer.answer
+        return self.barcode
 
     def get_transaction_matching_user_id(self):
         bink_user = self.user_set.filter(client_id=settings.BINK_CLIENT_ID).values("id").order_by("date_joined")
@@ -1177,22 +1150,6 @@ class SchemeAccount(models.Model):
             user_id = self.user_set.order_by("date_joined").values("id").first().get("id")
 
         return user_id
-
-    @property
-    def barcode_answer(self):
-        return self.schemeaccountcredentialanswer_set.filter(question=self.question(BARCODE)).first()
-
-    @property
-    def card_number_answer(self):
-        return self.schemeaccountcredentialanswer_set.filter(question=self.question(CARD_NUMBER)).first()
-
-    @property
-    def manual_answer(self):
-        return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.manual_question).first()
-
-    @property
-    def one_question_link_answer(self):
-        return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.one_question_link).first()
 
     @property
     def display_status(self):

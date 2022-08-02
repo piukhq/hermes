@@ -301,11 +301,11 @@ def deleted_membership_card_cleanup(
     pll_links = PaymentCardSchemeEntry.objects.filter(scheme_account_id=scheme_account.id).prefetch_related(
         "scheme_account", "payment_card_account", "payment_card_account__paymentcardschemeentry_set"
     )
-    entries_query = SchemeAccountEntry.objects.filter(scheme_account=scheme_account)
+    scheme_account_entries = SchemeAccountEntry.objects.filter(scheme_account=scheme_account)
 
     remove_loyalty_card_event(user, scheme_account)
 
-    if entries_query.count() <= 0:
+    if scheme_account_entries.count() <= 0:
         scheme_account.is_deleted = True
         scheme_account.save(update_fields=["is_deleted"])
 
@@ -315,18 +315,17 @@ def deleted_membership_card_cleanup(
             )
 
     else:
-        user_mcard_auth_provided = entries_query.values_list("auth_provided", flat=True)
-        if all((status is False for status in user_mcard_auth_provided)):
-            scheme_account.status = SchemeAccount.WALLET_ONLY
-            scheme_account.save(update_fields=["status"])
-            PaymentCardSchemeEntry.update_active_link_status({"scheme_account": scheme_account})
+        user_mcard_auth_provided = scheme_account_entries.values_list("auth_provided", flat=True)
 
-            scheme_account.schemeaccountcredentialanswer_set.filter(
-                question__auth_field=True,
-                question__manual_question=False,
-            ).delete()
+        for sae in scheme_account_entries:
+            if sae.user == user:
+                scheme_account.schemeaccountcredentialanswer_set.filter(
+                    question__auth_field=True,
+                    question__manual_question=False,
+                ).delete()
 
-        m_card_users = entries_query.values_list("user_id", flat=True)
+        m_card_users = scheme_account_entries.values_list("user_id", flat=True)
+        # todo: Some PLL link nonsense to look at here for Phase 3.
         pll_links = pll_links.exclude(payment_card_account__user_set__in=m_card_users)
 
     activations = VopActivation.find_activations_matching_links(pll_links)

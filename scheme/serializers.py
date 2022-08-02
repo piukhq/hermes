@@ -302,7 +302,8 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
             non_join_accounts = scheme_accounts.exclude(status__in=SchemeAccount.JOIN_ACTION_REQUIRED)
 
             for sa in non_join_accounts.all():
-                if sa.schemeaccountcredentialanswer_set.filter(answer=data[answer_type]).exists():
+                scheme_account_entry = sa.schemeaccountentry_set.get(user=user_id)
+                if scheme_account_entry.schemeaccountcredentialanswer_set.filter(answer=data[answer_type]).exists():
                     raise serializers.ValidationError("You already added this account for scheme: '{0}'".format(scheme))
 
         return data
