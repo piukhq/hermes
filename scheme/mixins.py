@@ -38,7 +38,6 @@ from scheme.models import (
     UserConsent,
 )
 from scheme.serializers import (
-    LinkSchemeSerializer,
     UbiquityJoinSerializer,
     UpdateCredentialSerializer,
     UserConsentSerializer,
@@ -63,31 +62,14 @@ logger = logging.getLogger(__name__)
 
 class BaseLinkMixin(object):
     @staticmethod
-    def link_account(serializer: "Serializer", scheme_account: SchemeAccount, user: "CustomUser") -> dict:
+    def link_account(serializer: "Serializer", scheme_account: SchemeAccount, user: "CustomUser",
+                     scheme_account_entry: "SchemeAccountEntry") -> dict:
         serializer.is_valid(raise_exception=True)
-        return BaseLinkMixin._link_account(serializer.validated_data, scheme_account, user)
+        return BaseLinkMixin._link_account(serializer.validated_data, scheme_account, user, scheme_account_entry)
 
     @staticmethod
-    def prepare_link_for_manual_check(auth_fields: dict, scheme_account: SchemeAccount) -> None:
-        serializer = LinkSchemeSerializer(data=auth_fields, context={"scheme_account": scheme_account})
-        serializer.is_valid(raise_exception=True)
-        bink_users = [user for user in scheme_account.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
-        for user in bink_users:
-            analytics.api.update_scheme_account_attribute_new_status(
-                scheme_account, user, dict(SchemeAccount.STATUSES).get(SchemeAccount.PENDING_MANUAL_CHECK)
-            )
-        scheme_account.set_pending(manual_pending=True)
-        data = serializer.validated_data
-
-        for answer_type, answer in data.items():
-            SchemeAccountCredentialAnswer.objects.update_or_create(
-                question=scheme_account.question(answer_type),
-                scheme_account=scheme_account,
-                defaults={"answer": answer},
-            )
-
-    @staticmethod
-    def _link_account(data: dict, scheme_account: SchemeAccount, user: "CustomUser") -> dict:
+    def _link_account(data: dict, scheme_account: "SchemeAccount", user: "CustomUser",
+                      scheme_account_entry: "SchemeAccountEntry") -> dict:
         user_consents = []
 
         if "consents" in data:
@@ -106,9 +88,10 @@ class BaseLinkMixin(object):
                 question=scheme_account.question(answer_type),
                 scheme_account=scheme_account,
                 defaults={"answer": answer},
+                scheme_account_entry=scheme_account_entry
             )
 
-        midas_information, dw_event = scheme_account.get_cached_balance()
+        midas_information, dw_event = scheme_account.get_cached_balance(scheme_account_entry)
 
         # dw_event is a two piece tuple, succes: bool, journey: SchemeAccount STATUS
         #  - not present for cached balances only fresh crepes
@@ -185,14 +168,14 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             )
         return serializer
 
-    def create_account(self, data: dict, user: "CustomUser") -> t.Tuple[SchemeAccount, dict, bool]:
+    def create_account(self, data: dict, user: "CustomUser") -> t.Tuple[SchemeAccount, dict, bool, str, str]:
         serializer = self.get_validated_data(data, user)
         scheme = Scheme.get_scheme_and_questions_by_scheme_id(data["scheme"])
         return self.create_account_with_valid_data(serializer, user, scheme, SchemeAccount.WALLET_ONLY)
 
     def create_account_with_valid_data(
         self, serializer: "Serializer", user: "CustomUser", scheme: Scheme, create_status=SchemeAccount.PENDING
-    ) -> t.Tuple[SchemeAccount, dict, bool]:
+    ) -> t.Tuple[SchemeAccount, dict, bool, str, str]:
         data = serializer.validated_data
         answer_type = serializer.context["answer_type"]
         account_created = False
@@ -210,14 +193,22 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         except SchemeAccount.DoesNotExist:
             account_created = True
             scheme_account = self._create_new_account(user, scheme, data, answer_type, create_status)
-            resp = (scheme_account, data, account_created)
+            resp = (scheme_account, data, account_created, answer_type, data[answer_type])
         else:
             # handle_existing_scheme_account is called after this function
             # to check if auth_fields match and link to user if not linked already
-            resp = (scheme_account, data, account_created)
+            resp = (scheme_account, data, account_created, answer_type, data[answer_type])
 
         data["id"] = scheme_account.id
         return resp
+
+    def create_main_answer_credential(self, answer_type, scheme_account_entry, main_answer):
+        SchemeAccountCredentialAnswer.objects.create(
+            scheme_account_entry=scheme_account_entry,
+            scheme_account=scheme_account_entry.scheme_account,
+            question=self._get_question_from_type(scheme_account_entry.scheme_account, answer_type),
+            answer=main_answer,
+        )
 
     def _get_question_from_type(self, scheme_account: SchemeAccount, question_type: str) -> SchemeCredentialQuestion:
         if not hasattr(self, "scheme_questions"):
@@ -237,11 +228,6 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         with transaction.atomic():
             scheme_account = SchemeAccount.objects.create(
                 scheme=scheme, order=data["order"], status=create_status, main_answer=data[answer_type]
-            )
-            SchemeAccountCredentialAnswer.objects.create(
-                scheme_account=scheme_account,
-                question=self._get_question_from_type(scheme_account, answer_type),
-                answer=data[answer_type],
             )
             self.analytics_update(user, scheme_account, acc_created=True)
             self.save_consents(user, scheme_account, data, JourneyTypes.LINK.value)
@@ -327,7 +313,8 @@ class SchemeAccountJoinMixin:
         channel: str,
     ) -> t.Tuple[dict, int, SchemeAccount]:
 
-        scheme_account.update_barcode_and_card_number()
+        scheme_account_entry = scheme_account.schemeaccountentry_set.get(user=user)
+        scheme_account_entry.update_barcode_and_card_number()
         try:
             payment_card_hash = data["credentials"].get(PAYMENT_CARD_HASH)
             if payment_card_hash:
@@ -339,7 +326,7 @@ class SchemeAccountJoinMixin:
             if data.get("save_user_information"):
                 self.save_user_profile(data["credentials"], user)
 
-            self.post_midas_join(scheme_account, data["credentials"], scheme_account.scheme.slug, user.id, channel)
+            self.post_midas_join(scheme_account, data["credentials"], scheme_account.scheme.slug, user.id, channel, scheme_account_entry)
 
             keys_to_remove = ["save_user_information", "credentials"]
             response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
@@ -435,7 +422,8 @@ class SchemeAccountJoinMixin:
 
     @staticmethod
     def post_midas_join(
-        scheme_account: SchemeAccount, credentials_dict: dict, slug: str, user_id: int, channel: str
+        scheme_account: SchemeAccount, credentials_dict: dict, slug: str, user_id: int, channel: str,
+            scheme_account_entry: SchemeAccountEntry
     ) -> None:
         for question in scheme_account.scheme.link_questions:
             question_type = question.type
@@ -453,6 +441,7 @@ class SchemeAccountJoinMixin:
                 question=scheme_account.question(question_type),
                 scheme_account=scheme_account,
                 defaults={"answer": answer},
+                scheme_account_entry=scheme_account_entry
             )
 
         updated_credentials = scheme_account.update_or_create_primary_credentials(credentials_dict)
@@ -473,7 +462,8 @@ class SchemeAccountJoinMixin:
 class UpdateCredentialsMixin:
     @staticmethod
     def _update_credentials(
-        scheme_account: SchemeAccount, question_id_and_data: dict, existing_credentials: dict
+        scheme_account: SchemeAccount, question_id_and_data: dict, existing_credentials: dict,
+            scheme_account_entry: SchemeAccountEntry
     ) -> list:
         create_credentials = []
         update_credentials = []
@@ -489,6 +479,7 @@ class UpdateCredentialsMixin:
                 credential = existing_credentials[question_id]
 
                 if credential.answer == main_answer and new_answer != main_answer:
+                    # todo: this means that one user may be able to update the central 'main answer' on a scheme account. Are we okay with this?
                     scheme_account.main_answer = new_answer
                     scheme_account.save(update_fields=["main_answer"])
 
@@ -498,7 +489,8 @@ class UpdateCredentialsMixin:
             else:
                 create_credentials.append(
                     SchemeAccountCredentialAnswer(
-                        question_id=question_id, scheme_account=scheme_account, answer=new_answer
+                        question_id=question_id, scheme_account=scheme_account, answer=new_answer,
+                        scheme_account_entry=scheme_account_entry
                     )
                 )
 
@@ -511,7 +503,8 @@ class UpdateCredentialsMixin:
 
         return updated_types
 
-    def update_credentials(self, scheme_account: SchemeAccount, data: dict, questions=None) -> dict:
+    def update_credentials(self, scheme_account: SchemeAccount, data: dict, scheme_account_entry: SchemeAccountEntry,
+                           questions=None) -> dict:
         if questions is None:
             questions = (
                 SchemeCredentialQuestion.objects.filter(scheme=scheme_account.scheme)
@@ -537,6 +530,7 @@ class UpdateCredentialsMixin:
             for credential in SchemeAccountCredentialAnswer.objects.filter(
                 question_id__in=[question_id_from_type[credential_type] for credential_type in data.keys()],
                 scheme_account=scheme_account,
+                scheme_account_entry=scheme_account_entry
             ).all()
         }
         question_id_and_data = {
@@ -546,6 +540,7 @@ class UpdateCredentialsMixin:
             scheme_account=scheme_account,
             question_id_and_data=question_id_and_data,
             existing_credentials=existing_credentials,
+            scheme_account_entry=scheme_account_entry
         )
         return {"updated": updated_types}
 

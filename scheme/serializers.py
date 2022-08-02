@@ -242,7 +242,7 @@ class LinkSchemeSerializer(SchemeAnswerSerializer):
 
     def validate(self, data):
         # Validate no manual answer
-        manual_question_type = self.context["scheme_account"].scheme.manual_question.type
+        manual_question_type = self.context["scheme_account_entry"].scheme_account.scheme.manual_question.type
         if manual_question_type in data:
             raise serializers.ValidationError("Manual answer cannot be submitted to this endpoint")
 
@@ -252,10 +252,10 @@ class LinkSchemeSerializer(SchemeAnswerSerializer):
         ]
 
         # temporary fix to iceland
-        if self.context["scheme_account"].scheme.slug == "iceland-bonus-card":
+        if self.context["scheme_account_entry"].scheme_account.scheme.slug == "iceland-bonus-card":
             return data
 
-        missing_credentials = self.context["scheme_account"].missing_credentials(question_types)
+        missing_credentials = self.context["scheme_account_entry"].missing_credentials(question_types)
         if missing_credentials:
             raise serializers.ValidationError(
                 "All the required credentials have not been submitted: {0}".format(missing_credentials)
@@ -341,13 +341,6 @@ class BalanceSerializer(serializers.Serializer):
     balance = serializers.DecimalField(max_digits=30, decimal_places=2, allow_null=True)
     reward_tier = serializers.IntegerField(allow_null=False)
     is_stale = serializers.BooleanField()
-
-
-class ResponseLinkSerializer(serializers.Serializer):
-    status = serializers.IntegerField(allow_null=True)
-    status_name = serializers.CharField()
-    balance = BalanceSerializer(allow_null=True)
-    display_status = serializers.ReadOnlyField()
 
 
 class ReadSchemeAccountAnswerSerializer(serializers.ModelSerializer):
@@ -458,10 +451,6 @@ class SchemeAccountStatusSerializer(serializers.Serializer):
 class SchemeAccountSummarySerializer(serializers.Serializer):
     scheme_id = serializers.IntegerField()
     statuses = SchemeAccountStatusSerializer(many=True, read_only=True)
-
-
-class ResponseSchemeAccountAndBalanceSerializer(LinkSchemeSerializer, ResponseLinkSerializer):
-    pass
 
 
 def add_object_type_to_image_response(data, obj_type):

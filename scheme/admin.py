@@ -333,6 +333,7 @@ class SchemeAccountAdmin(HistoryAdmin):
     ordering = ["-updated"]
 
     def refresh_scheme_account_information(self, request, queryset):
+        # todo: this is problematic - how we do handle an action like this from the admin panel with no related user?
         # Forces a refresh of balance, voucher and transaction information. Requests an update of balance information
         # directly from Midas, which will also push transactions from Midas (via Hades), to Hermes.
         for scheme_account in queryset:
@@ -449,6 +450,17 @@ class SchemeUserAssociationAdmin(HistoryAdmin):
         "scheme_account",
         "user",
     )
+
+    actions = ["refresh_scheme_account_information"]
+
+    def refresh_scheme_account_balance(self, request, queryset):
+        # todo: moved this to the Scheme
+        # Forces a refresh of balance, voucher and transaction information. Requests an update of balance information
+        # directly from Midas, which will also push transactions from Midas (via Hades), to Hermes.
+        for scheme_account_entry in queryset:
+            scheme_account_entry.scheme_account.delete_cached_balance()
+            scheme_account_entry.scheme_account.get_cached_balance(scheme_account_entry=scheme_account_entry)
+        messages.add_message(request, messages.INFO, "Refreshed balance, vouchers and transactions information.")
 
     def scheme_account_link(self, obj):
         return format_html('<a href="/admin/scheme/schemeaccount/{0}/change/">scheme id{0}</a>', obj.scheme_account.id)

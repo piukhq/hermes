@@ -780,6 +780,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         return mcard_user_auth_provided_map
 
     def to_representation(self, instance: "SchemeAccount") -> dict:
+        # todo: this is a tricky one!
         if instance.status not in instance.EXCLUDE_BALANCE_STATUSES:
             async_balance.delay(instance.id)
         try:

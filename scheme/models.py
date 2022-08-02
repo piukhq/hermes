@@ -1,4 +1,3 @@
-import json
 import logging
 import re
 import socket
@@ -24,7 +23,6 @@ from django.template.defaultfilters import truncatewords
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
-from rest_framework.exceptions import ParseError
 
 from analytics.api import update_scheme_account_attribute, update_scheme_account_attribute_new_status
 from common.models import Image
@@ -801,90 +799,6 @@ class SchemeAccount(models.Model):
                 credentials[question.type] = answer
         return credentials
 
-    def missing_credentials(self, credential_types):
-        """
-        Given a list of credential_types return credentials if they are required by the scheme
-
-        A scan or manual question is an optional if one of the other exists
-        """
-        questions = self.scheme.questions.filter(
-            options__in=[F("options").bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
-        )
-
-        required_credentials = {question.type for question in questions}
-        manual_question = self.scheme.manual_question
-        scan_question = self.scheme.scan_question
-
-        if manual_question:
-            required_credentials.add(manual_question.type)
-        if scan_question:
-            required_credentials.add(scan_question.type)
-
-        if scan_question and manual_question and scan_question != manual_question:
-            if scan_question.type in credential_types:
-                required_credentials.discard(manual_question.type)
-            if required_credentials and manual_question.type in credential_types:
-                required_credentials.discard(scan_question.type)
-
-        return required_credentials.difference(set(credential_types))
-
-    def get_auth_credentials(self, force_all=False) -> Dict[str, str]:
-        auth_credentials = {}
-        if force_all:
-            for answer in self.credential_answers:
-                if answer.question.auth_field:
-                    auth_credentials[answer.question.type] = self._get_decrypted_answer(answer)
-        else:
-            for answer in self.credential_answers:
-                if answer.question.auth_field and answer.question.manual_question is False:
-                    auth_credentials[answer.question.type] = self._get_decrypted_answer(answer)
-
-        return auth_credentials
-
-    @staticmethod
-    def validate_auth_fields(auth_fields, existing_answers):
-        # todo: could be used to compare a user's credentials to their own existing credentials. Otherwise this should
-        #  be deleted.
-        for question_type, existing_value in existing_answers.items():
-            provided_value = auth_fields.get(question_type)
-
-            if provided_value and question_type in DATE_TYPE_CREDENTIALS:
-                try:
-                    provided_value = arrow.get(provided_value, "DD/MM/YYYY").date()
-                except ParseError:
-                    provided_value = arrow.get(provided_value).date()
-
-                existing_value = arrow.get(existing_value).date()
-
-            elif (
-                question_type not in CASE_SENSITIVE_CREDENTIALS
-                and isinstance(provided_value, str)
-                and isinstance(existing_value, str)
-            ):
-
-                if question_type == POSTCODE:
-                    provided_value = "".join(provided_value.upper().split())
-                    existing_value = "".join(existing_value.upper().split())
-                else:
-                    provided_value = provided_value.lower()
-                    existing_value = existing_value.lower()
-
-            if provided_value != existing_value:
-                raise ParseError("This card already exists, but the provided credentials do not match.")
-
-    @cached_property
-    def credential_answers(self):
-        return self.schemeaccountcredentialanswer_set.filter(question__scheme_id=self.scheme_id).select_related(
-            "question"
-        )
-
-    @staticmethod
-    def _get_decrypted_answer(answer_instance: "SchemeAccountCredentialAnswer") -> str:
-        answer = answer_instance.answer
-        if answer_instance.question.type in ENCRYPTED_CREDENTIALS:
-            answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(answer)
-        return answer
-
     def _iceland_hack(self, credentials: dict = None, credentials_override: dict = None) -> bool:
         if self.status in SchemeAccount.ALL_PENDING_STATUSES:
             return False
@@ -901,29 +815,6 @@ class SchemeAccount(models.Model):
             self.save()
             return True  # triggers return None from calling method
         return False
-
-    def credentials(self, credentials_override: dict = None):
-        credentials = self._collect_credentials()
-
-        if self.scheme.slug != "iceland-bonus-card":
-            if self._iceland_hack(credentials, credentials_override):
-                return None
-
-        for credential in credentials.keys():
-            # Other services only expect a single password, "password", so "password_2" must be converted
-            # before sending if it exists. Ideally, the new credential would be handled in the consuming
-            # service and this should be removed.
-            if credential == PASSWORD_2:
-                credentials[PASSWORD] = credentials.pop(credential)
-
-        saved_consents = self.collect_pending_consents()
-        credentials.update(consents=saved_consents)
-
-        if credentials_override:
-            credentials.update(credentials_override)
-
-        serialized_credentials = json.dumps(credentials)
-        return AESCipher(AESKeyNames.AES_KEY).encrypt(serialized_credentials).decode("utf-8")
 
     def update_or_create_primary_credentials(self, credentials):
         """
@@ -968,6 +859,7 @@ class SchemeAccount(models.Model):
         ]
 
     def _process_midas_response(self, response):
+        # todo: liaise with Merchant to work out how we parse credentials back in.
         points = None
         current_status = self.status
         dw_event = None
@@ -998,7 +890,7 @@ class SchemeAccount(models.Model):
 
         return points, dw_event
 
-    def get_midas_balance(self, journey, credentials_override: dict = None):
+    def get_midas_balance(self, journey, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None):
         points = None
         old_status = self.status
         dw_event = None
@@ -1007,7 +899,7 @@ class SchemeAccount(models.Model):
             return points, dw_event
 
         try:
-            credentials = self.credentials(credentials_override)
+            credentials = scheme_account_entry.credentials(credentials_override)
             if not credentials:
                 return points, dw_event
             response = self._get_balance(credentials, journey)
@@ -1039,6 +931,7 @@ class SchemeAccount(models.Model):
             update_scheme_account_attribute(self, user, dict(self.STATUSES).get(old_status))
 
     def _get_balance(self, credentials, journey):
+        # todo: liaise with Midas to work out what we need to see here
         user_set = ",".join([str(u.id) for u in self.user_set.all()])
         parameters = {
             "scheme_account_id": self.id,
@@ -1058,9 +951,12 @@ class SchemeAccount(models.Model):
         else:
             return JourneyTypes.LINK
 
-    def update_cached_balance(self, cache_key, credentials_override: dict = None):
+    def update_cached_balance(self, cache_key, scheme_account_entry: SchemeAccountEntry,
+                              credentials_override: dict = None):
         journey = self.get_journey_type()
-        balance, dw_event = self.get_midas_balance(journey=journey, credentials_override=credentials_override)
+        balance, dw_event = self.get_midas_balance(journey=journey,
+                                                   credentials_override=credentials_override,
+                                                   scheme_account_entry=scheme_account_entry)
         vouchers = None
 
         if balance:
@@ -1073,71 +969,6 @@ class SchemeAccount(models.Model):
             cache.set(cache_key, balance, self.scheme.balance_renew_period)
 
         return balance, vouchers, dw_event
-
-    def update_barcode_and_card_number(self):
-
-        answers = {answer for answer in self.credential_answers if answer.question.type in [CARD_NUMBER, BARCODE]}
-
-        card_number = None
-        barcode = None
-        for answer in answers:
-            if answer.question.type == CARD_NUMBER:
-                card_number = answer
-            elif answer.question.type == BARCODE:
-                barcode = answer
-
-        self._update_barcode_and_card_number(card_number, answers=answers, primary_cred_type=CARD_NUMBER)
-        self._update_barcode_and_card_number(barcode, answers=answers, primary_cred_type=BARCODE)
-
-        self.save(update_fields=["barcode", "card_number"])
-
-    def _update_barcode_and_card_number(
-        self,
-        primary_cred: "SchemeAccountCredentialAnswer",
-        answers: Iterable["SchemeAccountCredentialAnswer"],
-        primary_cred_type: str,
-    ) -> None:
-        """
-        Updates the given primary credential of either card number or barcode. The non-provided (secondary)
-        credential is also updated if the conversion regex exists for the scheme.
-        """
-        if not answers:
-            setattr(self, primary_cred_type, "")
-            return
-
-        if not primary_cred:
-            return
-
-        type_to_update_info = {
-            CARD_NUMBER: {
-                "regex": self.scheme.barcode_regex,
-                "prefix": self.scheme.barcode_prefix,
-                "secondary_cred_type": BARCODE,
-            },
-            BARCODE: {
-                "regex": self.scheme.card_number_regex,
-                "prefix": self.scheme.card_number_prefix,
-                "secondary_cred_type": CARD_NUMBER,
-            },
-        }
-
-        setattr(self, primary_cred_type, primary_cred.answer)
-
-        if type_to_update_info[primary_cred_type]["regex"]:
-            try:
-                regex_match = re.search(type_to_update_info[primary_cred_type]["regex"], primary_cred.answer)
-            except sre_constants.error:
-                setattr(self, type_to_update_info[primary_cred_type]["secondary_cred_type"], "")
-                return None
-            if regex_match:
-                try:
-                    setattr(
-                        self,
-                        type_to_update_info[primary_cred_type]["secondary_cred_type"],
-                        type_to_update_info[primary_cred_type]["prefix"] + regex_match.group(1),
-                    )
-                except IndexError:
-                    pass
 
     def check_balance_and_vouchers(self, balance=None, vouchers=None):
         update_fields = []
@@ -1152,7 +983,8 @@ class SchemeAccount(models.Model):
 
         return update_fields
 
-    def get_cached_balance(self, credentials_override: dict = None, user: object = None):
+    def get_cached_balance(self, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None,
+                           user: object = None):
         # Gets scheme account balance from cache if existing, else updates the cache.
 
         cache_key = "scheme_{}".format(self.pk)
@@ -1162,9 +994,11 @@ class SchemeAccount(models.Model):
         dw_event = None
 
         # todo: We will need to change this so that we force an update (and therefore the auth check) when a new link is
-        #  created (otherwise user 2 will not be sent to Midas)
-        if not balance:
-            balance, vouchers, dw_event = self.update_cached_balance(cache_key, credentials_override)
+        #  created (otherwise user 2 will not be sent to Midas). For now, bypassing the cache entirely.
+        # if not balance:
+        balance, vouchers, dw_event = self.update_cached_balance(cache_key=cache_key,
+                                                                 credentials_override=credentials_override,
+                                                                 scheme_account_entry=scheme_account_entry)
 
         update_fields = self.check_balance_and_vouchers(balance=balance, vouchers=vouchers)
         status_update = old_status != self.status

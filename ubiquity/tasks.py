@@ -64,9 +64,10 @@ def async_link(
 
     scheme_account = SchemeAccount.objects.select_related("scheme").get(id=scheme_account_id)
     user = CustomUser.objects.get(id=user_id)
+    scheme_account_entry = SchemeAccountEntry.objects.get(user=user, scheme_account=scheme_account)
     try:
-        serializer = LinkSchemeSerializer(data=auth_fields, context={"scheme_account": scheme_account})
-        BaseLinkMixin.link_account(serializer, scheme_account, user)
+        serializer = LinkSchemeSerializer(data=auth_fields, context={"scheme_account_entry": scheme_account_entry})
+        BaseLinkMixin.link_account(serializer, scheme_account, user, scheme_account_entry)
 
         if payment_cards_to_link:
             auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
@@ -81,18 +82,18 @@ def async_link(
 
 
 @shared_task
-def async_balance(instance_id: int, delete_balance=False) -> None:
-    scheme_account = SchemeAccount.objects.get(id=instance_id)
-    if delete_balance:
-        scheme_account.delete_cached_balance()
-        scheme_account.delete_saved_balance()
+def async_balance(scheme_account_entry: "SchemeAccountEntry", delete_balance=False) -> None:
 
-    scheme_account.get_cached_balance()
+    if delete_balance:
+        scheme_account_entry.scheme_account.delete_cached_balance()
+        scheme_account_entry.scheme_account.delete_saved_balance()
+
+    scheme_account_entry.scheme_account.get_cached_balance(scheme_account_entry)
 
 
 @shared_task
 def async_balance_with_updated_credentials(
-    instance_id: int, user_id: int, update_fields: dict, scheme_questions
+    instance_id: int, user_id: int, update_fields: dict, scheme_questions, scheme_account_entry: SchemeAccountEntry
 ) -> None:
     scheme_account = SchemeAccount.objects.get(id=instance_id)
     scheme_account.delete_cached_balance()
@@ -104,7 +105,9 @@ def async_balance_with_updated_credentials(
     #  Do we want to contact Midas in this case?
 
     logger.debug(f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})")
-    balance, _, dw_event = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
+    balance, _, dw_event = scheme_account.update_cached_balance(scheme_account_entry=scheme_account_entry,
+                                                                cache_key=cache_key,
+                                                                credentials_override=update_fields)
 
     # data warehouse event could be success or failed (depends on midas response etc)
     # since we're in this function i is always AUTH_PENDING
@@ -118,15 +121,10 @@ def async_balance_with_updated_credentials(
             "Updating credentials."
         )
         # update credentials and set all other linked users to unauthorised if they're different to the stored ones
-        UpdateCredentialsMixin().update_credentials(scheme_account, update_fields, scheme_questions)
+        UpdateCredentialsMixin().update_credentials(scheme_account=scheme_account, data=update_fields,
+                                                    questions=scheme_questions,
+                                                    scheme_account_entry=scheme_account_entry)
 
-        SchemeAccountEntry.objects.filter(~Q(user_id=user_id), scheme_account=scheme_account).update(
-            auth_provided=False
-        )
-
-        PaymentCardSchemeEntry.objects.filter(
-            ~Q(payment_card_account__user_set=user_id), scheme_account=scheme_account
-        ).delete()
     else:
         logger.debug(
             f"No balance returned from balance call with updated credentials - SchemeAccount (id={scheme_account.id}) -"
@@ -144,13 +142,13 @@ def async_balance_with_updated_credentials(
         ).delete()
 
         if all(entry.auth_provided is False for entry in mcard_entries):
-            scheme_account.schemeaccountcredentialanswer_set.filter(
+            scheme_account_entry.schemeaccountcredentialanswer_set.filter(
                 question__auth_field=True,
                 question__manual_question=False,
             ).delete()
         else:
             # Call balance to correctly reset the scheme account balance using the stored credentials
-            scheme_account.get_cached_balance()
+            scheme_account.get_cached_balance(scheme_account_entry=scheme_account_entry)
 
 
 @shared_task
@@ -163,7 +161,7 @@ def async_all_balance(user_id: int, channels_permit) -> None:
     entries = entries.exclude(**exclude_query)
 
     for entry in entries:
-        async_balance.delay(entry.scheme_account_id)
+        async_balance.delay(entry)
 
 
 @shared_task
@@ -218,7 +216,11 @@ def async_join_journey_fetch_balance_and_update_status(scheme_account_id: int) -
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
     scheme_account.status = scheme_account.PENDING
     scheme_account.save(update_fields=["status"])
-    scheme_account.get_cached_balance()
+
+    # todo: improve this! This is absolutely not the way to do this, but is a temporary hack for Phase 1.
+    scheme_account_entry = SchemeAccountEntry.objects.first(scheme_account=scheme_account)
+
+    scheme_account.get_cached_balance(scheme_account_entry)
 
 
 def _format_info(scheme_account: SchemeAccount, user_id: int) -> dict:

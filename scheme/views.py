@@ -364,6 +364,7 @@ class CreateJoinSchemeAccount(APIView):
 
 
 class UpdateSchemeAccountStatus(GenericAPIView):
+    # todo: this will all need to change to an 'UpdateSchemeAccountEntryStatus'-type endpoint. This will be straight-up broken for now.
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
     serializer_class = StatusSerializer
@@ -591,6 +592,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
     DO NOT USE - NOT FOR APP ACCESS
     """
 
+    # todo: This will require change and is fundamentally broken right now!
     authentication_classes = (JwtAuthentication, ServiceAuthentication)
     serializer_class = SchemeAccountCredentialsSerializer
 
