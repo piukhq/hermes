@@ -780,7 +780,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         return mcard_user_auth_provided_map
 
     def to_representation(self, instance: "SchemeAccount") -> dict:
-        # todo: this is a tricky one!
 
         scheme_account_entry= instance.schemeaccountentry_set.get(user_id=self.context["user_id"])
 
