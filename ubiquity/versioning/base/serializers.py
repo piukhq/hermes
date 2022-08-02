@@ -781,7 +781,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
     def to_representation(self, instance: "SchemeAccount") -> dict:
 
-        scheme_account_entry= instance.schemeaccountentry_set.get(user_id=self.context["user_id"])
+        scheme_account_entry = instance.schemeaccountentry_set.get(user_id=self.context["user_id"])
 
         if instance.status not in instance.EXCLUDE_BALANCE_STATUSES:
             async_balance.delay(scheme_account_entry)
