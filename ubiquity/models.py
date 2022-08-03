@@ -125,17 +125,20 @@ class SchemeAccountEntry(models.Model):
         Updates the main_answer on the Scheme Account object to match Card_number, barcode, or else whatever the
         manual_question is for this scheme, so that the 'main_answer' property can be more reliably used.
         """
-        manual_answer_type = self.scheme_account.scheme.manual_question.type
+        main_answer_question = self.scheme_account.scheme.manual_question or \
+                               self.scheme_account.scheme.scan_question or \
+                               self.scheme_account.scheme.one_question_link
 
-        for cred in credentials:
-            if cred.question.type == BARCODE == manual_answer_type:
-                self.scheme_account.main_answer = self.scheme_account.card_number
-            elif cred.question.type == CARD_NUMBER == manual_answer_type:
-                self.scheme_account.main_answer = self.scheme_account.barcode
-            elif cred.question.type == manual_answer_type:
-                self.scheme_account.main_answer = cred.answer
-            else:
-                continue
+        if main_answer_question:
+            for cred in credentials:
+                if cred.question.type == BARCODE == main_answer_question.type:
+                    self.scheme_account.main_answer = self.scheme_account.card_number
+                elif cred.question.type == CARD_NUMBER == main_answer_question.type:
+                    self.scheme_account.main_answer = self.scheme_account.barcode
+                elif cred.question.type == main_answer_question.type:
+                    self.scheme_account.main_answer = cred.answer
+                else:
+                    continue
 
     def _update_barcode_and_card_number(
         self,
