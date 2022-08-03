@@ -64,13 +64,15 @@ class TestResources(GlobalMockAPITestCase):
             register_field=True,
         )
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
+        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
+
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=cls.scheme.manual_question, scheme_account=cls.scheme_account
+            question=cls.scheme.manual_question, scheme_account=cls.scheme_account, scheme_account_entry=cls.scheme_account_entry
         )
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=cls.secondary_question, scheme_account=cls.scheme_account
+            question=cls.secondary_question, scheme_account=cls.scheme_account, scheme_account_entry=cls.scheme_account_entry
         )
-        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
+
         cls.scheme_bundle_association = SchemeBundleAssociationFactory(
             scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
         )

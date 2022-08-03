@@ -222,17 +222,21 @@ class TestResources(GlobalMockAPITestCase):
         )
 
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
+
+        self.scheme_account_entry = SchemeAccountEntryFactory.create(
+            scheme_account=self.scheme_account, user=self.user, auth_provided=True
+        )
+
         self.scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=self.scheme.manual_question, scheme_account=self.scheme_account, answer=fake.first_name().lower()
+            question=self.scheme.manual_question, scheme_account=self.scheme_account, answer=fake.first_name().lower(),
+            scheme_account_entry=self.scheme_account_entry
         )
         self.second_scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=self.secondary_question, scheme_account=self.scheme_account
+            question=self.secondary_question, scheme_account=self.scheme_account,
+            scheme_account_entry=self.scheme_account_entry
         )
         self.second_scheme_account_answer.answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(
             self.second_scheme_account_answer.answer
-        )
-        self.scheme_account_entry = SchemeAccountEntryFactory.create(
-            scheme_account=self.scheme_account, user=self.user, auth_provided=True
         )
 
         self.scheme_account_entry.update_barcode_and_card_number()
@@ -826,10 +830,11 @@ class TestResources(GlobalMockAPITestCase):
         for scheme, question in test_schemes:
             existing_answer_value = "1234554321"
             existing_scheme_account = SchemeAccountFactory(scheme=scheme, **{question.type: existing_answer_value})
+            scheme_account_entry = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
             SchemeCredentialAnswerFactory(
-                scheme_account=existing_scheme_account, question=question, answer=existing_answer_value
+                scheme_account=existing_scheme_account, question=question, answer=existing_answer_value,
+                scheme_account_entry=scheme_account_entry
             )
-            SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
 
             payload = {
                 "membership_plan": scheme.id,
@@ -862,9 +867,10 @@ class TestResources(GlobalMockAPITestCase):
         existing_scheme_account = SchemeAccountFactory(
             scheme=self.scheme, barcode=existing_answer_value, status=SchemeAccount.WALLET_ONLY
         )
-        SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value
+            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value,
+            scheme_account_entry=scheme_account_entry
         )
 
         new_user = UserFactory(client=self.client_app, external_id="testexternalid")
@@ -905,9 +911,11 @@ class TestResources(GlobalMockAPITestCase):
         existing_scheme_account = SchemeAccountFactory(
             scheme=self.scheme, barcode=existing_answer_value, status=SchemeAccount.WALLET_ONLY
         )
-        SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user, auth_provided=True)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user,
+                                                        auth_provided=True)
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value
+            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value,
+            scheme_account_entry=scheme_account_entry
         )
 
         payload = {
@@ -959,9 +967,11 @@ class TestResources(GlobalMockAPITestCase):
         existing_scheme_account = SchemeAccountFactory(
             scheme=self.scheme, barcode=existing_answer_value, status=SchemeAccount.WALLET_ONLY
         )
-        SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user, auth_provided=False)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user,
+                                                         auth_provided=False)
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value
+            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value,
+            scheme_account_entry=scheme_account_entry
         )
 
         resp = self.client.patch(
@@ -988,7 +998,7 @@ class TestResources(GlobalMockAPITestCase):
         )
         entry = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user, auth_provided=False)
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value
+            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value, scheme_account_entry=entry
         )
 
         payload = {
@@ -1021,15 +1031,27 @@ class TestResources(GlobalMockAPITestCase):
         user2 = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
 
         existing_scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.ACTIVE)
-        manual_q = SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer="36543456787656"
-        )
-        auth_q = SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.secondary_question, answer="Test"
-        )
 
         entry1 = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user, auth_provided=True)
         entry2 = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=user2, auth_provided=False)
+
+        manual_q = SchemeCredentialAnswerFactory(
+            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer="36543456787656",
+            scheme_account_entry=entry1
+        )
+        auth_q = SchemeCredentialAnswerFactory(
+            scheme_account=existing_scheme_account, question=self.secondary_question, answer="Test",
+            scheme_account_entry=entry1
+        )
+
+        SchemeCredentialAnswerFactory(
+            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer="36543456787656",
+            scheme_account_entry=entry2
+        )
+        SchemeCredentialAnswerFactory(
+            scheme_account=existing_scheme_account, question=self.secondary_question, answer="Test",
+            scheme_account_entry=entry2
+        )
 
         pcard_scheme_entry1 = PaymentCardSchemeEntryFactory(
             scheme_account=existing_scheme_account, payment_card_account=self.payment_card_account

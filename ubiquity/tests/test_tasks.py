@@ -143,7 +143,8 @@ class TestTasks(GlobalMockAPITestCase):
     def test_async_link_validation_error(self, mock_midas_balance, mock_analytics):
         scheme_account = self.link_entry.scheme_account
         user_id = self.link_entry.user_id
-        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.manual_question)
+        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.manual_question,
+                                      scheme_account_entry=self.link_entry)
 
         auth_fields = {"password": "test123"}
         self.assertEqual(scheme_account.status, scheme_account.ACTIVE)
@@ -168,7 +169,8 @@ class TestTasks(GlobalMockAPITestCase):
         )
 
         SchemeCredentialAnswerFactory(
-            scheme_account=self.link_entry.scheme_account, question=card_number, answer="1234567"
+            scheme_account=self.link_entry.scheme_account, question=card_number, answer="1234567",
+            scheme_account_entry=self.link_entry
         )
 
         scheme_account_id = self.link_entry.scheme_account.id
@@ -234,15 +236,24 @@ class TestTasks(GlobalMockAPITestCase):
         user3 = UserFactory(external_id=external_id_2, email=external_id_2)
 
         scheme_account = SchemeAccountFactory()
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=user2, auth_provided=False)
+        scheme_account_entry_alt = SchemeAccountEntryFactory(scheme_account=scheme_account, user=user3, auth_provided=False)
 
-        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.manual_question)
-        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.auth_question_1)
-        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.auth_question_2)
+        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.manual_question,
+                                      scheme_account_entry=scheme_account_entry)
+        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.auth_question_1,
+                                      scheme_account_entry=scheme_account_entry)
+        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.auth_question_2,
+                                      scheme_account_entry=scheme_account_entry)
 
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=user2, auth_provided=False)
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=user3, auth_provided=False)
+        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.manual_question,
+                                      scheme_account_entry=scheme_account_entry_alt)
+        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.auth_question_1,
+                                      scheme_account_entry=scheme_account_entry_alt)
+        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.auth_question_2,
+                                      scheme_account_entry=scheme_account_entry_alt)
 
-        answers = scheme_account.schemeaccountcredentialanswer_set
+        answers = scheme_account_entry.schemeaccountcredentialanswer_set
         self.assertEqual(3, answers.count())
 
         deleted_membership_card_cleanup(scheme_account.id, "", self.user.id)

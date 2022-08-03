@@ -775,20 +775,6 @@ class SchemeAccount(models.Model):
         status_keys = dict((extended_status[0], extended_status[2]) for extended_status in self.EXTENDED_STATUSES)
         return status_keys.get(self.status)
 
-    def _collect_credentials(self):
-        credentials = {}
-        for question in self.scheme.questions.all():
-            # attempt to get the answer from the database.
-            answer = self._find_answer(question.type)
-            if not answer:
-                continue
-
-            if question.type in ENCRYPTED_CREDENTIALS:
-                credentials[question.type] = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(answer)
-            else:
-                credentials[question.type] = answer
-        return credentials
-
     def collect_pending_consents(self):
         user_consents = self.userconsent_set.filter(status=ConsentStatus.PENDING).values()
         return self.format_user_consents(user_consents)

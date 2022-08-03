@@ -71,15 +71,17 @@ class TestCredentials(GlobalMockAPITestCase):
                 SchemeAccountFactory(scheme=self.scheme, **{field: answer})
 
                 scheme_account2 = SchemeAccountFactory(scheme=self.scheme)
-                SchemeAccountEntryFactory(scheme_account=scheme_account2, user=self.user)
+                scheme_account_entry_2 = SchemeAccountEntryFactory(scheme_account=scheme_account2, user=self.user)
 
                 if field == BARCODE:
                     SchemeCredentialAnswerFactory(
-                        question=self.scheme.scan_question, scheme_account=scheme_account2, answer="2222"
+                        question=self.scheme.scan_question, scheme_account=scheme_account2, answer="2222",
+                        scheme_account_entry=scheme_account_entry_2
                     )
                 else:
                     SchemeCredentialAnswerFactory(
-                        question=self.scheme.manual_question, scheme_account=scheme_account2, answer="2222"
+                        question=self.scheme.manual_question, scheme_account=scheme_account2, answer="2222",
+                        scheme_account_entry=scheme_account_entry_2
                     )
 
                 payload = {field: answer}
@@ -101,11 +103,13 @@ class TestCredentials(GlobalMockAPITestCase):
 
                 if field == BARCODE:
                     ans = SchemeAccountCredentialAnswer.objects.get(
-                        scheme_account=scheme_account2, question=self.scheme.scan_question
+                        scheme_account=scheme_account2, question=self.scheme.scan_question,
+                        scheme_account_entry=scheme_account_entry_2
                     )
                 else:
                     ans = SchemeAccountCredentialAnswer.objects.get(
-                        scheme_account=scheme_account2, question=self.scheme.manual_question
+                        scheme_account=scheme_account2, question=self.scheme.manual_question,
+                        scheme_account_entry=scheme_account_entry_2
                     )
 
                 self.assertNotEqual(ans, answer)
