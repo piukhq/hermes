@@ -242,7 +242,7 @@ class TestResources(GlobalMockAPITestCase):
             self.second_scheme_account_answer.answer
         )
 
-        self.scheme_account_entry.update_barcode_and_card_number()
+        self.scheme_account_entry.update_scheme_account_key_credential_fields()
 
         self.test_hades_transactions = [
             {
@@ -2313,7 +2313,7 @@ class TestResources(GlobalMockAPITestCase):
             answer=scheme_account.main_answer,
             scheme_account_entry=scheme_account_entry,
         )
-        scheme_account_entry.update_barcode_and_card_number()
+        scheme_account_entry.update_scheme_account_key_credential_fields()
 
         postcode_question = SchemeCredentialQuestionFactory(
             scheme=scheme,

@@ -107,7 +107,7 @@ class TestVOP(GlobalMockAPITestCase):
             scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
         )
 
-        cls.scheme_account_entry.update_barcode_and_card_number()
+        cls.scheme_account_entry.update_scheme_account_key_credential_fields()
 
         cls.issuer = IssuerFactory(name="Barclays")
         cls.payment_card = PaymentCardFactory(slug="visa", system="visa")

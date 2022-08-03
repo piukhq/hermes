@@ -92,7 +92,8 @@ class SchemeAccountEntry(models.Model):
                     defaults={"answer": v},
                 )
 
-        self.update_barcode_and_card_number()
+        self.update_scheme_account_key_credential_fields()
+
         for question in ["card_number", "barcode"]:
             value = getattr(self.scheme_account, question)
             if not credentials.get(question) and value:
@@ -100,9 +101,10 @@ class SchemeAccountEntry(models.Model):
 
         return credentials
 
-    def update_barcode_and_card_number(self):
+    def update_scheme_account_key_credential_fields(self):
 
-        answers = {answer for answer in self.credential_answers if answer.question.type in [CARD_NUMBER, BARCODE]}
+        answers = {answer for answer in self.credential_answers if answer.question.manual_question or
+                   answer.question.scan_question or answer.question.one_question_link}
 
         card_number = None
         barcode = None
@@ -114,8 +116,22 @@ class SchemeAccountEntry(models.Model):
 
         self._update_barcode_and_card_number(card_number, answers=answers, primary_cred_type=CARD_NUMBER)
         self._update_barcode_and_card_number(barcode, answers=answers, primary_cred_type=BARCODE)
+        self._update_main_answer(answers)
 
         self.scheme_account.save(update_fields=["barcode", "card_number"])
+
+    def _update_main_answer(self, credentials):
+        manual_answer_type = self.scheme_account.scheme.manual_question.type
+
+        for cred in credentials:
+            if cred.question.type == BARCODE == manual_answer_type:
+                self.scheme_account.main_answer = self.scheme_account.card_number
+            elif cred.question.type == CARD_NUMBER == manual_answer_type:
+                self.scheme_account.main_answer = self.scheme_account.barcode
+            elif cred.question.type == manual_answer_type:
+                self.scheme_account.main_answer = cred.answer
+            else:
+                continue
 
     def _update_barcode_and_card_number(
         self,

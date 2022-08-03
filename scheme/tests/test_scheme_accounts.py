@@ -147,7 +147,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             scheme=cls.scheme1, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
         )
 
-        cls.scheme_account_entry1.update_barcode_and_card_number()
+        cls.scheme_account_entry1.update_scheme_account_key_credential_fields()
         cls.auth_headers = {"HTTP_AUTHORIZATION": "Token " + cls.user.create_token(bundle_id=cls.bundle.bundle_id)}
 
         cls.scheme1_balance_details = SchemeBalanceDetailsFactory(scheme_id=cls.scheme1)

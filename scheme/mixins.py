@@ -315,7 +315,7 @@ class SchemeAccountJoinMixin:
     ) -> t.Tuple[dict, int, SchemeAccount]:
 
         scheme_account_entry = scheme_account.schemeaccountentry_set.get(user=user)
-        scheme_account_entry.update_barcode_and_card_number()
+        scheme_account_entry.update_scheme_account_key_credential_fields()
         try:
             payment_card_hash = data["credentials"].get(PAYMENT_CARD_HASH)
             if payment_card_hash:

@@ -821,7 +821,7 @@ class MembershipCardView(
         scheme_acc_entry.auth_provided = True
         scheme_acc_entry.save(update_fields=["auth_provided"])
         self.replace_credentials_and_scheme(account, new_answers, scheme, scheme_acc_entry)
-        scheme_acc_entry.update_barcode_and_card_number()
+        scheme_acc_entry.update_scheme_account_key_credential_fields()
         account.set_pending()
         async_balance.delay(scheme_acc_entry)
 
@@ -1010,12 +1010,12 @@ class MembershipCardView(
             # send add_and_auth event to data_warehouse
             addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
 
-            sch_acc_entry.update_barcode_and_card_number()
+            sch_acc_entry.update_scheme_account_key_credential_fields()
 
         elif not auth_fields:
             # no auth provided, new scheme account created
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
-            sch_acc_entry.update_barcode_and_card_number()
+            sch_acc_entry.update_scheme_account_key_credential_fields()
 
         else:
             # new scheme account not created, auth fields provided (linking to existing scheme account)
