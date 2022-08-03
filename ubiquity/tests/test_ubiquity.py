@@ -1041,9 +1041,9 @@ class TestResources(GlobalMockAPITestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(None, "", None))
-    def test_wallet_only_card_patch_fails_multi_user(self, mock_update_balance):
-        """Test auth_provided user doing a PATCH with incorrect credentials willdelete auth credentials
-        and delete payment scheme entries if all remaining linked users are wallet only users
+    def test_patch_credentials_isolated_multi_user(self, mock_update_balance):
+        """Test auth_provided user doing a PATCH with new credentials doesn't delete auth credentials
+        for other linked users.
         """
         external_id = "anothertest@user.com"
         user2 = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
@@ -1079,10 +1079,6 @@ class TestResources(GlobalMockAPITestCase):
             scheme_account_entry=entry2,
         )
 
-        pcard_scheme_entry1 = PaymentCardSchemeEntryFactory(
-            scheme_account=existing_scheme_account, payment_card_account=self.payment_card_account
-        )
-
         payload = {
             "membership_plan": self.scheme.id,
             "account": {"authorise_fields": [{"column": self.secondary_question.label, "value": "Fail Patch"}]},
@@ -1100,17 +1096,10 @@ class TestResources(GlobalMockAPITestCase):
         existing_scheme_account.refresh_from_db()
         entry1.refresh_from_db()
         entry2.refresh_from_db()
-        self.assertFalse(entry1.auth_provided)
-        self.assertFalse(entry1.auth_provided)
 
-        # check only auth questions are deleted
+        # will error (DoesNotExist) if credentials have been deleted
         manual_q.refresh_from_db()
-        with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):
-            auth_q.refresh_from_db()
-
-        # check payment scheme entries are deleted
-        with self.assertRaises(PaymentCardSchemeEntry.DoesNotExist):
-            pcard_scheme_entry1.refresh_from_db()
+        auth_q.refresh_from_db()
 
     @patch("ubiquity.views.async_link", autospec=True)
     def test_membership_card_link_with_consents(self, *_):
