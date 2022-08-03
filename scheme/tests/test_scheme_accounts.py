@@ -1271,10 +1271,10 @@ class TestAccessTokens(GlobalMockAPITestCase):
         question_2 = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=cls.scheme_account2.scheme)
 
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(
-            scheme_account=cls.scheme_account2, question=question, scheme_account_entry=cls.scheme_account_entry_2
+            scheme_account=cls.scheme_account2, question=question, scheme_account_entry=cls.scheme_account_entry2
         )
         cls.second_scheme_account_answer2 = SchemeCredentialAnswerFactory(
-            scheme_account=cls.scheme_account2, question=question_2, scheme_account_entry=cls.scheme_account_entry_2
+            scheme_account=cls.scheme_account2, question=question_2, scheme_account_entry=cls.scheme_account_entry2
         )
 
         cls.scheme2 = cls.scheme_account2.scheme
@@ -1283,7 +1283,7 @@ class TestAccessTokens(GlobalMockAPITestCase):
         cls.scheme_account_answer2 = SchemeCredentialAnswerFactory(
             scheme_account=cls.scheme_account2,
             question=cls.scheme2.manual_question,
-            scheme_account_entry=cls.scheme_account_entry_2,
+            scheme_account_entry=cls.scheme_account_entry2,
         )
         cls.user2 = cls.scheme_account_entry2.user
 
