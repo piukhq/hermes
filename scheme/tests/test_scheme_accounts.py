@@ -70,15 +70,61 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         )
 
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
+        cls.user = cls.scheme_account_entry.user
+
+        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account)
+
+        cls.scheme1 = SchemeFactory(card_number_regex=r"(^[0-9]{16})", card_number_prefix="", tier=Scheme.PLL)
+
+        cls.scheme_account1 = SchemeAccountFactory(scheme=cls.scheme1)
+
+        barcode_question = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme1, type=BARCODE, options=SchemeCredentialQuestion.LINK
+        )
+        SchemeCredentialQuestionFactory(scheme=cls.scheme1, type=CARD_NUMBER, third_party_identifier=True)
+
+        cls.scheme.save()
+
+        cls.scheme_account_entry1 =SchemeAccountEntryFactory(scheme_account=cls.scheme_account1)
+
+        cls.scheme_account_answer_barcode = SchemeCredentialAnswerFactory(
+            answer="9999888877776666", question=barcode_question, scheme_account=cls.scheme_account1,
+            scheme_account_entry=cls.scheme_account_entry
+        )
+
+        cls.scheme_account_answer_barcode = SchemeCredentialAnswerFactory(
+            answer="9999888877776666", question=barcode_question, scheme_account=cls.scheme_account1,
+            scheme_account_entry=cls.scheme_account_entry1
+        )
+
+        SchemeAccountEntryFactory(scheme_account=cls.scheme_account1)
+
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=cls.scheme.manual_question, scheme_account=cls.scheme_account
+            question=cls.scheme.manual_question, scheme_account=cls.scheme_account,
+            scheme_account_entry=cls.scheme_account_entry
         )
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=secondary_question, scheme_account=cls.scheme_account
+            question=secondary_question, scheme_account=cls.scheme_account,
+            scheme_account_entry=cls.scheme_account_entry
         )
 
         cls.scheme_account_answer_password = SchemeCredentialAnswerFactory(
-            answer="test_password", question=password_question, scheme_account=cls.scheme_account
+            answer="test_password", question=password_question, scheme_account=cls.scheme_account,
+            scheme_account_entry=cls.scheme_account_entry
+        )
+
+        cls.scheme_account_answer = SchemeCredentialAnswerFactory(
+            question=cls.scheme.manual_question, scheme_account=cls.scheme_account,
+            scheme_account_entry=cls.scheme_account_entry1
+        )
+        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(
+            question=secondary_question, scheme_account=cls.scheme_account,
+            scheme_account_entry=cls.scheme_account_entry1
+        )
+
+        cls.scheme_account_answer_password = SchemeCredentialAnswerFactory(
+            answer="test_password", question=password_question, scheme_account=cls.scheme_account,
+            scheme_account_entry=cls.scheme_account_entry1
         )
         cls.consent = ConsentFactory.create(scheme=cls.scheme, slug=secrets.token_urlsafe())
         metadata1 = {"journey": JourneyTypes.LINK.value}
@@ -89,22 +135,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         cls.scheme_account_consent2 = UserConsentFactory(
             scheme_account=cls.scheme_account, metadata=metadata2, status=ConsentStatus.SUCCESS
         )
-
-        cls.scheme1 = SchemeFactory(card_number_regex=r"(^[0-9]{16})", card_number_prefix="", tier=Scheme.PLL)
-        cls.scheme_account1 = SchemeAccountFactory(scheme=cls.scheme1)
-        barcode_question = SchemeCredentialQuestionFactory(
-            scheme=cls.scheme1, type=BARCODE, options=SchemeCredentialQuestion.LINK
-        )
-        SchemeCredentialQuestionFactory(scheme=cls.scheme1, type=CARD_NUMBER, third_party_identifier=True)
-        cls.scheme_account_answer_barcode = SchemeCredentialAnswerFactory(
-            answer="9999888877776666", question=barcode_question, scheme_account=cls.scheme_account1
-        )
-        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account)
-        cls.scheme_account_entry1 =SchemeAccountEntryFactory(scheme_account=cls.scheme_account1)
-        SchemeAccountEntryFactory(scheme_account=cls.scheme_account1)
-        cls.user = cls.scheme_account_entry.user
-
-        cls.scheme.save()
 
         cls.auth_service_headers = {"HTTP_AUTHORIZATION": "Token " + settings.SERVICE_API_KEY}
 
@@ -136,7 +166,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
                 self.status_code = status_code
 
         mock_requests_get.return_value = BalanceResponse(536)
-        SchemeAccount.get_midas_balance(self.scheme_account, JourneyTypes.JOIN)
+        SchemeAccount.get_midas_balance(self.scheme_account, JourneyTypes.JOIN, self.scheme_account_entry)
         self.assertTrue(mock_call_analytics)
 
     def test_scheme_account_query(self):
@@ -627,7 +657,8 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(self.scheme_account1.third_party_identifier, self.scheme_account_answer_barcode.answer)
 
     def test_scheme_account_encrypted_credentials(self):
-        decrypted_credentials = json.loads(AESCipher(AESKeyNames.AES_KEY).decrypt(self.scheme_account.credentials()))
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
+        decrypted_credentials = json.loads(AESCipher(AESKeyNames.AES_KEY).decrypt(self.scheme_account_entry.credentials()))
 
         self.assertEqual(decrypted_credentials["card_number"], self.second_scheme_account_answer.answer)
         self.assertEqual(decrypted_credentials["password"], "test_password")
@@ -641,8 +672,8 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
     def test_scheme_account_encrypted_credentials_bad(self):
         scheme_account = SchemeAccountFactory(scheme=self.scheme)
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
-        encrypted_credentials = scheme_account.credentials()
+        scheme_account_entry= SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        encrypted_credentials = scheme_account_entry.credentials()
         self.assertIsNone(encrypted_credentials)
         self.assertEqual(scheme_account.status, SchemeAccount.INCOMPLETE)
 
@@ -651,16 +682,18 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
         scheme_account = SchemeAccountFactory(scheme=scheme)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
 
-        self.assertIsNotNone(scheme_account.credentials(), {})
+        self.assertIsNotNone(scheme_account_entry.credentials(), {})
 
     def test_temporary_iceland_fix_credential_validation_for_not_iceland(self):
         scheme = SchemeFactory(slug="not-iceland")
         SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
         scheme_account = SchemeAccountFactory(scheme=scheme)
+        scheme_account_entry= SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
 
-        self.assertIsNone(scheme_account.credentials())
+        self.assertIsNone(scheme_account_entry.credentials())
 
     def test_scheme_account_answer_serializer(self):
         """
@@ -1000,7 +1033,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         SchemeCredentialQuestionFactory(
             scheme=scheme_account.scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK
         )
-        scheme_account_entry = SchemeAccountEntryFactory(scheme=scheme_account)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
         self.assertFalse(scheme_account_entry.missing_credentials([BARCODE, PASSWORD]))
         self.assertFalse(scheme_account_entry.missing_credentials([CARD_NUMBER, PASSWORD]))
         self.assertFalse(scheme_account_entry.missing_credentials([BARCODE, CARD_NUMBER, PASSWORD]))
@@ -1052,7 +1085,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         scheme_account = SchemeAccountFactory(scheme=scheme)
         self.assertIsNone(scheme_account.card_label)
 
-    @patch.object(SchemeAccount, "credentials", auto_spec=True, return_value=None)
+    @patch.object(SchemeAccountEntry, "credentials", auto_spec=True, return_value=None)
     def test_get_midas_balance_no_credentials(self, mock_credentials):
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
@@ -1338,7 +1371,7 @@ class TestAccessTokens(GlobalMockAPITestCase):
         self.test_scheme_acc.scheme = scheme
 
         credentials = {"barcode": "633204003025524460012345"}
-        new_credentials = self.test_scheme_acc.update_or_create_primary_credentials(credentials)
+        new_credentials = self.test_scheme_acc_entry.update_or_create_primary_credentials(credentials)
         self.assertEqual(new_credentials, {"barcode": "633204003025524460012345", "card_number": "6332040030255244600"})
 
     def test_update_or_create_primary_credentials_card_number_to_barcode(self):
@@ -1354,7 +1387,7 @@ class TestAccessTokens(GlobalMockAPITestCase):
         self.test_scheme_acc.scheme = scheme
 
         credentials = {"card_number": "633204003025524460012345"}
-        new_credentials = self.test_scheme_acc.update_or_create_primary_credentials(credentials)
+        new_credentials = self.test_scheme_acc_entry.update_or_create_primary_credentials(credentials)
         self.assertEqual(new_credentials, {"card_number": "633204003025524460012345", "barcode": "6332040030255244600"})
 
     def test_update_or_create_primary_credentials_does_nothing_when_only_one_primary_cred_in_scheme(self):
@@ -1366,7 +1399,7 @@ class TestAccessTokens(GlobalMockAPITestCase):
         self.test_scheme_acc.scheme = scheme
 
         credentials = {"barcode": "633204003025524460012345"}
-        new_credentials = self.test_scheme_acc.update_or_create_primary_credentials(credentials)
+        new_credentials = self.test_scheme_acc_entry.update_or_create_primary_credentials(credentials)
         self.assertEqual(new_credentials, {"barcode": "633204003025524460012345"})
 
     def test_update_or_create_primary_credentials_saves_non_regex_manual_question(self):
@@ -1381,7 +1414,7 @@ class TestAccessTokens(GlobalMockAPITestCase):
 
         self.assertFalse(self.scheme_account.main_answer)
         credentials = {"email": "testemail@testbink.com"}
-        new_credentials = self.test_scheme_acc.update_or_create_primary_credentials(credentials)
+        new_credentials = self.test_scheme_acc_entry.update_or_create_primary_credentials(credentials)
         self.assertEqual(new_credentials, {"email": "testemail@testbink.com"})
         self.assertEqual(self.test_scheme_acc.main_answer, "testemail@testbink.com")
 
@@ -1486,6 +1519,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         cls.bundle = ClientApplicationBundle.objects.get(client=cls.bink_client_app, bundle_id="com.bink.wallet")
 
         SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME, manual_question=True)
+
         secondary_question = SchemeCredentialQuestionFactory(
             scheme=cls.scheme, type=CARD_NUMBER, options=SchemeCredentialQuestion.LINK
         )
@@ -1493,24 +1527,48 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
             scheme=cls.scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK_AND_JOIN
         )
 
+        # Scheme 1
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
-        cls.scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=cls.scheme.manual_question, scheme_account=cls.scheme_account
-        )
-        SchemeCredentialAnswerFactory(question=secondary_question, scheme_account=cls.scheme_account)
-        SchemeCredentialAnswerFactory(
-            answer="testpassword", question=password_question, scheme_account=cls.scheme_account
-        )
-
-        cls.scheme_account2 = SchemeAccountFactory(scheme=cls.scheme)
-        SchemeCredentialAnswerFactory(
-            answer="testpassword", question=password_question, scheme_account=cls.scheme_account2
-        )
-
-        cls.scheme_account_no_answers = SchemeAccountFactory(scheme=cls.scheme)
 
         cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account)
+
+        cls.scheme_account_answer = SchemeCredentialAnswerFactory(
+            question=cls.scheme.manual_question, scheme_account=cls.scheme_account, scheme_account_entry=cls.scheme_account_entry
+        )
+        SchemeCredentialAnswerFactory(question=secondary_question, scheme_account=cls.scheme_account, scheme_account_entry=cls.scheme_account_entry)
+        SchemeCredentialAnswerFactory(
+            answer="testpassword", question=password_question, scheme_account=cls.scheme_account, scheme_account_entry=cls.scheme_account_entry
+        )
+
+        SchemeCredentialAnswerFactory(
+            question=cls.scheme.manual_question, scheme_account=cls.scheme_account,
+            scheme_account_entry=cls.scheme_account_entry2
+        )
+        SchemeCredentialAnswerFactory(question=secondary_question, scheme_account=cls.scheme_account,
+                                      scheme_account_entry=cls.scheme_account_entry2)
+        SchemeCredentialAnswerFactory(
+            answer="testpassword", question=password_question, scheme_account=cls.scheme_account,
+            scheme_account_entry=cls.scheme_account_entry2
+        )
+
+        # Scheme 2
+        cls.scheme_account2 = SchemeAccountFactory(scheme=cls.scheme)
+
         cls.scheme_account_entry2 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account2)
+
+        SchemeCredentialAnswerFactory(
+            answer="testpassword", question=password_question, scheme_account=cls.scheme_account2,
+            scheme_account_entry=cls.scheme_account_entry
+        )
+
+        SchemeCredentialAnswerFactory(
+            answer="testpassword", question=password_question, scheme_account=cls.scheme_account2,
+            scheme_account_entry=cls.scheme_account_entry2
+        )
+
+        # Scheme 3 (no answers)
+        cls.scheme_account_no_answers = SchemeAccountFactory(scheme=cls.scheme)
+
         cls.scheme_account_entry_no_answers = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_no_answers)
 
         cls.scheme_bundle_association = SchemeBundleAssociationFactory(
@@ -1540,7 +1598,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["updated"], ["card_number", "password"])
 
-        credential_list = self.scheme_account2.schemeaccountcredentialanswer_set.all()
+        credential_list = self.scheme_account_entry2.schemeaccountcredentialanswer_set.all()
         scheme_account_types = [answer.question.type for answer in credential_list]
         self.assertSequenceEqual(sorted(["card_number", "password"]), sorted(scheme_account_types))
         self.assertEqual(self.scheme_account2._collect_credentials()["password"], "newpassword")
@@ -1554,7 +1612,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["non_field_errors"][0], "field(s) not found for scheme: title")
-        credential_list = self.scheme_account_no_answers.schemeaccountcredentialanswer_set.all()
+        credential_list = self.scheme_account_entry_no_answers.schemeaccountcredentialanswer_set.all()
         self.assertEqual(len(credential_list), 0)
 
     def test_update_credentials_bad_credential_type(self):
@@ -1566,7 +1624,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["non_field_errors"][0], "field(s) not found for scheme: user_name")
-        credential_list = self.scheme_account_no_answers.schemeaccountcredentialanswer_set.all()
+        credential_list = self.scheme_account_entry_no_answers.schemeaccountcredentialanswer_set.all()
         self.assertEqual(len(credential_list), 0)
 
     def test_update_credentials_bad_credential_value_type_is_converted(self):
@@ -1578,7 +1636,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
 
         self.assertEqual(response.status_code, 200)
 
-        credential_list = self.scheme_account_no_answers.schemeaccountcredentialanswer_set.all()
+        credential_list = self.scheme_account_entry_no_answers.schemeaccountcredentialanswer_set.all()
         scheme_account_types = [answer.question.type for answer in credential_list]
         self.assertEqual(["card_number"], scheme_account_types)
         self.assertEqual(self.scheme_account_no_answers._collect_credentials()["card_number"], "True")
@@ -1588,7 +1646,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["deleted"], "['card_number', 'username']")
 
-        credential_list = self.scheme_account.schemeaccountcredentialanswer_set.all()
+        credential_list = self.scheme_account_entry.schemeaccountcredentialanswer_set.all()
         scheme_account_types = [answer.question.type for answer in credential_list]
         self.assertTrue("card_number" not in scheme_account_types)
 
@@ -1597,7 +1655,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["deleted"], "['card_number', 'password']")
 
-        credential_list = self.scheme_account.schemeaccountcredentialanswer_set.all()
+        credential_list = self.scheme_account_entry.schemeaccountcredentialanswer_set.all()
         scheme_account_types = [answer.question.type for answer in credential_list]
         self.assertTrue("card_number" not in scheme_account_types)
         self.assertTrue("password" not in scheme_account_types)
@@ -1610,7 +1668,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["deleted"], "['card_number', 'password', 'username']")
 
-        new_credential_list = self.scheme_account.schemeaccountcredentialanswer_set.all()
+        new_credential_list = self.scheme_account_entry.schemeaccountcredentialanswer_set.all()
         self.assertEqual(len(new_credential_list), 0)
 
     def test_delete_credentials_invalid_request(self):
@@ -1618,7 +1676,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertTrue("Must be a valid boolean" in str(response.json()))
 
-        credential_list = self.scheme_account.schemeaccountcredentialanswer_set.all()
+        credential_list = self.scheme_account_entry.schemeaccountcredentialanswer_set.all()
         self.assertEqual(len(credential_list), 3)
 
     def test_delete_credentials_wrong_credential(self):
@@ -1630,7 +1688,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 404)
         self.assertTrue(response.json()["message"].startswith("No answers found for: card_number"))
 
-        credential_list = self.scheme_account.schemeaccountcredentialanswer_set.all()
+        credential_list = self.scheme_account_entry.schemeaccountcredentialanswer_set.all()
         self.assertEqual(len(credential_list), 3)
 
     def test_delete_credentials_with_scheme_account_without_credentials(self):

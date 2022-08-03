@@ -1078,7 +1078,7 @@ class MembershipCardView(
             email = enrol_fields["email"]
 
             other_scheme_links = SchemeAccountEntry.objects.filter(
-                schemeaccount__scheme_id=scheme.id,
+                scheme_account__scheme_id=scheme.id,
                 schemeaccountcredentialanswer__answer=email,
             )
 
@@ -1338,6 +1338,7 @@ class ListMembershipCardView(MembershipCardView):
                 context={
                     "request": request,
                     "mcard_user_auth_provided_map": {sch_acc_entry.scheme_account_id: sch_acc_entry.auth_provided},
+                    "user_id": self.request.user.id
                 },
             ).data,
             status=status_code,
@@ -1363,7 +1364,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
 
         auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, link.scheme_account)
         serializer = self.get_serializer_by_request(
-            link.scheme_account, context={"mcard_user_auth_provided_map": auth_provided_mapping}
+            link.scheme_account, context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": request.user.id}
         )
 
         return Response(serializer.data, status_code)

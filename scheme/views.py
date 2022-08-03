@@ -296,7 +296,7 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        _, response, _ = self.create_account(request.data, request.user)
+        _, response, _, _, _ = self.create_account(request.data, request.user)
         return Response(
             response,
             status=status.HTTP_201_CREATED,

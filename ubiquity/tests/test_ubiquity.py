@@ -346,7 +346,7 @@ class TestResources(GlobalMockAPITestCase):
         )
         SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=self.user)
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
-        expected_result = remove_empty(MembershipCardSerializer(scheme_accounts, many=True).data)
+        expected_result = remove_empty(MembershipCardSerializer(scheme_accounts, many=True, context={"user_id": self.user.id}).data)
         resp = self.client.get(reverse("membership-cards"), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result[0]["account"], resp.json()[0]["account"])
@@ -618,7 +618,8 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.save()
         mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
+                                          "user_id": self.user.id}
         ).data
         self.assertEqual(data["status"]["state"], "authorised")
         self.assertEqual(data["status"]["reason_codes"], ["X300"])
@@ -634,7 +635,8 @@ class TestResources(GlobalMockAPITestCase):
 
         mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
+                                          "user_id": self.user.id}
         ).data
         self.assertEqual(data["status"]["state"], "failed")
         self.assertEqual(data["status"]["reason_codes"], ["X303"])
@@ -643,7 +645,8 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.save()
 
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
+                                          "user_id": self.user.id}
         ).data
         self.assertEqual(data["status"]["state"], "failed")
         self.assertEqual(data["status"]["reason_codes"], ["X303"])
@@ -659,7 +662,8 @@ class TestResources(GlobalMockAPITestCase):
 
         mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
+                                          "user_id": self.user.id}
         ).data
         self.assertEqual("pending", data["status"]["state"])
         self.assertEqual(["X100"], data["status"]["reason_codes"])
@@ -668,7 +672,8 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.save()
 
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
+                                          "user_id": self.user.id}
         ).data
         self.assertEqual("authorised", data["status"]["state"])
         self.assertEqual(["X300"], data["status"]["reason_codes"])
@@ -679,7 +684,8 @@ class TestResources(GlobalMockAPITestCase):
         error_messages = dict((code, message) for code, message in CURRENT_STATUS_CODES)
         mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer_V1_3(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
+                                          "user_id": self.user.id}
         ).data
         self.assertEqual(error_messages[445], data["status"]["error_text"])
 
@@ -696,7 +702,8 @@ class TestResources(GlobalMockAPITestCase):
         error.save()
         mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer_V1_3(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
+                                          "user_id": self.user.id}
         ).data
         self.assertEqual("Custom error message", data["status"]["error_text"])
 
@@ -719,14 +726,16 @@ class TestResources(GlobalMockAPITestCase):
         mcard_user_auth_provided_map = {self.scheme_account.id: True}
 
         data = MembershipCardSerializer_base(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
+                                          "user_id": self.user.id}
         ).data
         status = {"state": "failed", "reason_codes": ["X202"]}
         self.assertEqual(status, data["status"])
 
         mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
+                                          "user_id": self.user.id}
         ).data
         self.assertEqual(status, data["status"])
 
@@ -1987,7 +1996,7 @@ class TestResources(GlobalMockAPITestCase):
         )
 
         expected_keys = {"value", "currency", "updated_at"}
-        self.scheme_account.get_cached_balance()
+        self.scheme_account.get_cached_balance(self.scheme_account_entry)
         resp = self.client.get(reverse("membership-card", args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["balances"][0]["value"], 100)
@@ -2012,12 +2021,12 @@ class TestResources(GlobalMockAPITestCase):
         )
 
         self.assertFalse(test_scheme_account.balances)
-        test_scheme_account.get_cached_balance()
+        test_scheme_account.get_cached_balance(self.scheme_account_entry)
         self.assertTrue(mock_get_midas_balance.called)
         self.assertEqual(mock_get_midas_balance.call_args[1]["journey"], JourneyTypes.LINK)
         self.assertTrue(test_scheme_account.balances)
 
-        test_scheme_account.get_cached_balance()
+        test_scheme_account.get_cached_balance(self.scheme_account_entry)
         self.assertEqual(mock_get_midas_balance.call_args[1]["journey"], JourneyTypes.UPDATE)
 
     @patch("ubiquity.influx_audit.InfluxDBClient")
@@ -2191,14 +2200,16 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account = SchemeAccountFactory(scheme=scheme)
         scheme_account.main_answer = fake.email()
         scheme_account.save(update_fields=["main_answer"])
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
         SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         SchemeCredentialQuestionFactory(
             scheme=scheme, type=EMAIL, label=EMAIL, manual_question=True, add_field=True, enrol_field=True
         )
         email = SchemeCredentialAnswerFactory(
-            question=scheme.manual_question, scheme_account=scheme_account, answer=scheme_account.main_answer
+            question=scheme.manual_question, scheme_account=scheme_account, answer=scheme_account.main_answer,
+            scheme_account_entry=scheme_account_entry
         )
-        scheme_account.update_barcode_and_card_number()
+        scheme_account_entry.update_barcode_and_card_number()
 
         postcode_question = SchemeCredentialQuestionFactory(
             scheme=scheme,

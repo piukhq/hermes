@@ -71,7 +71,7 @@ class TestTasks(GlobalMockAPITestCase):
         mock_midas_balance.return_value.status_code = SchemeAccount.TRIPPED_CAPTCHA
         scheme_account_id = self.entry.scheme_account.id
         scheme_slug = self.entry.scheme_account.scheme.slug
-        async_balance(scheme_account_id)
+        async_balance(self.entry)
 
         self.assertTrue(mock_analytics.called)
         self.assertTrue(mock_midas_balance.called)

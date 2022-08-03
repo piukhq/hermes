@@ -97,7 +97,8 @@ class TestAnswerValidation(GlobalMockAPITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
         scheme_account = SchemeAccountFactory(scheme=scheme)
-        context = {"scheme": scheme, "scheme_account": scheme_account}
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+        context = {"scheme": scheme, "scheme_account_entry": scheme_account_entry}
         serializer = LinkSchemeSerializer(data={}, context=context)
         self.assertTrue(serializer.is_valid())
 
@@ -106,7 +107,8 @@ class TestAnswerValidation(GlobalMockAPITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
         scheme_account = SchemeAccountFactory(scheme=scheme)
-        context = {"scheme": scheme, "scheme_account": scheme_account}
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+        context = {"scheme": scheme, "scheme_account_entry": scheme_account_entry}
         serializer = LinkSchemeSerializer(data={}, context=context)
         self.assertFalse(serializer.is_valid())
 
