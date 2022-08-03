@@ -76,6 +76,8 @@ class SchemeAccountEntry(models.Model):
         :param credentials: dict of credentials
         :return: credentials
         """
+        from scheme.models import SchemeAccountCredentialAnswer
+
         new_credentials = {
             question["type"]: credentials.get(question["type"])
             for question in self.scheme_account.scheme.get_required_questions

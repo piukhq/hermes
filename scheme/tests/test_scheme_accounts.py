@@ -1527,11 +1527,17 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
             scheme=cls.scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK_AND_JOIN
         )
 
-        # Scheme 1
+        # Create Schemes
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
+        cls.scheme_account2 = SchemeAccountFactory(scheme=cls.scheme)
+        cls.scheme_account_no_answers = SchemeAccountFactory(scheme=cls.scheme)
 
+        # Create SCEs
         cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account)
+        cls.scheme_account_entry2 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account2)
+        cls.scheme_account_entry_no_answers = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_no_answers)
 
+        # Create Answers: Scheme 1
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(
             question=cls.scheme.manual_question, scheme_account=cls.scheme_account, scheme_account_entry=cls.scheme_account_entry
         )
@@ -1551,11 +1557,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
             scheme_account_entry=cls.scheme_account_entry2
         )
 
-        # Scheme 2
-        cls.scheme_account2 = SchemeAccountFactory(scheme=cls.scheme)
-
-        cls.scheme_account_entry2 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account2)
-
+        # Create Answers: Scheme 2
         SchemeCredentialAnswerFactory(
             answer="testpassword", question=password_question, scheme_account=cls.scheme_account2,
             scheme_account_entry=cls.scheme_account_entry
@@ -1565,11 +1567,6 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
             answer="testpassword", question=password_question, scheme_account=cls.scheme_account2,
             scheme_account_entry=cls.scheme_account_entry2
         )
-
-        # Scheme 3 (no answers)
-        cls.scheme_account_no_answers = SchemeAccountFactory(scheme=cls.scheme)
-
-        cls.scheme_account_entry_no_answers = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_no_answers)
 
         cls.scheme_bundle_association = SchemeBundleAssociationFactory(
             scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
