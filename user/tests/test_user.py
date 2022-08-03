@@ -486,7 +486,8 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         scheme_account_entry = SchemeAccountEntryFactory(user=user, scheme_account__scheme=scheme)
 
         SchemeCredentialAnswerFactory(
-            scheme_account=scheme_account_entry.scheme_account, question=question, answer=email
+            scheme_account=scheme_account_entry.scheme_account, question=question, answer=email,
+            scheme_account_entry=scheme_account_entry
         )
 
         client = ClientApplicationFactory()
@@ -533,7 +534,8 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         )
 
         SchemeCredentialAnswerFactory(
-            scheme_account=scheme_account_entry.scheme_account, question=question, answer=email
+            scheme_account=scheme_account_entry.scheme_account, question=question, answer=email,
+            scheme_account_entry=scheme_account_entry
         )
 
         client = ClientApplicationFactory()
@@ -579,6 +581,7 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
             scheme_account=scheme_account_entry.scheme_account,
             question=question,
             answer="test_different_email@bink.com",
+            scheme_account_entry=scheme_account_entry
         )
 
         client = ClientApplicationFactory()
