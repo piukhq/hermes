@@ -5,6 +5,7 @@ import sre_constants
 from typing import TYPE_CHECKING, Iterable, Type, Union
 
 import django
+from hermes import settings
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, models, transaction
@@ -12,6 +13,7 @@ from django.db.models import F, signals
 from django.dispatch import receiver
 from django.utils.functional import cached_property
 
+from analytics.api import update_scheme_account_attribute_new_status
 from hermes.vop_tasks import send_deactivation, vop_activate_request
 from history.signals import HISTORY_CONTEXT
 from scheme.credentials import BARCODE, CARD_NUMBER, ENCRYPTED_CREDENTIALS, PASSWORD, PASSWORD_2
@@ -195,7 +197,7 @@ class SchemeAccountEntry(models.Model):
         credentials = self._collect_credential_answers()
 
         if self.scheme_account.scheme.slug != "iceland-bonus-card":
-            if self.scheme_account._iceland_hack(credentials, credentials_override):
+            if self._iceland_hack(credentials, credentials_override):
                 return None
 
         for credential in credentials.keys():
@@ -242,6 +244,25 @@ class SchemeAccountEntry(models.Model):
                 # we can't get an answer to this question, so skip it.
                 pass
         return answer
+
+    def _iceland_hack(self, credentials: dict = None, credentials_override: dict = None) -> bool:
+        # todo: we will need to review this for P2
+
+        if self.scheme_account in self.scheme_account.ALL_PENDING_STATUSES:
+            return False
+
+        missing = self.missing_credentials(credentials.keys())
+
+        if missing and not credentials_override:
+            bink_users = [user for user in self.scheme_account.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
+            for user in bink_users:
+                update_scheme_account_attribute_new_status(
+                    self, user, dict(self.scheme_account.STATUSES).get(self.scheme_account.INCOMPLETE)
+                )
+            self.status = self.scheme_account.INCOMPLETE
+            self.save()
+            return True  # triggers return None from calling method
+        return False
 
 
 class PaymentCardAccountEntry(models.Model):

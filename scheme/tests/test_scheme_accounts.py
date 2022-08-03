@@ -100,7 +100,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             answer="9999888877776666", question=barcode_question, scheme_account=cls.scheme_account1
         )
         cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account)
-        SchemeAccountEntryFactory(scheme_account=cls.scheme_account1)
+        cls.scheme_account_entry1 =SchemeAccountEntryFactory(scheme_account=cls.scheme_account1)
         SchemeAccountEntryFactory(scheme_account=cls.scheme_account1)
         cls.user = cls.scheme_account_entry.user
 
@@ -123,7 +123,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             scheme=cls.scheme1, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
         )
 
-        cls.scheme_account1.update_barcode_and_card_number()
+        cls.scheme_account_entry1.update_barcode_and_card_number()
         cls.auth_headers = {"HTTP_AUTHORIZATION": "Token " + cls.user.create_token(bundle_id=cls.bundle.bundle_id)}
 
         cls.scheme1_balance_details = SchemeBalanceDetailsFactory(scheme_id=cls.scheme1)
@@ -966,6 +966,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 class TestSchemeAccountModel(GlobalMockAPITestCase):
     def test_missing_credentials(self):
         scheme_account = SchemeAccountFactory()
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
         SchemeCredentialQuestionFactory(
             scheme=scheme_account.scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK
         )
@@ -974,18 +975,19 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         SchemeCredentialQuestionFactory(
             scheme=scheme_account.scheme, type=TITLE, options=SchemeCredentialQuestion.MERCHANT_IDENTIFIER
         )
-        self.assertEqual(scheme_account.missing_credentials([]), {BARCODE, PASSWORD, CARD_NUMBER})
-        self.assertFalse(scheme_account.missing_credentials([CARD_NUMBER, PASSWORD]))
-        self.assertFalse(scheme_account.missing_credentials([BARCODE, PASSWORD]))
-        self.assertEqual(scheme_account.missing_credentials([PASSWORD]), {BARCODE, CARD_NUMBER})
+        self.assertEqual(scheme_account_entry.missing_credentials([]), {BARCODE, PASSWORD, CARD_NUMBER})
+        self.assertFalse(scheme_account_entry.missing_credentials([CARD_NUMBER, PASSWORD]))
+        self.assertFalse(scheme_account_entry.missing_credentials([BARCODE, PASSWORD]))
+        self.assertEqual(scheme_account_entry.missing_credentials([PASSWORD]), {BARCODE, CARD_NUMBER})
 
     def test_missing_credentials_same_manual_and_scan(self):
         scheme_account = SchemeAccountFactory()
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
         SchemeCredentialQuestionFactory(
             scheme=scheme_account.scheme, type=BARCODE, scan_question=True, manual_question=True
         )
-        self.assertFalse(scheme_account.missing_credentials([BARCODE]))
-        self.assertEqual(scheme_account.missing_credentials([]), {BARCODE})
+        self.assertFalse(scheme_account_entry.missing_credentials([BARCODE]))
+        self.assertEqual(scheme_account_entry.missing_credentials([]), {BARCODE})
 
     def test_missing_credentials_with_join_option_on_manual_question(self):
         scheme_account = SchemeAccountFactory()
@@ -998,14 +1000,16 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         SchemeCredentialQuestionFactory(
             scheme=scheme_account.scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK
         )
-        self.assertFalse(scheme_account.missing_credentials([BARCODE, PASSWORD]))
-        self.assertFalse(scheme_account.missing_credentials([CARD_NUMBER, PASSWORD]))
-        self.assertFalse(scheme_account.missing_credentials([BARCODE, CARD_NUMBER, PASSWORD]))
-        self.assertFalse(scheme_account.missing_credentials([BARCODE, CARD_NUMBER, PASSWORD]))
-        self.assertEqual(scheme_account.missing_credentials([PASSWORD]), {BARCODE, CARD_NUMBER})
+        scheme_account_entry = SchemeAccountEntryFactory(scheme=scheme_account)
+        self.assertFalse(scheme_account_entry.missing_credentials([BARCODE, PASSWORD]))
+        self.assertFalse(scheme_account_entry.missing_credentials([CARD_NUMBER, PASSWORD]))
+        self.assertFalse(scheme_account_entry.missing_credentials([BARCODE, CARD_NUMBER, PASSWORD]))
+        self.assertFalse(scheme_account_entry.missing_credentials([BARCODE, CARD_NUMBER, PASSWORD]))
+        self.assertEqual(scheme_account_entry.missing_credentials([PASSWORD]), {BARCODE, CARD_NUMBER})
 
     def test_missing_credentials_with_join_option_on_manual_and_scan_question(self):
         scheme_account = SchemeAccountFactory()
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
         SchemeCredentialQuestionFactory(
             scheme=scheme_account.scheme,
             type=BARCODE,
@@ -1016,49 +1020,43 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         SchemeCredentialQuestionFactory(
             scheme=scheme_account.scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK
         )
-        self.assertFalse(scheme_account.missing_credentials([BARCODE, PASSWORD]))
-        self.assertEqual(scheme_account.missing_credentials([PASSWORD]), {BARCODE})
-        self.assertEqual(scheme_account.missing_credentials([BARCODE]), {PASSWORD})
+        self.assertFalse(scheme_account_entry.missing_credentials([BARCODE, PASSWORD]))
+        self.assertEqual(scheme_account_entry.missing_credentials([PASSWORD]), {BARCODE})
+        self.assertEqual(scheme_account_entry.missing_credentials([BARCODE]), {PASSWORD})
 
     def test_credential_check_for_pending_scheme_account(self):
         scheme_account = SchemeAccountFactory(status=SchemeAccount.PENDING)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
         SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=BARCODE, manual_question=True)
-        scheme_account.credentials()
+        scheme_account_entry.credentials()
         # We expect pending scheme accounts to be missing manual question
         self.assertNotEqual(scheme_account.status, SchemeAccount.INCOMPLETE)
 
     def test_card_label_from_regex(self):
         scheme = SchemeFactory(card_number_regex="^[0-9]{3}([0-9]+)", card_number_prefix="98263000")
-        scheme_account = SchemeAccountFactory(scheme=scheme)
-        SchemeCredentialAnswerFactory(
-            question=SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE),
-            answer="29930842203039",
-            scheme_account=scheme_account,
-        )
+        scheme_account = SchemeAccountFactory(scheme=scheme, barcode="29930842203039")
         self.assertEqual(scheme_account.card_label, "9826300030842203039")
 
     def test_card_label_from_manual_answer(self):
-        question = SchemeCredentialQuestionFactory(type=EMAIL, manual_question=True)
-        scheme_account = SchemeAccountFactory(scheme=question.scheme)
-        SchemeCredentialAnswerFactory(question=question, answer="frank@sdfg.com", scheme_account=scheme_account)
+        scheme = SchemeFactory()
+        scheme_account = SchemeAccountFactory(scheme=scheme, main_answer="frank@sdfg.com")
         self.assertEqual(scheme_account.card_label, "frank@sdfg.com")
 
     def test_card_label_from_barcode(self):
-        question = SchemeCredentialQuestionFactory(type=BARCODE)
-        scheme_account = SchemeAccountFactory(scheme=question.scheme)
-        SchemeCredentialAnswerFactory(question=question, answer="49932498", scheme_account=scheme_account)
+        scheme = SchemeFactory()
+        scheme_account = SchemeAccountFactory(scheme=scheme, barcode="49932498")
         self.assertEqual(scheme_account.card_label, "49932498")
 
     def test_card_label_none(self):
-        question = SchemeCredentialQuestionFactory(type=BARCODE)
-        scheme_account = SchemeAccountFactory(scheme=question.scheme)
+        scheme = SchemeFactory()
+        scheme_account = SchemeAccountFactory(scheme=scheme)
         self.assertIsNone(scheme_account.card_label)
 
     @patch.object(SchemeAccount, "credentials", auto_spec=True, return_value=None)
     def test_get_midas_balance_no_credentials(self, mock_credentials):
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
-        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, entry)
 
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
@@ -1070,7 +1068,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         mock_request.return_value.json.return_value = {"points": 500}
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
-        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, entry)
 
         self.assertIsNone(dw_event)
         self.assertEqual(points["points"], 500)
@@ -1081,7 +1079,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
     def test_get_midas_balance_connection_error(self, mock_request):
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
-        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, entry)
 
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
@@ -1093,7 +1091,8 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         invalid_status = 502
         mock_request.return_value.status_code = invalid_status
         scheme_account = SchemeAccountFactory()
-        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         # check this status hasn't been added to scheme account status
         self.assertNotIn(invalid_status, [status[0] for status in SchemeAccount.EXTENDED_STATUSES])
@@ -1108,7 +1107,8 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         test_status = SchemeAccount.LINK_LIMIT_EXCEEDED
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory()
-        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
@@ -1121,7 +1121,8 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         test_status = SchemeAccount.CARD_NOT_REGISTERED
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory()
-        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
@@ -1134,7 +1135,8 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         test_status = SchemeAccount.CARD_NUMBER_ERROR
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory()
-        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
@@ -1147,7 +1149,8 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         test_status = SchemeAccount.GENERAL_ERROR
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory()
-        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
@@ -1160,7 +1163,8 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         test_status = SchemeAccount.JOIN_ERROR
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory()
-        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
@@ -1173,7 +1177,8 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         test_status = SchemeAccount.JOIN_IN_PROGRESS
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory()
-        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
@@ -1186,7 +1191,8 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         test_status = SchemeAccount.TRIPPED_CAPTCHA
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
-        scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+        scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
         self.assertEqual(scheme_account.display_status, scheme_account.ACTIVE)
@@ -1196,7 +1202,8 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         test_status = SchemeAccount.RESOURCE_LIMIT_REACHED
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory(status=SchemeAccount.TRIPPED_CAPTCHA)
-        scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+        scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         self.assertEqual(scheme_account.status, SchemeAccount.RESOURCE_LIMIT_REACHED)
         self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
