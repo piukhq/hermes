@@ -235,7 +235,7 @@ class TestResources(GlobalMockAPITestCase):
             scheme_account=self.scheme_account, user=self.user, auth_provided=True
         )
 
-        self.scheme_account.update_barcode_and_card_number()
+        self.scheme_account_entry.update_barcode_and_card_number()
 
         self.test_hades_transactions = [
             {

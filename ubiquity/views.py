@@ -1288,7 +1288,8 @@ class ListMembershipCardView(MembershipCardView):
 
         auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, accounts)
         response = self.get_serializer_by_request(
-            accounts, many=True, context={"mcard_user_auth_provided_map": auth_provided_mapping}
+            accounts, many=True, context={"mcard_user_auth_provided_map": auth_provided_mapping,
+                                          "user_id": self.request.user.id}
         ).data
 
         return Response(response, status=200)
