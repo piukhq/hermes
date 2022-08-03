@@ -24,7 +24,7 @@ from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
-from analytics.api import update_scheme_account_attribute, update_scheme_account_attribute_new_status
+from analytics.api import update_scheme_account_attribute
 from common.models import Image
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers

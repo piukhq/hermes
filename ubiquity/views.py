@@ -1288,8 +1288,9 @@ class ListMembershipCardView(MembershipCardView):
 
         auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, accounts)
         response = self.get_serializer_by_request(
-            accounts, many=True, context={"mcard_user_auth_provided_map": auth_provided_mapping,
-                                          "user_id": self.request.user.id}
+            accounts,
+            many=True,
+            context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": self.request.user.id},
         ).data
 
         return Response(response, status=200)
@@ -1338,7 +1339,7 @@ class ListMembershipCardView(MembershipCardView):
                 context={
                     "request": request,
                     "mcard_user_auth_provided_map": {sch_acc_entry.scheme_account_id: sch_acc_entry.auth_provided},
-                    "user_id": self.request.user.id
+                    "user_id": self.request.user.id,
                 },
             ).data,
             status=status_code,
@@ -1364,7 +1365,8 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
 
         auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, link.scheme_account)
         serializer = self.get_serializer_by_request(
-            link.scheme_account, context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": request.user.id}
+            link.scheme_account,
+            context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": request.user.id},
         )
 
         return Response(serializer.data, status_code)

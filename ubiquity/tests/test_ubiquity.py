@@ -228,12 +228,15 @@ class TestResources(GlobalMockAPITestCase):
         )
 
         self.scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=self.scheme.manual_question, scheme_account=self.scheme_account, answer=fake.first_name().lower(),
-            scheme_account_entry=self.scheme_account_entry
+            question=self.scheme.manual_question,
+            scheme_account=self.scheme_account,
+            answer=fake.first_name().lower(),
+            scheme_account_entry=self.scheme_account_entry,
         )
         self.second_scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=self.secondary_question, scheme_account=self.scheme_account,
-            scheme_account_entry=self.scheme_account_entry
+            question=self.secondary_question,
+            scheme_account=self.scheme_account,
+            scheme_account_entry=self.scheme_account_entry,
         )
         self.second_scheme_account_answer.answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(
             self.second_scheme_account_answer.answer
@@ -350,7 +353,9 @@ class TestResources(GlobalMockAPITestCase):
         )
         SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=self.user)
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
-        expected_result = remove_empty(MembershipCardSerializer(scheme_accounts, many=True, context={"user_id": self.user.id}).data)
+        expected_result = remove_empty(
+            MembershipCardSerializer(scheme_accounts, many=True, context={"user_id": self.user.id}).data
+        )
         resp = self.client.get(reverse("membership-cards"), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result[0]["account"], resp.json()[0]["account"])
@@ -622,8 +627,8 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.save()
         mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
-                                          "user_id": self.user.id}
+            self.scheme_account,
+            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
         ).data
         self.assertEqual(data["status"]["state"], "authorised")
         self.assertEqual(data["status"]["reason_codes"], ["X300"])
@@ -639,8 +644,8 @@ class TestResources(GlobalMockAPITestCase):
 
         mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
-                                          "user_id": self.user.id}
+            self.scheme_account,
+            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
         ).data
         self.assertEqual(data["status"]["state"], "failed")
         self.assertEqual(data["status"]["reason_codes"], ["X303"])
@@ -649,8 +654,8 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.save()
 
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
-                                          "user_id": self.user.id}
+            self.scheme_account,
+            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
         ).data
         self.assertEqual(data["status"]["state"], "failed")
         self.assertEqual(data["status"]["reason_codes"], ["X303"])
@@ -666,8 +671,8 @@ class TestResources(GlobalMockAPITestCase):
 
         mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
-                                          "user_id": self.user.id}
+            self.scheme_account,
+            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
         ).data
         self.assertEqual("pending", data["status"]["state"])
         self.assertEqual(["X100"], data["status"]["reason_codes"])
@@ -676,8 +681,8 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.save()
 
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
-                                          "user_id": self.user.id}
+            self.scheme_account,
+            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
         ).data
         self.assertEqual("authorised", data["status"]["state"])
         self.assertEqual(["X300"], data["status"]["reason_codes"])
@@ -688,8 +693,8 @@ class TestResources(GlobalMockAPITestCase):
         error_messages = dict((code, message) for code, message in CURRENT_STATUS_CODES)
         mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer_V1_3(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
-                                          "user_id": self.user.id}
+            self.scheme_account,
+            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
         ).data
         self.assertEqual(error_messages[445], data["status"]["error_text"])
 
@@ -706,8 +711,8 @@ class TestResources(GlobalMockAPITestCase):
         error.save()
         mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer_V1_3(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
-                                          "user_id": self.user.id}
+            self.scheme_account,
+            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
         ).data
         self.assertEqual("Custom error message", data["status"]["error_text"])
 
@@ -730,16 +735,16 @@ class TestResources(GlobalMockAPITestCase):
         mcard_user_auth_provided_map = {self.scheme_account.id: True}
 
         data = MembershipCardSerializer_base(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
-                                          "user_id": self.user.id}
+            self.scheme_account,
+            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
         ).data
         status = {"state": "failed", "reason_codes": ["X202"]}
         self.assertEqual(status, data["status"])
 
         mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map,
-                                          "user_id": self.user.id}
+            self.scheme_account,
+            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
         ).data
         self.assertEqual(status, data["status"])
 
@@ -832,8 +837,10 @@ class TestResources(GlobalMockAPITestCase):
             existing_scheme_account = SchemeAccountFactory(scheme=scheme, **{question.type: existing_answer_value})
             scheme_account_entry = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
             SchemeCredentialAnswerFactory(
-                scheme_account=existing_scheme_account, question=question, answer=existing_answer_value,
-                scheme_account_entry=scheme_account_entry
+                scheme_account=existing_scheme_account,
+                question=question,
+                answer=existing_answer_value,
+                scheme_account_entry=scheme_account_entry,
             )
 
             payload = {
@@ -869,8 +876,10 @@ class TestResources(GlobalMockAPITestCase):
         )
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value,
-            scheme_account_entry=scheme_account_entry
+            scheme_account=existing_scheme_account,
+            question=self.scheme.manual_question,
+            answer=existing_answer_value,
+            scheme_account_entry=scheme_account_entry,
         )
 
         new_user = UserFactory(client=self.client_app, external_id="testexternalid")
@@ -911,11 +920,14 @@ class TestResources(GlobalMockAPITestCase):
         existing_scheme_account = SchemeAccountFactory(
             scheme=self.scheme, barcode=existing_answer_value, status=SchemeAccount.WALLET_ONLY
         )
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user,
-                                                        auth_provided=True)
+        scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=existing_scheme_account, user=self.user, auth_provided=True
+        )
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value,
-            scheme_account_entry=scheme_account_entry
+            scheme_account=existing_scheme_account,
+            question=self.scheme.manual_question,
+            answer=existing_answer_value,
+            scheme_account_entry=scheme_account_entry,
         )
 
         payload = {
@@ -967,11 +979,14 @@ class TestResources(GlobalMockAPITestCase):
         existing_scheme_account = SchemeAccountFactory(
             scheme=self.scheme, barcode=existing_answer_value, status=SchemeAccount.WALLET_ONLY
         )
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user,
-                                                         auth_provided=False)
+        scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=existing_scheme_account, user=self.user, auth_provided=False
+        )
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value,
-            scheme_account_entry=scheme_account_entry
+            scheme_account=existing_scheme_account,
+            question=self.scheme.manual_question,
+            answer=existing_answer_value,
+            scheme_account_entry=scheme_account_entry,
         )
 
         resp = self.client.patch(
@@ -998,7 +1013,10 @@ class TestResources(GlobalMockAPITestCase):
         )
         entry = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user, auth_provided=False)
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value, scheme_account_entry=entry
+            scheme_account=existing_scheme_account,
+            question=self.scheme.manual_question,
+            answer=existing_answer_value,
+            scheme_account_entry=entry,
         )
 
         payload = {
@@ -1036,21 +1054,29 @@ class TestResources(GlobalMockAPITestCase):
         entry2 = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=user2, auth_provided=False)
 
         manual_q = SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer="36543456787656",
-            scheme_account_entry=entry1
+            scheme_account=existing_scheme_account,
+            question=self.scheme.manual_question,
+            answer="36543456787656",
+            scheme_account_entry=entry1,
         )
         auth_q = SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.secondary_question, answer="Test",
-            scheme_account_entry=entry1
+            scheme_account=existing_scheme_account,
+            question=self.secondary_question,
+            answer="Test",
+            scheme_account_entry=entry1,
         )
 
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer="36543456787656",
-            scheme_account_entry=entry2
+            scheme_account=existing_scheme_account,
+            question=self.scheme.manual_question,
+            answer="36543456787656",
+            scheme_account_entry=entry2,
         )
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.secondary_question, answer="Test",
-            scheme_account_entry=entry2
+            scheme_account=existing_scheme_account,
+            question=self.secondary_question,
+            answer="Test",
+            scheme_account_entry=entry2,
         )
 
         pcard_scheme_entry1 = PaymentCardSchemeEntryFactory(
@@ -1704,10 +1730,18 @@ class TestResources(GlobalMockAPITestCase):
     def test_membership_card_put_manual_question(self, *_):
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme)
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
-        SchemeCredentialAnswerFactory(question=self.put_scheme_manual_q, scheme_account=scheme_account, answer="55555",
-                                      scheme_account_entry=scheme_account_entry)
-        SchemeCredentialAnswerFactory(question=self.put_scheme_auth_q, scheme_account=scheme_account, answer="pass",
-                                      scheme_account_entry=scheme_account_entry)
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_manual_q,
+            scheme_account=scheme_account,
+            answer="55555",
+            scheme_account_entry=scheme_account_entry,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_auth_q,
+            scheme_account=scheme_account,
+            answer="pass",
+            scheme_account_entry=scheme_account_entry,
+        )
 
         payload = {
             "membership_plan": self.put_scheme.id,
@@ -1740,10 +1774,18 @@ class TestResources(GlobalMockAPITestCase):
     def test_membership_card_put_scan_question(self, *_):
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme)
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
-        SchemeCredentialAnswerFactory(question=self.put_scheme_manual_q, scheme_account=scheme_account, answer="55555",
-                                      scheme_account_entry=scheme_account_entry)
-        SchemeCredentialAnswerFactory(question=self.put_scheme_auth_q, scheme_account=scheme_account, answer="pass",
-                                      scheme_account_entry=scheme_account_entry)
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_manual_q,
+            scheme_account=scheme_account,
+            answer="55555",
+            scheme_account_entry=scheme_account_entry,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_auth_q,
+            scheme_account=scheme_account,
+            answer="pass",
+            scheme_account_entry=scheme_account_entry,
+        )
 
         payload = {
             "membership_plan": self.put_scheme.id,
@@ -1775,10 +1817,18 @@ class TestResources(GlobalMockAPITestCase):
     def test_membership_card_put_with_previous_balance(self, *_):
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme)
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
-        SchemeCredentialAnswerFactory(question=self.put_scheme_manual_q, scheme_account=scheme_account, answer="9999",
-                                      scheme_account_entry=scheme_account_entry)
-        SchemeCredentialAnswerFactory(question=self.put_scheme_auth_q, scheme_account=scheme_account, answer="pass",
-                                      scheme_account_entry=scheme_account_entry)
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_manual_q,
+            scheme_account=scheme_account,
+            answer="9999",
+            scheme_account_entry=scheme_account_entry,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_auth_q,
+            scheme_account=scheme_account,
+            answer="pass",
+            scheme_account_entry=scheme_account_entry,
+        )
         scheme_account.balances = [{"points": 1, "scheme_account_id": 27308}]
         scheme_account.save()
 
@@ -1813,11 +1863,17 @@ class TestResources(GlobalMockAPITestCase):
         test_card_no = "654321"
         test_pass = "pass4"
         SchemeCredentialAnswerFactory(
-            question=self.put_scheme_manual_q, scheme_account=scheme_account, answer=test_card_no,
-            scheme_account_entry=scheme_account_entry
+            question=self.put_scheme_manual_q,
+            scheme_account=scheme_account,
+            answer=test_card_no,
+            scheme_account_entry=scheme_account_entry,
         )
-        SchemeCredentialAnswerFactory(question=self.put_scheme_auth_q, scheme_account=scheme_account, answer=test_pass,
-                                      scheme_account_entry=scheme_account_entry)
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_auth_q,
+            scheme_account=scheme_account,
+            answer=test_pass,
+            scheme_account_entry=scheme_account_entry,
+        )
 
         payload = {
             "membership_plan": self.put_scheme.id,
@@ -1858,10 +1914,18 @@ class TestResources(GlobalMockAPITestCase):
         auth_headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(user))}
         sa = SchemeAccountFactory(scheme=self.scheme, card_number="12345", originating_journey=JourneyTypes.ADD)
         scheme_account_entry = SchemeAccountEntryFactory(user=user, scheme_account=sa)
-        SchemeCredentialAnswerFactory(question=self.scheme.manual_question, scheme_account=sa, answer="12345",
-                                      scheme_account_entry=scheme_account_entry)
-        SchemeCredentialAnswerFactory(question=self.secondary_question, scheme_account=sa, answer="name",
-                                      scheme_account_entry=scheme_account_entry)
+        SchemeCredentialAnswerFactory(
+            question=self.scheme.manual_question,
+            scheme_account=sa,
+            answer="12345",
+            scheme_account_entry=scheme_account_entry,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.secondary_question,
+            scheme_account=sa,
+            answer="name",
+            scheme_account_entry=scheme_account_entry,
+        )
         expected_value = {"last_name": "changed name"}
         payload_update = {"account": {"authorise_fields": [{"column": "last_name", "value": "changed name"}]}}
         resp_update = self.client.patch(
@@ -1900,10 +1964,18 @@ class TestResources(GlobalMockAPITestCase):
         auth_headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(user))}
         sa = SchemeAccountFactory(scheme=self.scheme, card_number="12345", originating_journey=JourneyTypes.JOIN)
         scheme_account_entry = SchemeAccountEntryFactory(user=user, scheme_account=sa)
-        SchemeCredentialAnswerFactory(question=self.scheme.manual_question, scheme_account=sa, answer="12345",
-                                      scheme_account_entry=scheme_account_entry)
-        SchemeCredentialAnswerFactory(question=self.secondary_question, scheme_account=sa, answer="name",
-                                      scheme_account_entry=scheme_account_entry)
+        SchemeCredentialAnswerFactory(
+            question=self.scheme.manual_question,
+            scheme_account=sa,
+            answer="12345",
+            scheme_account_entry=scheme_account_entry,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.secondary_question,
+            scheme_account=sa,
+            answer="name",
+            scheme_account_entry=scheme_account_entry,
+        )
         expected_value = {"last_name": "changed name"}
         payload_update = {"account": {"authorise_fields": [{"column": "last_name", "value": "changed name"}]}}
         resp_update = self.client.patch(
@@ -2080,8 +2152,11 @@ class TestResources(GlobalMockAPITestCase):
             options=SchemeCredentialQuestion.MERCHANT_IDENTIFIER,
         )
 
-        new_answer = SchemeCredentialAnswerFactory(question=merch_identifier, scheme_account=self.scheme_account,
-                                                   scheme_account_entry=self.scheme_account_entry)
+        new_answer = SchemeCredentialAnswerFactory(
+            question=merch_identifier,
+            scheme_account=self.scheme_account,
+            scheme_account_entry=self.scheme_account_entry,
+        )
 
         payload = {
             "membership_plan": self.scheme.id,
@@ -2194,8 +2269,10 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account_entry = SchemeAccountEntryFactory(user=new_user, scheme_account=scheme_account)
 
         SchemeCredentialAnswerFactory(
-            question=scheme.manual_question, scheme_account=scheme_account, answer=card_number,
-            scheme_account_entry=scheme_account_entry
+            question=scheme.manual_question,
+            scheme_account=scheme_account,
+            answer=card_number,
+            scheme_account_entry=scheme_account_entry,
         )
 
         email = "MiXedCaSe@EmAiL.COm"
@@ -2242,8 +2319,10 @@ class TestResources(GlobalMockAPITestCase):
             scheme=scheme, type=EMAIL, label=EMAIL, manual_question=True, add_field=True, enrol_field=True
         )
         email = SchemeCredentialAnswerFactory(
-            question=scheme.manual_question, scheme_account=scheme_account, answer=scheme_account.main_answer,
-            scheme_account_entry=scheme_account_entry
+            question=scheme.manual_question,
+            scheme_account=scheme_account,
+            answer=scheme_account.main_answer,
+            scheme_account_entry=scheme_account_entry,
         )
         scheme_account_entry.update_barcode_and_card_number()
 
@@ -2258,8 +2337,12 @@ class TestResources(GlobalMockAPITestCase):
             register_field=True,
         )
         test_postcode = "CR0 1FB"
-        SchemeCredentialAnswerFactory(question=postcode_question, scheme_account=scheme_account, answer=test_postcode,
-                                      scheme_account_entry=scheme_account_entry)
+        SchemeCredentialAnswerFactory(
+            question=postcode_question,
+            scheme_account=scheme_account,
+            answer=test_postcode,
+            scheme_account_entry=scheme_account_entry,
+        )
 
         payload = {
             "membership_plan": scheme.id,
@@ -2584,12 +2667,14 @@ class TestMembershipCardCredentials(GlobalMockAPITestCase):
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
         cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=cls.scheme.manual_question, scheme_account=cls.scheme_account,
-            scheme_account_entry=cls.scheme_account_entry
+            question=cls.scheme.manual_question,
+            scheme_account=cls.scheme_account,
+            scheme_account_entry=cls.scheme_account_entry,
         )
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=secondary_question, scheme_account=cls.scheme_account,
-            scheme_account_entry=cls.scheme_account_entry
+            question=secondary_question,
+            scheme_account=cls.scheme_account,
+            scheme_account_entry=cls.scheme_account_entry,
         )
         token = GenerateJWToken(client.organisation.name, client.secret, cls.bundle.bundle_id, external_id).get_token()
         cls.auth_headers = {"HTTP_AUTHORIZATION": "Bearer {}".format(token)}

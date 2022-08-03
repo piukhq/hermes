@@ -256,7 +256,9 @@ class SchemeAccountEntry(models.Model):
         missing = self.missing_credentials(credentials.keys())
 
         if missing and not credentials_override:
-            bink_users = [user for user in self.scheme_account.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
+            bink_users = [
+                user for user in self.scheme_account.user_set.all() if user.client_id == settings.BINK_CLIENT_ID
+            ]
             for user in bink_users:
                 update_scheme_account_attribute_new_status(
                     self.scheme_account, user, dict(self.scheme_account.STATUSES).get(self.scheme_account.INCOMPLETE)

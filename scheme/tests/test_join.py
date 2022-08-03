@@ -54,10 +54,15 @@ class TestJoinExisting(GlobalMockAPITestCase):
 
         cls.scheme_account = SchemeAccount.objects.create(scheme=cls.scheme, order=0)
 
-        cls.scheme_account_entry = SchemeAccountEntry.objects.create(user=cls.old_user, scheme_account=cls.scheme_account)
+        cls.scheme_account_entry = SchemeAccountEntry.objects.create(
+            user=cls.old_user, scheme_account=cls.scheme_account
+        )
 
         SchemeAccountCredentialAnswer.objects.create(
-            question=question, scheme_account=cls.scheme_account, answer=cls.join_email, scheme_account_entry=cls.scheme_account_entry
+            question=question,
+            scheme_account=cls.scheme_account,
+            answer=cls.join_email,
+            scheme_account_entry=cls.scheme_account_entry,
         )
 
         cls.auth_headers = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.old_user, cls.bundle.bundle_id))}
