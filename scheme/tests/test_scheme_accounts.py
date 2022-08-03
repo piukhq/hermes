@@ -70,9 +70,10 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         )
 
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
-        cls.user = cls.scheme_account_entry.user
 
         cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account)
+
+        cls.user = cls.scheme_account_entry.user
 
         cls.scheme1 = SchemeFactory(card_number_regex=r"(^[0-9]{16})", card_number_prefix="", tier=Scheme.PLL)
 
@@ -1546,22 +1547,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
             answer="testpassword", question=password_question, scheme_account=cls.scheme_account, scheme_account_entry=cls.scheme_account_entry
         )
 
-        SchemeCredentialAnswerFactory(
-            question=cls.scheme.manual_question, scheme_account=cls.scheme_account,
-            scheme_account_entry=cls.scheme_account_entry2
-        )
-        SchemeCredentialAnswerFactory(question=secondary_question, scheme_account=cls.scheme_account,
-                                      scheme_account_entry=cls.scheme_account_entry2)
-        SchemeCredentialAnswerFactory(
-            answer="testpassword", question=password_question, scheme_account=cls.scheme_account,
-            scheme_account_entry=cls.scheme_account_entry2
-        )
-
         # Create Answers: Scheme 2
-        SchemeCredentialAnswerFactory(
-            answer="testpassword", question=password_question, scheme_account=cls.scheme_account2,
-            scheme_account_entry=cls.scheme_account_entry
-        )
 
         SchemeCredentialAnswerFactory(
             answer="testpassword", question=password_question, scheme_account=cls.scheme_account2,

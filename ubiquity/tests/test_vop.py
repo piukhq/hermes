@@ -88,11 +88,14 @@ class TestVOP(GlobalMockAPITestCase):
             options=SchemeCredentialQuestion.OPTIONAL_JOIN,
         )
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
+
+        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
+
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=cls.scheme.manual_question, scheme_account=cls.scheme_account
+            question=cls.scheme.manual_question, scheme_account=cls.scheme_account, scheme_account_entry=cls.scheme_account_entry
         )
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=cls.secondary_question, scheme_account=cls.scheme_account
+            question=cls.secondary_question, scheme_account=cls.scheme_account, scheme_account_entry=cls.scheme_account_entry
         )
         cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
 
@@ -101,7 +104,7 @@ class TestVOP(GlobalMockAPITestCase):
             scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
         )
 
-        cls.scheme_account.update_barcode_and_card_number()
+        cls.scheme_account_entry.update_barcode_and_card_number()
 
         cls.issuer = IssuerFactory(name="Barclays")
         cls.payment_card = PaymentCardFactory(slug="visa", system="visa")

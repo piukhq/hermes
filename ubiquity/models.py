@@ -94,7 +94,7 @@ class SchemeAccountEntry(models.Model):
 
         self.update_barcode_and_card_number()
         for question in ["card_number", "barcode"]:
-            value = getattr(self, question)
+            value = getattr(self.scheme_account, question)
             if not credentials.get(question) and value:
                 credentials.update({question: value})
 
