@@ -610,7 +610,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
     def test_scheme_account_collect_credentials(self):
         self.assertEqual(
-            self.scheme_account._collect_credentials(),
+            self.scheme_account_entry._collect_credential_answers(),
             {
                 "card_number": self.second_scheme_account_answer.answer,
                 "password": "test_password",
@@ -630,7 +630,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         )
 
         self.assertEqual(
-            self.scheme_account_entry._collect_credentials(),
+            self.scheme_account_entry._collect_credential_answers(),
             {
                 "card_number": self.second_scheme_account_answer.answer,
                 "password": "test_password",
@@ -652,8 +652,8 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(self.scheme_account1.collect_pending_consents(), [])
 
     def test_scheme_account_third_party_identifier(self):
-        self.assertEqual(self.scheme_account.third_party_identifier, self.second_scheme_account_answer.answer)
-        self.assertEqual(self.scheme_account1.third_party_identifier, self.scheme_account_answer_barcode.answer)
+        self.assertEqual(self.scheme_account_entry.third_party_identifier, self.second_scheme_account_answer.answer)
+        self.assertEqual(self.scheme_account_entry1.third_party_identifier, self.scheme_account_answer_barcode.answer)
 
     def test_scheme_account_encrypted_credentials(self):
 

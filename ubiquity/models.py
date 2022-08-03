@@ -256,6 +256,16 @@ class SchemeAccountEntry(models.Model):
                 credentials[question.type] = answer
         return credentials
 
+    @property
+    def third_party_identifier(self):
+        from scheme.models import SchemeCredentialQuestion
+
+        question = SchemeCredentialQuestion.objects.filter(third_party_identifier=True, scheme=self.scheme_account.scheme).first()
+        if question:
+            return self._find_answer(question.type)
+
+        return None
+
     def _find_answer(self, question):
         answer = None
         answer_instance = self.schemeaccountcredentialanswer_set.filter(question__type=question.type).first()

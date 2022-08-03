@@ -222,7 +222,7 @@ class RetrieveLoyaltyID(APIView):
                     scheme_account = scheme_account_entry.scheme_account
                     response_data.append(
                         {
-                            payment_card.token: scheme_account.third_party_identifier,
+                            payment_card.token: scheme_account_entry.third_party_identifier,
                             "scheme_account_id": scheme_account.id,
                         }
                     )
@@ -264,7 +264,7 @@ class RetrievePaymentCardUserInfo(APIView):
                 scheme_account_entry = SchemeAccountEntry.objects.get(user=user_id, scheme_account=scheme_account)
 
                 response_data[payment_card_token] = {
-                    "loyalty_id": scheme_account.third_party_identifier,
+                    "loyalty_id": scheme_account_entry.third_party_identifier,
                     "scheme_account_id": scheme_account.id,
                     "user_id": user_id,
                     "credentials": scheme_account_entry.credentials(),
