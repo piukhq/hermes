@@ -121,6 +121,10 @@ class SchemeAccountEntry(models.Model):
         self.scheme_account.save(update_fields=["barcode", "card_number"])
 
     def _update_main_answer(self, credentials):
+        """
+        Updates the main_answer on the Scheme Account object to match Card_number, barcode, or else whatever the
+        manual_question is for this scheme, so that the 'main_answer' property can be more reliably used.
+        """
         manual_answer_type = self.scheme_account.scheme.manual_question.type
 
         for cred in credentials:
