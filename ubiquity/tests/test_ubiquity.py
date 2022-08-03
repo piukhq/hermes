@@ -1804,7 +1804,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp_put.status_code, 200)
         scheme_account.refresh_from_db()
         self.assertEqual(scheme_account.status, SchemeAccount.PENDING)
-        answers = scheme_account._collect_credentials()
+        answers = scheme_account_entry._collect_credentials()
         new_scan_answer = answers.get(self.put_scheme_scan_q.type)
         self.assertEqual(new_scan_answer, "67890")
         self.assertIsNone(answers.get(self.put_scheme_manual_q.type))
