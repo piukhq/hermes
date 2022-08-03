@@ -101,7 +101,6 @@ class TestVOP(GlobalMockAPITestCase):
             scheme_account=cls.scheme_account,
             scheme_account_entry=cls.scheme_account_entry,
         )
-        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
 
         # Need to add an active association since it was assumed no setting was enabled
         cls.scheme_bundle_association = SchemeBundleAssociationFactory(
