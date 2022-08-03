@@ -20,7 +20,7 @@ exports = {
             "card_number": None,
             "barcode": None,
             "display_status": None,
-            "manual_answer": None,
+            "main_answer": None,
             "third_party_identifier": None,
         },
     },
