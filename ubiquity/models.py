@@ -260,9 +260,10 @@ class SchemeAccountEntry(models.Model):
     def third_party_identifier(self):
         from scheme.models import SchemeCredentialQuestion
 
-        question = SchemeCredentialQuestion.objects.filter(third_party_identifier=True, scheme=self.scheme_account.scheme).first()
+        question = SchemeCredentialQuestion.objects.filter(third_party_identifier=True,
+                                                           scheme=self.scheme_account.scheme).first()
         if question:
-            return self._find_answer(question.type)
+            return self._find_answer(question)
 
         return None
 

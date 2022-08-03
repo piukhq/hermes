@@ -653,7 +653,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
     def test_scheme_account_third_party_identifier(self):
         self.assertEqual(self.scheme_account_entry.third_party_identifier, self.second_scheme_account_answer.answer)
-        self.assertEqual(self.scheme_account_entry1.third_party_identifier, self.scheme_account_answer_barcode.answer)
+        self.assertEqual(self.scheme_account1_entry.third_party_identifier, self.scheme_account_answer_barcode.answer)
 
     def test_scheme_account_encrypted_credentials(self):
 
