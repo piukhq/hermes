@@ -1379,11 +1379,11 @@ class TestAccessTokens(GlobalMockAPITestCase):
         self.test_scheme_acc.refresh_from_db()
         self.test_scheme_acc.scheme = scheme
 
-        self.assertFalse(self.scheme_account.manual_answer)
+        self.assertFalse(self.scheme_account.main_answer)
         credentials = {"email": "testemail@testbink.com"}
         new_credentials = self.test_scheme_acc.update_or_create_primary_credentials(credentials)
         self.assertEqual(new_credentials, {"email": "testemail@testbink.com"})
-        self.assertEqual(self.test_scheme_acc.manual_answer.answer, "testemail@testbink.com")
+        self.assertEqual(self.test_scheme_acc.main_answer, "testemail@testbink.com")
 
 
 class TestSchemeAccountImages(GlobalMockAPITestCase):

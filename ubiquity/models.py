@@ -126,7 +126,7 @@ class SchemeAccountEntry(models.Model):
         credential is also updated if the conversion regex exists for the scheme.
         """
         if not answers:
-            setattr(self, primary_cred_type, "")
+            setattr(self.scheme_account, primary_cred_type, "")
             return
 
         if not primary_cred:
@@ -145,18 +145,18 @@ class SchemeAccountEntry(models.Model):
             },
         }
 
-        setattr(self, primary_cred_type, primary_cred.answer)
+        setattr(self.scheme_account, primary_cred_type, primary_cred.answer)
 
         if type_to_update_info[primary_cred_type]["regex"]:
             try:
                 regex_match = re.search(type_to_update_info[primary_cred_type]["regex"], primary_cred.answer)
             except sre_constants.error:
-                setattr(self, type_to_update_info[primary_cred_type]["secondary_cred_type"], "")
+                setattr(self.scheme_account, type_to_update_info[primary_cred_type]["secondary_cred_type"], "")
                 return None
             if regex_match:
                 try:
                     setattr(
-                        self,
+                        self.scheme_account,
                         type_to_update_info[primary_cred_type]["secondary_cred_type"],
                         type_to_update_info[primary_cred_type]["prefix"] + regex_match.group(1),
                     )
