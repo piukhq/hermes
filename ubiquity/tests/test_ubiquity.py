@@ -1988,7 +1988,7 @@ class TestResources(GlobalMockAPITestCase):
         sa.status = SchemeAccount.PRE_REGISTERED_CARD
         sa.save()
         sa.refresh_from_db()
-        self.assertEqual(expected_value["last_name"], sa._collect_credentials()["last_name"])
+        self.assertEqual(expected_value["last_name"], scheme_account_entry._collect_credentials()["last_name"])
 
         payload_register = {"account": {"registration_fields": [{"column": "last_name", "value": "new changed name"}]}}
         resp_register = self.client.patch(
