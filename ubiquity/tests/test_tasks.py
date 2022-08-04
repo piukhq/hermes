@@ -83,18 +83,14 @@ class TestTasks(GlobalMockAPITestCase):
         user_id = self.user.id
         SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=self.entry.scheme_account.scheme)
         SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=self.entry2.scheme_account.scheme)
-        channels_permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
 
-        async_all_balance(user_id, channels_permit=channels_permit)
+        async_all_balance(user_id)
 
         scheme_account = SchemeAccountFactory(is_deleted=True)
-        deleted_entry = SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account)
+        SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account)
 
-        self.assertTrue(mock_async_balance.called)
-        async_balance_call_args = [call_args[0][0] for call_args in mock_async_balance.call_args_list]
-        self.assertTrue(self.entry.scheme_account.id in async_balance_call_args)
-        self.assertTrue(self.entry2.scheme_account.id in async_balance_call_args)
-        self.assertFalse(deleted_entry.scheme_account.id in async_balance_call_args)
+        self.assertEqual(mock_async_balance.call_count, 3)
+
 
     @patch("ubiquity.tasks.async_balance.delay")
     def test_async_all_balance_filtering(self, mock_async_balance):
@@ -106,7 +102,6 @@ class TestTasks(GlobalMockAPITestCase):
         entry_active = SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account_1)
         user = entry_active.user
         SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=scheme_account_1.scheme)
-        channels_permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
 
         entry_pending = SchemeAccountEntryFactory(user=user, scheme_account=scheme_account_2)
         entry_invalid_credentials = SchemeAccountEntryFactory(user=user, scheme_account=scheme_account_3)
@@ -119,7 +114,7 @@ class TestTasks(GlobalMockAPITestCase):
         entry_end_site_down.scheme_account.status = SchemeAccount.END_SITE_DOWN
         entry_end_site_down.scheme_account.save()
 
-        async_all_balance(user.id, channels_permit=channels_permit)
+        async_all_balance(user.id)
 
         refreshed_scheme_accounts = [x[0][0] for x in mock_async_balance.call_args_list]
         self.assertIn(entry_active.scheme_account.id, refreshed_scheme_accounts)
@@ -131,8 +126,7 @@ class TestTasks(GlobalMockAPITestCase):
     def test_async_all_balance_with_allowed_schemes(self, mock_async_balance):
         user_id = self.user.id
         SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=self.entry2.scheme_account.scheme)
-        channels_permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
-        async_all_balance(user_id, channels_permit=channels_permit)
+        async_all_balance(user_id)
         self.assertTrue(mock_async_balance.called)
         async_balance_call_args = [call_args[0][0] for call_args in mock_async_balance.call_args_list]
         self.assertFalse(self.entry.scheme_account.id in async_balance_call_args)

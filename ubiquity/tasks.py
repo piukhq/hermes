@@ -157,13 +157,12 @@ def async_balance_with_updated_credentials(
 
 
 @shared_task
-def async_all_balance(user_id: int, channels_permit) -> None:
-    query = {"user": user_id, "scheme_account__is_deleted": False}
-    exclude_query = {"scheme_account__status__in": SchemeAccount.EXCLUDE_BALANCE_STATUSES}
-    entries = channels_permit.related_model_query(
-        SchemeAccountEntry.objects.filter(**query), "scheme_account__scheme__"
-    )
-    entries = entries.exclude(**exclude_query)
+def async_all_balance(user_id: int) -> None:
+    """
+    Fetches/refreshes the balance for all non-deleted loyalty cards to which this user is subscribed.
+    """
+    entries = SchemeAccountEntry.objects.filter(user_id=user_id, scheme_account__is_deleted=False).all()
+    entries = entries.exclude(**{"scheme_account__status__in": SchemeAccount.EXCLUDE_BALANCE_STATUSES})
 
     for entry in entries:
         async_balance.delay(entry)

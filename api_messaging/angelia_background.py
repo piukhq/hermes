@@ -272,9 +272,7 @@ def delete_user(message: dict) -> None:
 
 def refresh_balances(message: dict) -> None:
     with AngeliaContext(message) as ac:
-        user = CustomUser.objects.get(pk=ac.user_id)
-        permit = Permit(bundle_id=ac.channel_slug, user=user)
-        async_all_balance(ac.user_id, permit)
+        async_all_balance(ac.user_id)
         logger.info(f"User {ac.user_id} refresh balances called. ")
 
 

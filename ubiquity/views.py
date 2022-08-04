@@ -283,7 +283,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         except ServiceConsent.DoesNotExist:
             raise NotFound
 
-        async_all_balance.delay(request.user.id, self.request.channels_permit)
+        async_all_balance.delay(request.user.id)
         return Response(self.get_serializer_by_request(service_consent).data)
 
     @censor_and_decorate
