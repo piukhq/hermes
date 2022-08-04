@@ -1104,6 +1104,9 @@ class SchemeAccount(models.Model):
         return self.barcode
 
     def get_transaction_matching_user_id(self):
+        # todo: for transaction matching we currently return credentials belonging to the first user by date joined
+        #  (it seems)  - which previously would mean the same credentials as everyone else. Now we may need to decide
+        #  how to pick the 'best' credentials for Harmonia (P3).
         bink_user = self.user_set.filter(client_id=settings.BINK_CLIENT_ID).values("id").order_by("date_joined")
         if bink_user.exists():
             user_id = bink_user.first().get("id")
