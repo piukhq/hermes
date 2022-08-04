@@ -118,7 +118,7 @@ class SchemeAccountEntry(models.Model):
         self._update_barcode_and_card_number(barcode, answers=answers, primary_cred_type=BARCODE)
         self._update_main_answer(answers)
 
-        self.scheme_account.save(update_fields=["barcode", "card_number"])
+        self.scheme_account.save(update_fields=["barcode", "card_number", "main_answer"])
 
     def _update_main_answer(self, credentials):
         """

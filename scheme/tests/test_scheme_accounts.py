@@ -61,7 +61,9 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
     def setUpTestData(cls):
         cls.scheme = SchemeFactory()
         cls.scheme_image = SchemeImageFactory(scheme=cls.scheme)
+
         SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME, manual_question=True)
+
         secondary_question = SchemeCredentialQuestionFactory(
             scheme=cls.scheme, type=CARD_NUMBER, third_party_identifier=True, options=SchemeCredentialQuestion.LINK
         )
@@ -147,6 +149,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             scheme=cls.scheme1, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
         )
 
+        cls.scheme_account_entry.update_scheme_account_key_credential_fields()
         cls.scheme_account_entry1.update_scheme_account_key_credential_fields()
         cls.auth_headers = {"HTTP_AUTHORIZATION": "Token " + cls.user.create_token(bundle_id=cls.bundle.bundle_id)}
 
