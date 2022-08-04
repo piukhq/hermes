@@ -92,9 +92,9 @@ class TestTasks(GlobalMockAPITestCase):
 
         self.assertTrue(mock_async_balance.called)
         async_balance_call_args = [call_args[0][0] for call_args in mock_async_balance.call_args_list]
-        self.assertTrue(self.entry.scheme_account.id in async_balance_call_args)
-        self.assertTrue(self.entry2.scheme_account.id in async_balance_call_args)
-        self.assertFalse(deleted_entry.scheme_account.id in async_balance_call_args)
+        self.assertTrue(self.entry in async_balance_call_args)
+        self.assertTrue(self.entry2 in async_balance_call_args)
+        self.assertFalse(deleted_entry in async_balance_call_args)
 
     @patch("ubiquity.tasks.async_balance.delay")
     def test_async_all_balance_filtering(self, mock_async_balance):
@@ -122,10 +122,10 @@ class TestTasks(GlobalMockAPITestCase):
         async_all_balance(user.id, channels_permit=channels_permit)
 
         refreshed_scheme_accounts = [x[0][0] for x in mock_async_balance.call_args_list]
-        self.assertIn(entry_active.scheme_account.id, refreshed_scheme_accounts)
-        self.assertIn(entry_end_site_down.scheme_account.id, refreshed_scheme_accounts)
-        self.assertNotIn(entry_invalid_credentials.scheme_account.id, refreshed_scheme_accounts)
-        self.assertNotIn(entry_pending.scheme_account.id, refreshed_scheme_accounts)
+        self.assertIn(entry_active, refreshed_scheme_accounts)
+        self.assertIn(entry_end_site_down, refreshed_scheme_accounts)
+        self.assertNotIn(entry_invalid_credentials, refreshed_scheme_accounts)
+        self.assertNotIn(entry_pending, refreshed_scheme_accounts)
 
     @patch("ubiquity.tasks.async_balance.delay")
     def test_async_all_balance_with_allowed_schemes(self, mock_async_balance):
@@ -135,8 +135,8 @@ class TestTasks(GlobalMockAPITestCase):
         async_all_balance(user_id, channels_permit=channels_permit)
         self.assertTrue(mock_async_balance.called)
         async_balance_call_args = [call_args[0][0] for call_args in mock_async_balance.call_args_list]
-        self.assertFalse(self.entry.scheme_account.id in async_balance_call_args)
-        self.assertTrue(self.entry2.scheme_account.id in async_balance_call_args)
+        self.assertFalse(self.entry in async_balance_call_args)
+        self.assertTrue(self.entry2 in async_balance_call_args)
 
     @patch("scheme.models.SchemeAccount.call_analytics")
     @patch("requests.get")
