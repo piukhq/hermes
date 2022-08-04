@@ -82,9 +82,9 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         cls.scheme_account_entry1 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account1)
 
         barcode_question = SchemeCredentialQuestionFactory(
-            scheme=cls.scheme1, type=BARCODE, options=SchemeCredentialQuestion.LINK
+            scheme=cls.scheme1, type=BARCODE, options=SchemeCredentialQuestion.LINK, third_party_identifier=True
         )
-        SchemeCredentialQuestionFactory(scheme=cls.scheme1, type=CARD_NUMBER, third_party_identifier=True)
+        SchemeCredentialQuestionFactory(scheme=cls.scheme1, type=CARD_NUMBER)
 
         cls.scheme.save()
 
