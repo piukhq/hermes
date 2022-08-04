@@ -843,7 +843,6 @@ class MembershipCardView(
             error = {"join_pending": "Membership card cannot be deleted until the Join process has completed."}
             return Response(error, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-        SchemeAccountEntry.objects.filter(scheme_account=scheme_account, user=request.user).delete()
         deleted_membership_card_cleanup.delay(
             scheme_account.id,
             arrow.utcnow().format(),

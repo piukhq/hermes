@@ -271,7 +271,7 @@ class TestTasks(GlobalMockAPITestCase):
 
         scheme_account.refresh_from_db()
 
-        self.assertEqual(scheme_account.WALLET_ONLY, scheme_account.status)
+        self.assertTrue(scheme_account.is_deleted)
         self.assertEqual(1, answers.count())
         self.assertTrue(answers.first().question.manual_question)
 

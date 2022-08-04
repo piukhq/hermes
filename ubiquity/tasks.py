@@ -302,15 +302,23 @@ def deleted_membership_card_cleanup(
     scheme_account = SchemeAccount.all_objects.get(id=scheme_account_id)
     user = CustomUser.objects.get(id=user_id)
     scheme_slug = scheme_account.scheme.slug
+    scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user=user)
 
+    # todo: review PLL behaviour on card deletion in P3
     pll_links = PaymentCardSchemeEntry.objects.filter(scheme_account_id=scheme_account.id).prefetch_related(
         "scheme_account", "payment_card_account", "payment_card_account__paymentcardschemeentry_set"
     )
-    scheme_account_entries = SchemeAccountEntry.objects.filter(scheme_account=scheme_account)
 
-    remove_loyalty_card_event(user, scheme_account)
+    # Delete this user's credentials
+    scheme_account_entry.schemeaccountcredentialanswer_set.all().delete()
 
-    if scheme_account_entries.count() <= 0:
+    # Delete this user's scheme account entry
+    scheme_account_entry.delete()
+
+    other_scheme_account_entries = SchemeAccountEntry.objects.filter(scheme_account=scheme_account)
+
+    if other_scheme_account_entries.count() <= 0:
+        # Last man standing
         scheme_account.is_deleted = True
         scheme_account.save(update_fields=["is_deleted"])
 
@@ -320,16 +328,8 @@ def deleted_membership_card_cleanup(
             )
 
     else:
-        for sae in scheme_account_entries:
-            # Only delete the credential answers for this user.
-            if sae.user == user:
-                sae.schemeaccountcredentialanswer_set.filter(
-                    question__auth_field=True,
-                    question__manual_question=False,
-                ).delete()
-
-        m_card_users = scheme_account_entries.values_list("user_id", flat=True)
         # todo: Some PLL link nonsense to look at here for Phase 3.
+        m_card_users = other_scheme_account_entries.values_list("user_id", flat=True)
         pll_links = pll_links.exclude(payment_card_account__user_set__in=m_card_users)
 
     activations = VopActivation.find_activations_matching_links(pll_links)
