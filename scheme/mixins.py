@@ -561,6 +561,8 @@ class UpdateCredentialsMixin:
         return {"updated": updated_types}
 
     def replace_credentials_and_scheme(
+            # todo: we really need to remove the bigger part of this functionality in the new world, else we need to
+            #  discuss how a scheme change would be handled!
         self, scheme_account: SchemeAccount, data: dict, scheme: Scheme, scheme_account_entry: SchemeAccountEntry
     ) -> dict:
         self._check_required_data_presence(scheme, data)
@@ -569,21 +571,18 @@ class UpdateCredentialsMixin:
             scheme_account.scheme = scheme
             scheme_account.save(update_fields=["scheme"])
 
-        # todo: some funky behaviour here - we could call PATCH membership_cards to change a scheme_account's scheme!?
-        #  How do we handle credentials in this case? Do we loop through for all users?
-
-        scheme_account.schemeaccountcredentialanswer_set.exclude(question__type__in=data.keys()).delete()
+        scheme_account_entry.schemeaccountcredentialanswer_set.exclude(question__type__in=data.keys()).delete()
         return self.update_credentials(scheme_account, data, scheme_account_entry=scheme_account_entry)
 
     @staticmethod
     def card_with_same_data_already_exists(account: SchemeAccount, scheme_id: int, main_answer: str) -> bool:
-        # i.e. if any schemeaccountcredential answers exist with this main answer (for any user), we conclude that an
-        # account already exists
+        # i.e. if any schemeaccount exists with this main answer. This relies on main_answer always being populated,
+        # which it SHOULD BE.
         return (
-            SchemeAccountCredentialAnswer.objects.filter(
-                scheme_account__scheme_id=scheme_id, scheme_account__is_deleted=False, answer=main_answer
+            SchemeAccount.objects.filter(
+                scheme_id=scheme_id, is_deleted=False, main_answer=main_answer
             )
-            .exclude(scheme_account=account)
+            .exclude(id=account.id)
             .exists()
         )
 

@@ -21,7 +21,6 @@ exports = {
             "barcode": None,
             "display_status": None,
             "main_answer": None,
-            "third_party_identifier": None,
         },
     },
     "users": {
