@@ -284,7 +284,7 @@ class SchemeAccountEntry(models.Model):
     def _iceland_hack(self, credentials: dict = None, credentials_override: dict = None) -> bool:
         # todo: we will need to review this for P2
 
-        if self.scheme_account in self.scheme_account.ALL_PENDING_STATUSES:
+        if self.scheme_account.status in self.scheme_account.ALL_PENDING_STATUSES:
             return False
 
         missing = self.missing_credentials(credentials.keys())
