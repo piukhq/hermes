@@ -28,7 +28,7 @@ from user.tests.factories import (
 )
 
 
-def mock_get_cached_balance(self):
+def mock_get_cached_balance(self, scheme_account_entry=None):
     balances = [
         {
             "value": 380,
