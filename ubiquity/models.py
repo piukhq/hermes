@@ -297,8 +297,9 @@ class SchemeAccountEntry(models.Model):
                 update_scheme_account_attribute_new_status(
                     self.scheme_account, user, dict(self.scheme_account.STATUSES).get(self.scheme_account.INCOMPLETE)
                 )
-            self.status = self.scheme_account.INCOMPLETE
-            self.save()
+            self.scheme_account.status = self.scheme_account.INCOMPLETE
+
+            self.scheme_account.save()
             return True  # triggers return None from calling method
         return False
 
