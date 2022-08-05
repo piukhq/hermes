@@ -10,7 +10,7 @@ from scheme.credentials import CARD_NUMBER, EMAIL, PASSWORD, POSTCODE
 from scheme.models import SchemeAccount, SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.serializers import JoinSerializer
 from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory
-from ubiquity.models import PaymentCardSchemeEntry
+from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import (
     async_all_balance,
     async_balance,
@@ -191,8 +191,8 @@ class TestTasks(GlobalMockAPITestCase):
         external_id_2 = "testuser2@testbink.com"
         user2 = UserFactory(external_id=external_id_2, email=external_id_2)
 
-        # The mcard is not linked to user1 since this link should be deleted before the cleanup task is called
         main_mcard = SchemeAccountFactory()
+        SchemeAccountEntryFactory(scheme_account=main_mcard, user=user1)
 
         # Add an Active payment account and link mcard to test PLL link handling
         payment_card = PaymentCardAccountFactory()
@@ -228,10 +228,10 @@ class TestTasks(GlobalMockAPITestCase):
 
     @patch("ubiquity.tasks.remove_loyalty_card_event")
     @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
-    def test_deleted_membership_card_cleanup_wallet_only(self, mock_metrics, mock_to_warehouse):
+    def test_deleted_membership_card_cleanup_other_entries(self, mock_metrics, mock_to_warehouse):
         """
-        Tests that auth credentials are deleted when only wallet only cards are left linked to
-        a scheme account and that the status is set to WALLET_ONLY
+        Tests that auth credentials are deleted only for this user, and that scheme_account is not deleted when user is
+        not last man standing.
         """
         external_id_1 = "testuser@testbink.com"
         user2 = UserFactory(external_id=external_id_1, email=external_id_1)
@@ -266,17 +266,23 @@ class TestTasks(GlobalMockAPITestCase):
 
         answers = scheme_account_entry.schemeaccountcredentialanswer_set
         self.assertEqual(3, answers.count())
+        answers = scheme_account_entry_alt.schemeaccountcredentialanswer_set
+        self.assertEqual(3, answers.count())
 
-        deleted_membership_card_cleanup(scheme_account.id, "", self.user.id)
+        deleted_membership_card_cleanup(scheme_account.id, "", user2.id)
 
         scheme_account.refresh_from_db()
 
-        self.assertTrue(scheme_account.is_deleted)
-        self.assertEqual(1, answers.count())
-        self.assertTrue(answers.first().question.manual_question)
+        answers = scheme_account_entry_alt.schemeaccountcredentialanswer_set
+        self.assertEqual(3, answers.count())
+
+        self.assertFalse(scheme_account.is_deleted)
 
         self.assertTrue(mock_to_warehouse.called)
         self.assertEqual(mock_to_warehouse.call_count, 1)
+
+        with self.assertRaises(SchemeAccountEntry.DoesNotExist):
+            SchemeAccountEntry.objects.get(scheme_account=scheme_account, user=user2)
 
     @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
     def test_deleted_payment_card_cleanup_ubiquity_collision(self, mock_metrics):
