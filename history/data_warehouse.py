@@ -1,9 +1,14 @@
 import logging
+import typing as t
 
 import arrow
 from django.conf import settings
 
 from api_messaging.message_broker import SendingService
+
+if t.TYPE_CHECKING:
+    from user.models import CustomUser
+    from scheme.models import SchemeAccount
 
 logger = logging.getLogger("messaging")
 
@@ -19,7 +24,7 @@ def to_data_warehouse(payload: dict) -> None:
         message_sender.send(payload, headers, settings.WAREHOUSE_QUEUE_NAME)
 
 
-def addauth_request_lc_event(user: object, scheme_account: object, bundle_id: str):
+def addauth_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str):
     payload = {
         "event_type": "lc.addandauth.request",
         "origin": "channel",
@@ -35,7 +40,7 @@ def addauth_request_lc_event(user: object, scheme_account: object, bundle_id: st
     to_data_warehouse(payload)
 
 
-def auth_request_lc_event(user: object, scheme_account: object, bundle_id: str):
+def auth_request_lc_event(user: CustomUser, scheme_account: "SchemeAccount", bundle_id: str):
     payload = {
         "event_type": "lc.auth.request",
         "origin": "channel",
@@ -51,7 +56,7 @@ def auth_request_lc_event(user: object, scheme_account: object, bundle_id: str):
     to_data_warehouse(payload)
 
 
-def register_lc_event(user: object, scheme_account: object, bundle_id: str):
+def register_lc_event(user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str):
     payload = {
         "event_type": "lc.register.request",
         "origin": "channel",
@@ -67,7 +72,7 @@ def register_lc_event(user: object, scheme_account: object, bundle_id: str):
     to_data_warehouse(payload)
 
 
-def join_request_lc_event(user: object, scheme_account: object, bundle_id: str):
+def join_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str):
     payload = {
         "event_type": "lc.join.request",
         "origin": "channel",
@@ -82,7 +87,7 @@ def join_request_lc_event(user: object, scheme_account: object, bundle_id: str):
     to_data_warehouse(payload)
 
 
-def remove_loyalty_card_event(user: object, scheme_account: object):
+def remove_loyalty_card_event(user: "CustomUser", scheme_account: "SchemeAccount"):
     cabs = user.client.clientapplicationbundle_set.all()
     for cab in cabs:
         payload = {
@@ -101,7 +106,7 @@ def remove_loyalty_card_event(user: object, scheme_account: object):
         to_data_warehouse(payload)
 
 
-def join_outcome(success: bool, user: object, scheme_account: object):
+def join_outcome(success: bool, user: "CustomUser", scheme_account: "SchemeAccount"):
     extra_data = {}
     if success:
         event_type = "lc.join.success"
@@ -128,7 +133,7 @@ def join_outcome(success: bool, user: object, scheme_account: object):
         to_data_warehouse(payload)
 
 
-def add_auth_outcome(success: bool, user: object, scheme_account: object):
+def add_auth_outcome(success: bool, user: "CustomUser", scheme_account: "SchemeAccount"):
     extra_data = {}
     if success:
         event_type = "lc.addandauth.success"
@@ -153,7 +158,7 @@ def add_auth_outcome(success: bool, user: object, scheme_account: object):
     to_data_warehouse(payload)
 
 
-def auth_outcome(success: bool, user: object, scheme_account: object):
+def auth_outcome(success: bool, user: "CustomUser", scheme_account: "SchemeAccount"):
     extra_data = {}
     if success:
         event_type = "lc.auth.success"
@@ -178,7 +183,7 @@ def auth_outcome(success: bool, user: object, scheme_account: object):
     to_data_warehouse(payload)
 
 
-def register_outcome(success: bool, user: object, scheme_account: object):
+def register_outcome(success: bool, user: "CustomUser", scheme_account: "SchemeAccount"):
     extra_data = {}
     if success:
         event_type = "lc.register.success"
