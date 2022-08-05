@@ -561,9 +561,13 @@ class UpdateCredentialsMixin:
         return {"updated": updated_types}
 
     def replace_credentials_and_scheme(
-            # todo: we really need to remove the bigger part of this functionality in the new world, else we need to
-            #  discuss how a scheme change would be handled!
-        self, scheme_account: SchemeAccount, data: dict, scheme: Scheme, scheme_account_entry: SchemeAccountEntry
+        # todo: we really need to remove the bigger part of this functionality in the new world, else we need to
+        #  discuss how a scheme change would be handled!
+        self,
+        scheme_account: SchemeAccount,
+        data: dict,
+        scheme: Scheme,
+        scheme_account_entry: SchemeAccountEntry,
     ) -> dict:
         self._check_required_data_presence(scheme, data)
 
@@ -579,9 +583,7 @@ class UpdateCredentialsMixin:
         # i.e. if any schemeaccount exists with this main answer. This relies on main_answer always being populated,
         # which it SHOULD BE.
         return (
-            SchemeAccount.objects.filter(
-                scheme_id=scheme_id, is_deleted=False, main_answer=main_answer
-            )
+            SchemeAccount.objects.filter(scheme_id=scheme_id, is_deleted=False, main_answer=main_answer)
             .exclude(id=account.id)
             .exists()
         )

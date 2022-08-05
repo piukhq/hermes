@@ -103,8 +103,11 @@ class SchemeAccountEntry(models.Model):
 
     def update_scheme_account_key_credential_fields(self):
 
-        answers = {answer for answer in self.credential_answers if answer.question.manual_question or
-                   answer.question.scan_question or answer.question.one_question_link}
+        answers = {
+            answer
+            for answer in self.credential_answers
+            if answer.question.manual_question or answer.question.scan_question or answer.question.one_question_link
+        }
 
         card_number = None
         barcode = None
@@ -125,9 +128,11 @@ class SchemeAccountEntry(models.Model):
         Updates the main_answer on the Scheme Account object to match Card_number, barcode, or else whatever the
         manual_question is for this scheme, so that the 'main_answer' property can be more reliably used.
         """
-        main_answer_question = self.scheme_account.scheme.manual_question or \
-                               self.scheme_account.scheme.scan_question or \
-                               self.scheme_account.scheme.one_question_link
+        main_answer_question = (
+            self.scheme_account.scheme.manual_question
+            or self.scheme_account.scheme.scan_question
+            or self.scheme_account.scheme.one_question_link
+        )
 
         if main_answer_question:
             for cred in credentials:
@@ -260,8 +265,9 @@ class SchemeAccountEntry(models.Model):
     def third_party_identifier(self):
         from scheme.models import SchemeCredentialQuestion
 
-        question = SchemeCredentialQuestion.objects.filter(third_party_identifier=True,
-                                                           scheme=self.scheme_account.scheme).first()
+        question = SchemeCredentialQuestion.objects.filter(
+            third_party_identifier=True, scheme=self.scheme_account.scheme
+        ).first()
         if question:
             return self._find_answer(question)
 

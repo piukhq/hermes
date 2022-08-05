@@ -53,7 +53,6 @@ from ubiquity.reason_codes import CURRENT_STATUS_CODES
 from ubiquity.tasks import deleted_membership_card_cleanup
 from ubiquity.tests.factories import (
     PaymentCardAccountEntryFactory,
-    PaymentCardSchemeEntryFactory,
     SchemeAccountEntryFactory,
     ServiceConsentFactory,
 )
