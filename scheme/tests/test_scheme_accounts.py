@@ -594,8 +594,9 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertNotIn(scheme_2.id, scheme_ids)
 
     def test_get_scheme_accounts_credentials(self):
+
         response = self.client.get(
-            "/schemes/accounts/{0}/credentials".format(self.scheme_account.id), **self.auth_service_headers
+            f"/schemes/accounts/{self.scheme_account.id}/credentials?user_id={self.user.id}", **self.auth_service_headers,
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn("credentials", response.data)
@@ -606,7 +607,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
     def test_get_scheme_accounts_credentials_user(self):
         response = self.client.get(
-            "/schemes/accounts/{0}/credentials".format(self.scheme_account.id), **self.auth_headers
+            f"/schemes/accounts/{self.scheme_account.id}/credentials?user_id={self.user.id}", **self.auth_headers
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn("id", response.data)

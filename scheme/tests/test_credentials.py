@@ -89,12 +89,14 @@ class TestCredentials(GlobalMockAPITestCase):
                     )
 
                 payload = {field: answer}
+
                 resp = self.client.put(
-                    reverse("change_account_credentials", args=[scheme_account2.id]),
+                    f"/schemes/accounts/{scheme_account2.id}/credentials?user_id={self.user.id}",
                     data=json.dumps(payload),
                     content_type="application/json",
                     **self.auth_headers,
                 )
+
                 self.assertEqual(400, resp.status_code)
                 self.assertEqual(
                     {
@@ -131,8 +133,9 @@ class TestCredentials(GlobalMockAPITestCase):
                 SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
 
                 payload = {field: answer}
+
                 resp = self.client.put(
-                    reverse("change_account_credentials", args=[scheme_account.id]),
+                    f"/schemes/accounts/{scheme_account.id}/credentials?user_id={self.user.id}",
                     data=json.dumps(payload),
                     content_type="application/json",
                     **self.auth_headers,
