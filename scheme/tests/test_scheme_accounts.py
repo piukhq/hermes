@@ -1351,20 +1351,23 @@ class TestAccessTokens(GlobalMockAPITestCase):
         )
         # Test with service headers
         response = self.client.get(
-            "/schemes/accounts/{0}/credentials".format(self.scheme_account.id), **self.auth_service_headers
+            f"/schemes/accounts/{self.scheme_account.id}/credentials?user_id={self.scheme_account_entry.user.id}", **self.auth_service_headers
         )
         self.assertEqual(response.status_code, 200)
         response = self.client.get(
-            "/schemes/accounts/{0}/credentials".format(self.scheme_account2.id), **self.auth_service_headers
+            f"/schemes/accounts/{self.scheme_account2.id}/credentials?user_id={self.scheme_account_entry2.user.id}",
+            **self.auth_service_headers
         )
         self.assertEqual(response.status_code, 200)
         # Test as standard user
         response = self.client.get(
-            "/schemes/accounts/{0}/credentials".format(self.scheme_account.id), **self.auth_headers
+            f"/schemes/accounts/{self.scheme_account.id}/credentials?user_id={self.scheme_account_entry.user.id}",
+            **self.auth_service_headers
         )
         self.assertEqual(response.status_code, 200)
         response = self.client.get(
-            "/schemes/accounts/{0}/credentials".format(self.scheme_account2.id), **self.auth_headers
+            f"/schemes/accounts/{self.scheme_account2.id}/credentials?user_id={self.scheme_account_entry2.user.id}",
+            **self.auth_service_headers
         )
         self.assertEqual(response.status_code, 404)
 
@@ -1590,13 +1593,13 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
 
     def send_delete_credential_request(self, data):
         response = self.client.delete(
-            "/schemes/accounts/{0}/credentials".format(self.scheme_account.id), data=data, **self.auth_headers
+            f"/schemes/accounts/{self.scheme_account.id}/credentials?user_id={self.user.id}", data=data, **self.auth_headers
         )
         return response
 
     def test_update_new_and_existing_credentials(self):
         response = self.client.put(
-            "/schemes/accounts/{0}/credentials".format(self.scheme_account2.id),
+            f"/schemes/accounts/{self.scheme_account2.id}/credentials?user_id={self.scheme_account_entry2.user.id}",
             data={"card_number": "0123456", "password": "newpassword"},
             **self.auth_headers2
         )
@@ -1606,11 +1609,11 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         credential_list = self.scheme_account_entry2.schemeaccountcredentialanswer_set.all()
         scheme_account_types = [answer.question.type for answer in credential_list]
         self.assertSequenceEqual(sorted(["card_number", "password"]), sorted(scheme_account_types))
-        self.assertEqual(self.scheme_account2._collect_credentials()["password"], "newpassword")
+        self.assertEqual(self.scheme_account_entry2._collect_credential_answers()["password"], "newpassword")
 
     def test_update_credentials_wrong_credential_type(self):
         response = self.client.put(
-            "/schemes/accounts/{0}/credentials".format(self.scheme_account_no_answers.id),
+            f"/schemes/accounts/{self.scheme_account_no_answers.id}/credentials?user_id={self.scheme_account_entry_no_answers.user.id}",
             data={"title": "mr"},
             **self.auth_headers3
         )
@@ -1622,7 +1625,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
 
     def test_update_credentials_bad_credential_type(self):
         response = self.client.put(
-            "/schemes/accounts/{0}/credentials".format(self.scheme_account_no_answers.id),
+            f"/schemes/accounts/{self.scheme_account_no_answers.id}/credentials?user_id={self.scheme_account_entry_no_answers.user.id}",
             data={"user_name": "user_name not username"},
             **self.auth_headers3
         )
@@ -1634,7 +1637,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
 
     def test_update_credentials_bad_credential_value_type_is_converted(self):
         response = self.client.put(
-            "/schemes/accounts/{0}/credentials".format(self.scheme_account_no_answers.id),
+            f"/schemes/accounts/{self.scheme_account_no_answers.id}/credentials?user_id={self.scheme_account_entry_no_answers.user.id}",
             data={"card_number": True},
             **self.auth_headers3
         )
@@ -1644,7 +1647,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         credential_list = self.scheme_account_entry_no_answers.schemeaccountcredentialanswer_set.all()
         scheme_account_types = [answer.question.type for answer in credential_list]
         self.assertEqual(["card_number"], scheme_account_types)
-        self.assertEqual(self.scheme_account_no_answers._collect_credentials()["card_number"], "True")
+        self.assertEqual(self.scheme_account_entry_no_answers._collect_credential_answers()["card_number"], "True")
 
     def test_delete_credentials_by_type(self):
         response = self.send_delete_credential_request({"type_list": ["card_number", "username"]})
@@ -1686,10 +1689,11 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
 
     def test_delete_credentials_wrong_credential(self):
         response = self.client.delete(
-            "/schemes/accounts/{0}/credentials".format(self.scheme_account2.id),
+            f"/schemes/accounts/{self.scheme_account2.id}/credentials?user_id={self.scheme_account_entry2.user.id}",
             data={"type_list": ["card_number", "password"]},
             **self.auth_headers2
         )
+
         self.assertEqual(response.status_code, 404)
         self.assertTrue(response.json()["message"].startswith("No answers found for: card_number"))
 
@@ -1698,9 +1702,9 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
 
     def test_delete_credentials_with_scheme_account_without_credentials(self):
         response = self.client.delete(
-            "/schemes/accounts/{0}/credentials".format(self.scheme_account_no_answers.id),
-            data={"all": True},
+            f"/schemes/accounts/{self.scheme_account_no_answers.id}/credentials?user_id={self.scheme_account_entry_no_answers.user.id}", data={"all": True},
             **self.auth_headers3
         )
+
         self.assertEqual(response.status_code, 404)
         self.assertTrue(response.json()["message"].startswith("No answers found"))

@@ -598,11 +598,14 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
 
     def get(self, request, *args, **kwargs):
 
-        account = self.request.channels_permit.scheme_account_query(
-            SchemeAccount.objects,
-            user_id=self.request.user.id,
-            user_filter=False if request.user.uid == "api_user" else True,
-        ).get_object_or_404(**kwargs)
+        try:
+            account = self.request.channels_permit.scheme_account_query(
+                SchemeAccount.objects,
+                user_id=self.request.user.id,
+                user_filter=False if request.user.uid == "api_user" else True,
+            ).get(**kwargs)
+        except SchemeAccount.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=account,
                                                               user_id=request.query_params['user_id'])
