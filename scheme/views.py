@@ -593,7 +593,6 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
     DO NOT USE - NOT FOR APP ACCESS
     """
 
-    # todo: This will require change and is fundamentally broken right now!
     authentication_classes = (JwtAuthentication, ServiceAuthentication)
     serializer_class = SchemeAccountCredentialsSerializer
 
@@ -615,8 +614,11 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         ---
         """
         account = self.get_object()
-        response = self.update_credentials(account, request.data)
-        account.update_scheme_account_key_credential_fields()
+        new_credentials = request.data['credentials']
+        user_id = request.data['user_id']
+        scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=account, user_id=user_id)
+        response = self.update_credentials(account, new_credentials, scheme_account_entry)
+        scheme_account_entry.update_scheme_account_key_credential_fields()
         return Response(response, status=status.HTTP_200_OK)
 
     def delete(self, request, *args, **kwargs):

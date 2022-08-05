@@ -836,7 +836,7 @@ class SchemeAccount(models.Model):
             credentials = scheme_account_entry.credentials(credentials_override)
             if not credentials:
                 return points, dw_event
-            response = self._get_balance(credentials, journey)
+            response = self._get_balance(credentials, journey, scheme_account_entry)
             points, dw_event = self._process_midas_response(response)
 
         except ConnectionError:
@@ -864,7 +864,7 @@ class SchemeAccount(models.Model):
         for user in bink_users:  # Update intercom
             update_scheme_account_attribute(self, user, dict(self.STATUSES).get(old_status))
 
-    def _get_balance(self, credentials, journey):
+    def _get_balance(self, credentials, journey, scheme_account_entry):
         # todo: liaise with Midas to work out what we need to see here
         user_set = ",".join([str(u.id) for u in self.user_set.all()])
         parameters = {
@@ -873,6 +873,7 @@ class SchemeAccount(models.Model):
             "user_set": user_set,
             "status": self.status,
             "journey_type": journey.value,
+            "user_id": scheme_account_entry.user.id
         }
         midas_balance_uri = f"{settings.MIDAS_URL}/{self.scheme.slug}/balance"
         headers = {"transaction": str(uuid.uuid1()), "User-agent": "Hermes on {0}".format(socket.gethostname())}

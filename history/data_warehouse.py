@@ -40,7 +40,7 @@ def addauth_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount"
     to_data_warehouse(payload)
 
 
-def auth_request_lc_event(user: CustomUser, scheme_account: "SchemeAccount", bundle_id: str):
+def auth_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str):
     payload = {
         "event_type": "lc.auth.request",
         "origin": "channel",

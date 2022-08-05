@@ -490,12 +490,6 @@ class UpdateCredentialsMixin:
             if question_id in existing_credentials:
                 credential = existing_credentials[question_id]
 
-                if credential.answer == main_answer and new_answer != main_answer:
-                    # todo: this means that one user may be able to update the central 'main answer' on a scheme
-                    #  account. Are we okay with this?
-                    scheme_account.main_answer = new_answer
-                    scheme_account.save(update_fields=["main_answer"])
-
                 credential.answer = new_answer
                 update_credentials.append(credential)
 

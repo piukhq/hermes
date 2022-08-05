@@ -119,13 +119,14 @@ def async_balance_with_updated_credentials(
             "Balance returned from balance call with updated credentials - SchemeAccount (id={scheme_account.id}) - "
             "Updating credentials."
         )
-        # update credentials and set all other linked users to unauthorised if they're different to the stored ones
+        # update credentials
         UpdateCredentialsMixin().update_credentials(
             scheme_account=scheme_account,
             data=update_fields,
             questions=scheme_questions,
             scheme_account_entry=scheme_account_entry,
         )
+        scheme_account_entry.update_scheme_account_key_credential_fields()
 
     else:
         logger.debug(
