@@ -309,6 +309,8 @@ def deleted_membership_card_cleanup(
         "scheme_account", "payment_card_account", "payment_card_account__paymentcardschemeentry_set"
     )
 
+    remove_loyalty_card_event(user, scheme_account)
+
     # Delete this user's credentials
     scheme_account_entry.schemeaccountcredentialanswer_set.all().delete()
 
