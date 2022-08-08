@@ -137,9 +137,9 @@ class SchemeAccountEntry(models.Model):
         if main_answer_question:
             for cred in credentials:
                 if cred.question.type == BARCODE == main_answer_question.type:
-                    self.scheme_account.main_answer = self.scheme_account.card_number
-                elif cred.question.type == CARD_NUMBER == main_answer_question.type:
                     self.scheme_account.main_answer = self.scheme_account.barcode
+                elif cred.question.type == CARD_NUMBER == main_answer_question.type:
+                    self.scheme_account.main_answer = self.scheme_account.card_number
                 elif cred.question.type == main_answer_question.type:
                     self.scheme_account.main_answer = cred.answer
                 else:
