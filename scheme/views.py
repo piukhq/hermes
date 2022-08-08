@@ -608,7 +608,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
             return Response(status=status.HTTP_404_NOT_FOUND)
 
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=account,
-                                                              user_id=request.query_params['user_id'])
+                                                              user_id=request.query_params['bink_user_id'])
 
         data = {
             'credentials': scheme_account_entry.credentials(),
@@ -626,8 +626,8 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         ---
         """
         account = get_object_or_404(SchemeAccount.objects, id=self.kwargs["pk"])
-        new_credentials = request.data
-        user_id = request.query_params['user_id']
+        new_credentials = request.data['credentials']
+        user_id = request.data['bink_user_id']
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=account, user_id=user_id)
         response = self.update_credentials(account, new_credentials, scheme_account_entry)
         scheme_account_entry.update_scheme_account_key_credential_fields()
@@ -652,8 +652,9 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
             description: list, e.g. ['username', 'password'] of all credential types to delete
         """
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs["pk"])
+        user_id = self.request.data['bink_user_id']
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account,
-                                                              user_id=self.request.query_params['user_id'])
+                                                              user_id=user_id)
         serializer = DeleteCredentialSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

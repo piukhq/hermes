@@ -596,7 +596,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
     def test_get_scheme_accounts_credentials(self):
 
         response = self.client.get(
-            f"/schemes/accounts/{self.scheme_account.id}/credentials?user_id={self.user.id}", **self.auth_service_headers,
+            f"/schemes/accounts/{self.scheme_account.id}/credentials?bink_user_id={self.user.id}", **self.auth_service_headers,
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn("credentials", response.data)
@@ -607,7 +607,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
     def test_get_scheme_accounts_credentials_user(self):
         response = self.client.get(
-            f"/schemes/accounts/{self.scheme_account.id}/credentials?user_id={self.user.id}", **self.auth_headers
+            f"/schemes/accounts/{self.scheme_account.id}/credentials?bink_user_id={self.user.id}", **self.auth_headers
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn("id", response.data)
@@ -1351,22 +1351,22 @@ class TestAccessTokens(GlobalMockAPITestCase):
         )
         # Test with service headers
         response = self.client.get(
-            f"/schemes/accounts/{self.scheme_account.id}/credentials?user_id={self.scheme_account_entry.user.id}", **self.auth_service_headers
+            f"/schemes/accounts/{self.scheme_account.id}/credentials?bink_user_id={self.scheme_account_entry.user.id}", **self.auth_service_headers
         )
         self.assertEqual(response.status_code, 200)
         response = self.client.get(
-            f"/schemes/accounts/{self.scheme_account2.id}/credentials?user_id={self.scheme_account_entry2.user.id}",
+            f"/schemes/accounts/{self.scheme_account2.id}/credentials?bink_user_id={self.scheme_account_entry2.user.id}",
             **self.auth_service_headers
         )
         self.assertEqual(response.status_code, 200)
         # Test as standard user
         response = self.client.get(
-            f"/schemes/accounts/{self.scheme_account.id}/credentials?user_id={self.scheme_account_entry.user.id}",
+            f"/schemes/accounts/{self.scheme_account.id}/credentials?bink_user_id={self.scheme_account_entry.user.id}",
             **self.auth_headers
         )
         self.assertEqual(response.status_code, 200)
         response = self.client.get(
-            f"/schemes/accounts/{self.scheme_account2.id}/credentials?user_id={self.scheme_account_entry2.user.id}",
+            f"/schemes/accounts/{self.scheme_account2.id}/credentials?bink_user_id={self.scheme_account_entry2.user.id}",
             **self.auth_headers
         )
         self.assertEqual(response.status_code, 404)
@@ -1592,15 +1592,20 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         cls.auth_headers3 = {"HTTP_AUTHORIZATION": "Token " + cls.user3.create_token()}
 
     def send_delete_credential_request(self, data):
+
         response = self.client.delete(
-            f"/schemes/accounts/{self.scheme_account.id}/credentials?user_id={self.user.id}", data=data, **self.auth_headers
+            f"/schemes/accounts/{self.scheme_account.id}/credentials", data=json.dumps(data),
+            content_type="application/json",  **self.auth_headers
         )
         return response
 
     def test_update_new_and_existing_credentials(self):
+        payload = {"bink_user_id": self.scheme_account_entry2.user.id, "credentials": {"card_number": "0123456", "password": "newpassword"}}
+
         response = self.client.put(
-            f"/schemes/accounts/{self.scheme_account2.id}/credentials?user_id={self.scheme_account_entry2.user.id}",
-            data={"card_number": "0123456", "password": "newpassword"},
+            f"/schemes/accounts/{self.scheme_account2.id}/credentials",
+            data=json.dumps(payload),
+            content_type="application/json",
             **self.auth_headers2
         )
         self.assertEqual(response.status_code, 200)
@@ -1612,9 +1617,12 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         self.assertEqual(self.scheme_account_entry2._collect_credential_answers()["password"], "newpassword")
 
     def test_update_credentials_wrong_credential_type(self):
+        payload = {"bink_user_id": self.scheme_account_entry_no_answers.user.id, "credentials": {"title": "mr"}}
+
         response = self.client.put(
-            f"/schemes/accounts/{self.scheme_account_no_answers.id}/credentials?user_id={self.scheme_account_entry_no_answers.user.id}",
-            data={"title": "mr"},
+            f"/schemes/accounts/{self.scheme_account_no_answers.id}/credentials",
+            data=json.dumps(payload),
+            content_type="application/json",
             **self.auth_headers3
         )
 
@@ -1624,9 +1632,12 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         self.assertEqual(len(credential_list), 0)
 
     def test_update_credentials_bad_credential_type(self):
+        payload = {"bink_user_id": self.scheme_account_entry_no_answers.user.id, "credentials": {"user_name": "user_name not username"}}
+
         response = self.client.put(
-            f"/schemes/accounts/{self.scheme_account_no_answers.id}/credentials?user_id={self.scheme_account_entry_no_answers.user.id}",
-            data={"user_name": "user_name not username"},
+            f"/schemes/accounts/{self.scheme_account_no_answers.id}/credentials",
+            data=json.dumps(payload),
+            content_type="application/json",
             **self.auth_headers3
         )
 
@@ -1635,22 +1646,8 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         credential_list = self.scheme_account_entry_no_answers.schemeaccountcredentialanswer_set.all()
         self.assertEqual(len(credential_list), 0)
 
-    def test_update_credentials_bad_credential_value_type_is_converted(self):
-        response = self.client.put(
-            f"/schemes/accounts/{self.scheme_account_no_answers.id}/credentials?user_id={self.scheme_account_entry_no_answers.user.id}",
-            data={"card_number": True},
-            **self.auth_headers3
-        )
-
-        self.assertEqual(response.status_code, 200)
-
-        credential_list = self.scheme_account_entry_no_answers.schemeaccountcredentialanswer_set.all()
-        scheme_account_types = [answer.question.type for answer in credential_list]
-        self.assertEqual(["card_number"], scheme_account_types)
-        self.assertEqual(self.scheme_account_entry_no_answers._collect_credential_answers()["card_number"], "True")
-
     def test_delete_credentials_by_type(self):
-        response = self.send_delete_credential_request({"type_list": ["card_number", "username"]})
+        response = self.send_delete_credential_request({"bink_user_id": self.user.id, "type_list": ["card_number", "username"]})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["deleted"], "['card_number', 'username']")
 
@@ -1659,7 +1656,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         self.assertTrue("card_number" not in scheme_account_types)
 
     def test_delete_credentials_by_property(self):
-        response = self.send_delete_credential_request({"property_list": ["link_questions"]})
+        response = self.send_delete_credential_request({"bink_user_id": self.user.id, "property_list": ["link_questions"]})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["deleted"], "['card_number', 'password']")
 
@@ -1671,7 +1668,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
     def test_delete_all_credentials(self):
         credential_list = self.scheme_account.schemeaccountcredentialanswer_set.all()
         self.assertEqual(len(credential_list), 3)
-        response = self.send_delete_credential_request({"all": True})
+        response = self.send_delete_credential_request({"bink_user_id": self.user.id, "all": True})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["deleted"], "['card_number', 'password', 'username']")
@@ -1680,7 +1677,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         self.assertEqual(len(new_credential_list), 0)
 
     def test_delete_credentials_invalid_request(self):
-        response = self.send_delete_credential_request({"all": "not a boolean"})
+        response = self.send_delete_credential_request({"bink_user_id": self.user.id, "all": "not a boolean"})
         self.assertEqual(response.status_code, 400)
         self.assertTrue("Must be a valid boolean" in str(response.json()))
 
@@ -1689,8 +1686,8 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
 
     def test_delete_credentials_wrong_credential(self):
         response = self.client.delete(
-            f"/schemes/accounts/{self.scheme_account2.id}/credentials?user_id={self.scheme_account_entry2.user.id}",
-            data={"type_list": ["card_number", "password"]},
+            f"/schemes/accounts/{self.scheme_account2.id}/credentials",
+            data={"bink_user_id": self.scheme_account_entry2.user.id, "type_list": ["card_number", "password"]},
             **self.auth_headers2
         )
 
@@ -1702,7 +1699,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
 
     def test_delete_credentials_with_scheme_account_without_credentials(self):
         response = self.client.delete(
-            f"/schemes/accounts/{self.scheme_account_no_answers.id}/credentials?user_id={self.scheme_account_entry_no_answers.user.id}", data={"all": True},
+            f"/schemes/accounts/{self.scheme_account_no_answers.id}/credentials", data={"bink_user_id": self.scheme_account_entry_no_answers.user.id, "all": True},
             **self.auth_headers3
         )
 

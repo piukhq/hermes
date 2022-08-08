@@ -88,10 +88,10 @@ class TestCredentials(GlobalMockAPITestCase):
                         scheme_account_entry=scheme_account_entry_2,
                     )
 
-                payload = {field: answer}
+                payload = {"bink_user_id": self.user.id, "credentials": {field: answer}}
 
                 resp = self.client.put(
-                    f"/schemes/accounts/{scheme_account2.id}/credentials?user_id={self.user.id}",
+                    f"/schemes/accounts/{scheme_account2.id}/credentials",
                     data=json.dumps(payload),
                     content_type="application/json",
                     **self.auth_headers,
@@ -132,10 +132,10 @@ class TestCredentials(GlobalMockAPITestCase):
 
                 SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
 
-                payload = {field: answer}
+                payload = {"bink_user_id": self.user.id, "credentials": {field: answer}}
 
                 resp = self.client.put(
-                    f"/schemes/accounts/{scheme_account.id}/credentials?user_id={self.user.id}",
+                    f"/schemes/accounts/{scheme_account.id}/credentials",
                     data=json.dumps(payload),
                     content_type="application/json",
                     **self.auth_headers,
