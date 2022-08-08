@@ -1362,12 +1362,12 @@ class TestAccessTokens(GlobalMockAPITestCase):
         # Test as standard user
         response = self.client.get(
             f"/schemes/accounts/{self.scheme_account.id}/credentials?user_id={self.scheme_account_entry.user.id}",
-            **self.auth_service_headers
+            **self.auth_headers
         )
         self.assertEqual(response.status_code, 200)
         response = self.client.get(
             f"/schemes/accounts/{self.scheme_account2.id}/credentials?user_id={self.scheme_account_entry2.user.id}",
-            **self.auth_service_headers
+            **self.auth_headers
         )
         self.assertEqual(response.status_code, 404)
 
