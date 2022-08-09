@@ -616,6 +616,8 @@ class MembershipCardView(
         if "consents" in update_fields:
             del update_fields["consents"]
 
+        # if one of the credentials provided is the main answer, and the new main answer is the same as an already
+        # existant main answer, we fail the request.
         manual_question_type = None
         for question in scheme_questions:
             if question.manual_question:
