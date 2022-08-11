@@ -179,6 +179,8 @@ APPEND_SLASH = False
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
+OPTIONS = {"application_name": "hermes"}
+
 if env_var("HERMES_DATABASE_URL"):
     DATABASES = {
         "default": dj_database_url.config(
@@ -197,6 +199,7 @@ else:
             "PASSWORD": env_var("HERMES_DATABASE_PASS"),
             "HOST": env_var("HERMES_DATABASE_HOST", "postgres"),
             "PORT": env_var("HERMES_DATABASE_PORT", "5432"),
+            "OPTIONS": OPTIONS,
         }
     }
 
