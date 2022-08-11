@@ -554,9 +554,7 @@ class UpdateCredentialsMixin:
         )
         return {"updated": updated_types}
 
-    def replace_credentials_and_scheme(
-        # todo: we really need to remove the bigger part of this functionality in the new world, else we need to
-        #  discuss how a scheme change would be handled!
+    def replace_credentials(
         self,
         scheme_account: SchemeAccount,
         data: dict,
@@ -565,22 +563,23 @@ class UpdateCredentialsMixin:
     ) -> dict:
         self._check_required_data_presence(scheme, data)
 
-        if scheme_account.scheme != scheme:
-            scheme_account.scheme = scheme
-            scheme_account.save(update_fields=["scheme"])
-
         scheme_account_entry.schemeaccountcredentialanswer_set.exclude(question__type__in=data.keys()).delete()
         return self.update_credentials(scheme_account, data, scheme_account_entry=scheme_account_entry)
 
     @staticmethod
-    def card_with_same_data_already_exists(account: SchemeAccount, scheme_id: int, main_answer: str) -> bool:
+    def get_existing_account_with_same_manual_answer(account: SchemeAccount, scheme_id: int, main_answer: str) -> bool:
         # i.e. if any schemeaccount exists with this main answer. This relies on main_answer always being populated,
         # which it SHOULD BE.
-        return (
+        account = (
             SchemeAccount.objects.filter(scheme_id=scheme_id, is_deleted=False, main_answer=main_answer)
             .exclude(id=account.id)
-            .exists()
+            .all()
         )
+
+        if len(account) > 1:
+            raise ValidationError("More than one account already exists with this information")
+
+        return account[0] if account else None
 
     @staticmethod
     def _get_new_answers(add_fields: dict, auth_fields: dict) -> t.Tuple[dict, str]:

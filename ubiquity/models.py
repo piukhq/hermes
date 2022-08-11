@@ -223,6 +223,11 @@ class SchemeAccountEntry(models.Model):
         return required_credentials.difference(set(credential_types))
 
     def credentials(self, credentials_override: dict = None):
+        """
+        Returns all credentials for this scheme_account_entry. The 'main_answer' credential's value is replaced with
+        the main_answer value from the Scheme Account. This is to avoid problems of different account-identifying
+        information between different users.
+        """
 
         credentials = self._collect_credential_answers()
 
@@ -237,11 +242,11 @@ class SchemeAccountEntry(models.Model):
             if credential == PASSWORD_2:
                 credentials[PASSWORD] = credentials.pop(credential)
 
-        saved_consents = self.scheme_account.collect_pending_consents()
-        credentials.update(consents=saved_consents)
-
         if credentials_override:
             credentials.update(credentials_override)
+
+        saved_consents = self.scheme_account.collect_pending_consents()
+        credentials.update(consents=saved_consents)
 
         serialized_credentials = json.dumps(credentials)
         return AESCipher(AESKeyNames.AES_KEY).encrypt(serialized_credentials).decode("utf-8")
@@ -260,6 +265,11 @@ class SchemeAccountEntry(models.Model):
             else:
                 credentials[question.type] = answer
         return credentials
+
+    def link_credentials_to_new_account(self, new_scheme_account):
+        for cred in self.schemeaccountcredentialanswer_set.all():
+            cred.scheme_account = new_scheme_account
+            cred.save()
 
     @property
     def third_party_identifier(self):

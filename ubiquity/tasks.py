@@ -92,7 +92,8 @@ def async_balance(scheme_account_entry: "SchemeAccountEntry", delete_balance=Fal
 
 @shared_task
 def async_balance_with_updated_credentials(
-    instance_id: int, user_id: int, update_fields: dict, scheme_questions, scheme_account_entry: SchemeAccountEntry
+    instance_id: int, user_id: int, update_fields: dict, scheme_questions, scheme_account_entry: SchemeAccountEntry,
+        payment_cards_to_link: list, relink_pll:bool = False
 ) -> None:
     scheme_account = SchemeAccount.objects.get(id=instance_id)
     scheme_account.delete_cached_balance()
@@ -109,7 +110,7 @@ def async_balance_with_updated_credentials(
     )
 
     # data warehouse event could be success or failed (depends on midas response etc)
-    # since we're in this function i is always AUTH_PENDING
+    # since we're in this function is always AUTH_PENDING
     if dw_event:
         success, _ = dw_event
         auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
@@ -127,6 +128,11 @@ def async_balance_with_updated_credentials(
             scheme_account_entry=scheme_account_entry,
         )
         scheme_account_entry.update_scheme_account_key_credential_fields()
+
+        scheme_account_entry.scheme_account.status = SchemeAccount.ACTIVE
+
+        if relink_pll and payment_cards_to_link:
+            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
     else:
         logger.debug(
