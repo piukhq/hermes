@@ -1646,6 +1646,8 @@ class VoucherScheme(models.Model):
         (BURNTYPE_DISCOUNT, "Discount"),
     )
 
+    VOUCHER_BARCODE_TYPES = BARCODE_TYPES + ((9, "Barcode Not Supported"),)
+
     scheme = models.ForeignKey("scheme.Scheme", on_delete=models.CASCADE)
 
     earn_currency = models.CharField(max_length=50, blank=True, verbose_name="Currency")
@@ -1665,7 +1667,7 @@ class VoucherScheme(models.Model):
     burn_type = models.CharField(max_length=50, choices=BURN_TYPES, verbose_name="Burn Type")
     burn_value = models.FloatField(blank=True, null=True, verbose_name="Value")
 
-    barcode_type = models.IntegerField(choices=BARCODE_TYPES)
+    barcode_type = models.IntegerField(choices=VOUCHER_BARCODE_TYPES)
 
     headline_inprogress = models.CharField(max_length=250, verbose_name="In Progress")
     headline_expired = models.CharField(max_length=250, verbose_name="Expired")
