@@ -48,7 +48,7 @@ class SchemeAccountEntry(models.Model):
     @staticmethod
     def create_or_retrieve_link(
         user: "CustomUser", scheme_account: "SchemeAccount", auth_provided: bool
-    ) -> tuple(("SchemeAccountEntry", bool)):
+    ) -> tuple["SchemeAccountEntry", bool]:
         entry = SchemeAccountEntry(user=user, scheme_account=scheme_account, auth_provided=auth_provided)
         created = True
         try:
@@ -58,13 +58,11 @@ class SchemeAccountEntry(models.Model):
             with transaction.atomic():
                 entry.save()
         except IntegrityError:
-            # The id of the record is not currently required but if it is in the future then
-            # we may need to use .get() here to retrieve the conflicting record.
             # An update is done here instead of initially using an update_or_create to avoid the db call
             # to check if a record exists, since this is an edge case.
-            SchemeAccountEntry.objects.filter(user=user, scheme_account=scheme_account).update(
-                auth_provided=auth_provided
-            )
+            entry = SchemeAccountEntry.objects.get(user=user, scheme_account=scheme_account)
+            entry.auth_provided = auth_provided
+            entry.save(update_fields=["auth_provided"])
             created = False
 
         return entry, created
@@ -128,6 +126,8 @@ class SchemeAccountEntry(models.Model):
         Updates the main_answer on the Scheme Account object to match Card_number, barcode, or else whatever the
         manual_question is for this scheme, so that the 'main_answer' property can be more reliably used.
         """
+        # todo: remove this method. Simplifying the main_answer functionality is out of scope for now
+
         main_answer_question = (
             self.scheme_account.scheme.manual_question
             or self.scheme_account.scheme.scan_question
