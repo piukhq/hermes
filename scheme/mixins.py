@@ -567,12 +567,13 @@ class UpdateCredentialsMixin:
         return self.update_credentials(scheme_account, data, scheme_account_entry=scheme_account_entry)
 
     @staticmethod
-    def get_existing_account_with_same_manual_answer(account: SchemeAccount, scheme_id: int, main_answer: str) -> bool:
+    def get_existing_account_with_same_manual_answer(scheme_account: SchemeAccount, scheme_id: int, main_answer: str,
+                                                     main_answer_field: str) -> bool:
         # i.e. if any schemeaccount exists with this main answer. This relies on main_answer always being populated,
         # which it SHOULD BE.
         account = (
-            SchemeAccount.objects.filter(scheme_id=scheme_id, is_deleted=False, main_answer=main_answer)
-            .exclude(id=account.id)
+            SchemeAccount.objects.filter(**{'scheme_id': scheme_id, 'is_deleted': False, main_answer_field: main_answer})
+            .exclude(id=scheme_account.id)
             .all()
         )
 
@@ -582,12 +583,13 @@ class UpdateCredentialsMixin:
         return account[0] if account else None
 
     @staticmethod
-    def _get_new_answers(add_fields: dict, auth_fields: dict) -> t.Tuple[dict, str]:
+    def _get_new_answers(add_fields: dict, auth_fields: dict) -> t.Tuple[dict, str, str]:
         new_answers = {**add_fields, **auth_fields}
 
         add_fields.pop("consents", None)
-        main_answer, *_ = add_fields.values()
-        return new_answers, main_answer
+        main_answer_field, *_ = add_fields.keys()
+        main_answer_value = add_fields[main_answer_field]
+        return new_answers, main_answer_field, main_answer_value
 
     @staticmethod
     def _filter_required_questions(required_questions: "QuerySet", scheme: Scheme, data: dict) -> "QuerySet":

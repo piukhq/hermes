@@ -224,7 +224,7 @@ class SchemeAccountEntry(models.Model):
 
     def credentials(self, credentials_override: dict = None):
         """
-        Returns all credentials for this scheme_account_entry. The 'main_answer' credential's value is replaced with
+        Returns all credentials for this scheme_account_entry as an encoded string. The 'main_answer' credential's value is replaced with
         the main_answer value from the Scheme Account. This is to avoid problems of different account-identifying
         information between different users.
         """

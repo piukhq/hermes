@@ -591,7 +591,7 @@ class MembershipCardView(
                 update_fields = detect_and_handle_escaped_unicode(update_fields)
 
             updated_account = self._handle_update_fields(
-                account, scheme, update_fields, scheme_questions, request.user.id, sch_acc_entry, payment_cards_to_link
+                update_fields, scheme_questions, request.user.id, sch_acc_entry, payment_cards_to_link
             )
             metrics_route = MembershipCardAddRoute.UPDATE
 
@@ -611,10 +611,50 @@ class MembershipCardView(
             status=status.HTTP_200_OK,
         )
 
+    def _handle_update_manual_question(self, scheme_account_entry:"SchemeAccountEntry",
+                                       main_answer: str,
+                                       main_answer_field: str):
+
+        existing_account = self.get_existing_account_with_same_manual_answer(scheme_account=scheme_account_entry.scheme_account,
+                                                                             scheme_id=scheme_account_entry.scheme_account.scheme.id,
+                                                                             main_answer=main_answer,
+                                                                             main_answer_field=main_answer_field)
+
+        if not existing_account:
+            # If no existing account, create a new one
+            existing_account = SchemeAccount.objects.create(
+                scheme=scheme_account_entry.scheme_account.scheme,
+                order=scheme_account_entry.scheme_account.order,
+                status=SchemeAccount.PENDING,
+                main_answer=main_answer
+            )
+            self.analytics_update(scheme_account_entry.user, existing_account, acc_created=True)
+
+        original_account = scheme_account_entry.scheme_account
+
+        scheme_account_entry.scheme_account = existing_account
+        scheme_account_entry.save()
+
+        # todo: remove this (and function def) when we remove scheme account from answers table
+        scheme_account_entry.link_credentials_to_new_account(existing_account)
+
+        account = existing_account
+
+        # Deletes old account if no longer associated with any user
+        if not SchemeAccountEntry.objects.filter(scheme_account=original_account).all():
+            original_account.is_deleted = True
+            original_account.save(update_fields=["is_deleted"])
+
+            PaymentCardSchemeEntry.objects.filter(
+                scheme_account=original_account
+            ).delete()
+
+        scheme_account_entry.update_scheme_account_key_credential_fields()
+
+        return account
+
     def _handle_update_fields(
         self,
-        account: SchemeAccount,
-        scheme: Scheme,
         update_fields: dict,
         scheme_questions: list,
         user_id: int,
@@ -625,68 +665,42 @@ class MembershipCardView(
             del update_fields["consents"]
 
         relink_pll = False
+        account = scheme_account_entry.scheme_account
 
-        # if one of the credentials provided is the main answer, and the new main answer is the same as an already
-        # existant main answer, we fail the request.
+        # todo: We may want to think about what happens if updated credentials match that user's existing credentials.
+        #  Do we want to contact Midas in this case?
+
+        # update credentials
+        UpdateCredentialsMixin().update_credentials(
+            scheme_account=scheme_account_entry.scheme_account,
+            data=update_fields,
+            questions=scheme_questions,
+            scheme_account_entry=scheme_account_entry,
+        )
+
         manual_question_type = None
         for question in scheme_questions:
             if question.manual_question:
                 manual_question_type = question.type
                 break
 
-        existing_account = self.get_existing_account_with_same_manual_answer(account, scheme.id,
-                                                                           update_fields[manual_question_type])
-
         if (
-            manual_question_type
-            and manual_question_type in update_fields
-            and existing_account
+                manual_question_type
+                and manual_question_type in update_fields and
+                update_fields[manual_question_type] != scheme_account_entry.scheme_account.get_scheme_account_key_cred_value_from_question_type(manual_question_type)
         ):
-
-            original_account = scheme_account_entry.scheme_account
-            # Manual question included, user is not LMS and another account already has this manual answer
-            # -> Link to existing account
-            scheme_account_entry.scheme_account = existing_account
-            scheme_account_entry.save()
-
-            scheme_account_entry.link_credentials_to_new_account(existing_account)
-
-            account = existing_account
-            relink_pll = True
-
-            # Deletes old account if no longer associated with any user
-            if not SchemeAccountEntry.objects.filter(scheme_account=original_account).all():
-                original_account.is_deleted = True
-                original_account.save(update_fields=["is_deleted"])
-
-                PaymentCardSchemeEntry.objects.filter(
-                    scheme_account=original_account, payment_card_account__user_set=user_id
-                ).delete()
-
-        elif manual_question_type in update_fields and len(scheme_account_entry.scheme_account.schemeaccountentry_set.all()) > 1:
-            # Manual questions included, using is not LMS and no other account has this manual answer
-            # -> New account and link
-
-            new_scheme_account = SchemeAccount.objects.create(
-                scheme=scheme,
-                order=scheme_account_entry.scheme_account.order,
-                status=SchemeAccount.PENDING,
-                main_answer=update_fields[manual_question_type]
-            )
-            self.analytics_update(scheme_account_entry.user, new_scheme_account, acc_created=True)
-            scheme_account_entry.scheme_account = new_scheme_account
-            scheme_account_entry.save()
-
-            scheme_account_entry.link_credentials_to_new_account(new_scheme_account)
-
-            account = new_scheme_account
+            main_answer_field = scheme_account_entry.scheme_account.get_scheme_account_key_cred_field_from_question_type(
+                manual_question_type)
+            account = self._handle_update_manual_question(scheme_account_entry=scheme_account_entry,
+                                                          main_answer=update_fields[manual_question_type],
+                                                          main_answer_field=main_answer_field)
             relink_pll = True
 
         account.set_auth_pending()
 
         async_balance_with_updated_credentials.delay(
-            account.id, user_id, update_fields, scheme_questions, scheme_account_entry, payment_cards_to_link,
-            relink_pll=relink_pll
+            instance_id=account.id, user_id=user_id, scheme_account_entry=scheme_account_entry,
+            payment_cards_to_link=payment_cards_to_link, relink_pll=relink_pll
         )
         return account
 
@@ -752,6 +766,10 @@ class MembershipCardView(
 
         scheme, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
 
+        if scheme != account.scheme:
+            raise ParseError("PUT cannot be used to change scheme. Please use POST/membership_cards to create a new "
+                             "scheme_account instead.")
+
         if not request.channels_permit.is_scheme_available(scheme.id):
             raise ParseError("membership plan not allowed for this user.")
 
@@ -771,15 +789,13 @@ class MembershipCardView(
             )
             metrics_route = MembershipCardAddRoute.ENROL
         else:
-            metrics_route, account = self._replace_add_and_auth_fields(
+            metrics_route, account = self._handle_replace_add_and_auth_fields(
                 account,
                 sch_acc_entry,
                 add_fields,
                 auth_fields,
-                scheme,
                 payment_cards_to_link,
                 user_id,
-                request.channels_permit.bundle_id,
             )
 
         if metrics_route:
@@ -846,61 +862,49 @@ class MembershipCardView(
             },
         )
 
-    def _replace_add_and_auth_fields(
+    def _handle_replace_add_and_auth_fields(
         self,
         account: SchemeAccount,
         scheme_acc_entry: SchemeAccountEntry,
         add_fields: dict,
         auth_fields: dict,
-        scheme: Scheme,
         payment_cards_to_link: list,
         user_id: int,
-        channel: str,
-    ) -> t.Optional[MembershipCardAddRoute]:
+    ) -> t.Tuple[MembershipCardAddRoute, SchemeAccount]:
         if auth_fields:
             auth_fields = detect_and_handle_escaped_unicode(auth_fields)
 
-        new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
+        new_answers, main_answer_type, main_answer_value = self._get_new_answers(add_fields, auth_fields)
+        main_answer_field = account.get_scheme_account_key_cred_field_from_question_type(main_answer_type)
 
-        existing_account = self.get_existing_account_with_same_manual_answer(account, scheme.id, main_answer)
+        # update credentials
+        UpdateCredentialsMixin().update_credentials(
+            scheme_account=scheme_acc_entry.scheme_account,
+            data=new_answers,
+            questions=scheme_acc_entry.scheme_account.scheme.questions.all(),
+            scheme_account_entry=scheme_acc_entry,
+        )
 
-        if existing_account:
-            metrics_route = None
-            account.status = account.FAILED_UPDATE
-            account.save()
-        else:
-            metrics_route = MembershipCardAddRoute.UPDATE
+        relink_pll = False
 
-        scheme_acc_entry.auth_provided = True
-        scheme_acc_entry.save(update_fields=["auth_provided"])
+        # If main answer is different from current, then we need to link to other account/create a new one.
+        if main_answer_value != getattr(account, main_answer_field):
+            account = self._handle_update_manual_question(scheme_account_entry=scheme_acc_entry,
+                                                          main_answer=main_answer_value,
+                                                          main_answer_field=main_answer_field)
 
-        if scheme_acc_entry.scheme_account.schemeaccountentry_set.count() == 1:
-            # if Last Man Standing, go ahead and change all the credentials on the account
+            relink_pll = True
 
-            self.replace_credentials(account, new_answers, scheme, scheme_acc_entry)
-            scheme_acc_entry.update_scheme_account_key_credential_fields()
-            account.set_pending()
-            async_balance.delay(scheme_acc_entry)
+        account.set_auth_pending()
 
-            if payment_cards_to_link:
-                auto_link_membership_to_payments.delay(
-                    payment_cards_to_link,
-                    account.id,
-                    history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
-                )
+        async_balance_with_updated_credentials.delay(
+            instance_id=account.id, user_id=user_id, scheme_account_entry=scheme_acc_entry,
+            payment_cards_to_link=payment_cards_to_link, relink_pll=relink_pll
+        )
 
-        else:
-            # if not LMS, delete this link to the account and re-link to a new/existing account with these details
-            user = scheme_acc_entry.user
+        metrics_route = MembershipCardAddRoute.UPDATE
 
-            scheme_acc_entry.delete()
-
-            account, new_sch_acc_entry, status_code, metrics_route = self._handle_create_link_route(
-                user, scheme, auth_fields, add_fields, payment_cards_to_link
-            )
-            account.set_add_originating_journey()
-
-        return metrics_route
+        return metrics_route, account
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):

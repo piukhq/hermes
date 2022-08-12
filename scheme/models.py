@@ -28,7 +28,7 @@ from analytics.api import update_scheme_account_attribute
 from common.models import Image
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
-from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
+from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, CARD_NUMBER, BARCODE
 from scheme.encryption import AESCipher
 from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import AESKeyNames
@@ -823,6 +823,23 @@ class SchemeAccount(models.Model):
                 dw_event = (False, current_status)
 
         return points, dw_event
+
+    def get_scheme_account_key_cred_value_from_question_type(self, question_type):
+        if question_type == CARD_NUMBER:
+            return self.card_number
+        if question_type == BARCODE:
+            return self.barcode
+        else:
+            return self.main_answer
+
+    @staticmethod
+    def get_scheme_account_key_cred_field_from_question_type(question_type):
+        if question_type == CARD_NUMBER:
+            return 'card_number'
+        if question_type == BARCODE:
+            return 'barcode'
+        else:
+            return 'main_answer'
 
     def get_midas_balance(self, journey, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None):
         points = None
