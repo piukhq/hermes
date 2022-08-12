@@ -696,7 +696,7 @@ class MembershipCardView(
                                                           main_answer_field=main_answer_field)
             relink_pll = True
 
-        account.set_auth_pending()
+        account.set_pending()
 
         async_balance_with_updated_credentials.delay(
             instance_id=account.id, user_id=user_id, scheme_account_entry=scheme_account_entry,
@@ -895,7 +895,7 @@ class MembershipCardView(
 
             relink_pll = True
 
-        account.set_auth_pending()
+        account.set_pending()
 
         async_balance_with_updated_credentials.delay(
             instance_id=account.id, user_id=user_id, scheme_account_entry=scheme_acc_entry,

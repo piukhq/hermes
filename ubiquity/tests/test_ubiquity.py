@@ -1308,7 +1308,7 @@ class TestResources(GlobalMockAPITestCase):
         payload = json.dumps(
             {
                 "account": {
-                    "add_fields": [{"column": "barcode", "value": "3038401022657083"}],
+                    "add_fields": [{"column": "barcode", "value": self.scheme_account_answer.answer}],
                     "authorise_fields": [{"column": "last_name", "value": "Test"}],
                 }
             }
