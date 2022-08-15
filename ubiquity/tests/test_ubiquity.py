@@ -619,7 +619,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.json()["detail"], "cannot override fingerprint.")
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_status_mapping_active(self, *_):
         self.scheme_account.status = SchemeAccount.ACTIVE
@@ -633,7 +633,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(data["status"]["reason_codes"], ["X300"])
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_status_mapping_user_error(self, *_):
         user_error = SchemeAccount.INVALID_CREDENTIALS
@@ -660,7 +660,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(data["status"]["reason_codes"], ["X303"])
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_status_mapping_system_error(self, *_):
         user_error = SchemeAccount.END_SITE_DOWN
@@ -1303,7 +1303,6 @@ class TestResources(GlobalMockAPITestCase):
 
     @patch("ubiquity.views.async_balance_with_updated_credentials.delay", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_update(self, *_):
         payload = json.dumps(
@@ -1691,7 +1690,7 @@ class TestResources(GlobalMockAPITestCase):
     @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_put_missing_membership_plan_error(self, *_):
         sa = SchemeAccountFactory(scheme=self.scheme)
@@ -1714,7 +1713,7 @@ class TestResources(GlobalMockAPITestCase):
     @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_put_manual_question_single_link(self, *_):
         """
@@ -1774,7 +1773,7 @@ class TestResources(GlobalMockAPITestCase):
     @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_put_manual_question_multiple_links(self, *_):
         """
@@ -1837,82 +1836,18 @@ class TestResources(GlobalMockAPITestCase):
     @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    def test_membership_card_put_manual_question_single_link_existing_answer(self, *_):
-        """
-        Tests that a PUT with a different, pre-existing add_field (manual_question_answer) results in the
-        schemeaccountentry being switched to the existing account, and the old account deleted.
-        (Single link/LastManStanding)
-        """
-        scheme_account = SchemeAccountFactory(scheme=self.put_scheme, card_number="55555")
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
-
-        scheme_account_2 = SchemeAccountFactory(scheme=self.put_scheme, card_number="12345")
-
-        SchemeCredentialAnswerFactory(
-            question=self.put_scheme_manual_q,
-            scheme_account=scheme_account,
-            answer="55555",
-            scheme_account_entry=scheme_account_entry,
-        )
-        SchemeCredentialAnswerFactory(
-            question=self.put_scheme_auth_q,
-            scheme_account=scheme_account,
-            answer="pass",
-            scheme_account_entry=scheme_account_entry,
-        )
-
-        payload = {
-            "membership_plan": self.put_scheme.id,
-            "account": {
-                "add_fields": [{"column": "card_number", "value": "12345"}],
-                "authorise_fields": [{"column": "password", "value": "pass"}],
-            },
-        }
-
-        resp_put = self.client.put(
-            reverse("membership-card", args=[scheme_account.id]),
-            data=json.dumps(payload),
-            content_type="application/json",
-            **self.auth_headers,
-        )
-
-        scheme_account.refresh_from_db()
-        scheme_account_entry.refresh_from_db()
-
-        self.assertEqual(resp_put.data["id"], scheme_account_2.id)
-
-        self.assertEqual(resp_put.status_code, 200)
-
-        self.assertTrue(scheme_account.is_deleted)
-        self.assertEqual(scheme_account_entry.scheme_account, scheme_account_2)
-
-        answers = scheme_account_entry._collect_credential_answers()
-        new_manual_answer = answers.get(self.put_scheme_manual_q.type)
-        self.assertEqual(new_manual_answer, "12345")
-        self.assertIsNone(answers.get(self.put_scheme_scan_q.type))
-
-        self.assertEqual(scheme_account_2.card_number, "12345")
-        self.assertEqual(scheme_account_2.status, SchemeAccount.ACTIVE)
-
-    @patch("scheme.mixins.analytics", autospec=True)
-    @patch("ubiquity.views.async_link", autospec=True)
-    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
-    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    def test_membership_card_put_manual_question_multiple_links_existing_answer(self, *_):
+    def test_membership_card_put_manual_question_existing_answer(self, *_):
         """
         Tests that a PUT with a different, pre-existing add_field (manual_question_answer) results in
-        schemeaccountentry being switched to the new account, and the old account unaffected.
-        (Multiple link/ NOT LastManStanding)
+        the action being blocked, and scheme account status set to 446 - FAILED UPDATE
         """
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme, card_number="55555")
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
         scheme_account_entry_2 = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user2)
 
-        scheme_account_2 = SchemeAccountFactory(scheme=self.put_scheme, card_number="12345")
-        SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=self.user2)
+        SchemeAccountFactory(scheme=self.put_scheme, card_number="12345")
 
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_manual_q,
@@ -1945,28 +1880,17 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account.refresh_from_db()
         scheme_account_entry.refresh_from_db()
 
-        new_scheme_acc_id = resp_put.data["id"]
-        new_scheme_acc = SchemeAccount.objects.get(id=new_scheme_acc_id)
-
         self.assertEqual(resp_put.status_code, 200)
 
         self.assertFalse(scheme_account.is_deleted)
-        self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
+        self.assertEqual(scheme_account.status, SchemeAccount.FAILED_UPDATE)
         self.assertEqual(scheme_account_entry_2.scheme_account, scheme_account)
-
-        self.assertEqual(scheme_account_entry.scheme_account, new_scheme_acc)
-        answers = scheme_account_entry._collect_credential_answers()
-        new_manual_answer = answers.get(self.put_scheme_manual_q.type)
-        self.assertEqual(new_manual_answer, "12345")
-        self.assertIsNone(answers.get(self.put_scheme_scan_q.type))
-
-        self.assertEqual(scheme_account_2.card_number, "12345")
-        self.assertEqual(scheme_account_2.status, SchemeAccount.ACTIVE)
+        self.assertEqual(scheme_account_entry.scheme_account, scheme_account)
 
     @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_put_scan_question_single_link(self, *_):
         """
@@ -2024,7 +1948,7 @@ class TestResources(GlobalMockAPITestCase):
     @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_put_with_previous_balance(self, *_):
         """
@@ -2075,7 +1999,7 @@ class TestResources(GlobalMockAPITestCase):
     @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_put_on_pending_card_error(self, *_):
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme, status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
@@ -2901,7 +2825,6 @@ class TestMembershipCardCredentials(GlobalMockAPITestCase):
 
     @patch("ubiquity.views.async_balance_with_updated_credentials.delay", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     @patch.object(SchemeAccount, "get_midas_balance")
     def test_update_new_and_existing_credentials(self, *_):
