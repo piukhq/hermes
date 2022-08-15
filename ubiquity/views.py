@@ -609,36 +609,28 @@ class MembershipCardView(
             status=status.HTTP_200_OK,
         )
 
-    def _handle_update_manual_question(
-        self, scheme_account_entry: "SchemeAccountEntry", main_answer: str, main_answer_field: str
+    def _create_and_link_to_new_account_from_main_answer(
+        self, scheme_account_entry: "SchemeAccountEntry", main_answer: str
     ):
 
-        existing_account = self.get_existing_account_with_same_manual_answer(
-            scheme_account=scheme_account_entry.scheme_account,
-            scheme_id=scheme_account_entry.scheme_account.scheme.id,
+        # Create a new account and link to this
+        new_account = SchemeAccount.objects.create(
+            scheme=scheme_account_entry.scheme_account.scheme,
+            order=scheme_account_entry.scheme_account.order,
+            status=SchemeAccount.PENDING,
             main_answer=main_answer,
-            main_answer_field=main_answer_field,
         )
-
-        if not existing_account:
-            # If no existing account, create a new one
-            existing_account = SchemeAccount.objects.create(
-                scheme=scheme_account_entry.scheme_account.scheme,
-                order=scheme_account_entry.scheme_account.order,
-                status=SchemeAccount.PENDING,
-                main_answer=main_answer,
-            )
-            self.analytics_update(scheme_account_entry.user, existing_account, acc_created=True)
+        self.analytics_update(scheme_account_entry.user, new_account, acc_created=True)
 
         original_account = scheme_account_entry.scheme_account
 
-        scheme_account_entry.scheme_account = existing_account
+        scheme_account_entry.scheme_account = new_account
         scheme_account_entry.save()
 
         # todo: remove this (and function def) when we remove scheme account from answers table
-        scheme_account_entry.link_credentials_to_new_account(existing_account)
+        scheme_account_entry.link_credentials_to_new_account(new_account)
 
-        account = existing_account
+        account = new_account
 
         # Deletes old account if no longer associated with any user
         if not SchemeAccountEntry.objects.filter(scheme_account=original_account).all():
@@ -668,6 +660,28 @@ class MembershipCardView(
         # todo: We may want to think about what happens if updated credentials match that user's existing credentials.
         #  Do we want to contact Midas in this case?
 
+        # if the credentials contain a main_answer, and this already exists in another account, we block this action.
+        main_answer_field = None
+        main_answer_value = None
+
+        for field, value in update_fields.items():
+            if field in [q_type for q_id, q_type in account.scheme.get_required_questions.all()]:
+                main_answer_value = value
+                main_answer_field = field
+                break
+
+        if main_answer_value:
+            existing_account = self.get_existing_account_with_same_manual_answer(
+                scheme_account=scheme_account_entry.scheme_account,
+                scheme_id=scheme_account_entry.scheme_account.scheme.id,
+                main_answer=main_answer_value,
+                main_answer_field=main_answer_field)
+
+            if existing_account:
+                account.status = account.FAILED_UPDATE
+                account.save(update_fields=['status'])
+                return account
+
         # update credentials
         UpdateCredentialsMixin().update_credentials(
             scheme_account=scheme_account_entry.scheme_account,
@@ -676,29 +690,17 @@ class MembershipCardView(
             scheme_account_entry=scheme_account_entry,
         )
 
-        manual_question_type = None
-        for question in scheme_questions:
-            if question.manual_question:
-                manual_question_type = question.type
-                break
-
         if (
-            manual_question_type
-            and manual_question_type in update_fields
-            and update_fields[manual_question_type]
+            main_answer_field
+            and main_answer_value
             != scheme_account_entry.scheme_account.get_scheme_account_key_cred_value_from_question_type(
-                manual_question_type
+                main_answer_field
             )
         ):
-            main_answer_field = (
-                scheme_account_entry.scheme_account.get_scheme_account_key_cred_field_from_question_type(
-                    manual_question_type
-                )
-            )
-            account = self._handle_update_manual_question(
+
+            account = self._create_and_link_to_new_account_from_main_answer(
                 scheme_account_entry=scheme_account_entry,
-                main_answer=update_fields[manual_question_type],
-                main_answer_field=main_answer_field,
+                main_answer=main_answer_value,
             )
             relink_pll = True
 
@@ -888,6 +890,21 @@ class MembershipCardView(
         new_answers, main_answer_type, main_answer_value = self._get_new_answers(add_fields, auth_fields)
         main_answer_field = account.get_scheme_account_key_cred_field_from_question_type(main_answer_type)
 
+        metrics_route = MembershipCardAddRoute.UPDATE
+
+        # Fail the update if the new main_answer is already used in another account
+        existing_account = self.get_existing_account_with_same_manual_answer(
+            scheme_account=scheme_acc_entry.scheme_account,
+            scheme_id=scheme_acc_entry.scheme_account.scheme.id,
+            main_answer=main_answer_value,
+            main_answer_field=main_answer_field,
+        )
+
+        if existing_account:
+            account.status = account.FAILED_UPDATE
+            account.save(update_fields=['status'])
+            return metrics_route, account
+
         # update credentials
         UpdateCredentialsMixin().update_credentials(
             scheme_account=scheme_acc_entry.scheme_account,
@@ -900,10 +917,9 @@ class MembershipCardView(
 
         # If main answer is different from current, then we need to link to other account/create a new one.
         if main_answer_value != getattr(account, main_answer_field):
-            account = self._handle_update_manual_question(
+            account = self._create_and_link_to_new_account_from_main_answer(
                 scheme_account_entry=scheme_acc_entry,
                 main_answer=main_answer_value,
-                main_answer_field=main_answer_field,
             )
 
             relink_pll = True
@@ -917,8 +933,6 @@ class MembershipCardView(
             payment_cards_to_link=payment_cards_to_link,
             relink_pll=relink_pll,
         )
-
-        metrics_route = MembershipCardAddRoute.UPDATE
 
         return metrics_route, account
 
