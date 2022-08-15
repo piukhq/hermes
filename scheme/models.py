@@ -28,7 +28,7 @@ from analytics.api import update_scheme_account_attribute
 from common.models import Image
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
-from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
+from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, CARD_NUMBER, BARCODE
 from scheme.encryption import AESCipher
 from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import AESKeyNames
@@ -824,6 +824,23 @@ class SchemeAccount(models.Model):
 
         return points, dw_event
 
+    def get_scheme_account_key_cred_value_from_question_type(self, question_type):
+        if question_type == CARD_NUMBER:
+            return self.card_number
+        if question_type == BARCODE:
+            return self.barcode
+        else:
+            return self.main_answer
+
+    @staticmethod
+    def get_scheme_account_key_cred_field_from_question_type(question_type):
+        if question_type == CARD_NUMBER:
+            return "card_number"
+        if question_type == BARCODE:
+            return "barcode"
+        else:
+            return "main_answer"
+
     def get_midas_balance(self, journey, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None):
         points = None
         old_status = self.status
@@ -873,7 +890,7 @@ class SchemeAccount(models.Model):
             "user_set": user_set,
             "status": self.status,
             "journey_type": journey.value,
-            "user_id": scheme_account_entry.user.id
+            "bink_user_id": scheme_account_entry.user.id,
         }
         midas_balance_uri = f"{settings.MIDAS_URL}/{self.scheme.slug}/balance"
         headers = {"transaction": str(uuid.uuid1()), "User-agent": "Hermes on {0}".format(socket.gethostname())}

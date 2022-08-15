@@ -16,7 +16,7 @@ from history.tasks import auth_outcome_task
 from history.utils import clean_history_kwargs, history_bulk_create, history_bulk_update, set_history_kwargs
 from payment_card import metis
 from payment_card.models import PaymentCard, PaymentCardAccount
-from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin, UpdateCredentialsMixin
+from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
 from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry, VopActivation
@@ -92,7 +92,11 @@ def async_balance(scheme_account_entry: "SchemeAccountEntry", delete_balance=Fal
 
 @shared_task
 def async_balance_with_updated_credentials(
-    instance_id: int, user_id: int, update_fields: dict, scheme_questions, scheme_account_entry: SchemeAccountEntry
+    instance_id: int,
+    user_id: int,
+    scheme_account_entry: SchemeAccountEntry,
+    payment_cards_to_link: list,
+    relink_pll: bool = False,
 ) -> None:
     scheme_account = SchemeAccount.objects.get(id=instance_id)
     scheme_account.delete_cached_balance()
@@ -100,16 +104,13 @@ def async_balance_with_updated_credentials(
     cache_key = "scheme_{}".format(scheme_account.pk)
     user = CustomUser.objects.get(id=user_id)
 
-    # todo: We may want to think about what happens if updated credentials match that user's existing credentials.
-    #  Do we want to contact Midas in this case?
-
     logger.debug(f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})")
     balance, _, dw_event = scheme_account.update_cached_balance(
-        scheme_account_entry=scheme_account_entry, cache_key=cache_key, credentials_override=update_fields
+        scheme_account_entry=scheme_account_entry, cache_key=cache_key
     )
 
-    # data warehouse event could be success or failed (depends on midas response etc)
-    # since we're in this function i is always AUTH_PENDING
+    # data warehouse event could be success or failed (depends on midas response etc.)
+    # since we're in this function is always AUTH_PENDING
     if dw_event:
         success, _ = dw_event
         auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
@@ -119,26 +120,20 @@ def async_balance_with_updated_credentials(
             "Balance returned from balance call with updated credentials - SchemeAccount (id={scheme_account.id}) - "
             "Updating credentials."
         )
-        # update credentials
-        UpdateCredentialsMixin().update_credentials(
-            scheme_account=scheme_account,
-            data=update_fields,
-            questions=scheme_questions,
-            scheme_account_entry=scheme_account_entry,
-        )
-        scheme_account_entry.update_scheme_account_key_credential_fields()
+
+        scheme_account_entry.scheme_account.status = SchemeAccount.ACTIVE
+
+        if relink_pll and payment_cards_to_link:
+            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
     else:
         logger.debug(
             f"No balance returned from balance call with updated credentials - SchemeAccount (id={scheme_account.id}) -"
             " Unauthorising user."
         )
-        scheme_account_entries = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
-        for entry in scheme_account_entries:
-            if entry.user_id == user_id:
-                entry.auth_provided = False
-                entry.save()
-                break
+
+        scheme_account_entry.auth_provided = False
+        scheme_account_entry.save()
 
         PaymentCardSchemeEntry.objects.filter(
             scheme_account=scheme_account, payment_card_account__user_set=user_id

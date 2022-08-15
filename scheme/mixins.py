@@ -480,7 +480,6 @@ class UpdateCredentialsMixin:
         create_credentials = []
         update_credentials = []
         updated_types = []
-        main_answer = scheme_account.main_answer
         for question_id, answer_and_type in question_id_and_data.items():
             question_type, new_answer = answer_and_type
 
@@ -513,7 +512,12 @@ class UpdateCredentialsMixin:
         return updated_types
 
     def update_credentials(
-        self, scheme_account: SchemeAccount, data: dict, scheme_account_entry: SchemeAccountEntry, questions=None
+        self,
+        scheme_account: SchemeAccount,
+        data: dict,
+        scheme_account_entry: SchemeAccountEntry,
+        questions=None,
+        allow_existing_main_answer=True,
     ) -> dict:
         if questions is None:
             questions = (
@@ -527,7 +531,12 @@ class UpdateCredentialsMixin:
             )
 
         serializer = UpdateCredentialSerializer(
-            data=data, context={"questions": questions, "scheme_account": scheme_account}
+            data=data,
+            context={
+                "questions": questions,
+                "scheme_account": scheme_account,
+                "allow_existing_main_answer": allow_existing_main_answer,
+            },
         )
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -554,9 +563,7 @@ class UpdateCredentialsMixin:
         )
         return {"updated": updated_types}
 
-    def replace_credentials_and_scheme(
-        # todo: we really need to remove the bigger part of this functionality in the new world, else we need to
-        #  discuss how a scheme change would be handled!
+    def replace_credentials(
         self,
         scheme_account: SchemeAccount,
         data: dict,
@@ -565,30 +572,36 @@ class UpdateCredentialsMixin:
     ) -> dict:
         self._check_required_data_presence(scheme, data)
 
-        if scheme_account.scheme != scheme:
-            scheme_account.scheme = scheme
-            scheme_account.save(update_fields=["scheme"])
-
         scheme_account_entry.schemeaccountcredentialanswer_set.exclude(question__type__in=data.keys()).delete()
         return self.update_credentials(scheme_account, data, scheme_account_entry=scheme_account_entry)
 
     @staticmethod
-    def card_with_same_data_already_exists(account: SchemeAccount, scheme_id: int, main_answer: str) -> bool:
+    def get_existing_account_with_same_manual_answer(
+        scheme_account: SchemeAccount, scheme_id: int, main_answer: str, main_answer_field: str
+    ) -> bool:
         # i.e. if any schemeaccount exists with this main answer. This relies on main_answer always being populated,
         # which it SHOULD BE.
-        return (
-            SchemeAccount.objects.filter(scheme_id=scheme_id, is_deleted=False, main_answer=main_answer)
-            .exclude(id=account.id)
-            .exists()
+        account = (
+            SchemeAccount.objects.filter(
+                **{"scheme_id": scheme_id, "is_deleted": False, main_answer_field: main_answer}
+            )
+            .exclude(id=scheme_account.id)
+            .all()
         )
 
+        if len(account) > 1:
+            raise ValidationError("More than one account already exists with this information")
+
+        return account[0] if account else None
+
     @staticmethod
-    def _get_new_answers(add_fields: dict, auth_fields: dict) -> t.Tuple[dict, str]:
+    def _get_new_answers(add_fields: dict, auth_fields: dict) -> t.Tuple[dict, str, str]:
         new_answers = {**add_fields, **auth_fields}
 
         add_fields.pop("consents", None)
-        main_answer, *_ = add_fields.values()
-        return new_answers, main_answer
+        main_answer_field, *_ = add_fields.keys()
+        main_answer_value = add_fields[main_answer_field]
+        return new_answers, main_answer_field, main_answer_value
 
     @staticmethod
     def _filter_required_questions(required_questions: "QuerySet", scheme: Scheme, data: dict) -> "QuerySet":
