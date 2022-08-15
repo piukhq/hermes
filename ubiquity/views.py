@@ -611,14 +611,16 @@ class MembershipCardView(
             status=status.HTTP_200_OK,
         )
 
-    def _handle_update_manual_question(self, scheme_account_entry:"SchemeAccountEntry",
-                                       main_answer: str,
-                                       main_answer_field: str):
+    def _handle_update_manual_question(
+        self, scheme_account_entry: "SchemeAccountEntry", main_answer: str, main_answer_field: str
+    ):
 
-        existing_account = self.get_existing_account_with_same_manual_answer(scheme_account=scheme_account_entry.scheme_account,
-                                                                             scheme_id=scheme_account_entry.scheme_account.scheme.id,
-                                                                             main_answer=main_answer,
-                                                                             main_answer_field=main_answer_field)
+        existing_account = self.get_existing_account_with_same_manual_answer(
+            scheme_account=scheme_account_entry.scheme_account,
+            scheme_id=scheme_account_entry.scheme_account.scheme.id,
+            main_answer=main_answer,
+            main_answer_field=main_answer_field,
+        )
 
         if not existing_account:
             # If no existing account, create a new one
@@ -626,7 +628,7 @@ class MembershipCardView(
                 scheme=scheme_account_entry.scheme_account.scheme,
                 order=scheme_account_entry.scheme_account.order,
                 status=SchemeAccount.PENDING,
-                main_answer=main_answer
+                main_answer=main_answer,
             )
             self.analytics_update(scheme_account_entry.user, existing_account, acc_created=True)
 
@@ -645,9 +647,7 @@ class MembershipCardView(
             original_account.is_deleted = True
             original_account.save(update_fields=["is_deleted"])
 
-            PaymentCardSchemeEntry.objects.filter(
-                scheme_account=original_account
-            ).delete()
+            PaymentCardSchemeEntry.objects.filter(scheme_account=original_account).delete()
 
         scheme_account_entry.update_scheme_account_key_credential_fields()
 
@@ -659,7 +659,7 @@ class MembershipCardView(
         scheme_questions: list,
         user_id: int,
         scheme_account_entry: SchemeAccountEntry,
-        payment_cards_to_link: list
+        payment_cards_to_link: list,
     ) -> SchemeAccount:
         if "consents" in update_fields:
             del update_fields["consents"]
@@ -685,22 +685,33 @@ class MembershipCardView(
                 break
 
         if (
+            manual_question_type
+            and manual_question_type in update_fields
+            and update_fields[manual_question_type]
+            != scheme_account_entry.scheme_account.get_scheme_account_key_cred_value_from_question_type(
                 manual_question_type
-                and manual_question_type in update_fields and
-                update_fields[manual_question_type] != scheme_account_entry.scheme_account.get_scheme_account_key_cred_value_from_question_type(manual_question_type)
+            )
         ):
-            main_answer_field = scheme_account_entry.scheme_account.get_scheme_account_key_cred_field_from_question_type(
-                manual_question_type)
-            account = self._handle_update_manual_question(scheme_account_entry=scheme_account_entry,
-                                                          main_answer=update_fields[manual_question_type],
-                                                          main_answer_field=main_answer_field)
+            main_answer_field = (
+                scheme_account_entry.scheme_account.get_scheme_account_key_cred_field_from_question_type(
+                    manual_question_type
+                )
+            )
+            account = self._handle_update_manual_question(
+                scheme_account_entry=scheme_account_entry,
+                main_answer=update_fields[manual_question_type],
+                main_answer_field=main_answer_field,
+            )
             relink_pll = True
 
         account.set_pending()
 
         async_balance_with_updated_credentials.delay(
-            instance_id=account.id, user_id=user_id, scheme_account_entry=scheme_account_entry,
-            payment_cards_to_link=payment_cards_to_link, relink_pll=relink_pll
+            instance_id=account.id,
+            user_id=user_id,
+            scheme_account_entry=scheme_account_entry,
+            payment_cards_to_link=payment_cards_to_link,
+            relink_pll=relink_pll,
         )
         return account
 
@@ -767,8 +778,10 @@ class MembershipCardView(
         scheme, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
 
         if scheme != account.scheme:
-            raise ParseError("PUT cannot be used to change scheme. Please use POST/membership_cards to create a new "
-                             "scheme_account instead.")
+            raise ParseError(
+                "PUT cannot be used to change scheme. Please use POST/membership_cards to create a new "
+                "scheme_account instead."
+            )
 
         if not request.channels_permit.is_scheme_available(scheme.id):
             raise ParseError("membership plan not allowed for this user.")
@@ -889,17 +902,22 @@ class MembershipCardView(
 
         # If main answer is different from current, then we need to link to other account/create a new one.
         if main_answer_value != getattr(account, main_answer_field):
-            account = self._handle_update_manual_question(scheme_account_entry=scheme_acc_entry,
-                                                          main_answer=main_answer_value,
-                                                          main_answer_field=main_answer_field)
+            account = self._handle_update_manual_question(
+                scheme_account_entry=scheme_acc_entry,
+                main_answer=main_answer_value,
+                main_answer_field=main_answer_field,
+            )
 
             relink_pll = True
 
         account.set_pending()
 
         async_balance_with_updated_credentials.delay(
-            instance_id=account.id, user_id=user_id, scheme_account_entry=scheme_acc_entry,
-            payment_cards_to_link=payment_cards_to_link, relink_pll=relink_pll
+            instance_id=account.id,
+            user_id=user_id,
+            scheme_account_entry=scheme_acc_entry,
+            payment_cards_to_link=payment_cards_to_link,
+            relink_pll=relink_pll,
         )
 
         metrics_route = MembershipCardAddRoute.UPDATE

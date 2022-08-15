@@ -92,8 +92,11 @@ def async_balance(scheme_account_entry: "SchemeAccountEntry", delete_balance=Fal
 
 @shared_task
 def async_balance_with_updated_credentials(
-    instance_id: int, user_id: int, scheme_account_entry: SchemeAccountEntry,
-        payment_cards_to_link: list, relink_pll: bool = False
+    instance_id: int,
+    user_id: int,
+    scheme_account_entry: SchemeAccountEntry,
+    payment_cards_to_link: list,
+    relink_pll: bool = False,
 ) -> None:
     scheme_account = SchemeAccount.objects.get(id=instance_id)
     scheme_account.delete_cached_balance()

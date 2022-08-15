@@ -567,12 +567,15 @@ class UpdateCredentialsMixin:
         return self.update_credentials(scheme_account, data, scheme_account_entry=scheme_account_entry)
 
     @staticmethod
-    def get_existing_account_with_same_manual_answer(scheme_account: SchemeAccount, scheme_id: int, main_answer: str,
-                                                     main_answer_field: str) -> bool:
+    def get_existing_account_with_same_manual_answer(
+        scheme_account: SchemeAccount, scheme_id: int, main_answer: str, main_answer_field: str
+    ) -> bool:
         # i.e. if any schemeaccount exists with this main answer. This relies on main_answer always being populated,
         # which it SHOULD BE.
         account = (
-            SchemeAccount.objects.filter(**{'scheme_id': scheme_id, 'is_deleted': False, main_answer_field: main_answer})
+            SchemeAccount.objects.filter(
+                **{"scheme_id": scheme_id, "is_deleted": False, main_answer_field: main_answer}
+            )
             .exclude(id=scheme_account.id)
             .all()
         )

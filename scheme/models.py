@@ -835,11 +835,11 @@ class SchemeAccount(models.Model):
     @staticmethod
     def get_scheme_account_key_cred_field_from_question_type(question_type):
         if question_type == CARD_NUMBER:
-            return 'card_number'
+            return "card_number"
         if question_type == BARCODE:
-            return 'barcode'
+            return "barcode"
         else:
-            return 'main_answer'
+            return "main_answer"
 
     def get_midas_balance(self, journey, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None):
         points = None
@@ -890,7 +890,7 @@ class SchemeAccount(models.Model):
             "user_set": user_set,
             "status": self.status,
             "journey_type": journey.value,
-            "user_id": scheme_account_entry.user.id
+            "bink_user_id": scheme_account_entry.user.id,
         }
         midas_balance_uri = f"{settings.MIDAS_URL}/{self.scheme.slug}/balance"
         headers = {"transaction": str(uuid.uuid1()), "User-agent": "Hermes on {0}".format(socket.gethostname())}
