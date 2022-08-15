@@ -513,7 +513,8 @@ class UpdateCredentialsMixin:
         return updated_types
 
     def update_credentials(
-        self, scheme_account: SchemeAccount, data: dict, scheme_account_entry: SchemeAccountEntry, questions=None
+        self, scheme_account: SchemeAccount, data: dict, scheme_account_entry: SchemeAccountEntry, questions=None,
+            allow_existing_main_answer=True
     ) -> dict:
         if questions is None:
             questions = (
@@ -527,7 +528,8 @@ class UpdateCredentialsMixin:
             )
 
         serializer = UpdateCredentialSerializer(
-            data=data, context={"questions": questions, "scheme_account": scheme_account}
+            data=data, context={"questions": questions, "scheme_account": scheme_account,
+                                "allow_existing_main_answer": allow_existing_main_answer}
         )
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

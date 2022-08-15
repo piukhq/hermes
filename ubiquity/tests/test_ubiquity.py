@@ -1041,7 +1041,8 @@ class TestResources(GlobalMockAPITestCase):
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(None, "", None))
     def test_patch_credentials_isolated_multi_user(self, mock_update_balance):
-        """Test auth_provided user doing a PATCH with new credentials doesn't delete auth credentials
+        """
+        Test auth_provided user doing a PATCH with new credentials doesn't delete auth credentials
         for other linked users.
         """
         external_id = "anothertest@user.com"
@@ -1056,26 +1057,26 @@ class TestResources(GlobalMockAPITestCase):
             scheme_account=existing_scheme_account,
             question=self.scheme.manual_question,
             answer="36543456787656",
-            scheme_account_entry=entry1,
+            scheme_account_entry=entry2,
         )
         auth_q = SchemeCredentialAnswerFactory(
             scheme_account=existing_scheme_account,
             question=self.secondary_question,
             answer="Test",
-            scheme_account_entry=entry1,
+            scheme_account_entry=entry2,
         )
 
         SchemeCredentialAnswerFactory(
             scheme_account=existing_scheme_account,
             question=self.scheme.manual_question,
             answer="36543456787656",
-            scheme_account_entry=entry2,
+            scheme_account_entry=entry1,
         )
         SchemeCredentialAnswerFactory(
             scheme_account=existing_scheme_account,
             question=self.secondary_question,
             answer="Test",
-            scheme_account_entry=entry2,
+            scheme_account_entry=entry1,
         )
 
         payload = {
@@ -1715,8 +1716,13 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    def test_membership_card_put_manual_question(self, *_):
-        scheme_account = SchemeAccountFactory(scheme=self.put_scheme)
+    def test_membership_card_put_manual_question_single_link(self, *_):
+        """
+        Tests that a PUT with a different, non-existing add_field (manual_question_answer) results in a new account
+        being created, the schemeaccountentry switched to the new account, and the old account deleted.
+        (Single link/LastManStanding)
+        """
+        scheme_account = SchemeAccountFactory(scheme=self.put_scheme, card_number="55555")
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_manual_q,
@@ -1746,20 +1752,228 @@ class TestResources(GlobalMockAPITestCase):
             **self.auth_headers,
         )
 
-        self.assertEqual(resp_put.status_code, 200)
         scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.status, SchemeAccount.PENDING)
+        scheme_account_entry.refresh_from_db()
+
+        new_scheme_acc_id = resp_put.data['id']
+        new_scheme_acc = SchemeAccount.objects.get(id=new_scheme_acc_id)
+
+        self.assertEqual(resp_put.status_code, 200)
+
+        self.assertTrue(scheme_account.is_deleted)
+        self.assertEqual(scheme_account_entry.scheme_account, new_scheme_acc)
+
         answers = scheme_account_entry._collect_credential_answers()
         new_manual_answer = answers.get(self.put_scheme_manual_q.type)
         self.assertEqual(new_manual_answer, "12345")
         self.assertIsNone(answers.get(self.put_scheme_scan_q.type))
+
+        self.assertEqual(new_scheme_acc.card_number, "12345")
+        self.assertEqual(new_scheme_acc.status, SchemeAccount.PENDING)
 
     @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    def test_membership_card_put_scan_question(self, *_):
+    def test_membership_card_put_manual_question_multiple_links(self, *_):
+        """
+        Tests that a PUT with a different, non-existing add_field (manual_question_answer) results in a new account
+        being created, the schemeaccountentry switched to the new account, and the old account unaffected.
+        (Multiple link/ NOT LastManStanding)
+        """
+        scheme_account = SchemeAccountFactory(scheme=self.put_scheme, card_number="55555")
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        scheme_account_entry_2 = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user2)
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_manual_q,
+            scheme_account=scheme_account,
+            answer="55555",
+            scheme_account_entry=scheme_account_entry,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_auth_q,
+            scheme_account=scheme_account,
+            answer="pass",
+            scheme_account_entry=scheme_account_entry,
+        )
+
+        payload = {
+            "membership_plan": self.put_scheme.id,
+            "account": {
+                "add_fields": [{"column": "card_number", "value": "12345"}],
+                "authorise_fields": [{"column": "password", "value": "pass"}],
+            },
+        }
+
+        resp_put = self.client.put(
+            reverse("membership-card", args=[scheme_account.id]),
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self.auth_headers,
+        )
+
+        scheme_account.refresh_from_db()
+        scheme_account_entry.refresh_from_db()
+
+        new_scheme_acc_id = resp_put.data['id']
+        new_scheme_acc = SchemeAccount.objects.get(id=new_scheme_acc_id)
+
+        self.assertEqual(resp_put.status_code, 200)
+
+        self.assertFalse(scheme_account.is_deleted)
+        self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
+        self.assertEqual(scheme_account_entry.scheme_account, new_scheme_acc)
+        self.assertEqual(scheme_account_entry_2.scheme_account, scheme_account)
+
+        answers = scheme_account_entry._collect_credential_answers()
+        new_manual_answer = answers.get(self.put_scheme_manual_q.type)
+        self.assertEqual(new_manual_answer, "12345")
+        self.assertIsNone(answers.get(self.put_scheme_scan_q.type))
+
+        self.assertEqual(new_scheme_acc.card_number, "12345")
+        self.assertEqual(new_scheme_acc.status, SchemeAccount.PENDING)
+
+    @patch("scheme.mixins.analytics", autospec=True)
+    @patch("ubiquity.views.async_link", autospec=True)
+    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
+    def test_membership_card_put_manual_question_single_link_existing_answer(self, *_):
+        """
+        Tests that a PUT with a different, pre-existing add_field (manual_question_answer) results in the
+        schemeaccountentry being switched to the existing account, and the old account deleted.
+        (Single link/LastManStanding)
+        """
+        scheme_account = SchemeAccountFactory(scheme=self.put_scheme, card_number="55555")
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+
+        scheme_account_2 = SchemeAccountFactory(scheme=self.put_scheme, card_number="12345")
+
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_manual_q,
+            scheme_account=scheme_account,
+            answer="55555",
+            scheme_account_entry=scheme_account_entry,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_auth_q,
+            scheme_account=scheme_account,
+            answer="pass",
+            scheme_account_entry=scheme_account_entry,
+        )
+
+        payload = {
+            "membership_plan": self.put_scheme.id,
+            "account": {
+                "add_fields": [{"column": "card_number", "value": "12345"}],
+                "authorise_fields": [{"column": "password", "value": "pass"}],
+            },
+        }
+
+        resp_put = self.client.put(
+            reverse("membership-card", args=[scheme_account.id]),
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self.auth_headers,
+        )
+
+        scheme_account.refresh_from_db()
+        scheme_account_entry.refresh_from_db()
+
+        self.assertEqual(resp_put.data['id'], scheme_account_2.id)
+
+        self.assertEqual(resp_put.status_code, 200)
+
+        self.assertTrue(scheme_account.is_deleted)
+        self.assertEqual(scheme_account_entry.scheme_account, scheme_account_2)
+
+        answers = scheme_account_entry._collect_credential_answers()
+        new_manual_answer = answers.get(self.put_scheme_manual_q.type)
+        self.assertEqual(new_manual_answer, "12345")
+        self.assertIsNone(answers.get(self.put_scheme_scan_q.type))
+
+        self.assertEqual(scheme_account_2.card_number, "12345")
+        self.assertEqual(scheme_account_2.status, SchemeAccount.ACTIVE)
+
+    @patch("scheme.mixins.analytics", autospec=True)
+    @patch("ubiquity.views.async_link", autospec=True)
+    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
+    def test_membership_card_put_manual_question_multiple_links_existing_answer(self, *_):
+        """
+        Tests that a PUT with a different, pre-existing add_field (manual_question_answer) results in
+        schemeaccountentry being switched to the new account, and the old account unaffected.
+        (Multiple link/ NOT LastManStanding)
+        """
+        scheme_account = SchemeAccountFactory(scheme=self.put_scheme, card_number="55555")
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        scheme_account_entry_2 = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user2)
+
+        scheme_account_2 = SchemeAccountFactory(scheme=self.put_scheme, card_number="12345")
+        SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=self.user2)
+
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_manual_q,
+            scheme_account=scheme_account,
+            answer="55555",
+            scheme_account_entry=scheme_account_entry,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_auth_q,
+            scheme_account=scheme_account,
+            answer="pass",
+            scheme_account_entry=scheme_account_entry,
+        )
+
+        payload = {
+            "membership_plan": self.put_scheme.id,
+            "account": {
+                "add_fields": [{"column": "card_number", "value": "12345"}],
+                "authorise_fields": [{"column": "password", "value": "pass"}],
+            },
+        }
+
+        resp_put = self.client.put(
+            reverse("membership-card", args=[scheme_account.id]),
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self.auth_headers,
+        )
+
+        scheme_account.refresh_from_db()
+        scheme_account_entry.refresh_from_db()
+
+        new_scheme_acc_id = resp_put.data['id']
+        new_scheme_acc = SchemeAccount.objects.get(id=new_scheme_acc_id)
+
+        self.assertEqual(resp_put.status_code, 200)
+
+        self.assertFalse(scheme_account.is_deleted)
+        self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
+        self.assertEqual(scheme_account_entry_2.scheme_account, scheme_account)
+
+        self.assertEqual(scheme_account_entry.scheme_account, new_scheme_acc)
+        answers = scheme_account_entry._collect_credential_answers()
+        new_manual_answer = answers.get(self.put_scheme_manual_q.type)
+        self.assertEqual(new_manual_answer, "12345")
+        self.assertIsNone(answers.get(self.put_scheme_scan_q.type))
+
+        self.assertEqual(scheme_account_2.card_number, "12345")
+        self.assertEqual(scheme_account_2.status, SchemeAccount.ACTIVE)
+
+    @patch("scheme.mixins.analytics", autospec=True)
+    @patch("ubiquity.views.async_link", autospec=True)
+    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
+    def test_membership_card_put_scan_question_single_link(self, *_):
+        """
+          Tests that a PUT with a different, non-existing add_field (scan_question_answer) results in a new account
+          being created, the schemeaccountentry switched to the new account, and the old account deleted.
+          (Single link/LastManStanding)
+          """
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme)
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
         SchemeCredentialAnswerFactory(
@@ -1789,13 +2003,23 @@ class TestResources(GlobalMockAPITestCase):
             content_type="application/json",
             **self.auth_headers,
         )
-        self.assertEqual(resp_put.status_code, 200)
+
         scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.status, SchemeAccount.PENDING)
+        scheme_account_entry.refresh_from_db()
+
+        new_scheme_acc = SchemeAccount.objects.get(id=resp_put.data['id'])
+
+        self.assertEqual(resp_put.status_code, 200)
+
+        self.assertTrue(scheme_account.is_deleted)
+
+        self.assertEqual(scheme_account_entry.scheme_account, new_scheme_acc)
+        self.assertEqual(new_scheme_acc.status, SchemeAccount.PENDING)
+        self.assertEqual(new_scheme_acc.barcode, "67890")
+
         answers = scheme_account_entry._collect_credential_answers()
         new_scan_answer = answers.get(self.put_scheme_scan_q.type)
         self.assertEqual(new_scan_answer, "67890")
-        self.assertIsNone(answers.get(self.put_scheme_manual_q.type))
 
     @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
@@ -1803,6 +2027,11 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.views.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_put_with_previous_balance(self, *_):
+        """
+          Tests that a PUT with a different, non-existing add_field (scan_question_answer) results in a new account
+          being created, and that no balance is present on this new card.
+          (Single link/LastManStanding)
+          """
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme)
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
         SchemeCredentialAnswerFactory(
@@ -1823,7 +2052,7 @@ class TestResources(GlobalMockAPITestCase):
         payload = {
             "membership_plan": self.put_scheme.id,
             "account": {
-                "add_fields": [{"column": "card_number", "value": "test12345678"}],
+                "add_fields": [{"column": "card_number", "value": "12345"}],
                 "authorise_fields": [{"column": "password", "value": "pass"}],
             },
         }
@@ -1835,10 +2064,13 @@ class TestResources(GlobalMockAPITestCase):
             **self.auth_headers,
         )
 
-        self.assertEqual(resp_put.status_code, 200)
         scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.status, SchemeAccount.PENDING)
-        self.assertFalse(scheme_account.balances)
+
+        new_scheme_acc = SchemeAccount.objects.get(id=resp_put.data['id'])
+
+        self.assertEqual(resp_put.status_code, 200)
+        self.assertEqual(new_scheme_acc.status, SchemeAccount.PENDING)
+        self.assertFalse(new_scheme_acc.balances)
 
     @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)

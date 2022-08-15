@@ -641,7 +641,7 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
         if unknown:
             raise serializers.ValidationError("field(s) not found for scheme: {}".format(", ".join(unknown)))
 
-        self._validate_existing_main_answer(credentials, questions, scheme_account)
+        self._validate_existing_main_answer(credentials, questions, scheme_account, self.context['allow_existing_main_answer'])
 
         return credentials
 
@@ -660,7 +660,8 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
 
         return q_objs
 
-    def _validate_existing_main_answer(self, credentials, questions, scheme_account) -> None:
+    def _validate_existing_main_answer(self, credentials: dict, questions: dict, scheme_account: "SchemeAccount",
+                                       allow_existing_main_answer: bool) -> None:
         main_question_types = {question.type for question in questions if question.is_main_question}
 
         query_args = {
@@ -676,7 +677,13 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
                 .values_list("id")
                 .all()
             )
-            if len(existing_accounts) > 1:
+
+            if len(existing_accounts) > 0 and not allow_existing_main_answer:
+                scheme_account.status = scheme_account.ACCOUNT_ALREADY_EXISTS
+                scheme_account.save(update_fields=["status"])
+                raise serializers.ValidationError("An account already exists with the given credentials")
+
+            elif len(existing_accounts) > 1:
                 logger.error(
                     "More than one account found with the same main credential. "
                     "One of the following credentials are the same for scheme account ids "

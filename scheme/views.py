@@ -630,7 +630,9 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         new_credentials = request.data["credentials"]
         user_id = request.data["bink_user_id"]
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=account, user_id=user_id)
-        response = self.update_credentials(account, new_credentials, scheme_account_entry)
+
+        response = self.update_credentials(account, new_credentials, scheme_account_entry,
+                                           allow_existing_main_answer=False)
         scheme_account_entry.update_scheme_account_key_credential_fields()
         return Response(response, status=status.HTTP_200_OK)
 
