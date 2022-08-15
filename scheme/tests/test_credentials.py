@@ -1,7 +1,6 @@
 import json
 
 from django.conf import settings
-from django.urls import reverse
 from rest_framework.exceptions import ErrorDetail
 
 from history.utils import GlobalMockAPITestCase

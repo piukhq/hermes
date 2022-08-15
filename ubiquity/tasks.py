@@ -16,7 +16,7 @@ from history.tasks import auth_outcome_task
 from history.utils import clean_history_kwargs, history_bulk_create, history_bulk_update, set_history_kwargs
 from payment_card import metis
 from payment_card.models import PaymentCard, PaymentCardAccount
-from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin, UpdateCredentialsMixin
+from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
 from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry, VopActivation

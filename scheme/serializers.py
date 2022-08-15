@@ -641,7 +641,9 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
         if unknown:
             raise serializers.ValidationError("field(s) not found for scheme: {}".format(", ".join(unknown)))
 
-        self._validate_existing_main_answer(credentials, questions, scheme_account, self.context['allow_existing_main_answer'])
+        self._validate_existing_main_answer(
+            credentials, questions, scheme_account, self.context["allow_existing_main_answer"]
+        )
 
         return credentials
 
@@ -660,8 +662,9 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
 
         return q_objs
 
-    def _validate_existing_main_answer(self, credentials: dict, questions: dict, scheme_account: "SchemeAccount",
-                                       allow_existing_main_answer: bool) -> None:
+    def _validate_existing_main_answer(
+        self, credentials: dict, questions: dict, scheme_account: "SchemeAccount", allow_existing_main_answer: bool
+    ) -> None:
         main_question_types = {question.type for question in questions if question.is_main_question}
 
         query_args = {

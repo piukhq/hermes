@@ -1755,7 +1755,7 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account.refresh_from_db()
         scheme_account_entry.refresh_from_db()
 
-        new_scheme_acc_id = resp_put.data['id']
+        new_scheme_acc_id = resp_put.data["id"]
         new_scheme_acc = SchemeAccount.objects.get(id=new_scheme_acc_id)
 
         self.assertEqual(resp_put.status_code, 200)
@@ -1816,7 +1816,7 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account.refresh_from_db()
         scheme_account_entry.refresh_from_db()
 
-        new_scheme_acc_id = resp_put.data['id']
+        new_scheme_acc_id = resp_put.data["id"]
         new_scheme_acc = SchemeAccount.objects.get(id=new_scheme_acc_id)
 
         self.assertEqual(resp_put.status_code, 200)
@@ -1881,7 +1881,7 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account.refresh_from_db()
         scheme_account_entry.refresh_from_db()
 
-        self.assertEqual(resp_put.data['id'], scheme_account_2.id)
+        self.assertEqual(resp_put.data["id"], scheme_account_2.id)
 
         self.assertEqual(resp_put.status_code, 200)
 
@@ -1945,7 +1945,7 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account.refresh_from_db()
         scheme_account_entry.refresh_from_db()
 
-        new_scheme_acc_id = resp_put.data['id']
+        new_scheme_acc_id = resp_put.data["id"]
         new_scheme_acc = SchemeAccount.objects.get(id=new_scheme_acc_id)
 
         self.assertEqual(resp_put.status_code, 200)
@@ -1970,10 +1970,10 @@ class TestResources(GlobalMockAPITestCase):
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_put_scan_question_single_link(self, *_):
         """
-          Tests that a PUT with a different, non-existing add_field (scan_question_answer) results in a new account
-          being created, the schemeaccountentry switched to the new account, and the old account deleted.
-          (Single link/LastManStanding)
-          """
+        Tests that a PUT with a different, non-existing add_field (scan_question_answer) results in a new account
+        being created, the schemeaccountentry switched to the new account, and the old account deleted.
+        (Single link/LastManStanding)
+        """
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme)
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
         SchemeCredentialAnswerFactory(
@@ -2007,7 +2007,7 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account.refresh_from_db()
         scheme_account_entry.refresh_from_db()
 
-        new_scheme_acc = SchemeAccount.objects.get(id=resp_put.data['id'])
+        new_scheme_acc = SchemeAccount.objects.get(id=resp_put.data["id"])
 
         self.assertEqual(resp_put.status_code, 200)
 
@@ -2028,10 +2028,10 @@ class TestResources(GlobalMockAPITestCase):
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_put_with_previous_balance(self, *_):
         """
-          Tests that a PUT with a different, non-existing add_field (scan_question_answer) results in a new account
-          being created, and that no balance is present on this new card.
-          (Single link/LastManStanding)
-          """
+        Tests that a PUT with a different, non-existing add_field (scan_question_answer) results in a new account
+        being created, and that no balance is present on this new card.
+        (Single link/LastManStanding)
+        """
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme)
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
         SchemeCredentialAnswerFactory(
@@ -2066,7 +2066,7 @@ class TestResources(GlobalMockAPITestCase):
 
         scheme_account.refresh_from_db()
 
-        new_scheme_acc = SchemeAccount.objects.get(id=resp_put.data['id'])
+        new_scheme_acc = SchemeAccount.objects.get(id=resp_put.data["id"])
 
         self.assertEqual(resp_put.status_code, 200)
         self.assertEqual(new_scheme_acc.status, SchemeAccount.PENDING)

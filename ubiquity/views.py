@@ -66,12 +66,10 @@ from ubiquity.models import (
 )
 from ubiquity.tasks import (
     async_all_balance,
-    async_balance,
     async_balance_with_updated_credentials,
     async_join,
     async_link,
     async_registration,
-    auto_link_membership_to_payments,
     auto_link_payment_to_memberships,
     deleted_membership_card_cleanup,
     deleted_payment_card_cleanup,
