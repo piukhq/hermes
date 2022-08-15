@@ -248,7 +248,6 @@ def delete_loyalty_card(message: dict) -> None:
     with AngeliaContext(message) as ac:
         user = CustomUser.objects.get(pk=ac.user_id)
         account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
-        SchemeAccountEntry.objects.filter(scheme_account=account, user=user).delete()
         deleted_membership_card_cleanup(account.id, arrow.utcnow().format(), user.id)
 
 

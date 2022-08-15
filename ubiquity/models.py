@@ -1,19 +1,29 @@
+import json
 import logging
-from typing import TYPE_CHECKING, Type, Union
+import re
+import sre_constants
+from typing import TYPE_CHECKING, Iterable, Type, Union
 
 import django
+from hermes import settings
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, models, transaction
-from django.db.models import signals
+from django.db.models import F, signals
 from django.dispatch import receiver
+from django.utils.functional import cached_property
 
+from analytics.api import update_scheme_account_attribute_new_status
 from hermes.vop_tasks import send_deactivation, vop_activate_request
 from history.signals import HISTORY_CONTEXT
+from scheme.credentials import BARCODE, CARD_NUMBER, ENCRYPTED_CREDENTIALS, PASSWORD, PASSWORD_2
+from scheme.encryption import AESCipher
+from ubiquity.channel_vault import AESKeyNames
 
 if TYPE_CHECKING:
     from payment_card.models import PaymentCardAccount  # noqa
     from scheme.models import SchemeAccount  # noqa
+    from scheme.models import SchemeAccountCredentialAnswer
     from user.models import CustomUser
 
 logger = logging.getLogger(__name__)
@@ -29,10 +39,16 @@ class SchemeAccountEntry(models.Model):
     class Meta:
         unique_together = ("scheme_account", "user")
 
+    @cached_property
+    def credential_answers(self):
+        return self.schemeaccountcredentialanswer_set.filter(
+            question__scheme_id=self.scheme_account.scheme_id
+        ).select_related("question")
+
     @staticmethod
     def create_or_retrieve_link(
         user: "CustomUser", scheme_account: "SchemeAccount", auth_provided: bool
-    ) -> tuple(("SchemeAccountEntry", bool)):
+    ) -> tuple["SchemeAccountEntry", bool]:
         entry = SchemeAccountEntry(user=user, scheme_account=scheme_account, auth_provided=auth_provided)
         created = True
         try:
@@ -42,16 +58,256 @@ class SchemeAccountEntry(models.Model):
             with transaction.atomic():
                 entry.save()
         except IntegrityError:
-            # The id of the record is not currently required but if it is in the future then
-            # we may need to use .get() here to retrieve the conflicting record.
             # An update is done here instead of initially using an update_or_create to avoid the db call
             # to check if a record exists, since this is an edge case.
-            SchemeAccountEntry.objects.filter(user=user, scheme_account=scheme_account).update(
-                auth_provided=auth_provided
-            )
+            entry = SchemeAccountEntry.objects.get(user=user, scheme_account=scheme_account)
+            entry.auth_provided = auth_provided
+            entry.save(update_fields=["auth_provided"])
             created = False
 
         return entry, created
+
+    def update_or_create_primary_credentials(self, credentials):
+        """
+        Creates or updates scheme account credential answer objects for manual or scan questions. If only one is
+        given and the scheme has a regex conversion for the property, both will be saved.
+        :param credentials: dict of credentials
+        :return: credentials
+        """
+        from scheme.models import SchemeAccountCredentialAnswer
+
+        new_credentials = {
+            question["type"]: credentials.get(question["type"])
+            for question in self.scheme_account.scheme.get_required_questions
+        }
+
+        for k, v in new_credentials.items():
+            if v:
+                SchemeAccountCredentialAnswer.objects.update_or_create(
+                    question=self.scheme_account.question(k),
+                    scheme_account=self.scheme_account,
+                    scheme_account_entry=self,
+                    defaults={"answer": v},
+                )
+
+        self.update_scheme_account_key_credential_fields()
+
+        for question in ["card_number", "barcode"]:
+            value = getattr(self.scheme_account, question)
+            if not credentials.get(question) and value:
+                credentials.update({question: value})
+
+        return credentials
+
+    def update_scheme_account_key_credential_fields(self):
+
+        answers = {
+            answer
+            for answer in self.credential_answers
+            if answer.question.manual_question or answer.question.scan_question or answer.question.one_question_link
+        }
+
+        card_number = None
+        barcode = None
+        for answer in answers:
+            if answer.question.type == CARD_NUMBER:
+                card_number = answer
+            elif answer.question.type == BARCODE:
+                barcode = answer
+
+        self._update_barcode_and_card_number(card_number, answers=answers, primary_cred_type=CARD_NUMBER)
+        self._update_barcode_and_card_number(barcode, answers=answers, primary_cred_type=BARCODE)
+        self._update_main_answer(answers)
+
+        self.scheme_account.save(update_fields=["barcode", "card_number", "main_answer"])
+
+    def _update_main_answer(self, credentials):
+        """
+        Updates the main_answer on the Scheme Account object to match Card_number, barcode, or else whatever the
+        manual_question is for this scheme, so that the 'main_answer' property can be more reliably used.
+        """
+        # todo: remove this method. Simplifying the main_answer functionality is out of scope for now
+
+        main_answer_question = (
+            self.scheme_account.scheme.manual_question
+            or self.scheme_account.scheme.scan_question
+            or self.scheme_account.scheme.one_question_link
+        )
+
+        if main_answer_question:
+            for cred in credentials:
+                if cred.question.type == BARCODE == main_answer_question.type:
+                    self.scheme_account.main_answer = self.scheme_account.barcode
+                elif cred.question.type == CARD_NUMBER == main_answer_question.type:
+                    self.scheme_account.main_answer = self.scheme_account.card_number
+                elif cred.question.type == main_answer_question.type:
+                    self.scheme_account.main_answer = cred.answer
+                else:
+                    continue
+
+    def _update_barcode_and_card_number(
+        self,
+        primary_cred: "SchemeAccountCredentialAnswer",
+        answers: Iterable["SchemeAccountCredentialAnswer"],
+        primary_cred_type: str,
+    ) -> None:
+        """
+        Updates the given primary credential of either card number or barcode. The non-provided (secondary)
+        credential is also updated if the conversion regex exists for the scheme.
+        """
+        if not answers:
+            setattr(self.scheme_account, primary_cred_type, "")
+            return
+
+        if not primary_cred:
+            return
+
+        type_to_update_info = {
+            CARD_NUMBER: {
+                "regex": self.scheme_account.scheme.barcode_regex,
+                "prefix": self.scheme_account.scheme.barcode_prefix,
+                "secondary_cred_type": BARCODE,
+            },
+            BARCODE: {
+                "regex": self.scheme_account.scheme.card_number_regex,
+                "prefix": self.scheme_account.scheme.card_number_prefix,
+                "secondary_cred_type": CARD_NUMBER,
+            },
+        }
+
+        setattr(self.scheme_account, primary_cred_type, primary_cred.answer)
+
+        if type_to_update_info[primary_cred_type]["regex"]:
+            try:
+                regex_match = re.search(type_to_update_info[primary_cred_type]["regex"], primary_cred.answer)
+            except sre_constants.error:
+                setattr(self.scheme_account, type_to_update_info[primary_cred_type]["secondary_cred_type"], "")
+                return None
+            if regex_match:
+                try:
+                    setattr(
+                        self.scheme_account,
+                        type_to_update_info[primary_cred_type]["secondary_cred_type"],
+                        type_to_update_info[primary_cred_type]["prefix"] + regex_match.group(1),
+                    )
+                except IndexError:
+                    pass
+
+    def missing_credentials(self, credential_types):
+        """
+        Given a list of credential_types return credentials if they are required by the scheme
+
+        A scan or manual question is an optional if one of the other exists
+        """
+        from scheme.models import SchemeCredentialQuestion
+
+        questions = self.scheme_account.scheme.questions.filter(
+            options__in=[F("options").bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
+        )
+
+        required_credentials = {question.type for question in questions}
+        manual_question = self.scheme_account.scheme.manual_question
+        scan_question = self.scheme_account.scheme.scan_question
+
+        if manual_question:
+            required_credentials.add(manual_question.type)
+        if scan_question:
+            required_credentials.add(scan_question.type)
+
+        if scan_question and manual_question and scan_question != manual_question:
+            if scan_question.type in credential_types:
+                required_credentials.discard(manual_question.type)
+            if required_credentials and manual_question.type in credential_types:
+                required_credentials.discard(scan_question.type)
+
+        return required_credentials.difference(set(credential_types))
+
+    def credentials(self, credentials_override: dict = None):
+
+        credentials = self._collect_credential_answers()
+
+        if self.scheme_account.scheme.slug != "iceland-bonus-card":
+            if self._iceland_hack(credentials, credentials_override):
+                return None
+
+        for credential in credentials.keys():
+            # Other services only expect a single password, "password", so "password_2" must be converted
+            # before sending if it exists. Ideally, the new credential would be handled in the consuming
+            # service and this should be removed.
+            if credential == PASSWORD_2:
+                credentials[PASSWORD] = credentials.pop(credential)
+
+        saved_consents = self.scheme_account.collect_pending_consents()
+        credentials.update(consents=saved_consents)
+
+        if credentials_override:
+            credentials.update(credentials_override)
+
+        serialized_credentials = json.dumps(credentials)
+        return AESCipher(AESKeyNames.AES_KEY).encrypt(serialized_credentials).decode("utf-8")
+
+    def _collect_credential_answers(self):
+        credentials = {}
+        for question in self.scheme_account.scheme.questions.all():
+            # attempt to get the answer from the database.
+            answer = self._find_answer(question)
+
+            if not answer:
+                continue
+
+            if question.type in ENCRYPTED_CREDENTIALS:
+                credentials[question.type] = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(answer)
+            else:
+                credentials[question.type] = answer
+        return credentials
+
+    @property
+    def third_party_identifier(self):
+        from scheme.models import SchemeCredentialQuestion
+
+        question = SchemeCredentialQuestion.objects.filter(
+            third_party_identifier=True, scheme=self.scheme_account.scheme
+        ).first()
+        if question:
+            return self._find_answer(question)
+
+        return None
+
+    def _find_answer(self, question):
+        answer = None
+        answer_instance = self.schemeaccountcredentialanswer_set.filter(question__type=question.type).first()
+        if answer_instance:
+            answer = answer_instance.answer
+        else:
+            # see if we have a property that will give us the answer.
+            try:
+                answer = getattr(self, question.type)
+            except AttributeError:
+                # we can't get an answer to this question, so skip it.
+                pass
+        return answer
+
+    def _iceland_hack(self, credentials: dict = None, credentials_override: dict = None) -> bool:
+        # todo: we will need to review this for P2
+
+        if self.scheme_account.status in self.scheme_account.ALL_PENDING_STATUSES:
+            return False
+
+        missing = self.missing_credentials(credentials.keys())
+
+        if missing and not credentials_override:
+            bink_users = [
+                user for user in self.scheme_account.user_set.all() if user.client_id == settings.BINK_CLIENT_ID
+            ]
+            for user in bink_users:
+                update_scheme_account_attribute_new_status(
+                    self.scheme_account, user, dict(self.scheme_account.STATUSES).get(self.scheme_account.INCOMPLETE)
+                )
+            self.scheme_account.status = self.scheme_account.INCOMPLETE
+
+            self.scheme_account.save()
+            return True  # triggers return None from calling method
+        return False
 
 
 class PaymentCardAccountEntry(models.Model):

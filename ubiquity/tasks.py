@@ -7,7 +7,6 @@ import requests
 import sentry_sdk
 from celery import shared_task
 from django.conf import settings
-from django.db.models import Q
 from rest_framework import serializers
 
 import analytics
@@ -64,9 +63,10 @@ def async_link(
 
     scheme_account = SchemeAccount.objects.select_related("scheme").get(id=scheme_account_id)
     user = CustomUser.objects.get(id=user_id)
+    scheme_account_entry = SchemeAccountEntry.objects.get(user=user, scheme_account=scheme_account)
     try:
-        serializer = LinkSchemeSerializer(data=auth_fields, context={"scheme_account": scheme_account})
-        BaseLinkMixin.link_account(serializer, scheme_account, user)
+        serializer = LinkSchemeSerializer(data=auth_fields, context={"scheme_account_entry": scheme_account_entry})
+        BaseLinkMixin.link_account(serializer, scheme_account, user, scheme_account_entry)
 
         if payment_cards_to_link:
             auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
@@ -81,18 +81,18 @@ def async_link(
 
 
 @shared_task
-def async_balance(instance_id: int, delete_balance=False) -> None:
-    scheme_account = SchemeAccount.objects.get(id=instance_id)
-    if delete_balance:
-        scheme_account.delete_cached_balance()
-        scheme_account.delete_saved_balance()
+def async_balance(scheme_account_entry: "SchemeAccountEntry", delete_balance=False) -> None:
 
-    scheme_account.get_cached_balance()
+    if delete_balance:
+        scheme_account_entry.scheme_account.delete_cached_balance()
+        scheme_account_entry.scheme_account.delete_saved_balance()
+
+    scheme_account_entry.scheme_account.get_cached_balance(scheme_account_entry)
 
 
 @shared_task
 def async_balance_with_updated_credentials(
-    instance_id: int, user_id: int, update_fields: dict, scheme_questions
+    instance_id: int, user_id: int, update_fields: dict, scheme_questions, scheme_account_entry: SchemeAccountEntry
 ) -> None:
     scheme_account = SchemeAccount.objects.get(id=instance_id)
     scheme_account.delete_cached_balance()
@@ -104,7 +104,9 @@ def async_balance_with_updated_credentials(
     #  Do we want to contact Midas in this case?
 
     logger.debug(f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})")
-    balance, _, dw_event = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
+    balance, _, dw_event = scheme_account.update_cached_balance(
+        scheme_account_entry=scheme_account_entry, cache_key=cache_key, credentials_override=update_fields
+    )
 
     # data warehouse event could be success or failed (depends on midas response etc)
     # since we're in this function i is always AUTH_PENDING
@@ -117,23 +119,22 @@ def async_balance_with_updated_credentials(
             "Balance returned from balance call with updated credentials - SchemeAccount (id={scheme_account.id}) - "
             "Updating credentials."
         )
-        # update credentials and set all other linked users to unauthorised if they're different to the stored ones
-        UpdateCredentialsMixin().update_credentials(scheme_account, update_fields, scheme_questions)
-
-        SchemeAccountEntry.objects.filter(~Q(user_id=user_id), scheme_account=scheme_account).update(
-            auth_provided=False
+        # update credentials
+        UpdateCredentialsMixin().update_credentials(
+            scheme_account=scheme_account,
+            data=update_fields,
+            questions=scheme_questions,
+            scheme_account_entry=scheme_account_entry,
         )
+        scheme_account_entry.update_scheme_account_key_credential_fields()
 
-        PaymentCardSchemeEntry.objects.filter(
-            ~Q(payment_card_account__user_set=user_id), scheme_account=scheme_account
-        ).delete()
     else:
         logger.debug(
             f"No balance returned from balance call with updated credentials - SchemeAccount (id={scheme_account.id}) -"
             " Unauthorising user."
         )
-        mcard_entries = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
-        for entry in mcard_entries:
+        scheme_account_entries = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
+        for entry in scheme_account_entries:
             if entry.user_id == user_id:
                 entry.auth_provided = False
                 entry.save()
@@ -143,14 +144,17 @@ def async_balance_with_updated_credentials(
             scheme_account=scheme_account, payment_card_account__user_set=user_id
         ).delete()
 
-        if all(entry.auth_provided is False for entry in mcard_entries):
-            scheme_account.schemeaccountcredentialanswer_set.filter(
+        # todo: changed from - if all saes linked to sa are ap=false then delete all non-manual creds. This logic will
+        #  change, but we need to decide upon how/why based on status, perhaps. This is more P2/P3 so will leave for
+        #  now.
+        if scheme_account_entry.auth_provided is False:
+            scheme_account_entry.schemeaccountcredentialanswer_set.filter(
                 question__auth_field=True,
                 question__manual_question=False,
             ).delete()
         else:
             # Call balance to correctly reset the scheme account balance using the stored credentials
-            scheme_account.get_cached_balance()
+            scheme_account.get_cached_balance(scheme_account_entry=scheme_account_entry)
 
 
 @shared_task
@@ -163,7 +167,7 @@ def async_all_balance(user_id: int, channels_permit) -> None:
     entries = entries.exclude(**exclude_query)
 
     for entry in entries:
-        async_balance.delay(entry.scheme_account_id)
+        async_balance.delay(entry)
 
 
 @shared_task
@@ -218,7 +222,11 @@ def async_join_journey_fetch_balance_and_update_status(scheme_account_id: int) -
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
     scheme_account.status = scheme_account.PENDING
     scheme_account.save(update_fields=["status"])
-    scheme_account.get_cached_balance()
+
+    # todo: improve this! This is absolutely not the way to do this, but is a temporary hack for Phase 1.
+    scheme_account_entry = SchemeAccountEntry.objects.first(scheme_account=scheme_account)
+
+    scheme_account.get_cached_balance(scheme_account_entry)
 
 
 def _format_info(scheme_account: SchemeAccount, user_id: int) -> dict:
@@ -295,15 +303,25 @@ def deleted_membership_card_cleanup(
     scheme_account = SchemeAccount.all_objects.get(id=scheme_account_id)
     user = CustomUser.objects.get(id=user_id)
     scheme_slug = scheme_account.scheme.slug
+    scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user=user)
 
+    # todo: review PLL behaviour on card deletion in P3
     pll_links = PaymentCardSchemeEntry.objects.filter(scheme_account_id=scheme_account.id).prefetch_related(
         "scheme_account", "payment_card_account", "payment_card_account__paymentcardschemeentry_set"
     )
-    entries_query = SchemeAccountEntry.objects.filter(scheme_account=scheme_account)
 
     remove_loyalty_card_event(user, scheme_account)
 
-    if entries_query.count() <= 0:
+    # Delete this user's credentials
+    scheme_account_entry.schemeaccountcredentialanswer_set.all().delete()
+
+    # Delete this user's scheme account entry
+    scheme_account_entry.delete()
+
+    other_scheme_account_entries = SchemeAccountEntry.objects.filter(scheme_account=scheme_account)
+
+    if other_scheme_account_entries.count() <= 0:
+        # Last man standing
         scheme_account.is_deleted = True
         scheme_account.save(update_fields=["is_deleted"])
 
@@ -313,18 +331,8 @@ def deleted_membership_card_cleanup(
             )
 
     else:
-        user_mcard_auth_provided = entries_query.values_list("auth_provided", flat=True)
-        if all((status is False for status in user_mcard_auth_provided)):
-            scheme_account.status = SchemeAccount.WALLET_ONLY
-            scheme_account.save(update_fields=["status"])
-            PaymentCardSchemeEntry.update_active_link_status({"scheme_account": scheme_account})
-
-            scheme_account.schemeaccountcredentialanswer_set.filter(
-                question__auth_field=True,
-                question__manual_question=False,
-            ).delete()
-
-        m_card_users = entries_query.values_list("user_id", flat=True)
+        # todo: Some PLL link nonsense to look at here for Phase 3.
+        m_card_users = other_scheme_account_entries.values_list("user_id", flat=True)
         pll_links = pll_links.exclude(payment_card_account__user_set__in=m_card_users)
 
     activations = VopActivation.find_activations_matching_links(pll_links)
@@ -376,7 +384,6 @@ def _delete_user_membership_cards(user: "CustomUser", send_deactivation: bool = 
         activations = VopActivation.find_activations_matching_links(vop_links)
         PaymentCardSchemeEntry.deactivate_activations(activations)
 
-    # TODO check if signal picks up queryset.delete()
     links_to_remove.delete()
     history_bulk_update(SchemeAccount, cards_to_delete, ["is_deleted"])
     user_card_entries.delete()

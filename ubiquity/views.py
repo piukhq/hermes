@@ -524,7 +524,8 @@ class MembershipCardView(
         auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, account)
         return Response(
             self.get_serializer_by_request(
-                account, context={"mcard_user_auth_provided_map": auth_provided_mapping}
+                account,
+                context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": self.request.user.id},
             ).data
         )
 
@@ -583,7 +584,7 @@ class MembershipCardView(
                 update_fields = detect_and_handle_escaped_unicode(update_fields)
 
             updated_account = self._handle_update_fields(
-                account, scheme, update_fields, scheme_questions, request.user.id
+                account, scheme, update_fields, scheme_questions, request.user.id, sch_acc_entry
             )
             metrics_route = MembershipCardAddRoute.UPDATE
 
@@ -596,7 +597,8 @@ class MembershipCardView(
             self.get_serializer_by_request(
                 updated_account,
                 context={
-                    "mcard_user_auth_provided_map": {sch_acc_entry.scheme_account_id: sch_acc_entry.auth_provided}
+                    "mcard_user_auth_provided_map": {sch_acc_entry.scheme_account_id: sch_acc_entry.auth_provided},
+                    "user_id": self.request.user.id,
                 },
             ).data,
             status=status.HTTP_200_OK,
@@ -609,10 +611,13 @@ class MembershipCardView(
         update_fields: dict,
         scheme_questions: list,
         user_id: int,
+        scheme_account_entry: SchemeAccountEntry,
     ) -> SchemeAccount:
         if "consents" in update_fields:
             del update_fields["consents"]
 
+        # if one of the credentials provided is the main answer, and the new main answer is the same as an already
+        # existant main answer, we fail the request.
         manual_question_type = None
         for question in scheme_questions:
             if question.manual_question:
@@ -631,7 +636,9 @@ class MembershipCardView(
         # does not check for "prim auth" user so is set *by* all wallets/users
         account.set_auth_pending()
         # ask for a balance refresh with new creds
-        async_balance_with_updated_credentials.delay(account.id, user_id, update_fields, scheme_questions)
+        async_balance_with_updated_credentials.delay(
+            account.id, user_id, update_fields, scheme_questions, scheme_account_entry
+        )
         return account
 
     @staticmethod
@@ -659,7 +666,6 @@ class MembershipCardView(
             data=registration_data, scheme_account=account, user=user, permit=permit, join_scheme=scheme
         )
 
-        # Todo: LOY-1953 - may need rework when implementing multi-wallet add_and_register.
         scheme_acc_entry.auth_provided = True
         scheme_acc_entry.save(update_fields=["auth_provided"])
 
@@ -737,7 +743,8 @@ class MembershipCardView(
         auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, account)
         return Response(
             self.get_serializer_by_request(
-                account, context={"mcard_user_auth_provided_map": auth_provided_mapping}
+                account,
+                context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": self.request.user.id},
             ).data,
             status=status.HTTP_200_OK,
         )
@@ -773,7 +780,7 @@ class MembershipCardView(
         scheme_acc_entry.auth_provided = True
         scheme_acc_entry.save(update_fields=["auth_provided"])
 
-        account.schemeaccountcredentialanswer_set.all().delete()
+        scheme_acc_entry.schemeaccountcredentialanswer_set.all().delete()
         account.set_async_join_status(commit_change=False)
         account.save(update_fields=["status", "main_answer"])
         async_join.delay(
@@ -815,10 +822,10 @@ class MembershipCardView(
 
         scheme_acc_entry.auth_provided = True
         scheme_acc_entry.save(update_fields=["auth_provided"])
-        self.replace_credentials_and_scheme(account, new_answers, scheme)
-        account.update_barcode_and_card_number()
+        self.replace_credentials_and_scheme(account, new_answers, scheme, scheme_acc_entry)
+        scheme_acc_entry.update_scheme_account_key_credential_fields()
         account.set_pending()
-        async_balance.delay(account.id)
+        async_balance.delay(scheme_acc_entry)
 
         if payment_cards_to_link:
             auto_link_membership_to_payments.delay(
@@ -838,7 +845,6 @@ class MembershipCardView(
             error = {"join_pending": "Membership card cannot be deleted until the Join process has completed."}
             return Response(error, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-        SchemeAccountEntry.objects.filter(scheme_account=scheme_account, user=request.user).delete()
         deleted_membership_card_cleanup.delay(
             scheme_account.id,
             arrow.utcnow().format(),
@@ -960,12 +966,32 @@ class MembershipCardView(
         serializer = self.get_serializer(data={"scheme": scheme.id, "order": 0, **add_fields})
         serializer.is_valid(raise_exception=True)
 
-        scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, scheme)
+        # Create or retrieve scheme_account
+        scheme_account, _, account_created, answer_type, main_answer = self.create_account_with_valid_data(
+            serializer, user, scheme
+        )
+
+        # Create or retrieve scheme_account_entry and create main answer creds for this entry if necessary
+        ap = True
+
+        if not auth_fields:
+            self._handle_add_fields_only_link(user, scheme_account, account_created)
+            ap = False
+
+        sch_acc_entry, entry_created = SchemeAccountEntry.create_or_retrieve_link(
+            user=user, scheme_account=scheme_account, auth_provided=ap
+        )
+
+        if entry_created:
+            self.create_main_answer_credential(
+                answer_type=answer_type, scheme_account_entry=sch_acc_entry, main_answer=main_answer
+            )
+
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
         if account_created and auth_fields:
             # scheme account created & user authorised to use it
-            scheme_account.update_barcode_and_card_number()
+
             history_kwargs = {
                 "user_info": user_info(
                     user_id=self.request.channels_permit.user.id, channel=self.request.channels_permit.bundle_id
@@ -978,7 +1004,6 @@ class MembershipCardView(
             else:
                 metrics_route = MembershipCardAddRoute.WALLET_ONLY
 
-            sch_acc_entry, _ = SchemeAccountEntry.create_or_retrieve_link(user, scheme_account, auth_provided=True)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
 
             scheme_account.status = SchemeAccount.ADD_AUTH_PENDING
@@ -986,16 +1011,16 @@ class MembershipCardView(
             # send add_and_auth event to data_warehouse
             addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
 
+            sch_acc_entry.update_scheme_account_key_credential_fields()
+
         elif not auth_fields:
             # no auth provided, new scheme account created
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
-            sch_acc_entry = self._handle_add_fields_only_link(user, scheme_account, account_created)
+            sch_acc_entry.update_scheme_account_key_credential_fields()
+
         else:
             # new scheme account not created, auth fields provided (linking to existing scheme account)
-            entry_exists = SchemeAccountEntry.objects.filter(
-                user_id=user.id, scheme_account_id=scheme_account.id
-            ).exists()
-            if entry_exists:
+            if not entry_created:
                 auth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
             else:
                 addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
@@ -1004,9 +1029,10 @@ class MembershipCardView(
 
             # todo: set link_status of newly created link to some sort of pending state (P2)
 
-            sch_acc_entry, _ = SchemeAccountEntry.create_or_retrieve_link(
+            sch_acc_entry, created = SchemeAccountEntry.create_or_retrieve_link(
                 user=user, scheme_account=scheme_account, auth_provided=True
             )
+
             async_link.delay(
                 auth_fields,
                 scheme_account.id,
@@ -1052,12 +1078,13 @@ class MembershipCardView(
             # if this changes, we'll need to rework this code.
             email = enrol_fields["email"]
 
-            other_accounts = SchemeAccount.objects.filter(
-                scheme_id=scheme.id,
+            other_scheme_links = SchemeAccountEntry.objects.filter(
+                scheme_account__scheme_id=scheme.id,
                 schemeaccountcredentialanswer__answer=email,
             )
-            if other_accounts.exists():
-                scheme_account = other_accounts.first()
+
+            if other_scheme_links.exists():
+                scheme_account = other_scheme_links.first().scheme_account
                 sch_acc_entry, _ = SchemeAccountEntry.create_or_retrieve_link(
                     user=user, scheme_account=scheme_account, auth_provided=True
                 )
@@ -1216,7 +1243,7 @@ class MembershipCardView(
         user: "CustomUser",
         scheme_account: "SchemeAccount",
         account_created: bool,
-    ) -> SchemeAccountEntry:
+    ):
         """Handles scheme accounts for when only add fields are provided."""
         if account_created:
             scheme_account.status = SchemeAccount.WALLET_ONLY
@@ -1229,13 +1256,6 @@ class MembershipCardView(
 
             if authed_link_exists:
                 raise AlreadyExistsError
-
-        entry, _ = SchemeAccountEntry.create_or_retrieve_link(
-            user=user, scheme_account=scheme_account, auth_provided=False
-        )
-
-        scheme_account.update_barcode_and_card_number()
-        return entry
 
     @staticmethod
     def match_consents(consent_links, data_provided):
@@ -1269,7 +1289,9 @@ class ListMembershipCardView(MembershipCardView):
 
         auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, accounts)
         response = self.get_serializer_by_request(
-            accounts, many=True, context={"mcard_user_auth_provided_map": auth_provided_mapping}
+            accounts,
+            many=True,
+            context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": self.request.user.id},
         ).data
 
         return Response(response, status=200)
@@ -1318,6 +1340,7 @@ class ListMembershipCardView(MembershipCardView):
                 context={
                     "request": request,
                     "mcard_user_auth_provided_map": {sch_acc_entry.scheme_account_id: sch_acc_entry.auth_provided},
+                    "user_id": self.request.user.id,
                 },
             ).data,
             status=status_code,
@@ -1343,7 +1366,8 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
 
         auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, link.scheme_account)
         serializer = self.get_serializer_by_request(
-            link.scheme_account, context={"mcard_user_auth_provided_map": auth_provided_mapping}
+            link.scheme_account,
+            context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": request.user.id},
         )
 
         return Response(serializer.data, status_code)

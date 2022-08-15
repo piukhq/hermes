@@ -296,7 +296,7 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        _, response, _ = self.create_account(request.data, request.user)
+        _, response, _, _, _ = self.create_account(request.data, request.user)
         return Response(
             response,
             status=status.HTTP_201_CREATED,
@@ -364,6 +364,8 @@ class CreateJoinSchemeAccount(APIView):
 
 
 class UpdateSchemeAccountStatus(GenericAPIView):
+    # todo: this will all need to change to an 'UpdateSchemeAccountEntryStatus'-type endpoint. This will be straight-up
+    #  broken for now.
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
     serializer_class = StatusSerializer
@@ -594,26 +596,41 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
     authentication_classes = (JwtAuthentication, ServiceAuthentication)
     serializer_class = SchemeAccountCredentialsSerializer
 
-    def get_queryset(self):
-        queryset = SchemeAccount.objects
-        user_filter = False
-        if self.request.user.uid != "api_user":
-            user_filter = True
+    def get(self, request, *args, **kwargs):
 
-        return self.request.channels_permit.scheme_account_query(
-            queryset,
-            user_id=self.request.user.id,
-            user_filter=user_filter,
-        )
+        try:
+            account = self.request.channels_permit.scheme_account_query(
+                SchemeAccount.objects,
+                user_id=self.request.user.id,
+                user_filter=False if request.user.uid == "api_user" else True,
+            ).get(**kwargs)
+        except SchemeAccount.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=account,
+                                                              user_id=request.query_params['bink_user_id'])
+
+        data = {
+            'credentials': scheme_account_entry.credentials(),
+            'status_name': account.status_name,
+            'display_status': account.display_status,
+            'scheme': account.scheme.slug,
+            'id': account.id
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
 
     def put(self, request, *args, **kwargs):
         """
         Update / Create credentials for loyalty scheme login
         ---
         """
-        account = self.get_object()
-        response = self.update_credentials(account, request.data)
-        account.update_barcode_and_card_number()
+        account = get_object_or_404(SchemeAccount.objects, id=self.kwargs["pk"])
+        new_credentials = request.data['credentials']
+        user_id = request.data['bink_user_id']
+        scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=account, user_id=user_id)
+        response = self.update_credentials(account, new_credentials, scheme_account_entry)
+        scheme_account_entry.update_scheme_account_key_credential_fields()
         return Response(response, status=status.HTTP_200_OK)
 
     def delete(self, request, *args, **kwargs):
@@ -635,10 +652,13 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
             description: list, e.g. ['username', 'password'] of all credential types to delete
         """
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs["pk"])
+        user_id = self.request.data['bink_user_id']
+        scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account,
+                                                              user_id=user_id)
         serializer = DeleteCredentialSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        answers_to_delete = self.collect_credentials_to_delete(scheme_account, data)
+        answers_to_delete = self.collect_credentials_to_delete(scheme_account_entry, data)
         if type(answers_to_delete) is Response:
             return answers_to_delete
 
@@ -651,8 +671,8 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
             return Response({"message": "No answers found"}, status=status.HTTP_404_NOT_FOUND)
         return Response({"deleted": str(response_list)}, status=status.HTTP_200_OK)
 
-    def collect_credentials_to_delete(self, scheme_account, request_data):
-        credential_list = scheme_account.schemeaccountcredentialanswer_set
+    def collect_credentials_to_delete(self, scheme_account_entry, request_data):
+        credential_list = scheme_account_entry.schemeaccountcredentialanswer_set
         answers_to_delete = set()
 
         if request_data.get("all"):
@@ -660,7 +680,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
             return answers_to_delete
 
         elif request_data.get("keep_card_number"):
-            card_number = scheme_account.card_number
+            card_number = scheme_account_entry.scheme_account.card_number
             if card_number:
                 credential_list = credential_list.exclude(answer=card_number)
 
@@ -669,8 +689,8 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
 
         for credential_property in request_data.get("property_list"):
             try:
-                questions = getattr(scheme_account.scheme, credential_property)
-                answers_to_delete.update(self.get_answers_from_question_list(scheme_account, questions))
+                questions = getattr(scheme_account_entry.scheme_account.scheme, credential_property)
+                answers_to_delete.update(self.get_answers_from_question_list(scheme_account_entry, questions))
             except AttributeError:
                 return self.invalid_data_response(credential_property)
 
@@ -678,19 +698,19 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         question_list = []
         for answer_type in request_data.get("type_list"):
             if answer_type in scheme_account_types:
-                question_list.append(scheme_account.scheme.questions.get(type=answer_type))
+                question_list.append(scheme_account_entry.scheme_account.scheme.questions.get(type=answer_type))
             else:
                 return self.invalid_data_response(answer_type)
 
-        answers_to_delete.update(self.get_answers_from_question_list(scheme_account, question_list))
+        answers_to_delete.update(self.get_answers_from_question_list(scheme_account_entry, question_list))
 
         return answers_to_delete
 
     @staticmethod
-    def get_answers_from_question_list(scheme_account, questions):
+    def get_answers_from_question_list(scheme_account_entry, questions):
         answers = []
         for question in questions:
-            credential_answer = scheme_account.schemeaccountcredentialanswer_set.get(question=question)
+            credential_answer = scheme_account_entry.schemeaccountcredentialanswer_set.get(question=question)
             if credential_answer:
                 answers.append(credential_answer)
 

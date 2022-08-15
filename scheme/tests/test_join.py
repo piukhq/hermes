@@ -1,3 +1,4 @@
+from hermes.channels import Permit
 from history.utils import GlobalMockAPITestCase
 from scheme import credentials
 from scheme.models import (
@@ -8,6 +9,7 @@ from scheme.models import (
     SchemeBundleAssociation,
     SchemeCredentialQuestion,
 )
+from unittest.mock import patch
 from ubiquity.models import SchemeAccountEntry
 from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.views import MembershipCardView
@@ -51,11 +53,17 @@ class TestJoinExisting(GlobalMockAPITestCase):
         cls.new_user.save()
 
         cls.scheme_account = SchemeAccount.objects.create(scheme=cls.scheme, order=0)
-        SchemeAccountCredentialAnswer.objects.create(
-            question=question, scheme_account=cls.scheme_account, answer=cls.join_email
+
+        cls.scheme_account_entry = SchemeAccountEntry.objects.create(
+            user=cls.old_user, scheme_account=cls.scheme_account
         )
 
-        SchemeAccountEntry.objects.create(user=cls.old_user, scheme_account=cls.scheme_account)
+        SchemeAccountCredentialAnswer.objects.create(
+            question=question,
+            scheme_account=cls.scheme_account,
+            answer=cls.join_email,
+            scheme_account_entry=cls.scheme_account_entry,
+        )
 
         cls.auth_headers = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.old_user, cls.bundle.bundle_id))}
 
@@ -80,11 +88,13 @@ class TestJoinExisting(GlobalMockAPITestCase):
         self.assertEqual(len(entries), 2)
         self.assertSetEqual({e.user for e in entries}, {self.old_user, self.new_user})
 
-    def test_join_same_user_twice(self):
+    @patch.object(Permit, "_authenticate_bundle")
+    @patch("ubiquity.views.join_request_lc_event")
+    def test_join_same_user_twice(self, _join_event, _authenticate_permit):
         """Joining an existing account on the same user causes a link to be set up"""
         MembershipCardView._handle_create_join_route(
             self.old_user,
-            None,
+            Permit(bundle_id=self.bundle.id, user=self.old_user),
             self.scheme,
             {"email": self.join_email, "first_name": "test", "last_name": "user"},
             False,

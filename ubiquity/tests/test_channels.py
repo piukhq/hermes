@@ -374,6 +374,7 @@ class TestInternalService(GlobalMockAPITestCase):
         cls.scheme_account_2 = SchemeAccountFactory(scheme=cls.scheme)
 
         SchemeAccountEntryFactory(user=cls.bink_user, scheme_account=cls.scheme_account_1)
+        SchemeAccountEntryFactory(user=cls.bink_user, scheme_account=cls.scheme_account_2)
         SchemeAccountEntryFactory(user=cls.other_user, scheme_account=cls.scheme_account_2)
 
         cls.payment_card_account_1 = PaymentCardAccountFactory()

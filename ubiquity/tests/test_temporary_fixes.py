@@ -32,17 +32,25 @@ class TestTemporaryFixesBink(GlobalMockAPITestCase):
         )
 
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
+        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account)
+
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=cls.scheme.manual_question, scheme_account=cls.scheme_account
+            question=cls.scheme.manual_question,
+            scheme_account=cls.scheme_account,
+            scheme_account_entry=cls.scheme_account_entry,
         )
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=secondary_question, scheme_account=cls.scheme_account
+            question=secondary_question,
+            scheme_account=cls.scheme_account,
+            scheme_account_entry=cls.scheme_account_entry,
+        )
+        cls.scheme_account_answer_password = SchemeCredentialAnswerFactory(
+            answer="test_password",
+            question=password_question,
+            scheme_account=cls.scheme_account,
+            scheme_account_entry=cls.scheme_account_entry,
         )
 
-        cls.scheme_account_answer_password = SchemeCredentialAnswerFactory(
-            answer="test_password", question=password_question, scheme_account=cls.scheme_account
-        )
-        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account)
         cls.user = cls.scheme_account_entry.user
 
         cls.payment_card_account = PaymentCardAccountFactory()
