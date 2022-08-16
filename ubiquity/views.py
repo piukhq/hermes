@@ -1079,11 +1079,11 @@ class MembershipCardView(
             self._handle_add_fields_only_link(user, scheme_account, account_created)
             ap = False
 
-        sch_acc_entry, entry_created = SchemeAccountEntry.create_or_retrieve_link(
+        sch_acc_entry, sch_acc_entry_created = SchemeAccountEntry.create_or_retrieve_link(
             user=user, scheme_account=scheme_account, auth_provided=ap
         )
 
-        if entry_created:
+        if sch_acc_entry_created:
             self.create_main_answer_credential(
                 answer_type=answer_type, scheme_account_entry=sch_acc_entry, main_answer=main_answer
             )
@@ -1124,7 +1124,7 @@ class MembershipCardView(
             sch_acc_entry, created, metrics_route = self._link_to_existing(
                 scheme_account=scheme_account,
                 user=user,
-                sch_acc_created=sch_acc_created,
+                sch_acc_entry_created=sch_acc_entry_created,
                 auth_fields=auth_fields,
                 payment_cards_to_link=payment_cards_to_link,
             )
@@ -1135,11 +1135,11 @@ class MembershipCardView(
         self,
         scheme_account: "SchemeAccount",
         user: "CustomUser",
-        sch_acc_created: bool,
+        sch_acc_entry_created: bool,
         auth_fields: dict,
         payment_cards_to_link: list,
     ):
-        if not sch_acc_created:
+        if not sch_acc_entry_created:
             auth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
         else:
             addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
