@@ -117,7 +117,6 @@ class TestTasks(APITestCase):
             },
         }
 
-        historical_payment_card_scheme_entry_pre = HistoricalPaymentCardSchemeEntry.objects.count()
         historical_scheme_account_pre = HistoricalSchemeAccount.objects.count()
         historical_vop_activation_pre = HistoricalVopActivation.objects.count()
 
@@ -129,10 +128,8 @@ class TestTasks(APITestCase):
         )
         self.assertEqual(resp.status_code, 201)
 
-        historical_payment_card_scheme_entry_post = HistoricalPaymentCardSchemeEntry.objects.count()
         historical_scheme_account_post = HistoricalSchemeAccount.objects.count()
         historical_vop_activation_post = HistoricalVopActivation.objects.count()
 
-        self.assertEqual(historical_payment_card_scheme_entry_post, historical_payment_card_scheme_entry_pre + 2)
         self.assertEqual(historical_scheme_account_post, historical_scheme_account_pre + 7)
         self.assertEqual(historical_vop_activation_post, historical_vop_activation_pre + 2)
