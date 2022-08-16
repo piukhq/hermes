@@ -1079,11 +1079,11 @@ class MembershipCardView(
             self._handle_add_fields_only_link(user, scheme_account, account_created)
             ap = False
 
-        sch_acc_entry, sch_acc_created = SchemeAccountEntry.create_or_retrieve_link(
+        sch_acc_entry, entry_created = SchemeAccountEntry.create_or_retrieve_link(
             user=user, scheme_account=scheme_account, auth_provided=ap
         )
 
-        if sch_acc_created:
+        if entry_created:
             self.create_main_answer_credential(
                 answer_type=answer_type, scheme_account_entry=sch_acc_entry, main_answer=main_answer
             )
