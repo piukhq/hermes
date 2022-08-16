@@ -7,7 +7,7 @@ from django.test import override_settings
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 
-from history.models import HistoricalPaymentCardSchemeEntry, HistoricalSchemeAccount, HistoricalVopActivation
+from history.models import HistoricalSchemeAccount, HistoricalVopActivation
 from history.utils import mock_aes_keys
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import BARCODE, LAST_NAME
