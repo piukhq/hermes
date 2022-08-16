@@ -7,8 +7,8 @@ from django.conf import settings
 from api_messaging.message_broker import SendingService
 
 if t.TYPE_CHECKING:
-    from user.models import CustomUser
     from scheme.models import SchemeAccount
+    from user.models import CustomUser
 
 logger = logging.getLogger("messaging")
 
