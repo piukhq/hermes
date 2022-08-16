@@ -5,7 +5,6 @@ import sre_constants
 from typing import TYPE_CHECKING, Iterable, Type, Union
 
 import django
-from hermes import settings
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, models, transaction
@@ -14,6 +13,7 @@ from django.dispatch import receiver
 from django.utils.functional import cached_property
 
 from analytics.api import update_scheme_account_attribute_new_status
+from hermes import settings
 from hermes.vop_tasks import send_deactivation, vop_activate_request
 from history.signals import HISTORY_CONTEXT
 from scheme.credentials import BARCODE, CARD_NUMBER, ENCRYPTED_CREDENTIALS, PASSWORD, PASSWORD_2

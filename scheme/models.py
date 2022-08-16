@@ -28,7 +28,7 @@ from analytics.api import update_scheme_account_attribute
 from common.models import Image
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
-from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, CARD_NUMBER, BARCODE
+from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encryption import AESCipher
 from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import AESKeyNames

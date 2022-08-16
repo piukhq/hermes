@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from hermes.channels import Permit
 from history.utils import GlobalMockAPITestCase
 from scheme import credentials
@@ -9,7 +11,6 @@ from scheme.models import (
     SchemeBundleAssociation,
     SchemeCredentialQuestion,
 )
-from unittest.mock import patch
 from ubiquity.models import SchemeAccountEntry
 from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.views import MembershipCardView

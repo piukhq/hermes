@@ -675,11 +675,12 @@ class MembershipCardView(
                 scheme_account=scheme_account_entry.scheme_account,
                 scheme_id=scheme_account_entry.scheme_account.scheme.id,
                 main_answer=main_answer_value,
-                main_answer_field=main_answer_field)
+                main_answer_field=main_answer_field,
+            )
 
             if existing_account:
                 account.status = account.FAILED_UPDATE
-                account.save(update_fields=['status'])
+                account.save(update_fields=["status"])
                 return account
 
         # update credentials
@@ -902,7 +903,7 @@ class MembershipCardView(
 
         if existing_account:
             account.status = account.FAILED_UPDATE
-            account.save(update_fields=['status'])
+            account.save(update_fields=["status"])
             return metrics_route, account
 
         # update credentials
@@ -1120,30 +1121,46 @@ class MembershipCardView(
 
         else:
             # new scheme account not created, auth fields provided (linking to existing scheme account)
-            if not sch_acc_created:
-                auth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
-            else:
-                addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
-
-            metrics_route = MembershipCardAddRoute.MULTI_WALLET
-
-            # todo: set link_status of newly created link to some sort of pending state (P2)
-
-            sch_acc_entry, created = SchemeAccountEntry.create_or_retrieve_link(
-                user=user, scheme_account=scheme_account, auth_provided=True
-            )
-
-            async_link.delay(
-                auth_fields,
-                scheme_account.id,
-                user.id,
-                payment_cards_to_link,
-                history_kwargs={
-                    "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
-                },
+            sch_acc_entry, created, metrics_route = self._link_to_existing(
+                scheme_account=scheme_account,
+                user=user,
+                sch_acc_created=sch_acc_created,
+                auth_fields=auth_fields,
+                payment_cards_to_link=payment_cards_to_link,
             )
 
         return scheme_account, sch_acc_entry, return_status, metrics_route
+
+    def _link_to_existing(
+        self,
+        scheme_account: "SchemeAccount",
+        user: "CustomUser",
+        sch_acc_created: bool,
+        auth_fields: dict,
+        payment_cards_to_link: list,
+    ):
+        if not sch_acc_created:
+            auth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
+        else:
+            addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
+
+        metrics_route = MembershipCardAddRoute.MULTI_WALLET
+
+        # todo: set link_status of newly created link to some sort of pending state (P2)
+
+        sch_acc_entry, created = SchemeAccountEntry.create_or_retrieve_link(
+            user=user, scheme_account=scheme_account, auth_provided=True
+        )
+
+        async_link.delay(
+            auth_fields,
+            scheme_account.id,
+            user.id,
+            payment_cards_to_link,
+            history_kwargs={"user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)},
+        )
+
+        return sch_acc_entry, created, metrics_route
 
     @staticmethod
     def _handle_create_join_route(

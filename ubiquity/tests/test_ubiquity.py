@@ -51,11 +51,7 @@ from ubiquity.channel_vault import AESKeyNames
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.reason_codes import CURRENT_STATUS_CODES
 from ubiquity.tasks import deleted_membership_card_cleanup
-from ubiquity.tests.factories import (
-    PaymentCardAccountEntryFactory,
-    SchemeAccountEntryFactory,
-    ServiceConsentFactory,
-)
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.tests.test_serializers import mock_secrets
 from ubiquity.versioning.base.serializers import MembershipCardSerializer as MembershipCardSerializer_base
