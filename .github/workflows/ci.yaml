@@ -1,12 +1,20 @@
+---
 name: ci
 
 on:
   push:
-    branches: [ develop, master, performance ]
+    branches:
+      - develop
+      - master
+      - performance
+      - trusted_channels_master
   pull_request:
-    branches: [ develop, master, performance ]
+    branches:
+      - develop
+      - master
   release:
-    types: [ published ]
+    types:
+      - published
 
 jobs:
   tests:
@@ -37,11 +45,13 @@ jobs:
       - run: flake8 .
       - run: black --line-length=120 --check .
       - run: isort --check --line-length 120 --profile black .
-  create_dev_release:
+
+  release_dev:
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    name: create_dev_release
+    name: release_dev
+    environment: Development
     runs-on: ubuntu-latest
-    needs: [ tests ]
+    needs: [tests]
     steps:
       - uses: actions/checkout@v2
       - run: echo "::set-output name=date::$(date +'%FT%H%M%SZ')"
@@ -55,13 +65,15 @@ jobs:
         with:
           push: true
           tags: |
-            binkcore.azurecr.io/hermes:${{ steps.date.outputs.date }}
-            binkcore.azurecr.io/hermes:latest
-  create_performance_release:
+            binkcore.azurecr.io/${{ github.event.repository.name }}:${{ steps.date.outputs.date }}
+            binkcore.azurecr.io/${{ github.event.repository.name }}:latest
+
+  release_performance:
     if: github.ref == 'refs/heads/performance' && github.event_name == 'push'
-    name: create_performance_release
+    name: release_performance
+    environment: Performance
     runs-on: ubuntu-latest
-    needs: [ tests ]
+    needs: [tests]
     steps:
       - uses: actions/checkout@v2
       - run: echo "::set-output name=date::$(date +'%FT%H%M%SZ')"
@@ -75,12 +87,35 @@ jobs:
         with:
           push: true
           tags: |
-            binkcore.azurecr.io/hermes:perf-${{ steps.date.outputs.date }}
-  create_tag_release:
-    if: github.event_name == 'release' && github.event.action == 'published'
-    name: create_tag_release
+            binkcore.azurecr.io/${{ github.event.repository.name }}:perf-${{ steps.date.outputs.date }}
+
+  release_trusted_channels:
+    if: github.ref == 'refs/heads/trusted_channels_master' && github.event_name == 'push'
+    name: release_trusted_channels
+    environment: Trusted Channels
     runs-on: ubuntu-latest
-    needs: [ tests ]
+    needs: [tests]
+    steps:
+      - uses: actions/checkout@v2
+      - run: echo "::set-output name=date::$(date +'%FT%H%M%SZ')"
+        id: date
+      - uses: docker/login-action@v1
+        with:
+          registry: binkcore.azurecr.io
+          username: binkcore
+          password: ${{ secrets.ACR_BINKCORE_PASSWORD }}
+      - uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: |
+            binkcore.azurecr.io/${{ github.event.repository.name }}:tc-${{ steps.date.outputs.date }}
+
+  release_staging:
+    if: github.event_name == 'release' && github.event.action == 'published'
+    name: release_staging
+    environment: Staging
+    runs-on: ubuntu-latest
+    needs: [tests]
     steps:
       - uses: actions/checkout@v2
       - name: tag_check
@@ -97,6 +132,26 @@ jobs:
         with:
           push: true
           tags: |
-            binkcore.azurecr.io/hermes:${{ github.event.release.tag_name }}
-            binkcore.azurecr.io/hermes:staging-${{ github.event.release.tag_name }}
-            binkcore.azurecr.io/hermes:staging
+            binkcore.azurecr.io/${{ github.event.repository.name }}:${{ github.event.release.tag_name }}
+            binkcore.azurecr.io/${{ github.event.repository.name }}:staging-${{ github.event.release.tag_name }}
+            binkcore.azurecr.io/${{ github.event.repository.name }}:staging
+
+  release_production:
+    if: github.event_name == 'release' && github.event.action == 'published'
+    name: release_production
+    environment: Production
+    needs: [release_staging]
+    runs-on: ubuntu-latest
+    container: ghcr.io/binkhq/tagbot:latest
+    steps:
+      - run: |-
+          tagbot \
+            --username binkcore \
+            --password ${{ secrets.ACR_BINKCORE_PASSWORD }} \
+            --source binkcore.azurecr.io/${{ github.event.repository.name }}:${{ github.event.release.tag_name }} \
+            --tag prod-${{ github.event.release.tag_name }}
+          tagbot \
+            --username binkcore \
+            --password ${{ secrets.ACR_BINKCORE_PASSWORD }} \
+            --source binkcore.azurecr.io/${{ github.event.repository.name }}:${{ github.event.release.tag_name }} \
+            --tag prod
