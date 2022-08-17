@@ -553,6 +553,7 @@ class SchemeOverrideErrorAdmin(admin.ModelAdmin):
                         scheme=entry.scheme,
                         message=entry.message,
                         reason_code=entry.reason_code,
+                        error_slug=entry.error_slug,
                         channel=new_channel,
                     )
                     success += 1
