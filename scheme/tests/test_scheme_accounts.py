@@ -879,10 +879,11 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(resp_json["scheme"], scheme.id)
         self.assertEqual(len(resp_json), len(data))  # not +1 to data since consents have been added
         scheme_account = SchemeAccount.objects.get(user_set__id=self.user.id, scheme_id=scheme.id)
+        scheme_account_entry = SchemeAccountEntry.objects.get(user=self.user, scheme_account=scheme_account)
         self.assertEqual(resp_json["id"], scheme_account.id)
         self.assertEqual("Pending", scheme_account.status_name)
-        self.assertEqual(len(scheme_account.schemeaccountcredentialanswer_set.all()), 1)
-        self.assertTrue(scheme_account.schemeaccountcredentialanswer_set.filter(question=link_question))
+        self.assertEqual(len(scheme_account_entry.schemeaccountcredentialanswer_set.all()), 1)
+        self.assertTrue(scheme_account_entry.schemeaccountcredentialanswer_set.filter(question=link_question))
 
     @patch("api_messaging.midas_messaging.to_midas", auto_spec=True, return_value=MagicMock())
     def test_register_join_endpoint_optional_join_not_required(self, _mock_message):
@@ -1259,7 +1260,8 @@ class TestAccessTokens(GlobalMockAPITestCase):
         cls.scheme = cls.scheme_account.scheme
         SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME, manual_question=True)
 
-        cls.scheme_account_answer = SchemeCredentialAnswerFactory(question=question, scheme_account_entry=cls.scheme_account_entry
+        cls.scheme_account_answer = SchemeCredentialAnswerFactory(
+            question=question, scheme_account_entry=cls.scheme_account_entry
         )
         cls.user = cls.scheme_account_entry.user
 
@@ -1418,9 +1420,7 @@ class TestAccessTokens(GlobalMockAPITestCase):
             type=EMAIL, scheme=scheme, options=SchemeCredentialQuestion.JOIN, manual_question=True
         )
 
-        SchemeCredentialAnswerFactory(
-            question=question, scheme_account_entry=self.test_scheme_acc_entry
-        )
+        SchemeCredentialAnswerFactory(question=question, scheme_account_entry=self.test_scheme_acc_entry)
         self.test_scheme_acc.refresh_from_db()
         self.test_scheme_acc.scheme = scheme
 
@@ -1569,7 +1569,6 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         SchemeCredentialAnswerFactory(
             answer="testpassword",
             question=password_question,
-            scheme_account=cls.scheme_account2,
             scheme_account_entry=cls.scheme_account_entry2,
         )
 
@@ -1672,7 +1671,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         self.assertTrue("password" not in scheme_account_types)
 
     def test_delete_all_credentials(self):
-        credential_list = self.scheme_account.schemeaccountcredentialanswer_set.all()
+        credential_list = self.scheme_account_entry.schemeaccountcredentialanswer_set.all()
         self.assertEqual(len(credential_list), 3)
         response = self.send_delete_credential_request({"bink_user_id": self.user.id, "all": True})
 

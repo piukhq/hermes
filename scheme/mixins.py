@@ -204,7 +204,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
     def create_main_answer_credential(self, answer_type, scheme_account_entry, main_answer):
         SchemeAccountCredentialAnswer.objects.create(
-            scheme_account=scheme_account_entry.scheme_account,
+            scheme_account_entry=scheme_account_entry,
             question=self._get_question_from_type(scheme_account_entry.scheme_account, answer_type),
             answer=main_answer,
         )

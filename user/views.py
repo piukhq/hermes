@@ -776,7 +776,7 @@ class MagicLinkAuthView(CreateAPIView):
                 scheme_account_entry__scheme_account__scheme__slug="wasabi-club",
                 scheme_account_entry__scheme_account__status=SchemeAccount.ACTIVE,
                 answer=user.email,
-            ).values_list("scheme_account__pk", flat=True)
+            ).values_list("scheme_account_entry__scheme_account__pk", flat=True)
 
             entries_to_create = [
                 SchemeAccountEntry(

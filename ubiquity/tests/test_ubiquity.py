@@ -2328,7 +2328,9 @@ class TestResources(GlobalMockAPITestCase):
         linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account_id=scheme_acc_id).exists()
         self.assertTrue(linked)
 
-        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_entry__scheme_account_id=scheme_acc_id, question=email_question)
+        answers = SchemeAccountCredentialAnswer.objects.filter(
+            scheme_account_entry__scheme_account_id=scheme_acc_id, question=email_question
+        )
         self.assertEqual(len(answers), 1)
         self.assertEqual(answers[0].answer, "mixedcase@email.com")
 
@@ -2359,7 +2361,9 @@ class TestResources(GlobalMockAPITestCase):
         linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account_id=scheme_acc_id).exists()
         self.assertTrue(linked)
 
-        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_entry__scheme_account_id=scheme_acc_id, question=email_question)
+        answers = SchemeAccountCredentialAnswer.objects.filter(
+            scheme_account_entry__scheme_account_id=scheme_acc_id, question=email_question
+        )
         self.assertEqual(len(answers), 1)
         self.assertEqual(answers[0].answer, "mixedcase@email.com")
 
@@ -2682,7 +2686,7 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.refresh_from_db()
         self.assertEqual(self.scheme_account.status, SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
         self.assertIn(self.scheme_account.status, SchemeAccount.JOIN_PENDING)
-        self.assertTrue(not self.scheme_account.schemeaccountcredentialanswer_set.all())
+        self.assertTrue(not self.scheme_account_entry.schemeaccountcredentialanswer_set.all())
         self.assertTrue(mock_async_join.delay.called)
         self.assertTrue(mock_async_balance.delay.called)
 
@@ -2736,7 +2740,7 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.refresh_from_db()
         self.assertEqual(self.scheme_account.main_answer, main_answer)
         self.assertEqual(self.scheme_account.status, SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
-        self.assertTrue(not self.scheme_account.schemeaccountcredentialanswer_set.all())
+        self.assertTrue(not self.scheme_account_entry.schemeaccountcredentialanswer_set.all())
         self.assertTrue(mock_async_join.delay.called)
         self.assertTrue(mock_async_balance.delay.called)
 
@@ -2893,8 +2897,9 @@ class TestResourcesV1_2(GlobalMockAPITestCase):
         )
         self.assertEqual(resp.status_code, 201)
 
-        scheme_acc = SchemeAccount.objects.get(pk=resp.data["id"])
-        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account=scheme_acc).all()
+        scheme_account = SchemeAccount.objects.get(pk=resp.data["id"])
+        scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user=self.user)
+        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_entry=scheme_account_entry).all()
 
         self.assertEqual(len(answers), 1)
         self.assertEqual(password, mock_async_link.delay.call_args[0][0][PASSWORD])
@@ -2954,8 +2959,9 @@ class TestResourcesV1_2(GlobalMockAPITestCase):
         )
         self.assertEqual(resp.status_code, 201)
 
-        scheme_acc = SchemeAccount.objects.get(pk=resp.data["id"])
-        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account=scheme_acc).all()
+        scheme_account = SchemeAccount.objects.get(pk=resp.data["id"])
+        scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user=self.user)
+        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_entry=scheme_account_entry).all()
 
         self.assertEqual(len(answers), 1)
         self.assertEqual(expected_password, mock_async_link.delay.call_args[0][0][PASSWORD])
