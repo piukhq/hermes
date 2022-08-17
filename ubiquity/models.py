@@ -85,7 +85,6 @@ class SchemeAccountEntry(models.Model):
             if v:
                 SchemeAccountCredentialAnswer.objects.update_or_create(
                     question=self.scheme_account.question(k),
-                    scheme_account=self.scheme_account,
                     scheme_account_entry=self,
                     defaults={"answer": v},
                 )
@@ -265,11 +264,6 @@ class SchemeAccountEntry(models.Model):
             else:
                 credentials[question.type] = answer
         return credentials
-
-    def link_credentials_to_new_account(self, new_scheme_account):
-        for cred in self.schemeaccountcredentialanswer_set.all():
-            cred.scheme_account = new_scheme_account
-            cred.save()
 
     @property
     def third_party_identifier(self):
