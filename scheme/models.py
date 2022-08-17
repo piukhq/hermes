@@ -643,6 +643,9 @@ class SchemeAccount(models.Model):
     REGISTRATION_ASYNC_IN_PROGRESS = 443
     ENROL_FAILED = 901
     REGISTRATION_FAILED = 902
+    JOIN_FAILED = 903
+    AUTHORISATION_FAILED = 904
+
     ADD_AUTH_PENDING = 1001
     AUTH_PENDING = 2001
 
@@ -686,6 +689,8 @@ class SchemeAccount(models.Model):
         (REGISTRATION_FAILED, "Ghost Card Registration Failed", "REGISTRATION_FAILED"),
         (ADD_AUTH_PENDING, "Add and Auth pending", "ADD_AUTH_PENDING"),
         (AUTH_PENDING, "Auth pending", "AUTH_PENDING"),
+        (JOIN_FAILED, "Join Failed", "JOIN_FAILED"),
+        (AUTHORISATION_FAILED, "Authorisation Failed", "AUTHORISATION_FAILED"),
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     JOIN_ACTION_REQUIRED = [
