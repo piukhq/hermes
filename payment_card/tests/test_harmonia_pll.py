@@ -53,17 +53,14 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
         )
 
         cls.scheme_answer_1 = scheme_factories.SchemeCredentialAnswerFactory(
-            scheme_account=cls.scheme_account_1,
             question=cls.scheme_question,
             scheme_account_entry=cls.scheme_account_entry_1,
         )
         cls.scheme_answer_2 = scheme_factories.SchemeCredentialAnswerFactory(
-            scheme_account=cls.scheme_account_2,
             question=cls.scheme_question,
             scheme_account_entry=cls.scheme_account_entry_2,
         )
         cls.scheme_answer_3 = scheme_factories.SchemeCredentialAnswerFactory(
-            scheme_account=cls.scheme_account_3,
             question=cls.scheme_question,
             scheme_account_entry=cls.scheme_account_entry_3,
         )

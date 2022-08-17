@@ -224,13 +224,11 @@ class TestResources(GlobalMockAPITestCase):
 
         self.scheme_account_answer = SchemeCredentialAnswerFactory(
             question=self.scheme.manual_question,
-            scheme_account=self.scheme_account,
             answer=fake.first_name().lower(),
             scheme_account_entry=self.scheme_account_entry,
         )
         self.second_scheme_account_answer = SchemeCredentialAnswerFactory(
             question=self.secondary_question,
-            scheme_account=self.scheme_account,
             scheme_account_entry=self.scheme_account_entry,
         )
         self.second_scheme_account_answer.answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(
@@ -832,7 +830,6 @@ class TestResources(GlobalMockAPITestCase):
             existing_scheme_account = SchemeAccountFactory(scheme=scheme, **{question.type: existing_answer_value})
             scheme_account_entry = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
             SchemeCredentialAnswerFactory(
-                scheme_account=existing_scheme_account,
                 question=question,
                 answer=existing_answer_value,
                 scheme_account_entry=scheme_account_entry,
@@ -871,7 +868,6 @@ class TestResources(GlobalMockAPITestCase):
         )
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account,
             question=self.scheme.manual_question,
             answer=existing_answer_value,
             scheme_account_entry=scheme_account_entry,
@@ -919,7 +915,6 @@ class TestResources(GlobalMockAPITestCase):
             scheme_account=existing_scheme_account, user=self.user, auth_provided=True
         )
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account,
             question=self.scheme.manual_question,
             answer=existing_answer_value,
             scheme_account_entry=scheme_account_entry,
@@ -978,7 +973,6 @@ class TestResources(GlobalMockAPITestCase):
             scheme_account=existing_scheme_account, user=self.user, auth_provided=False
         )
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account,
             question=self.scheme.manual_question,
             answer=existing_answer_value,
             scheme_account_entry=scheme_account_entry,
@@ -1008,7 +1002,6 @@ class TestResources(GlobalMockAPITestCase):
         )
         entry = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user, auth_provided=False)
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account,
             question=self.scheme.manual_question,
             answer=existing_answer_value,
             scheme_account_entry=entry,
@@ -1050,26 +1043,22 @@ class TestResources(GlobalMockAPITestCase):
         entry2 = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=user2, auth_provided=False)
 
         manual_q = SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account,
             question=self.scheme.manual_question,
             answer="36543456787656",
             scheme_account_entry=entry2,
         )
         auth_q = SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account,
             question=self.secondary_question,
             answer="Test",
             scheme_account_entry=entry2,
         )
 
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account,
             question=self.scheme.manual_question,
             answer="36543456787656",
             scheme_account_entry=entry1,
         )
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account,
             question=self.secondary_question,
             answer="Test",
             scheme_account_entry=entry1,
@@ -1721,13 +1710,11 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_manual_q,
-            scheme_account=scheme_account,
             answer="55555",
             scheme_account_entry=scheme_account_entry,
         )
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_auth_q,
-            scheme_account=scheme_account,
             answer="pass",
             scheme_account_entry=scheme_account_entry,
         )
@@ -1782,13 +1769,11 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account_entry_2 = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user2)
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_manual_q,
-            scheme_account=scheme_account,
             answer="55555",
             scheme_account_entry=scheme_account_entry,
         )
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_auth_q,
-            scheme_account=scheme_account,
             answer="pass",
             scheme_account_entry=scheme_account_entry,
         )
@@ -1847,13 +1832,11 @@ class TestResources(GlobalMockAPITestCase):
 
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_manual_q,
-            scheme_account=scheme_account,
             answer="55555",
             scheme_account_entry=scheme_account_entry,
         )
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_auth_q,
-            scheme_account=scheme_account,
             answer="pass",
             scheme_account_entry=scheme_account_entry,
         )
@@ -1898,13 +1881,11 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_manual_q,
-            scheme_account=scheme_account,
             answer="55555",
             scheme_account_entry=scheme_account_entry,
         )
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_auth_q,
-            scheme_account=scheme_account,
             answer="pass",
             scheme_account_entry=scheme_account_entry,
         )
@@ -1956,13 +1937,11 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_manual_q,
-            scheme_account=scheme_account,
             answer="9999",
             scheme_account_entry=scheme_account_entry,
         )
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_auth_q,
-            scheme_account=scheme_account,
             answer="pass",
             scheme_account_entry=scheme_account_entry,
         )
@@ -2004,13 +1983,11 @@ class TestResources(GlobalMockAPITestCase):
         test_pass = "pass4"
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_manual_q,
-            scheme_account=scheme_account,
             answer=test_card_no,
             scheme_account_entry=scheme_account_entry,
         )
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_auth_q,
-            scheme_account=scheme_account,
             answer=test_pass,
             scheme_account_entry=scheme_account_entry,
         )
@@ -2058,13 +2035,11 @@ class TestResources(GlobalMockAPITestCase):
             question=self.scheme.manual_question,
             scheme_account=sa,
             answer="12345",
-            scheme_account_entry=scheme_account_entry,
         )
         SchemeCredentialAnswerFactory(
             question=self.secondary_question,
             scheme_account=sa,
             answer="name",
-            scheme_account_entry=scheme_account_entry,
         )
         expected_value = {"last_name": "changed name"}
         payload_update = {"account": {"authorise_fields": [{"column": "last_name", "value": "changed name"}]}}
@@ -2106,13 +2081,11 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account_entry = SchemeAccountEntryFactory(user=user, scheme_account=sa)
         SchemeCredentialAnswerFactory(
             question=self.scheme.manual_question,
-            scheme_account=sa,
             answer="12345",
             scheme_account_entry=scheme_account_entry,
         )
         SchemeCredentialAnswerFactory(
             question=self.secondary_question,
-            scheme_account=sa,
             answer="name",
             scheme_account_entry=scheme_account_entry,
         )
@@ -2294,7 +2267,6 @@ class TestResources(GlobalMockAPITestCase):
 
         new_answer = SchemeCredentialAnswerFactory(
             question=merch_identifier,
-            scheme_account=self.scheme_account,
             scheme_account_entry=self.scheme_account_entry,
         )
 
@@ -2356,7 +2328,9 @@ class TestResources(GlobalMockAPITestCase):
         linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account_id=scheme_acc_id).exists()
         self.assertTrue(linked)
 
-        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_acc_id, question=email_question)
+        answers = SchemeAccountCredentialAnswer.objects.filter(
+            scheme_account_entry__scheme_account_id=scheme_acc_id, question=email_question
+        )
         self.assertEqual(len(answers), 1)
         self.assertEqual(answers[0].answer, "mixedcase@email.com")
 
@@ -2387,7 +2361,9 @@ class TestResources(GlobalMockAPITestCase):
         linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account_id=scheme_acc_id).exists()
         self.assertTrue(linked)
 
-        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_acc_id, question=email_question)
+        answers = SchemeAccountCredentialAnswer.objects.filter(
+            scheme_account_entry__scheme_account_id=scheme_acc_id, question=email_question
+        )
         self.assertEqual(len(answers), 1)
         self.assertEqual(answers[0].answer, "mixedcase@email.com")
 
@@ -2410,7 +2386,6 @@ class TestResources(GlobalMockAPITestCase):
 
         SchemeCredentialAnswerFactory(
             question=scheme.manual_question,
-            scheme_account=scheme_account,
             answer=card_number,
             scheme_account_entry=scheme_account_entry,
         )
@@ -2434,7 +2409,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 200)
 
         answers = SchemeAccountCredentialAnswer.objects.filter(
-            scheme_account_id=scheme_account.id, question=email_question
+            scheme_account_entry__scheme_account_id=scheme_account.id, question=email_question
         )
         self.assertEqual(len(answers), 1)
         self.assertEqual(answers[0].answer, "mixedcase@email.com")
@@ -2460,7 +2435,6 @@ class TestResources(GlobalMockAPITestCase):
         )
         email = SchemeCredentialAnswerFactory(
             question=scheme.manual_question,
-            scheme_account=scheme_account,
             answer=scheme_account.main_answer,
             scheme_account_entry=scheme_account_entry,
         )
@@ -2479,7 +2453,6 @@ class TestResources(GlobalMockAPITestCase):
         test_postcode = "CR0 1FB"
         SchemeCredentialAnswerFactory(
             question=postcode_question,
-            scheme_account=scheme_account,
             answer=test_postcode,
             scheme_account_entry=scheme_account_entry,
         )
@@ -2808,12 +2781,10 @@ class TestMembershipCardCredentials(GlobalMockAPITestCase):
         cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(
             question=cls.scheme.manual_question,
-            scheme_account=cls.scheme_account,
             scheme_account_entry=cls.scheme_account_entry,
         )
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(
             question=secondary_question,
-            scheme_account=cls.scheme_account,
             scheme_account_entry=cls.scheme_account_entry,
         )
         token = GenerateJWToken(client.organisation.name, client.secret, cls.bundle.bundle_id, external_id).get_token()

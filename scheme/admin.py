@@ -233,7 +233,7 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
     model = SchemeAccountCredentialAnswer
     extra = 0
     fields = ("question", "answer")
-    raw_id_fields = ("scheme_account", "scheme_account_entry")
+    raw_id_fields = ["scheme_account_entry"]
 
     def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
         if db_field.name == "question":
@@ -348,7 +348,7 @@ class SchemeAccountAdmin(HistoryAdmin):
 
     def credential_email(self, obj):
         credential_emails = SchemeAccountCredentialAnswer.objects.filter(
-            scheme_account=obj.id, question__type__exact="email"
+            scheme_account_entry__scheme_account=obj.id, question__type__exact="email"
         )
         user_list = [x.answer for x in credential_emails]
         return format_html("</br>".join(user_list))

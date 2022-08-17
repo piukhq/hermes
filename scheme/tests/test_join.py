@@ -61,7 +61,6 @@ class TestJoinExisting(GlobalMockAPITestCase):
 
         SchemeAccountCredentialAnswer.objects.create(
             question=question,
-            scheme_account=cls.scheme_account,
             answer=cls.join_email,
             scheme_account_entry=cls.scheme_account_entry,
         )
