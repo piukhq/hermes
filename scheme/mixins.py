@@ -381,7 +381,7 @@ class SchemeAccountJoinMixin:
             scheme_account.status = SchemeAccount.REGISTRATION_FAILED
         else:
             scheme_account.status = SchemeAccount.ENROL_FAILED
-            scheme_account.main_answer = ""
+            scheme_account.alt_main_answer = ""
         scheme_account.save()
         sentry_sdk.capture_exception()
 
@@ -461,7 +461,7 @@ class SchemeAccountJoinMixin:
             loyalty_plan=slug,
             bink_user_id=user_id,
             request_id=scheme_account.id,
-            account_id=scheme_account.main_answer,
+            account_id=scheme_account.alt_main_answer,
             encrypted_credentials=encrypted_credentials,
         )
 

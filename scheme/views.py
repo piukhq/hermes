@@ -459,7 +459,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             previous_status in [SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS]
             and new_status_code != SchemeAccount.ACTIVE
         ):
-            scheme_account.main_answer = ""
+            scheme_account.alt_main_answer = ""
             update_fields.append("main_answer")
             # status event join failed
             if previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS:

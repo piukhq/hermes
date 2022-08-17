@@ -847,11 +847,11 @@ class MembershipCardView(
         # e.g harvey nichols email
         required_questions = {question["type"] for question in scheme.get_required_questions}
         answer_types = set(validated_data).intersection(required_questions)
-        account.main_answer = ""
+        account.alt_main_answer = ""
         if answer_types:
             if len(answer_types) > 1:
                 raise ParseError("Only one type of main answer should be provided")
-            account.main_answer = validated_data[answer_types.pop()]
+            account.alt_main_answer = validated_data[answer_types.pop()]
 
         scheme_acc_entry.auth_provided = True
         scheme_acc_entry.save(update_fields=["auth_provided"])

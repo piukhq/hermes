@@ -59,7 +59,7 @@ class TestRemoveLCEventHandlers(TransactionTestCase):
         self.assertEqual(data["email"], self.user.email)
         self.assertEqual(data["scheme_account_id"], self.mcard.id)
         self.assertEqual(data["loyalty_plan"], self.mcard.scheme_id)
-        self.assertEqual(data["main_answer"], self.mcard.main_answer)
+        self.assertEqual(data["main_answer"], self.mcard.alt_main_answer)
         self.assertEqual(data["status"], self.mcard.status)
 
     @classmethod
@@ -109,7 +109,7 @@ class TestRegisterLCEventHandlers(TransactionTestCase):
         self.assertEqual(data["email"], self.user.email)
         self.assertEqual(data["scheme_account_id"], self.mcard.id)
         self.assertEqual(data["loyalty_plan"], self.mcard.scheme_id)
-        self.assertEqual(data["main_answer"], self.mcard.main_answer)
+        self.assertEqual(data["main_answer"], self.mcard.alt_main_answer)
 
     @classmethod
     def tearDownClass(cls):
@@ -206,7 +206,7 @@ class TestAAALCEventHandlers(TransactionTestCase):
         self.assertEqual(data["email"], self.user.email)
         self.assertEqual(data["scheme_account_id"], self.mcard.id)
         self.assertEqual(data["loyalty_plan"], self.mcard.scheme_id)
-        self.assertEqual(data["main_answer"], self.mcard.main_answer)
+        self.assertEqual(data["main_answer"], self.mcard.alt_main_answer)
 
     @classmethod
     def tearDownClass(cls):
@@ -255,7 +255,7 @@ class TestAuthRequestEventHandlers(TransactionTestCase):
         self.assertEqual(data["email"], self.user.email)
         self.assertEqual(data["scheme_account_id"], self.mcard.id)
         self.assertEqual(data["loyalty_plan"], self.mcard.scheme_id)
-        self.assertEqual(data["main_answer"], self.mcard.main_answer)
+        self.assertEqual(data["main_answer"], self.mcard.alt_main_answer)
 
     @classmethod
     def tearDownClass(cls):
@@ -302,7 +302,7 @@ class TestJoinSuccessEventHandlers(TransactionTestCase):
         self.assertEqual(data["email"], self.user.email)
         self.assertEqual(data["scheme_account_id"], self.mcard.id)
         self.assertEqual(data["loyalty_plan"], self.mcard.scheme_id)
-        self.assertEqual(data["main_answer"], self.mcard.main_answer)
+        self.assertEqual(data["main_answer"], self.mcard.alt_main_answer)
         self.assertEqual(data["status"], self.mcard.status)
 
     @classmethod
@@ -397,7 +397,7 @@ class TestAddAndAuthSuccessEventHandlers(TransactionTestCase):
         self.assertEqual(data["email"], self.user.email)
         self.assertEqual(data["scheme_account_id"], self.mcard.id)
         self.assertEqual(data["loyalty_plan"], self.mcard.scheme_id)
-        self.assertEqual(data["main_answer"], self.mcard.main_answer)
+        self.assertEqual(data["main_answer"], self.mcard.alt_main_answer)
         self.assertEqual(data["status"], self.mcard.status)
 
     @classmethod
@@ -492,7 +492,7 @@ class TestAuthSuccessEventHandlers(TransactionTestCase):
         self.assertEqual(data["email"], self.user.email)
         self.assertEqual(data["scheme_account_id"], self.mcard.id)
         self.assertEqual(data["loyalty_plan"], self.mcard.scheme_id)
-        self.assertEqual(data["main_answer"], self.mcard.main_answer)
+        self.assertEqual(data["main_answer"], self.mcard.alt_main_answer)
         self.assertEqual(data["status"], self.mcard.status)
 
     @classmethod
