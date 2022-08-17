@@ -143,8 +143,7 @@ class TestTasks(GlobalMockAPITestCase):
     def test_async_link_validation_error(self, mock_midas_balance, mock_analytics):
         scheme_account = self.link_entry.scheme_account
         user_id = self.link_entry.user_id
-        SchemeCredentialAnswerFactory(
-            scheme_account=scheme_account, question=self.manual_question, scheme_account_entry=self.link_entry
+        SchemeCredentialAnswerFactory(question=self.manual_question, scheme_account_entry=self.link_entry
         )
 
         auth_fields = {"password": "test123"}
@@ -170,7 +169,6 @@ class TestTasks(GlobalMockAPITestCase):
         )
 
         SchemeCredentialAnswerFactory(
-            scheme_account=self.link_entry.scheme_account,
             question=card_number,
             answer="1234567",
             scheme_account_entry=self.link_entry,
@@ -245,23 +243,23 @@ class TestTasks(GlobalMockAPITestCase):
         )
 
         SchemeCredentialAnswerFactory(
-            scheme_account=scheme_account, question=self.manual_question, scheme_account_entry=scheme_account_entry
+            question=self.manual_question, scheme_account_entry=scheme_account_entry
         )
         SchemeCredentialAnswerFactory(
-            scheme_account=scheme_account, question=self.auth_question_1, scheme_account_entry=scheme_account_entry
+            question=self.auth_question_1, scheme_account_entry=scheme_account_entry
         )
         SchemeCredentialAnswerFactory(
-            scheme_account=scheme_account, question=self.auth_question_2, scheme_account_entry=scheme_account_entry
+            question=self.auth_question_2, scheme_account_entry=scheme_account_entry
         )
 
         SchemeCredentialAnswerFactory(
-            scheme_account=scheme_account, question=self.manual_question, scheme_account_entry=scheme_account_entry_alt
+            question=self.manual_question, scheme_account_entry=scheme_account_entry_alt
         )
         SchemeCredentialAnswerFactory(
-            scheme_account=scheme_account, question=self.auth_question_1, scheme_account_entry=scheme_account_entry_alt
+            question=self.auth_question_1, scheme_account_entry=scheme_account_entry_alt
         )
         SchemeCredentialAnswerFactory(
-            scheme_account=scheme_account, question=self.auth_question_2, scheme_account_entry=scheme_account_entry_alt
+            question=self.auth_question_2, scheme_account_entry=scheme_account_entry_alt
         )
 
         answers = scheme_account_entry.schemeaccountcredentialanswer_set

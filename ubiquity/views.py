@@ -627,9 +627,6 @@ class MembershipCardView(
         scheme_account_entry.scheme_account = new_account
         scheme_account_entry.save()
 
-        # todo: remove this (and function def) when we remove scheme account from answers table
-        scheme_account_entry.link_credentials_to_new_account(new_account)
-
         account = new_account
 
         # Deletes old account if no longer associated with any user

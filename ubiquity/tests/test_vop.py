@@ -93,12 +93,10 @@ class TestVOP(GlobalMockAPITestCase):
 
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(
             question=cls.scheme.manual_question,
-            scheme_account=cls.scheme_account,
             scheme_account_entry=cls.scheme_account_entry,
         )
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(
             question=cls.secondary_question,
-            scheme_account=cls.scheme_account,
             scheme_account_entry=cls.scheme_account_entry,
         )
 
