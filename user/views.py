@@ -773,8 +773,8 @@ class MagicLinkAuthView(CreateAPIView):
             scheme_account_ids = SchemeAccountCredentialAnswer.objects.filter(
                 question__type=EMAIL,
                 question__auth_field=True,
-                scheme_account_entry__scheme_account__scheme__slug="wasabi-club",
-                scheme_account_entry__scheme_account__status=SchemeAccount.ACTIVE,
+                scheme_account__scheme__slug="wasabi-club",
+                scheme_account__status=SchemeAccount.ACTIVE,
                 answer=user.email,
             ).values_list("scheme_account__pk", flat=True)
 

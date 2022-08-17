@@ -12,7 +12,7 @@ def merge_duplicate_email_main_answer_accounts(apps, schema_editor):
     for question in man_questions:
         all_answers = SchemeAccountCredentialAnswer.objects.filter(
             question=question,
-            scheme_account_entry__scheme_account__is_deleted=False,
+            scheme_account__is_deleted=False,
         ).select_related("scheme_account")
 
         duplicates = _find_duplicates(all_answers)

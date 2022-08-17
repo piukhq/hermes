@@ -87,6 +87,7 @@ class BaseLinkMixin(object):
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question(answer_type),
+                scheme_account=scheme_account,
                 defaults={"answer": answer},
                 scheme_account_entry=scheme_account_entry,
             )
@@ -205,6 +206,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
     def create_main_answer_credential(self, answer_type, scheme_account_entry, main_answer):
         SchemeAccountCredentialAnswer.objects.create(
             scheme_account_entry=scheme_account_entry,
+            scheme_account=scheme_account_entry.scheme_account,
             question=self._get_question_from_type(scheme_account_entry.scheme_account, answer_type),
             answer=main_answer,
         )
@@ -446,6 +448,7 @@ class SchemeAccountJoinMixin:
 
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question(question_type),
+                scheme_account=scheme_account,
                 defaults={"answer": answer},
                 scheme_account_entry=scheme_account_entry,
             )
@@ -493,6 +496,7 @@ class UpdateCredentialsMixin:
                 create_credentials.append(
                     SchemeAccountCredentialAnswer(
                         question_id=question_id,
+                        scheme_account=scheme_account,
                         answer=new_answer,
                         scheme_account_entry=scheme_account_entry,
                     )
@@ -544,6 +548,7 @@ class UpdateCredentialsMixin:
             credential.question_id: credential
             for credential in SchemeAccountCredentialAnswer.objects.filter(
                 question_id__in=[question_id_from_type[credential_type] for credential_type in data.keys()],
+                scheme_account=scheme_account,
                 scheme_account_entry=scheme_account_entry,
             ).all()
         }

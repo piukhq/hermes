@@ -19,6 +19,7 @@ class TestInvalidRegex(GlobalMockAPITestCase):
         cls.scheme_account_1 = SchemeAccountFactory(scheme=cls.scheme1)
         cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_1)
         SchemeCredentialAnswerFactory(
+            scheme_account=cls.scheme_account_1,
             question=cls.question,
             answer="1234",
             scheme_account_entry=cls.scheme_account_entry,
@@ -30,6 +31,7 @@ class TestInvalidRegex(GlobalMockAPITestCase):
         cls.scheme_account_2 = SchemeAccountFactory(scheme=cls.scheme2)
         cls.scheme_account_entry_2 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_2, user=cls.user)
         SchemeCredentialAnswerFactory(
+            scheme_account=cls.scheme_account_2,
             question=cls.question,
             answer="1234",
             scheme_account_entry=cls.scheme_account_entry_2,

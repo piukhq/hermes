@@ -211,6 +211,7 @@ class SchemeCredentialAnswerFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.SchemeAccountCredentialAnswer
 
+    scheme_account = factory.SubFactory(SchemeAccountFactory)
     question = factory.SubFactory(SchemeCredentialQuestionFactory)
     answer = fake.first_name()
 

@@ -85,6 +85,7 @@ class SchemeAccountEntry(models.Model):
             if v:
                 SchemeAccountCredentialAnswer.objects.update_or_create(
                     question=self.scheme_account.question(k),
+                    scheme_account=self.scheme_account,
                     scheme_account_entry=self,
                     defaults={"answer": v},
                 )
