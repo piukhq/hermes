@@ -20,7 +20,7 @@ from history.utils import clean_history_kwargs, set_history_kwargs, user_info
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from scheme.mixins import SchemeAccountJoinMixin
-from scheme.models import Scheme, SchemeAccount
+from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent
 from ubiquity.tasks import (
     async_all_balance,
@@ -60,6 +60,8 @@ class AngeliaContext:
     def __init__(self, message: dict, journey: str = None):
         self.user_id = message.get("user_id")
         self.channel_slug = message.get("channel_slug")
+        self.entry_id = message.get("entry_id")
+        self.add_fields = message.get("add_fields")
         if not self.user_id:
             err = "An Angelia Background message exception user_id was not sent"
             logger.error(err)
@@ -168,6 +170,14 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
         )
 
 
+def loyalty_card_add(message: dict) -> None:
+    with AngeliaContext(message) as ac:
+        scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
+
+        create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry,
+                                              add_fields=ac.add_fields)
+
+
 def loyalty_card_add_authorise(message: dict) -> None:
     with AngeliaContext(message) as ac:
         journey = message.get("journey")
@@ -190,6 +200,9 @@ def loyalty_card_add_authorise(message: dict) -> None:
         set_auth_provided(account, ac.user_id, True)
 
         if journey == "ADD_AND_AUTH":
+            scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
+            create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry,
+                                                  add_fields=ac.add_fields)
             account.set_add_auth_pending()
         elif journey == "AUTH":
             account.set_auth_pending()
@@ -409,3 +422,16 @@ def sql_history(message: dict) -> None:
                 external_id=user.external_id,
                 body=serializer.data,
             )
+
+
+def create_key_credential_from_add_fields(scheme_account_entry: SchemeAccountEntry, add_fields):
+    cred_type = add_fields[0]['credential_slug']
+    answer = add_fields[0]['value']
+
+    question = scheme_account_entry.scheme_account.scheme.questions.get(type=cred_type)
+
+    SchemeAccountCredentialAnswer.objects.create(
+        scheme_account_entry=scheme_account_entry,
+        question=question,
+        answer=answer
+    )
