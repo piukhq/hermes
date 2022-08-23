@@ -98,8 +98,12 @@ class SchemeAccountEntry(models.Model):
 
         return credentials
 
-    def update_scheme_account_key_credential_fields(self):
-
+    def update_scheme_account_key_credential_fields(self) -> None:
+        """
+        Updates the main answer fields on the scheme account (card_number, barcode, alt_main_answer) based on
+        the SchemeAccountCredentialAnswers linked to the SchemeAccountEntry. By default, this will not update
+        an existing value to an empty value if the user does not have the credential saved.
+        """
         answers = {
             answer
             for answer in self.credential_answers
@@ -114,35 +118,11 @@ class SchemeAccountEntry(models.Model):
             elif answer.question.type == BARCODE:
                 barcode = answer
 
-        self._update_barcode_and_card_number(card_number, answers=answers, primary_cred_type=CARD_NUMBER)
-        self._update_barcode_and_card_number(barcode, answers=answers, primary_cred_type=BARCODE)
-        self._update_main_answer(answers)
+        if answers:
+            self._update_barcode_and_card_number(card_number, answers=answers, primary_cred_type=CARD_NUMBER)
+            self._update_barcode_and_card_number(barcode, answers=answers, primary_cred_type=BARCODE)
 
-        self.scheme_account.save(update_fields=["barcode", "card_number", "main_answer"])
-
-    def _update_main_answer(self, credentials):
-        """
-        Updates the main_answer on the Scheme Account object to match Card_number, barcode, or else whatever the
-        manual_question is for this scheme, so that the 'main_answer' property can be more reliably used.
-        """
-        # todo: remove this method. Simplifying the main_answer functionality is out of scope for now
-
-        main_answer_question = (
-            self.scheme_account.scheme.manual_question
-            or self.scheme_account.scheme.scan_question
-            or self.scheme_account.scheme.one_question_link
-        )
-
-        if main_answer_question:
-            for cred in credentials:
-                if cred.question.type == BARCODE == main_answer_question.type:
-                    self.scheme_account.alt_main_answer = self.scheme_account.barcode
-                elif cred.question.type == CARD_NUMBER == main_answer_question.type:
-                    self.scheme_account.alt_main_answer = self.scheme_account.card_number
-                elif cred.question.type == main_answer_question.type:
-                    self.scheme_account.alt_main_answer = cred.answer
-                else:
-                    continue
+            self.scheme_account.save(update_fields=["barcode", "card_number"])
 
     def _update_barcode_and_card_number(
         self,

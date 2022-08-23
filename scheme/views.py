@@ -460,7 +460,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             and new_status_code != SchemeAccount.ACTIVE
         ):
             scheme_account.alt_main_answer = ""
-            update_fields.append("main_answer")
+            update_fields.append("alt_main_answer")
             # status event join failed
             if previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS:
                 join_outcome_event.delay(success=False, scheme_account=scheme_account)

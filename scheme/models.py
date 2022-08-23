@@ -824,7 +824,7 @@ class SchemeAccount(models.Model):
 
         return points, dw_event
 
-    def get_scheme_account_key_cred_value_from_question_type(self, question_type):
+    def get_key_cred_value_from_question_type(self, question_type):
         if question_type == CARD_NUMBER:
             return self.card_number
         if question_type == BARCODE:
@@ -833,13 +833,13 @@ class SchemeAccount(models.Model):
             return self.alt_main_answer
 
     @staticmethod
-    def get_scheme_account_key_cred_field_from_question_type(question_type):
+    def get_key_cred_field_from_question_type(question_type):
         if question_type == CARD_NUMBER:
             return "card_number"
         if question_type == BARCODE:
             return "barcode"
         else:
-            return "main_answer"
+            return "alt_main_answer"
 
     def get_midas_balance(self, journey, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None):
         points = None
