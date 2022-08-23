@@ -556,7 +556,7 @@ class MembershipCardView(
 
         if registration_fields:
             registration_fields = detect_and_handle_escaped_unicode(registration_fields)
-            updated_account = self._handle_registration_route(
+            updated_account = self.handle_registration_route(
                 request.user,
                 sch_acc_entry,
                 request.channels_permit,
@@ -714,7 +714,7 @@ class MembershipCardView(
         return account
 
     @staticmethod
-    def _handle_registration_route(
+    def handle_registration_route(
         user: CustomUser,
         scheme_acc_entry: SchemeAccountEntry,
         permit: Permit,
