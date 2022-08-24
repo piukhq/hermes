@@ -760,7 +760,7 @@ class TestResources(GlobalMockAPITestCase):
         create_data = resp.data
 
         sa = SchemeAccount.objects.get(pk=create_data["id"])
-        self.assertEqual(sa.main_answer, payload["account"]["add_fields"][0]["value"])
+        self.assertEqual(sa.barcode, payload["account"]["add_fields"][0]["value"])
         self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
 
         # replay and check data with 200 response
@@ -797,7 +797,7 @@ class TestResources(GlobalMockAPITestCase):
         create_data = resp.data
 
         sa = SchemeAccount.objects.get(pk=create_data["id"])
-        self.assertEqual(sa.main_answer, payload["account"]["add_fields"][0]["value"])
+        self.assertEqual(sa.barcode, payload["account"]["add_fields"][0]["value"])
         self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
 
         # replay and check same data with 200 response
@@ -1199,7 +1199,7 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertEqual(response.status_code, 201)
         scheme_account = SchemeAccount.objects.get(pk=response.json()["id"])
-        self.assertEqual(scheme_account.main_answer, main_answer)
+        self.assertEqual(scheme_account.barcode, main_answer)
         self.assertIn(scheme_account.status, SchemeAccount.JOIN_PENDING)
         self.assertEqual(scheme_account.originating_journey, JourneyTypes.JOIN)
 
@@ -1256,7 +1256,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(headers["channel"], "test.auth.fake")
         self.assertEqual(headers["loyalty-plan"], scheme_account.scheme.slug)
         self.assertEqual(headers["request-id"], str(scheme_account.id))
-        self.assertEqual(headers["account-id"], scheme_account.main_answer)
+        self.assertEqual(headers["account-id"], scheme_account.barcode)
         self.assertEqual(headers["bink-user-id"], str(user.id))
         self.assertIsInstance(headers["transaction-id"], str)
 
@@ -2426,8 +2426,8 @@ class TestResources(GlobalMockAPITestCase):
         auth_header = self._get_auth_header(new_user)
         scheme = SchemeFactory()
         scheme_account = SchemeAccountFactory(scheme=scheme)
-        scheme_account.main_answer = fake.email()
-        scheme_account.save(update_fields=["main_answer"])
+        scheme_account.alt_main_answer = fake.email()
+        scheme_account.save(update_fields=["alt_main_answer"])
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
         SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         SchemeCredentialQuestionFactory(
@@ -2435,7 +2435,7 @@ class TestResources(GlobalMockAPITestCase):
         )
         email = SchemeCredentialAnswerFactory(
             question=scheme.manual_question,
-            answer=scheme_account.main_answer,
+            answer=scheme_account.alt_main_answer,
             scheme_account_entry=scheme_account_entry,
         )
         scheme_account_entry.update_scheme_account_key_credential_fields()
@@ -2738,7 +2738,7 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.scheme_account.refresh_from_db()
-        self.assertEqual(self.scheme_account.main_answer, main_answer)
+        self.assertEqual(self.scheme_account.alt_main_answer, main_answer)
         self.assertEqual(self.scheme_account.status, SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
         self.assertTrue(not self.scheme_account_entry.schemeaccountcredentialanswer_set.all())
         self.assertTrue(mock_async_join.delay.called)

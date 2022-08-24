@@ -761,7 +761,7 @@ class SchemeAccount(models.Model):
     card_number = models.CharField(max_length=250, blank=True, db_index=True, default="")
     barcode = models.CharField(max_length=250, blank=True, db_index=True, default="")
     transactions = JSONField(default=list, null=True, blank=True)
-    main_answer = models.CharField(max_length=250, blank=True, db_index=True, default="")
+    alt_main_answer = models.CharField(max_length=250, blank=True, db_index=True, default="")
     pll_links = JSONField(default=list, null=True, blank=True)
     formatted_images = JSONField(default=dict, null=True, blank=True)
     originating_journey = models.IntegerField(choices=JOURNEYS, default=JourneyTypes.UNKNOWN)
@@ -824,22 +824,22 @@ class SchemeAccount(models.Model):
 
         return points, dw_event
 
-    def get_scheme_account_key_cred_value_from_question_type(self, question_type):
+    def get_key_cred_value_from_question_type(self, question_type):
         if question_type == CARD_NUMBER:
             return self.card_number
         if question_type == BARCODE:
             return self.barcode
         else:
-            return self.main_answer
+            return self.alt_main_answer
 
     @staticmethod
-    def get_scheme_account_key_cred_field_from_question_type(question_type):
+    def get_key_cred_field_from_question_type(question_type):
         if question_type == CARD_NUMBER:
             return "card_number"
         if question_type == BARCODE:
             return "barcode"
         else:
-            return "main_answer"
+            return "alt_main_answer"
 
     def get_midas_balance(self, journey, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None):
         points = None
@@ -1103,8 +1103,8 @@ class SchemeAccount(models.Model):
 
     @property
     def card_label(self):
-        if self.main_answer:
-            return self.main_answer
+        if self.alt_main_answer:
+            return self.alt_main_answer
 
         if not self.barcode:
             return None

@@ -179,17 +179,13 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         data = serializer.validated_data
         answer_type = serializer.context["answer_type"]
         account_created = False
-
-        if answer_type in [CARD_NUMBER, BARCODE]:
-            main_answer = answer_type
-        else:
-            main_answer = "main_answer"
+        main_answer_field = SchemeAccount.get_key_cred_field_from_question_type(answer_type)
 
         try:
             if answer_type not in CASE_SENSITIVE_CREDENTIALS:
                 data[answer_type] = data[answer_type].lower()
 
-            scheme_account = SchemeAccount.objects.get(**{"scheme": scheme, main_answer: data[answer_type]})
+            scheme_account = SchemeAccount.objects.get(**{"scheme": scheme, main_answer_field: data[answer_type]})
         except SchemeAccount.DoesNotExist:
             account_created = True
             scheme_account = self._create_new_account(user, scheme, data, answer_type, create_status)
@@ -224,9 +220,11 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
     def _create_new_account(
         self, user: "CustomUser", scheme: Scheme, data: dict, answer_type: str, create_status: int
     ) -> SchemeAccount:
+        main_answer_field = SchemeAccount.get_key_cred_field_from_question_type(answer_type)
+
         with transaction.atomic():
             scheme_account = SchemeAccount.objects.create(
-                scheme=scheme, order=data["order"], status=create_status, main_answer=data[answer_type]
+                scheme=scheme, order=data["order"], status=create_status, **{main_answer_field: data[answer_type]}
             )
             self.analytics_update(user, scheme_account, acc_created=True)
             self.save_consents(user, scheme_account, data, JourneyTypes.LINK.value)
@@ -381,7 +379,7 @@ class SchemeAccountJoinMixin:
             scheme_account.status = SchemeAccount.REGISTRATION_FAILED
         else:
             scheme_account.status = SchemeAccount.ENROL_FAILED
-            scheme_account.main_answer = ""
+            scheme_account.alt_main_answer = ""
         scheme_account.save()
         sentry_sdk.capture_exception()
 
@@ -461,7 +459,7 @@ class SchemeAccountJoinMixin:
             loyalty_plan=slug,
             bink_user_id=user_id,
             request_id=scheme_account.id,
-            account_id=scheme_account.main_answer,
+            account_id=scheme_account.card_number or scheme_account.barcode or scheme_account.alt_main_answer,
             encrypted_credentials=encrypted_credentials,
         )
 

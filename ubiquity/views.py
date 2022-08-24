@@ -610,7 +610,7 @@ class MembershipCardView(
         )
 
     def _create_and_link_to_new_account_from_main_answer(
-        self, scheme_account_entry: "SchemeAccountEntry", main_answer: str
+        self, scheme_account_entry: "SchemeAccountEntry", main_answer_field: str, main_answer_value: str
     ):
 
         # Create a new account and link to this
@@ -618,7 +618,7 @@ class MembershipCardView(
             scheme=scheme_account_entry.scheme_account.scheme,
             order=scheme_account_entry.scheme_account.order,
             status=SchemeAccount.PENDING,
-            main_answer=main_answer,
+            **{main_answer_field: main_answer_value}
         )
         self.analytics_update(scheme_account_entry.user, new_account, acc_created=True)
 
@@ -658,13 +658,15 @@ class MembershipCardView(
         #  Do we want to contact Midas in this case?
 
         # if the credentials contain a main_answer, and this already exists in another account, we block this action.
-        main_answer_field = None
+        main_answer_type = None
+        main_answer_field = None    # The lookup field on the scheme account (card_number, barcode, or alt_main_answer)
         main_answer_value = None
 
-        for field, value in update_fields.items():
-            if field in [q_type for q_id, q_type in account.scheme.get_required_questions.all()]:
+        for question_type, value in update_fields.items():
+            if question_type in [q_type for q_id, q_type in account.scheme.get_required_questions.all()]:
                 main_answer_value = value
-                main_answer_field = field
+                main_answer_type = question_type
+                main_answer_field = SchemeAccount.get_key_cred_field_from_question_type(main_answer_type)
                 break
 
         if main_answer_value:
@@ -689,21 +691,24 @@ class MembershipCardView(
         )
 
         if (
-            main_answer_field
+            main_answer_type
+            and main_answer_field
             and main_answer_value
-            != scheme_account_entry.scheme_account.get_scheme_account_key_cred_value_from_question_type(
-                main_answer_field
+            != scheme_account_entry.scheme_account.get_key_cred_value_from_question_type(
+                main_answer_type
             )
         ):
 
             account = self._create_and_link_to_new_account_from_main_answer(
                 scheme_account_entry=scheme_account_entry,
-                main_answer=main_answer_value,
+                main_answer_field=main_answer_field,
+                main_answer_value=main_answer_value,
             )
             relink_pll = True
 
         account.set_pending()
 
+        # todo: we should be able to replace this with async_balance but will need to consider event handling.
         async_balance_with_updated_credentials.delay(
             instance_id=account.id,
             user_id=user_id,
@@ -847,18 +852,18 @@ class MembershipCardView(
         # e.g harvey nichols email
         required_questions = {question["type"] for question in scheme.get_required_questions}
         answer_types = set(validated_data).intersection(required_questions)
-        account.main_answer = ""
+        account.alt_main_answer = ""
         if answer_types:
             if len(answer_types) > 1:
                 raise ParseError("Only one type of main answer should be provided")
-            account.main_answer = validated_data[answer_types.pop()]
+            account.alt_main_answer = validated_data[answer_types.pop()]
 
         scheme_acc_entry.auth_provided = True
         scheme_acc_entry.save(update_fields=["auth_provided"])
 
         scheme_acc_entry.schemeaccountcredentialanswer_set.all().delete()
         account.set_async_join_status(commit_change=False)
-        account.save(update_fields=["status", "main_answer"])
+        account.save(update_fields=["status", "alt_main_answer"])
         async_join.delay(
             scheme_account_id=account.id,
             user_id=req.user.id,
@@ -886,7 +891,7 @@ class MembershipCardView(
             auth_fields = detect_and_handle_escaped_unicode(auth_fields)
 
         new_answers, main_answer_type, main_answer_value = self._get_new_answers(add_fields, auth_fields)
-        main_answer_field = account.get_scheme_account_key_cred_field_from_question_type(main_answer_type)
+        main_answer_field = account.get_key_cred_field_from_question_type(main_answer_type)
 
         metrics_route = MembershipCardAddRoute.UPDATE
 
@@ -917,13 +922,15 @@ class MembershipCardView(
         if main_answer_value != getattr(account, main_answer_field):
             account = self._create_and_link_to_new_account_from_main_answer(
                 scheme_account_entry=scheme_acc_entry,
-                main_answer=main_answer_value,
+                main_answer_field=main_answer_field,
+                main_answer_value=main_answer_value,
             )
 
             relink_pll = True
 
         account.set_pending()
 
+        # todo: we should be able to replace this with async_balance but will need to consider event handling.
         async_balance_with_updated_credentials.delay(
             instance_id=account.id,
             user_id=user_id,
@@ -1175,11 +1182,14 @@ class MembershipCardView(
             if any((question.manual_question, question.scan_question, question.one_question_link))
         }
         answer_types = set(enrol_fields).intersection(required_questions)
+        main_answer_field = ""
         main_answer = ""
         if answer_types:
             if len(answer_types) > 1:
                 raise ParseError("Only one type of main answer should be provided")
-            main_answer = enrol_fields[answer_types.pop()]
+            answer_type = answer_types.pop()
+            main_answer = enrol_fields[answer_type]
+            main_answer_field = SchemeAccount.get_key_cred_field_from_question_type(answer_type)
 
         # PLR logic will be revisited before going live in other applications
         plr_slugs = [
@@ -1192,6 +1202,7 @@ class MembershipCardView(
             # if this changes, we'll need to rework this code.
             email = enrol_fields["email"]
 
+            # todo: this needs rework with the new credentials changes
             other_scheme_links = SchemeAccountEntry.objects.filter(
                 scheme_account__scheme_id=scheme.id,
                 schemeaccountcredentialanswer__answer=email,
@@ -1204,13 +1215,17 @@ class MembershipCardView(
                 )
                 return scheme_account, sch_acc_entry, status.HTTP_201_CREATED
 
-        scheme_account = SchemeAccount(
-            order=0,
-            scheme_id=scheme.id,
-            status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
-            main_answer=main_answer,
-            originating_journey=JourneyTypes.JOIN,
-        )
+        creation_args = {
+            "order": 0,
+            "scheme_id": scheme.id,
+            "status": SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
+            "originating_journey": JourneyTypes.JOIN,
+        }
+
+        if main_answer_field:
+            creation_args[main_answer_field] = main_answer
+
+        scheme_account = SchemeAccount(**creation_args)
 
         validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
             data=enrol_fields,

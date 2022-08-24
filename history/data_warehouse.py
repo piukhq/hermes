@@ -35,7 +35,7 @@ def addauth_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount"
         "email": user.email,
         "scheme_account_id": scheme_account.id,
         "loyalty_plan": scheme_account.scheme_id,
-        "main_answer": scheme_account.main_answer,
+        "main_answer": scheme_account.alt_main_answer,
     }
     to_data_warehouse(payload)
 
@@ -51,7 +51,7 @@ def auth_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount", b
         "email": user.email,
         "scheme_account_id": scheme_account.id,
         "loyalty_plan": scheme_account.scheme_id,
-        "main_answer": scheme_account.main_answer,
+        "main_answer": scheme_account.alt_main_answer,
     }
     to_data_warehouse(payload)
 
@@ -67,7 +67,7 @@ def register_lc_event(user: "CustomUser", scheme_account: "SchemeAccount", bundl
         "email": user.email,
         "scheme_account_id": scheme_account.id,
         "loyalty_plan": scheme_account.scheme_id,
-        "main_answer": scheme_account.main_answer,
+        "main_answer": scheme_account.alt_main_answer,
     }
     to_data_warehouse(payload)
 
@@ -100,7 +100,7 @@ def remove_loyalty_card_event(user: "CustomUser", scheme_account: "SchemeAccount
             "email": user.email,
             "scheme_account_id": scheme_account.id,
             "loyalty_plan": scheme_account.scheme_id,
-            "main_answer": scheme_account.main_answer,
+            "main_answer": scheme_account.alt_main_answer,
             "status": scheme_account.status,
         }
         to_data_warehouse(payload)
@@ -110,7 +110,7 @@ def join_outcome(success: bool, user: "CustomUser", scheme_account: "SchemeAccou
     extra_data = {}
     if success:
         event_type = "lc.join.success"
-        extra_data["main_answer"] = scheme_account.main_answer
+        extra_data["main_answer"] = scheme_account.alt_main_answer
     else:
         event_type = "lc.join.failed"
 
@@ -137,7 +137,7 @@ def add_auth_outcome(success: bool, user: "CustomUser", scheme_account: "SchemeA
     extra_data = {}
     if success:
         event_type = "lc.addandauth.success"
-        extra_data["main_answer"] = scheme_account.main_answer
+        extra_data["main_answer"] = scheme_account.alt_main_answer
     else:
         event_type = "lc.addandauth.failed"
 
@@ -162,7 +162,7 @@ def auth_outcome(success: bool, user: "CustomUser", scheme_account: "SchemeAccou
     extra_data = {}
     if success:
         event_type = "lc.auth.success"
-        extra_data["main_answer"] = scheme_account.main_answer
+        extra_data["main_answer"] = scheme_account.alt_main_answer
     else:
         event_type = "lc.auth.failed"
 
@@ -187,7 +187,7 @@ def register_outcome(success: bool, user: "CustomUser", scheme_account: "SchemeA
     extra_data = {}
     if success:
         event_type = "lc.register.success"
-        extra_data["main_answer"] = scheme_account.main_answer
+        extra_data["main_answer"] = scheme_account.alt_main_answer
     else:
         event_type = "lc.register.failed"
 

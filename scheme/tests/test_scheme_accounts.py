@@ -181,6 +181,8 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(0, len(resp.json()))
 
     def test_get_scheme_account(self):
+        self.scheme_account.alt_main_answer = self.scheme_account_answer.answer
+        self.scheme_account.save()
         response = self.client.get("/schemes/accounts/{0}".format(self.scheme_account.id), **self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
@@ -434,7 +436,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=user)
         user_set = str(user.id)
 
-        scheme_account.main_answer = "Somemainanswer"
+        scheme_account.alt_main_answer = "Somemainanswer"
         scheme_account.save()
 
         data = {"status": SchemeAccount.ENROL_FAILED, "journey": "join", "user_info": {"user_set": user_set}}
@@ -446,7 +448,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(response.data["status"], SchemeAccount.ENROL_FAILED)
 
         scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.main_answer, "")
+        self.assertEqual(scheme_account.alt_main_answer, "")
         self.assertEqual(scheme_account.status, SchemeAccount.ENROL_FAILED)
 
     @patch("analytics.api.requests.post")
@@ -1073,7 +1075,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
 
     def test_card_label_from_manual_answer(self):
         scheme = SchemeFactory()
-        scheme_account = SchemeAccountFactory(scheme=scheme, main_answer="frank@sdfg.com")
+        scheme_account = SchemeAccountFactory(scheme=scheme, alt_main_answer="frank@sdfg.com")
         self.assertEqual(scheme_account.card_label, "frank@sdfg.com")
 
     def test_card_label_from_barcode(self):
@@ -1424,11 +1426,11 @@ class TestAccessTokens(GlobalMockAPITestCase):
         self.test_scheme_acc.refresh_from_db()
         self.test_scheme_acc.scheme = scheme
 
-        self.assertFalse(self.scheme_account.main_answer)
+        self.assertFalse(self.scheme_account.alt_main_answer)
         credentials = {"email": "testemail@testbink.com"}
         new_credentials = self.test_scheme_acc_entry.update_or_create_primary_credentials(credentials)
         self.assertEqual(new_credentials, {"email": "testemail@testbink.com"})
-        self.assertEqual(self.test_scheme_acc.main_answer, "testemail@testbink.com")
+        self.assertEqual("testemail@testbink.com", self.test_scheme_acc_entry.schemeaccountcredentialanswer_set.first().answer)
 
 
 class TestSchemeAccountImages(GlobalMockAPITestCase):
