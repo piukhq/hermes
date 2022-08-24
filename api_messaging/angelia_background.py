@@ -292,7 +292,7 @@ def user_session(message: dict) -> None:
     user.last_accessed = message.get("time")
     user.save()
     payload = {
-        "event_type": "user.last.accessed",
+        "event_type": "user.session.start",
         "origin": "channel",
         "channel": message.get("channel_slug"),
         "event_date_time": user.last_accessed,
