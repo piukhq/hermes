@@ -8,7 +8,6 @@ from payment_card.models import PaymentCardAccount
 
 
 def fix_duplcate_cards(apps, schema_editor):
-    BATCH_SIZE = 1000
 
     PaymentCardSchemeEntry = apps.get_model("ubiquity", "PaymentCardSchemeEntry")
     PaymentCardAccountEntry = apps.get_model("ubiquity", "PaymentCardAccountEntry")
@@ -74,11 +73,11 @@ def fix_duplcate_cards(apps, schema_editor):
             acc.is_deleted = True
 
     with transaction.atomic():
-        PaymentCardAccount.objects.bulk_update(payment_accs_to_delete_grouped, ["is_deleted"], batch_size=BATCH_SIZE)
+        PaymentCardAccount.objects.bulk_update(payment_accs_to_delete_grouped, ["is_deleted"])
 
         # bulk create new links
-        PaymentCardSchemeEntry.objects.bulk_create(payment_scheme_entries_to_create, batch_size=BATCH_SIZE)
-        PaymentCardAccountEntry.objects.bulk_create(user_links_to_create, batch_size=BATCH_SIZE)
+        PaymentCardSchemeEntry.objects.bulk_create(payment_scheme_entries_to_create)
+        PaymentCardAccountEntry.objects.bulk_create(user_links_to_create)
 
 
 class Migration(migrations.Migration):
