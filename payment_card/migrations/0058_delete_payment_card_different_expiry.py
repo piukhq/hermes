@@ -72,12 +72,22 @@ def fix_duplcate_cards(apps, schema_editor):
         for acc in payment_accs_list:
             acc.is_deleted = True
 
-    with transaction.atomic():
-        PaymentCardAccount.objects.bulk_update(payment_accs_to_delete_grouped, ["is_deleted"])
+    while payment_accs_to_delete_grouped:
+        with transaction.atomic():
+            # Update by 100 records
+            PaymentCardAccount.objects.bulk_update(payment_accs_to_delete_grouped[:100], ["is_deleted"])
+            del payment_accs_to_delete_grouped[:100]
 
         # bulk create new links
-        PaymentCardSchemeEntry.objects.bulk_create(payment_scheme_entries_to_create)
-        PaymentCardAccountEntry.objects.bulk_create(user_links_to_create)
+    while payment_scheme_entries_to_create:
+        with transaction.atomic():
+            PaymentCardSchemeEntry.objects.bulk_create(payment_scheme_entries_to_create[:100])
+            del payment_scheme_entries_to_create[:100]
+
+    while user_links_to_create:
+        with transaction.atomic():
+            PaymentCardAccountEntry.objects.bulk_create(user_links_to_create[:100])
+            del user_links_to_create[:100]
 
 
 class Migration(migrations.Migration):
