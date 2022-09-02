@@ -21,12 +21,12 @@ def loop_through_record(delete_recs, payment_scheme_entry_recs, user_links_recs)
         # bulk create new links
     while payment_scheme_entry_recs:
         with transaction.atomic():
-            PaymentCardSchemeEntry.objects.bulk_create(payment_scheme_entry_recs[:100])
+            PaymentCardSchemeEntry.objects.bulk_create(payment_scheme_entry_recs[:100], ignore_conflicts=True)
             del payment_scheme_entry_recs[:100]
 
     while user_links_recs:
         with transaction.atomic():
-            PaymentCardAccountEntry.objects.bulk_create(user_links_recs[:100])
+            PaymentCardAccountEntry.objects.bulk_create(user_links_recs[:100], ignore_conflicts=True)
             del user_links_recs[:100]
 
 
