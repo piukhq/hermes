@@ -108,6 +108,4 @@ class Migration(migrations.Migration):
         ("payment_card", "0057_alter_paymentcard_formatted_images_and_more"),
     ]
 
-    operations = [
-        migrations.RunPython(fix_duplcate_cards)
-    ]
+    operations = [migrations.RunPython(fix_duplcate_cards)]
