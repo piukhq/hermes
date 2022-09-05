@@ -265,7 +265,7 @@ class NotificationProcessor:
         return rows_to_write
 
 
-@shared_task
+@shared_task(default_retry_delay=3600)
 def notification_file(initiation=True):
     retry_count = 0
     if settings.NOTIFICATION_RUN:
