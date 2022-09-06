@@ -487,6 +487,12 @@ class SchemeQuestionSerializer(serializers.ModelSerializer):
         model = SchemeCredentialQuestion
         fields = ("column", "validation", "description", "common_name", "type", "choice")
 
+    def to_representation(self, obj):
+        data = super().to_representation(obj)
+        if data["type"] == 5:
+            data["type"] = 0
+        return data
+
 
 class SchemeDetailSerializer(serializers.ModelSerializer):
     class Meta:
