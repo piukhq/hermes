@@ -127,7 +127,7 @@ class TestCredentials(GlobalMockAPITestCase):
 
                 SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
 
-                payload = {"bink_user_id": self.user.id, "credentials": {field: answer}}
+                payload = {"bink_user_id": self.user.id, field: answer}
 
                 resp = self.client.put(
                     f"/schemes/accounts/{scheme_account.id}/credentials",

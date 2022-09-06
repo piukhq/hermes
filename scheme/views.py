@@ -375,7 +375,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         """
 
         scheme_account_id = int(kwargs["pk"])
-        user_id = int(request.data["bink_user_id"])
+        user_id = int(request.data["user_info"]["bink_user_id"])
         journey = request.data.get("journey")
         new_status_code = int(request.data["status"])
         if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
