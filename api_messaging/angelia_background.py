@@ -21,7 +21,7 @@ from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
-from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent
+from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent, AccountLinkStatus
 from ubiquity.tasks import (
     async_all_balance,
     async_join,
@@ -202,11 +202,14 @@ def loyalty_card_add_authorise(message: dict) -> None:
 
         set_auth_provided(account, ac.user_id, True)
 
+        scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
+
         if journey == "ADD_AND_AUTH":
-            scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
             create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
+            scheme_account_entry.set_link_status(AccountLinkStatus.ADD_AUTH_PENDING)
             account.set_add_auth_pending()
         elif journey == "AUTH":
+            scheme_account_entry.set_link_status(AccountLinkStatus.AUTH_PENDING)
             account.set_auth_pending()
 
         async_link(

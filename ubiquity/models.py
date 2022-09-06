@@ -358,6 +358,16 @@ class SchemeAccountEntry(models.Model):
                 except IndexError:
                     pass
 
+    def set_link_status(self, new_status: int, commit_change=True):
+        if self.auth_provided is True:
+            status_to_set = new_status
+        else:
+            status_to_set = AccountLinkStatus.WALLET_ONLY
+
+        self.link_status = status_to_set
+        if commit_change:
+            self.save(update_fields=['link_status'])
+
     def missing_credentials(self, credential_types):
         """
         Given a list of credential_types return credentials if they are required by the scheme

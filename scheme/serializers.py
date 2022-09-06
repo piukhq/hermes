@@ -20,7 +20,7 @@ from scheme.models import (
     SchemeImage,
     UserConsent,
 )
-from ubiquity.models import PaymentCardAccountEntry
+from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, AccountLinkStatus
 from user.models import CustomUser
 
 logger = logging.getLogger(__name__)
@@ -630,7 +630,7 @@ class DeleteCredentialSerializer(serializers.Serializer):
 
 class UpdateCredentialSerializer(SchemeAnswerSerializer):
     def validate(self, credentials):
-        scheme_account = self.context["scheme_account"]
+        scheme_account_entry = self.context["scheme_account_entry"]
         questions = self.context["questions"]
 
         # Validate all credential types
@@ -642,7 +642,7 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
             raise serializers.ValidationError("field(s) not found for scheme: {}".format(", ".join(unknown)))
 
         self._validate_existing_main_answer(
-            credentials, questions, scheme_account, self.context["allow_existing_main_answer"]
+            credentials, questions, scheme_account_entry, self.context["allow_existing_main_answer"]
         )
 
         return credentials
@@ -663,13 +663,16 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
         return q_objs
 
     def _validate_existing_main_answer(
-        self, credentials: dict, questions: dict, scheme_account: "SchemeAccount", allow_existing_main_answer: bool
+        self, credentials: dict, questions: dict, scheme_account_entry: "SchemeAccountEntry",
+            allow_existing_main_answer: bool
     ) -> None:
         main_question_types = {question.type for question in questions if question.is_main_question}
 
         query_args = {
             answer_type: credentials[answer_type] for answer_type in credentials if answer_type in main_question_types
         }
+
+        scheme_account = scheme_account_entry.scheme_account
 
         if query_args:
             q_objs = self._build_q_objects(query_args)
@@ -682,6 +685,7 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
             )
 
             if len(existing_accounts) > 0 and not allow_existing_main_answer:
+                scheme_account_entry.set_link_status(AccountLinkStatus.ACCOUNT_ALREADY_EXISTS)
                 scheme_account.status = scheme_account.ACCOUNT_ALREADY_EXISTS
                 scheme_account.save(update_fields=["status"])
                 raise serializers.ValidationError("An account already exists with the given credentials")
@@ -692,6 +696,7 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
                     "One of the following credentials are the same for scheme account ids "
                     f"{[acc[0] for acc in existing_accounts]}: {query_args.keys()}"
                 )
+                scheme_account_entry.set_link_status(AccountLinkStatus.ACCOUNT_ALREADY_EXISTS)
                 scheme_account.status = scheme_account.ACCOUNT_ALREADY_EXISTS
                 scheme_account.save(update_fields=["status"])
                 raise serializers.ValidationError("An account already exists with the given credentials")

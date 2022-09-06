@@ -32,7 +32,7 @@ from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED
 from scheme.encryption import AESCipher
 from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import AESKeyNames
-from ubiquity.models import SchemeAccountEntry
+from ubiquity.models import SchemeAccountEntry, AccountLinkStatus
 from ubiquity.reason_codes import REASON_CODES
 
 if TYPE_CHECKING:
@@ -855,10 +855,12 @@ class SchemeAccount(models.Model):
                 return points, dw_event
             response = self._get_balance(credentials, journey, scheme_account_entry)
             points, account_status, dw_event = self._process_midas_response(response)
-            self.status = scheme_account_entry.link_status = account_status
+            self.status = account_status
 
         except ConnectionError:
-            self.status = scheme_account_entry.link_status = SchemeAccount.MIDAS_UNREACHABLE
+            self.status = account_status = SchemeAccount.MIDAS_UNREACHABLE
+
+        scheme_account_entry.set_link_status(account_status)
 
         self._received_balance_checks(old_status, scheme_account_entry)
         return points, dw_event

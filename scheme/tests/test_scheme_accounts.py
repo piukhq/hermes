@@ -347,7 +347,9 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.bink_user)
         user_set = str(self.bink_user.id)
 
-        data = {"status": SchemeAccount.MIDAS_UNREACHABLE, "journey": "join", "user_info": {"user_set": user_set}}
+        data = {"status": SchemeAccount.MIDAS_UNREACHABLE, "journey": "join", "user_info": {
+            "user_set": user_set, "bink_user_id": self.bink_user.id
+        }}
         response = self.client.post(
             "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
         )
@@ -366,7 +368,9 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=user)
         user_set = str(user.id)
 
-        data = {"status": SchemeAccount.MIDAS_UNREACHABLE, "journey": "join", "user_info": {"user_set": user_set}}
+        data = {"status": SchemeAccount.MIDAS_UNREACHABLE, "journey": "join", "user_info": {
+            "user_set": user_set, "bink_user_id": user.id}
+                }
         response = self.client.post(
             "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
         )
@@ -383,7 +387,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.bink_user)
 
         # join callback has no user_set
-        data = {"status": SchemeAccount.MIDAS_UNREACHABLE, "journey": "join", "user_info": {}}
+        data = {"status": SchemeAccount.MIDAS_UNREACHABLE, "journey": "join", "user_info": {"bink_user_id": self.bink_user.id}}
         response = self.client.post(
             "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
         )
@@ -395,15 +399,17 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
     def test_scheme_account_update_status_multiple_values(self, *_):
-        entries = SchemeAccountEntry.objects.filter(scheme_account=self.scheme_account1)
-        user_set = [str(entry.user.id) for entry in entries]
-        self.assertTrue(len(user_set) > 1)
+        # todo: Checking with Merchant if we need to be able to do this still.
 
         entries = SchemeAccountEntry.objects.filter(scheme_account=self.scheme_account1)
         user_set = [str(entry.user.id) for entry in entries]
         self.assertTrue(len(user_set) > 1)
 
-        user_info = {"user_set": ",".join(user_set)}
+        entries = SchemeAccountEntry.objects.filter(scheme_account=self.scheme_account1)
+        user_set = [str(entry.user.id) for entry in entries]
+        self.assertTrue(len(user_set) > 1)
+
+        user_info = {"user_set": ",".join(user_set), "bink_user_id": self.bink_user.id}
 
         data = {"status": 9, "journey": "join", "user_info": user_info}
         response = self.client.post(
@@ -419,7 +425,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
     def test_scheme_account_update_status_bad(self):
         response = self.client.post(
             "/schemes/accounts/{}/status/".format(self.scheme_account.id),
-            data={"status": 112, "journey": None},
+            data={"status": 112, "journey": None, "user_info": {"bink_user_id": self.user.id}},
             format="json",
             **self.auth_service_headers,
         )
@@ -439,7 +445,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         scheme_account.alt_main_answer = "Somemainanswer"
         scheme_account.save()
 
-        data = {"status": SchemeAccount.ENROL_FAILED, "journey": "join", "user_info": {"user_set": user_set}}
+        data = {"status": SchemeAccount.ENROL_FAILED, "journey": "join", "user_info": {"user_set": user_set, "bink_user_id": user.id}}
         response = self.client.post(
             reverse("change_account_status", args=[scheme_account.id]), data, format="json", **self.auth_service_headers
         )
@@ -460,7 +466,9 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=user)
         user_set = str(user.id)
 
-        data = {"status": SchemeAccount.ACTIVE, "journey": "join", "user_info": {"user_set": user_set}}
+        data = {"status": SchemeAccount.ACTIVE, "journey": "join", "user_info": {
+            "user_set": user_set, "bink_user_id": user.id}
+                }
         response = self.client.post(
             reverse("change_account_status", args=[scheme_account.id]), data, format="json", **self.auth_service_headers
         )
@@ -1600,8 +1608,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
 
     def test_update_new_and_existing_credentials(self):
         payload = {
-            "bink_user_id": self.scheme_account_entry2.user.id,
-            "credentials": {"card_number": "0123456", "password": "newpassword"},
+            "bink_user_id": self.scheme_account_entry2.user.id, "card_number": "0123456", "password": "newpassword",
         }
 
         response = self.client.put(
@@ -1619,7 +1626,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         self.assertEqual(self.scheme_account_entry2._collect_credential_answers()["password"], "newpassword")
 
     def test_update_credentials_wrong_credential_type(self):
-        payload = {"bink_user_id": self.scheme_account_entry_no_answers.user.id, "credentials": {"title": "mr"}}
+        payload = {"bink_user_id": self.scheme_account_entry_no_answers.user.id, "title": "mr"}
 
         response = self.client.put(
             f"/schemes/accounts/{self.scheme_account_no_answers.id}/credentials",
@@ -1635,8 +1642,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
 
     def test_update_credentials_bad_credential_type(self):
         payload = {
-            "bink_user_id": self.scheme_account_entry_no_answers.user.id,
-            "credentials": {"user_name": "user_name not username"},
+            "bink_user_id": self.scheme_account_entry_no_answers.user.id, "user_name": "user_name not username"
         }
 
         response = self.client.put(

@@ -19,7 +19,7 @@ from payment_card.models import PaymentCard, PaymentCardAccount
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
-from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry, VopActivation
+from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry, VopActivation, AccountLinkStatus
 from user.models import CustomUser
 
 if t.TYPE_CHECKING:
@@ -74,6 +74,7 @@ def async_link(
         clean_history_kwargs(history_kwargs)
 
     except serializers.ValidationError as e:
+        scheme_account_entry.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
         scheme_account.status = scheme_account.INVALID_CREDENTIALS
         scheme_account.save()
         clean_history_kwargs(history_kwargs)
@@ -122,6 +123,7 @@ def async_balance_with_updated_credentials(
         )
 
         scheme_account_entry.scheme_account.status = SchemeAccount.ACTIVE
+        scheme_account_entry.set_link_status(AccountLinkStatus.ACTIVE)
 
         if relink_pll and payment_cards_to_link:
             auto_link_membership_to_payments(payment_cards_to_link, scheme_account)

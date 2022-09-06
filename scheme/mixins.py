@@ -376,8 +376,10 @@ class SchemeAccountJoinMixin:
 
         if card_number:
             scheme_account.status = SchemeAccount.REGISTRATION_FAILED
+            scheme_account_entry.set_link_status(AccountLinkStatus.REGISTRATION_FAILED)
         else:
             scheme_account.status = SchemeAccount.ENROL_FAILED
+            scheme_account_entry.set_link_status(AccountLinkStatus.ENROL_FAILED)
             scheme_account.alt_main_answer = ""
         scheme_account.save()
         sentry_sdk.capture_exception()
@@ -385,6 +387,7 @@ class SchemeAccountJoinMixin:
     @staticmethod
     def create_join_account(data: dict, user: "CustomUser", scheme_id: int) -> SchemeAccount:
         update = False
+        # todo: Needs a bit of thought in P3.
 
         with transaction.atomic():
             try:
@@ -396,11 +399,17 @@ class SchemeAccountJoinMixin:
                 scheme_account.status = SchemeAccount.PENDING
                 scheme_account.save(update_fields=["order", "status"])
                 update = True
+
+                scheme_account_entry = scheme_account.schemeaccountentry_set.filter(user_id=user.id).first()
+                if scheme_account_entry:
+                    scheme_account_entry.set_link_status(AccountLinkStatus.PENDING)
+
             except SchemeAccount.DoesNotExist:
                 scheme_account = SchemeAccount.objects.create(
                     scheme_id=data["scheme"], order=data["order"], status=SchemeAccount.PENDING
                 )
-                SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
+                SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user,
+                                                  link_status=AccountLinkStatus.PENDING)
 
         if user.client_id == settings.BINK_CLIENT_ID and update:
             analytics.update_scheme_account_attribute(
@@ -452,7 +461,6 @@ class SchemeAccountJoinMixin:
         encrypted_credentials = AESCipher(AESKeyNames.AES_KEY).encrypt(json.dumps(updated_credentials)).decode("utf-8")
 
         # via RabbitMQ
-        # todo: Liaise with Merchant Team - what else needs adding here to help callbacks?
         send_midas_join_request(
             channel=channel,
             loyalty_plan=slug,
@@ -527,7 +535,7 @@ class UpdateCredentialsMixin:
             data=data,
             context={
                 "questions": questions,
-                "scheme_account": scheme_account,
+                "scheme_account_entry": scheme_account_entry,
                 "allow_existing_main_answer": allow_existing_main_answer,
             },
         )
