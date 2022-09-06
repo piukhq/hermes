@@ -32,7 +32,7 @@ from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED
 from scheme.encryption import AESCipher
 from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import AESKeyNames
-from ubiquity.models import SchemeAccountEntry
+from ubiquity.models import SchemeAccountEntry, AccountLinkStatus
 from ubiquity.reason_codes import REASON_CODES
 
 if TYPE_CHECKING:
@@ -792,18 +792,25 @@ class SchemeAccount(models.Model):
             for user_consent in user_consents
         ]
 
-    def _process_midas_response(self, response):
+    def _process_midas_response(self, response, scheme_account_entry: "SchemeAccountEntry"):
         # todo: liaise with Merchant to work out how we parse credentials back in.
         points = None
         current_status = self.status
         dw_event = None
         self.status = response.status_code
+        scheme_account_entry.set_link_status(response.status_code)
         if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
             self.status = SchemeAccount.UNKNOWN_ERROR
+            scheme_account_entry.set_link_status(AccountLinkStatus.UNKNOWN_ERROR)
 
         if response.status_code == 200:
             points = response.json()
-            self.status = SchemeAccount.PENDING if points.get("pending") else SchemeAccount.ACTIVE
+            if points.get("pending"):
+                self.status = SchemeAccount.PENDING
+                scheme_account_entry.set_link_status(AccountLinkStatus.PENDING)
+            else:
+                self.status = SchemeAccount.ACTIVE
+                scheme_account_entry.set_link_status(AccountLinkStatus.ACTIVE)
             points["balance"] = points.get("balance")  # serializers.DecimalField does not allow blank fields
             points["is_stale"] = False
 
@@ -811,6 +818,7 @@ class SchemeAccount(models.Model):
         # if it's already active.
         elif response.status_code >= 500 and current_status == SchemeAccount.ACTIVE:
             self.status = SchemeAccount.ACTIVE
+            scheme_account_entry.set_link_status(AccountLinkStatus.ACTIVE)
             logger.info(f"Ignoring Midas {self.status} response code")
 
         # data warehouse event, not used for subsequent midas calls
@@ -854,10 +862,11 @@ class SchemeAccount(models.Model):
             if not credentials:
                 return points, dw_event
             response = self._get_balance(credentials, journey, scheme_account_entry)
-            points, dw_event = self._process_midas_response(response)
+            points, dw_event = self._process_midas_response(response, scheme_account_entry)
 
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
+            scheme_account_entry.set_link_status(AccountLinkStatus.MIDAS_UNREACHABLE)
 
         self._received_balance_checks(old_status, scheme_account_entry)
         return points, dw_event

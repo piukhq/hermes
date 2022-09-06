@@ -63,6 +63,7 @@ from ubiquity.models import (
     SchemeAccountEntry,
     ServiceConsent,
     VopActivation,
+    AccountLinkStatus
 )
 from ubiquity.tasks import (
     async_all_balance,
@@ -625,6 +626,7 @@ class MembershipCardView(
         original_account = scheme_account_entry.scheme_account
 
         scheme_account_entry.scheme_account = new_account
+        scheme_account_entry.link_status = AccountLinkStatus.PENDING
         scheme_account_entry.save()
 
         account = new_account
@@ -678,6 +680,7 @@ class MembershipCardView(
             )
 
             if existing_account:
+                scheme_account_entry.set_link_status(AccountLinkStatus.FAILED_UPDATE)
                 account.status = account.FAILED_UPDATE
                 account.save(update_fields=["status"])
                 return account
@@ -707,6 +710,7 @@ class MembershipCardView(
             relink_pll = True
 
         account.set_pending()
+        scheme_account_entry.set_link_status(AccountLinkStatus.PENDING)
 
         # todo: we should be able to replace this with async_balance but will need to consider event handling.
         async_balance_with_updated_credentials.delay(
@@ -744,6 +748,7 @@ class MembershipCardView(
         )
 
         scheme_acc_entry.auth_provided = True
+        scheme_acc_entry.link_status = AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS
         scheme_acc_entry.save(update_fields=["auth_provided"])
 
         account.set_async_registration_status()
@@ -859,6 +864,7 @@ class MembershipCardView(
             account.alt_main_answer = validated_data[answer_types.pop()]
 
         scheme_acc_entry.auth_provided = True
+        scheme_acc_entry.link_status = AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS
         scheme_acc_entry.save(update_fields=["auth_provided"])
 
         scheme_acc_entry.schemeaccountcredentialanswer_set.all().delete()
@@ -904,6 +910,7 @@ class MembershipCardView(
         )
 
         if existing_account:
+            scheme_acc_entry.set_link_status(AccountLinkStatus.FAILED_UPDATE)
             account.status = account.FAILED_UPDATE
             account.save(update_fields=["status"])
             return metrics_route, account
@@ -929,6 +936,7 @@ class MembershipCardView(
             relink_pll = True
 
         account.set_pending()
+        scheme_acc_entry.set_link_status(AccountLinkStatus.PENDING)
 
         # todo: we should be able to replace this with async_balance but will need to consider event handling.
         async_balance_with_updated_credentials.delay(

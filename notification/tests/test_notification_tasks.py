@@ -13,6 +13,7 @@ from scheme.models import SchemeAccount
 from scheme.tests.factories import SchemeAccountFactory
 from ubiquity.reason_codes import AUTHORISED, DELETED, FAILED, PENDING, UNAUTHORISED, ubiquity_status_translation
 from ubiquity.tests.factories import SchemeAccountEntryFactory
+from ubiquity.models import AccountLinkStatus
 from user.tests.factories import ClientApplicationFactory, UserFactory
 
 
