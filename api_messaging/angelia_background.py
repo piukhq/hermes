@@ -151,8 +151,7 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
         questions = scheme.questions.all()
 
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
-        create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry,
-                                              add_fields=ac.add_fields)
+        create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
 
         if path == LoyaltyCardPath.REGISTER:
             register_lc_event(user, account, ac.channel_slug)
@@ -179,8 +178,7 @@ def loyalty_card_add(message: dict) -> None:
     with AngeliaContext(message) as ac:
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
 
-        create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry,
-                                              add_fields=ac.add_fields)
+        create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
 
 
 def loyalty_card_add_authorise(message: dict) -> None:
@@ -206,8 +204,7 @@ def loyalty_card_add_authorise(message: dict) -> None:
 
         if journey == "ADD_AND_AUTH":
             scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
-            create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry,
-                                                  add_fields=ac.add_fields)
+            create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
             account.set_add_auth_pending()
         elif journey == "AUTH":
             account.set_auth_pending()
@@ -430,13 +427,11 @@ def sql_history(message: dict) -> None:
 
 
 def create_key_credential_from_add_fields(scheme_account_entry: SchemeAccountEntry, add_fields):
-    cred_type = add_fields[0]['credential_slug']
-    answer = add_fields[0]['value']
+    cred_type = add_fields[0]["credential_slug"]
+    answer = add_fields[0]["value"]
 
     question = scheme_account_entry.scheme_account.scheme.questions.get(type=cred_type)
 
     SchemeAccountCredentialAnswer.objects.create(
-        scheme_account_entry=scheme_account_entry,
-        question=question,
-        answer=answer
+        scheme_account_entry=scheme_account_entry, question=question, answer=answer
     )

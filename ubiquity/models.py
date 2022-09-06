@@ -94,7 +94,11 @@ class AccountLinkStatus(IntEnum):
             (cls.PASSWORD_EXPIRED.value, "Password expired", "PASSWORD_EXPIRED"),
             (cls.JOIN.value, "Join", "JOIN"),
             (cls.NO_SUCH_RECORD.value, "No user currently found", "NO_SUCH_RECORD"),
-            (cls.CONFIGURATION_ERROR.value, "Error with the configuration or it was not possible to retrieve", "CONFIGURATION_ERROR"),
+            (
+                cls.CONFIGURATION_ERROR.value,
+                "Error with the configuration or it was not possible to retrieve",
+                "CONFIGURATION_ERROR",
+            ),
             (cls.NOT_SENT.value, "Request was not sent", "NOT_SENT"),
             (cls.ACCOUNT_ALREADY_EXISTS.value, "Account already exists", "ACCOUNT_ALREADY_EXISTS"),
             (cls.SERVICE_CONNECTION_ERROR.value, "Service connection error", "SERVICE_CONNECTION_ERROR"),
@@ -108,9 +112,17 @@ class AccountLinkStatus(IntEnum):
             (cls.GENERAL_ERROR.value, "General Error such as incorrect user details", "GENERAL_ERROR"),
             (cls.JOIN_IN_PROGRESS.value, "Join in progress", "JOIN_IN_PROGRESS"),
             (cls.JOIN_ERROR.value, "A system error occurred during join", "JOIN_ERROR"),
-            (cls.SCHEME_REQUESTED_DELETE.value, "The scheme has requested this account should be deleted", "SCHEME_REQUESTED_DELETE"),
+            (
+                cls.SCHEME_REQUESTED_DELETE.value,
+                "The scheme has requested this account should be deleted",
+                "SCHEME_REQUESTED_DELETE",
+            ),
             (cls.JOIN_ASYNC_IN_PROGRESS.value, "Asynchronous join in progress", "JOIN_ASYNC_IN_PROGRESS"),
-            (cls.REGISTRATION_ASYNC_IN_PROGRESS.value, "Asynchronous registration in progress", "REGISTRATION_ASYNC_IN_PROGRESS"),
+            (
+                cls.REGISTRATION_ASYNC_IN_PROGRESS.value,
+                "Asynchronous registration in progress",
+                "REGISTRATION_ASYNC_IN_PROGRESS",
+            ),
             (cls.ENROL_FAILED.value, "Enrol Failed", "ENROL_FAILED"),
             (cls.REGISTRATION_FAILED.value, "Ghost Card Registration Failed", "REGISTRATION_FAILED"),
             (cls.ADD_AUTH_PENDING.value, "Add and Auth pending", "ADD_AUTH_PENDING"),
@@ -170,7 +182,9 @@ class AccountLinkStatus(IntEnum):
     @classmethod
     def exclude_balance_statuses(cls):
         return (
-            cls.join_action_required() + cls.user_action_required() + [cls.PENDING, cls.PENDING_MANUAL_CHECK, cls.WALLET_ONLY, cls.ADD_AUTH_PENDING, cls.AUTH_PENDING]
+            cls.join_action_required()
+            + cls.user_action_required()
+            + [cls.PENDING, cls.PENDING_MANUAL_CHECK, cls.WALLET_ONLY, cls.ADD_AUTH_PENDING, cls.AUTH_PENDING]
         )
 
     @classmethod

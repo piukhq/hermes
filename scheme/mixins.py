@@ -18,8 +18,6 @@ from hermes.channels import Permit
 from history.tasks import add_auth_outcome_task, auth_outcome_task
 from payment_card.payment import Payment, PaymentError
 from scheme.credentials import (
-    BARCODE,
-    CARD_NUMBER,
     CASE_SENSITIVE_CREDENTIALS,
     ENCRYPTED_CREDENTIALS,
     PASSWORD,
@@ -39,7 +37,7 @@ from scheme.models import (
 )
 from scheme.serializers import UbiquityJoinSerializer, UpdateCredentialSerializer, UserConsentSerializer
 from ubiquity.channel_vault import AESKeyNames
-from ubiquity.models import SchemeAccountEntry
+from ubiquity.models import SchemeAccountEntry, AccountLinkStatus
 
 DATAWAREHOUSE_EVENTS = {
     SchemeAccount.ADD_AUTH_PENDING: add_auth_outcome_task,
@@ -93,7 +91,7 @@ class BaseLinkMixin(object):
 
         midas_information, dw_event = scheme_account.get_cached_balance(scheme_account_entry)
 
-        # dw_event is a two piece tuple, succes: bool, journey: SchemeAccount STATUS
+        # dw_event is a two piece tuple, success: bool, journey: SchemeAccount STATUS
         #  - not present for cached balances only fresh crepes
         if dw_event:
             success, journey = dw_event
@@ -107,7 +105,7 @@ class BaseLinkMixin(object):
         }
         response_data.update(dict(data))
 
-        if scheme_account.status == SchemeAccount.ACTIVE:
+        if scheme_account.schemeaccountentry_set.filter(link_status=AccountLinkStatus.ACTIVE).exists():
             scheme_account.link_date = timezone.now()
             scheme_account.save(update_fields=["link_date"])
 
@@ -204,6 +202,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             question=self._get_question_from_type(scheme_account_entry.scheme_account, answer_type),
             answer=main_answer,
         )
+        scheme_account_entry.update_scheme_account_key_credential_fields()
 
     def _get_question_from_type(self, scheme_account: SchemeAccount, question_type: str) -> SchemeCredentialQuestion:
         if not hasattr(self, "scheme_questions"):

@@ -1430,7 +1430,9 @@ class TestAccessTokens(GlobalMockAPITestCase):
         credentials = {"email": "testemail@testbink.com"}
         new_credentials = self.test_scheme_acc_entry.update_or_create_primary_credentials(credentials)
         self.assertEqual(new_credentials, {"email": "testemail@testbink.com"})
-        self.assertEqual("testemail@testbink.com", self.test_scheme_acc_entry.schemeaccountcredentialanswer_set.first().answer)
+        self.assertEqual(
+            "testemail@testbink.com", self.test_scheme_acc_entry.schemeaccountcredentialanswer_set.first().answer
+        )
 
 
 class TestSchemeAccountImages(GlobalMockAPITestCase):
