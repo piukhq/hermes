@@ -63,7 +63,7 @@ class TestCredentials(GlobalMockAPITestCase):
 
     def test_internal_update_main_answer_to_existing_credential_fails(self):
         # The credential lookup to check for existing accounts is done on the scheme account
-        # fields "card_number", "barcode", and/or "main_answer", not on the SchemeCredentialAnswer records.
+        # fields "card_number", "barcode", and/or "alt_main_answer", not on the SchemeCredentialAnswer records.
         for field in [CARD_NUMBER, BARCODE]:
             with self.subTest(field=field):
                 answer = "1111"
@@ -85,7 +85,7 @@ class TestCredentials(GlobalMockAPITestCase):
                         scheme_account_entry=scheme_account_entry_2,
                     )
 
-                payload = {"bink_user_id": self.user.id, "credentials": {field: answer}}
+                payload = {"bink_user_id": self.user.id, field: answer}
 
                 resp = self.client.put(
                     f"/schemes/accounts/{scheme_account2.id}/credentials",

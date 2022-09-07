@@ -409,7 +409,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         user_set = [str(entry.user.id) for entry in entries]
         self.assertTrue(len(user_set) > 1)
 
-        user_info = {"user_set": ",".join(user_set), "bink_user_id": self.bink_user.id}
+        user_info = {"user_set": ",".join(user_set), "bink_user_id": self.user.id}
 
         data = {"status": 9, "journey": "join", "user_info": user_info}
         response = self.client.post(
