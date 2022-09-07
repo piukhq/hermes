@@ -813,7 +813,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 "membership_id": instance.card_number,
                 "barcode_type": scheme.barcode_type,
                 "colour": scheme.colour,
-                "text_colour": scheme.text_colour,
             },
             "images": self.image_serializer_class(images, many=True).data,
             "account": {"tier": reward_tier},
