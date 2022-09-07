@@ -602,7 +602,6 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
             "card": {
                 "barcode_type": instance.barcode_type,
                 "colour": instance.colour,
-                "text_colour": instance.text_colour,
                 "base64_image": "",
                 "scan_message": instance.scan_message,
             },
