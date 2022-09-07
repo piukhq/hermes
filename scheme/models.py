@@ -1452,6 +1452,7 @@ class SchemeCredentialQuestion(models.Model):
         (2, "choice"),
         (3, "boolean"),
         (4, "payment_card_hash"),
+        (5, "date"),
     )
 
     scheme = models.ForeignKey("Scheme", related_name="questions", on_delete=models.PROTECT)
@@ -1731,7 +1732,7 @@ class VoucherScheme(models.Model):
         return float(earn_target_value)
 
     @staticmethod
-    def get_earn_value(voucher_fields: Dict, earn_target_value: float) -> [float, int]:
+    def get_earn_value(voucher_fields: Dict, earn_target_value: float) -> float:
         """
         Get the value from the incoming voucher. If it's None then assume
         it's been completed and set to the earn target value, otherwise return the value of the field.
