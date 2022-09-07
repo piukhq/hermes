@@ -783,6 +783,7 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     def test_wallet_only_mcard_creation(self, mock_async_balance, mock_async_link, *_):
+        # todo: broken for now pending P3.
         payload = {
             "membership_plan": self.scheme.id,
             "account": {"add_fields": [{"column": self.scheme.manual_question.label, "value": "3038401022657083"}]},

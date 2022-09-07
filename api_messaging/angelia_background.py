@@ -146,7 +146,6 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
         user = CustomUser.objects.get(pk=ac.user_id)
         permit = Permit(bundle_id=ac.channel_slug, user=user)
         account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
-        sch_acc_entry = account.schemeaccountentry_set.get(user=user)
         scheme = account.scheme
         questions = scheme.questions.all()
 
@@ -166,7 +165,7 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
         MembershipCardView.handle_registration_route(
             user=user,
             permit=permit,
-            scheme_acc_entry=sch_acc_entry,
+            scheme_acc_entry=scheme_account_entry,
             scheme_questions=questions,
             registration_fields=all_credentials_and_consents,
             scheme=scheme,

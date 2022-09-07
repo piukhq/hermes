@@ -1086,7 +1086,6 @@ class MembershipCardView(
             user=user, scheme_account=scheme_account, auth_provided=True
         )
 
-        # todo: Is this necessary? Credentials are saved before midas call.
         if sch_acc_entry_created:
             self.create_main_answer_credential(
                 answer_type=answer_type, scheme_account_entry=sch_acc_entry, main_answer=main_answer
@@ -1095,7 +1094,7 @@ class MembershipCardView(
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
         if account_created and auth_fields:
-            # scheme account created & user authorised to use it
+            # scheme account created & auth fields
 
             history_kwargs = {
                 "user_info": user_info(
@@ -1119,13 +1118,13 @@ class MembershipCardView(
             addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
 
-        elif not auth_fields:
+        elif not auth_fields and account_created:
             # no auth provided, new scheme account created
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
             self._handle_add_fields_only_link(sch_acc_entry, sch_acc_entry_created)
-        else:
-            # new scheme account not created, auth fields provided (linking to existing scheme account)
 
+        elif auth_fields and not account_created:
+            # auth fields provided, new scheme account not created (linking to existing scheme account)
             if not sch_acc_entry_created:
                 auth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
             else:
@@ -1141,6 +1140,10 @@ class MembershipCardView(
                     "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
                 },
             )
+
+        else:
+            # no auth fields provided, no new scheme account (return existing)
+            metrics_route = MembershipCardAddRoute.WALLET_ONLY
 
         return scheme_account, sch_acc_entry, return_status, metrics_route
 

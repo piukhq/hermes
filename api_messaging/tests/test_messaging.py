@@ -130,6 +130,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         cls.loyalty_card_register_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
+            "entry_id": cls.scheme_account_entry.id,
             "channel_slug": "com.bink.wallet",
             "auto_link": True,
             "loyalty_plan_id": cls.scheme_account.id,
