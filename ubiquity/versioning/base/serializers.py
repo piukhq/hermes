@@ -808,6 +808,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             if voucher.get("code"):
                 if voucher["state"] in [VoucherStateStr.EXPIRED, VoucherStateStr.REDEEMED, VoucherStateStr.CANCELLED]:
                     voucher["code"] = ""
+            if voucher.get("body_text"):
+                voucher["body_text"] = None
         card_repr = {
             "id": instance.id,
             "membership_plan": instance.scheme_id,
