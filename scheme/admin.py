@@ -323,10 +323,9 @@ class SchemeAccountAdmin(HistoryAdmin):
         UserEmailFilter,
         CredentialEmailFilter,
         "is_deleted",
-        "status",
         "scheme",
     )
-    list_display = ("scheme", "user_email", "status", "is_deleted", "created", "updated")
+    list_display = ("scheme", "user_email", "is_deleted", "created", "updated")
     list_per_page = 25
     actions = ["refresh_scheme_account_information"]
     readonly_fields = ("originating_journey",)
@@ -428,6 +427,7 @@ class SchemeUserAssociationAdmin(HistoryAdmin):
     list_display = (
         "scheme_account",
         "user",
+        "link_status",
         "scheme_account_link",
         "user_link",
         "scheme_status",
@@ -443,7 +443,7 @@ class SchemeUserAssociationAdmin(HistoryAdmin):
         AssocCardNumberFilter,
         AssocUserEmailFilter,
         "scheme_account__is_deleted",
-        "scheme_account__status",
+        "link_status",
         "scheme_account__scheme",
     )
     raw_id_fields = (

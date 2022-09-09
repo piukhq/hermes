@@ -442,7 +442,7 @@ class Consent(models.Model):
 
     @classmethod
     @lru_cache(maxsize=2048)
-    def get_checkboxes_by_scheme_and_journey_type(cls, scheme: Scheme, journey_type: JourneyTypes) -> "QuerySet":
+    def get_checkboxes_by_scheme_and_journey_type(cls, scheme: Scheme, journey_type: int) -> "QuerySet":
         return cls.objects.filter(scheme=scheme, journey=journey_type, check_box=True).all()
 
 
@@ -595,143 +595,6 @@ class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
 
 
 class SchemeAccount(models.Model):
-    PENDING = 0
-    ACTIVE = 1
-    INVALID_CREDENTIALS = 403
-    INVALID_MFA = 432
-    END_SITE_DOWN = 530
-    IP_BLOCKED = 531
-    TRIPPED_CAPTCHA = 532
-    INCOMPLETE = 5
-    LOCKED_BY_ENDSITE = 434
-    RETRY_LIMIT_REACHED = 429
-    RESOURCE_LIMIT_REACHED = 503
-    UNKNOWN_ERROR = 520
-    MIDAS_UNREACHABLE = 9
-    AGENT_NOT_FOUND = 404
-    WALLET_ONLY = 10
-    PASSWORD_EXPIRED = 533
-    JOIN = 900
-    NO_SUCH_RECORD = 444
-    CONFIGURATION_ERROR = 536
-    NOT_SENT = 535
-    ACCOUNT_ALREADY_EXISTS = 445
-    SERVICE_CONNECTION_ERROR = 537
-    VALIDATION_ERROR = 401
-    PRE_REGISTERED_CARD = 406
-    FAILED_UPDATE = 446
-    SCHEME_REQUESTED_DELETE = 447
-    PENDING_MANUAL_CHECK = 204
-    CARD_NUMBER_ERROR = 436
-    LINK_LIMIT_EXCEEDED = 437
-    CARD_NOT_REGISTERED = 438
-    GENERAL_ERROR = 439
-    JOIN_IN_PROGRESS = 441
-    JOIN_ERROR = 538
-    JOIN_ASYNC_IN_PROGRESS = 442
-    REGISTRATION_ASYNC_IN_PROGRESS = 443
-    ENROL_FAILED = 901
-    REGISTRATION_FAILED = 902
-    ADD_AUTH_PENDING = 1001
-    AUTH_PENDING = 2001
-
-    EXTENDED_STATUSES = (
-        (PENDING, "Pending", "PENDING"),
-        (ACTIVE, "Active", "ACTIVE"),
-        (INVALID_CREDENTIALS, "Invalid credentials", "INVALID_CREDENTIALS"),
-        (INVALID_MFA, "Invalid mfa", "INVALID_MFA"),
-        (END_SITE_DOWN, "End site down", "END_SITE_DOWN"),
-        (IP_BLOCKED, "IP blocked", "IP_BLOCKED"),
-        (TRIPPED_CAPTCHA, "Tripped captcha", "TRIPPED_CAPTCHA"),
-        (INCOMPLETE, "Please check your scheme account login details.", "INCOMPLETE"),
-        (LOCKED_BY_ENDSITE, "Account locked on end site", "LOCKED_BY_ENDSITE"),
-        (RETRY_LIMIT_REACHED, "Cannot connect, too many retries", "RETRY_LIMIT_REACHED"),
-        (RESOURCE_LIMIT_REACHED, "Too many balance requests running", "RESOURCE_LIMIT_REACHED"),
-        (UNKNOWN_ERROR, "An unknown error has occurred", "UNKNOWN_ERROR"),
-        (MIDAS_UNREACHABLE, "Midas unavailable", "MIDAS_UNREACHABLE"),
-        (WALLET_ONLY, "Wallet only card", "WALLET_ONLY"),
-        (AGENT_NOT_FOUND, "Agent does not exist on midas", "AGENT_NOT_FOUND"),
-        (PASSWORD_EXPIRED, "Password expired", "PASSWORD_EXPIRED"),
-        (JOIN, "Join", "JOIN"),
-        (NO_SUCH_RECORD, "No user currently found", "NO_SUCH_RECORD"),
-        (CONFIGURATION_ERROR, "Error with the configuration or it was not possible to retrieve", "CONFIGURATION_ERROR"),
-        (NOT_SENT, "Request was not sent", "NOT_SENT"),
-        (ACCOUNT_ALREADY_EXISTS, "Account already exists", "ACCOUNT_ALREADY_EXISTS"),
-        (SERVICE_CONNECTION_ERROR, "Service connection error", "SERVICE_CONNECTION_ERROR"),
-        (VALIDATION_ERROR, "Failed validation", "VALIDATION_ERROR"),
-        (PRE_REGISTERED_CARD, "Pre-registered card", "PRE_REGISTERED_CARD"),
-        (FAILED_UPDATE, "Update failed. Delete and re-add card.", "FAILED_UPDATE"),
-        (PENDING_MANUAL_CHECK, "Pending manual check.", "PENDING_MANUAL_CHECK"),
-        (CARD_NUMBER_ERROR, "Invalid card_number", "CARD_NUMBER_ERROR"),
-        (LINK_LIMIT_EXCEEDED, "You can only Link one card per day.", "LINK_LIMIT_EXCEEDED"),
-        (CARD_NOT_REGISTERED, "Unknown Card number", "CARD_NOT_REGISTERED"),
-        (GENERAL_ERROR, "General Error such as incorrect user details", "GENERAL_ERROR"),
-        (JOIN_IN_PROGRESS, "Join in progress", "JOIN_IN_PROGRESS"),
-        (JOIN_ERROR, "A system error occurred during join", "JOIN_ERROR"),
-        (SCHEME_REQUESTED_DELETE, "The scheme has requested this account should be deleted", "SCHEME_REQUESTED_DELETE"),
-        (JOIN_ASYNC_IN_PROGRESS, "Asynchronous join in progress", "JOIN_ASYNC_IN_PROGRESS"),
-        (REGISTRATION_ASYNC_IN_PROGRESS, "Asynchronous registration in progress", "REGISTRATION_ASYNC_IN_PROGRESS"),
-        (ENROL_FAILED, "Enrol Failed", "ENROL_FAILED"),
-        (REGISTRATION_FAILED, "Ghost Card Registration Failed", "REGISTRATION_FAILED"),
-        (ADD_AUTH_PENDING, "Add and Auth pending", "ADD_AUTH_PENDING"),
-        (AUTH_PENDING, "Auth pending", "AUTH_PENDING"),
-    )
-    STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
-    JOIN_ACTION_REQUIRED = [
-        JOIN,
-        CARD_NOT_REGISTERED,
-        PRE_REGISTERED_CARD,
-        REGISTRATION_FAILED,
-        ENROL_FAILED,
-        ACCOUNT_ALREADY_EXISTS,
-    ]
-    USER_ACTION_REQUIRED = [
-        INVALID_CREDENTIALS,
-        INVALID_MFA,
-        INCOMPLETE,
-        LOCKED_BY_ENDSITE,
-        VALIDATION_ERROR,
-        PRE_REGISTERED_CARD,
-        REGISTRATION_FAILED,
-        CARD_NUMBER_ERROR,
-        GENERAL_ERROR,
-        JOIN_IN_PROGRESS,
-        SCHEME_REQUESTED_DELETE,
-        FAILED_UPDATE,
-    ]
-    SYSTEM_ACTION_REQUIRED = [
-        END_SITE_DOWN,
-        RETRY_LIMIT_REACHED,
-        UNKNOWN_ERROR,
-        MIDAS_UNREACHABLE,
-        IP_BLOCKED,
-        TRIPPED_CAPTCHA,
-        RESOURCE_LIMIT_REACHED,
-        LINK_LIMIT_EXCEEDED,
-        CONFIGURATION_ERROR,
-        NOT_SENT,
-        SERVICE_CONNECTION_ERROR,
-        JOIN_ERROR,
-        AGENT_NOT_FOUND,
-    ]
-    EXCLUDE_BALANCE_STATUSES = (
-        JOIN_ACTION_REQUIRED
-        + USER_ACTION_REQUIRED
-        + [PENDING, PENDING_MANUAL_CHECK, WALLET_ONLY, ADD_AUTH_PENDING, AUTH_PENDING]
-    )
-    JOIN_EXCLUDE_BALANCE_STATUSES = [
-        PENDING_MANUAL_CHECK,
-        JOIN,
-        JOIN_ASYNC_IN_PROGRESS,
-        REGISTRATION_ASYNC_IN_PROGRESS,
-        ENROL_FAILED,
-    ]
-    # below is for all the join in progress statuses, its planned to split these for enrol and registration
-    JOIN_PENDING = [JOIN_ASYNC_IN_PROGRESS]
-    REGISTER_PENDING = [REGISTRATION_ASYNC_IN_PROGRESS]
-
-    PRE_PENDING_STATUSES = [AUTH_PENDING, ADD_AUTH_PENDING]
-    ALL_PENDING_STATUSES = [PENDING, AUTH_PENDING, ADD_AUTH_PENDING]
 
     # Journey types
     JOURNEYS = (
@@ -745,7 +608,6 @@ class SchemeAccount(models.Model):
         "user.CustomUser", through="ubiquity.SchemeAccountEntry", related_name="scheme_account_set"
     )
     scheme = models.ForeignKey("scheme.Scheme", on_delete=models.PROTECT)
-    status = models.IntegerField(default=PENDING, choices=STATUSES)
     order = models.IntegerField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -766,15 +628,6 @@ class SchemeAccount(models.Model):
     formatted_images = JSONField(default=dict, null=True, blank=True)
     originating_journey = models.IntegerField(choices=JOURNEYS, default=JourneyTypes.UNKNOWN)
 
-    @property
-    def status_name(self):
-        return dict(self.STATUSES).get(self.status)
-
-    @property
-    def status_key(self):
-        status_keys = dict((extended_status[0], extended_status[2]) for extended_status in self.EXTENDED_STATUSES)
-        return status_keys.get(self.status)
-
     def collect_pending_consents(self):
         user_consents = self.userconsent_set.filter(status=ConsentStatus.PENDING).values()
         return self.format_user_consents(user_consents)
@@ -792,35 +645,36 @@ class SchemeAccount(models.Model):
             for user_consent in user_consents
         ]
 
-    def _process_midas_response(self, response) -> tuple[Optional[bool], int, Optional[bool]]:
+    @staticmethod
+    def _process_midas_response(response, scheme_account_entry: "SchemeAccountEntry") -> tuple[Optional[bool], int, Optional[bool]]:
         # todo: liaise with Merchant to work out how we parse credentials back in.
         points = None
-        previous_status = self.status
+        previous_status = scheme_account_entry.link_status
         dw_event = None
 
         if response.status_code == 200:
             points = response.json()
-            account_status = SchemeAccount.PENDING if points.get("pending") else SchemeAccount.ACTIVE
+            account_status = AccountLinkStatus.PENDING if points.get("pending") else AccountLinkStatus.ACTIVE
             points["balance"] = points.get("balance")  # serializers.DecimalField does not allow blank fields
             points["is_stale"] = False
 
-        elif response.status_code >= 500 and previous_status == SchemeAccount.ACTIVE:
+        elif response.status_code >= 500 and previous_status == AccountLinkStatus.ACTIVE:
             # When receiving a 500 error from Midas, keep SchemeAccount active only
             # if it's already active.
             account_status = previous_status
             logger.info(f"Ignoring Midas {response.status_code} response code")
 
-        elif response.status_code not in [status[0] for status in self.EXTENDED_STATUSES]:
-            account_status = SchemeAccount.UNKNOWN_ERROR
+        elif response.status_code not in [status[0] for status in AccountLinkStatus.extended_statuses()]:
+            account_status = AccountLinkStatus.UNKNOWN_ERROR
 
         else:
             account_status = response.status_code
 
         # data warehouse event, not used for subsequent midas calls
         # only when a scheme_account was in a pre-pending status
-        if previous_status in self.PRE_PENDING_STATUSES:
+        if previous_status in AccountLinkStatus.pre_pending_statuses():
             # dw_event is a tuple(success: bool, SchemeAccount.STATUS: int)
-            dw_event = (response.status_code == SchemeAccount.ACTIVE, previous_status)
+            dw_event = (response.status_code == AccountLinkStatus.ACTIVE, previous_status)
 
         return points, account_status, dw_event
 
@@ -843,10 +697,10 @@ class SchemeAccount(models.Model):
 
     def get_midas_balance(self, journey, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None):
         points = None
-        old_status = self.status
+        old_status = scheme_account_entry.link_status
         dw_event = None
 
-        if self.status in self.JOIN_EXCLUDE_BALANCE_STATUSES:
+        if scheme_account_entry.link_status in AccountLinkStatus.join_exclude_balance_statuses():
             return points, dw_event
 
         try:
@@ -854,11 +708,11 @@ class SchemeAccount(models.Model):
             if not credentials:
                 return points, dw_event
             response = self._get_balance(credentials, journey, scheme_account_entry)
-            points, account_status, dw_event = self._process_midas_response(response)
-            self.status = account_status
+            points, account_status, dw_event = self._process_midas_response(response, scheme_account_entry)
+            scheme_account_entry.link_status = account_status
 
         except ConnectionError:
-            self.status = account_status = SchemeAccount.MIDAS_UNREACHABLE
+            scheme_account_entry.link_status = account_status = AccountLinkStatus.MIDAS_UNREACHABLE
 
         scheme_account_entry.set_link_status(account_status)
 
@@ -867,7 +721,7 @@ class SchemeAccount(models.Model):
 
     def _received_balance_checks(self, old_status, scheme_account_entry):
         saved = False
-        if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:
+        if scheme_account_entry.link_status in AccountLinkStatus.join_action_required():
             queryset = scheme_account_entry.schemeaccountcredentialanswer_set
             card_number = self.card_number
             if card_number:
@@ -875,14 +729,14 @@ class SchemeAccount(models.Model):
 
             queryset.all().delete()
 
-        if self.status != SchemeAccount.PENDING:
+        if scheme_account_entry.link_status != AccountLinkStatus.PENDING:
             self.call_analytics(self.user_set.all(), old_status)
         return saved
 
     def call_analytics(self, user_set, old_status):
         bink_users = [user for user in user_set if user.client_id == settings.BINK_CLIENT_ID]
         for user in bink_users:  # Update intercom
-            update_scheme_account_attribute(self, user, dict(self.STATUSES).get(old_status))
+            update_scheme_account_attribute(self, user, dict(AccountLinkStatus.statuses()).get(old_status))
 
     def _get_balance(self, credentials, journey, scheme_account_entry):
         # todo: liaise with Midas to work out what we need to see here
@@ -891,7 +745,7 @@ class SchemeAccount(models.Model):
             "scheme_account_id": self.id,
             "credentials": credentials,
             "user_set": user_set,
-            "status": self.status,
+            "status": scheme_account_entry.link_status,
             "journey_type": journey.value,
             "bink_user_id": scheme_account_entry.user.id,
         }
@@ -945,7 +799,7 @@ class SchemeAccount(models.Model):
         # Gets scheme account balance from cache if existing, else updates the cache.
 
         cache_key = "scheme_{}".format(self.pk)
-        old_status = self.status
+        old_status = scheme_account_entry.link_status
         balance = cache.get(cache_key)
         vouchers = None  # should we cache these too?
         dw_event = None
@@ -958,15 +812,15 @@ class SchemeAccount(models.Model):
         )
 
         update_fields = self.check_balance_and_vouchers(balance=balance, vouchers=vouchers)
-        status_update = old_status != self.status
+        status_update = old_status != scheme_account_entry.link_status
         if status_update:
             capture_membership_card_status_change_metric(
                 scheme_slug=Scheme.get_scheme_slug_by_scheme_id(self.scheme_id),
                 old_status=old_status,
-                new_status=self.status,
+                new_status=scheme_account_entry.link_status,
             )
             update_fields.append("status")
-            logger.info("%s of id %s has been updated with status: %s", self.__class__.__name__, self.id, self.status)
+            logger.info("%s of id %s has been updated with status: %s", self.__class__.__name__, self.id, scheme_account_entry.link_status)
 
         if update_fields:
             self.save(update_fields=update_fields)
@@ -1055,28 +909,6 @@ class SchemeAccount(models.Model):
 
         return voucher
 
-    def set_pending(self, manual_pending: bool = False) -> None:
-        self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
-        self.save(update_fields=["status"])
-
-    def set_auth_pending(self) -> None:
-        self.status = SchemeAccount.AUTH_PENDING
-        self.save(update_fields=["status"])
-
-    def set_add_auth_pending(self) -> None:
-        self.status = SchemeAccount.ADD_AUTH_PENDING
-        self.save(update_fields=["status"])
-
-    def set_async_join_status(self, *, commit_change=True) -> None:
-        self.status = SchemeAccount.JOIN_ASYNC_IN_PROGRESS
-        if commit_change:
-            self.save(update_fields=["status"])
-
-    def set_async_registration_status(self, *, commit_change=True) -> None:
-        self.status = SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS
-        if commit_change:
-            self.save(update_fields=["status"])
-
     def set_register_originating_journey(self, *, commit_change=True) -> None:
         self.originating_journey = JourneyTypes.REGISTER
         if commit_change:
@@ -1136,20 +968,6 @@ class SchemeAccount(models.Model):
 
         return user_id
 
-    @property
-    def display_status(self):
-        # linked accounts in "system account required" should be displayed as "active".
-        # accounts in "active", "pending", and "join" statuses should be displayed as such.
-        # all other statuses should be displayed as "wallet only"
-        if (self.link_date or self.join_date) and self.status in self.SYSTEM_ACTION_REQUIRED:
-            return self.ACTIVE
-        elif self.status in [self.ACTIVE, self.PENDING, self.JOIN]:
-            return self.status
-        elif self.status in self.JOIN_ACTION_REQUIRED:
-            return self.JOIN
-        else:
-            return self.WALLET_ONLY
-
     def save(self, *args, **kwargs):
         # Only when we update, we update the updated date time.
         if kwargs.get("update_fields"):
@@ -1164,8 +982,8 @@ class SchemeAccount(models.Model):
 
 
 class SchemeOverrideError(models.Model):
-    ERROR_CODE_CHOICES = tuple((status[0], status[2]) for status in SchemeAccount.EXTENDED_STATUSES)
-    ERROR_SLUG_CHOICES = tuple((status[2], status[2]) for status in SchemeAccount.EXTENDED_STATUSES)
+    ERROR_CODE_CHOICES = tuple((status[0], status[2]) for status in AccountLinkStatus.extended_statuses())
+    ERROR_SLUG_CHOICES = tuple((status[2], status[2]) for status in AccountLinkStatus.extended_statuses())
     REASON_CODE_CHOICES = tuple((reason_code[0], reason_code[0]) for reason_code in REASON_CODES)
     scheme = models.ForeignKey("scheme.Scheme", on_delete=models.CASCADE)
     error_code = models.IntegerField(choices=ERROR_CODE_CHOICES)

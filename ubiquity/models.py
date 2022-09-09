@@ -225,6 +225,29 @@ class SchemeAccountEntry(models.Model):
     class Meta:
         unique_together = ("scheme_account", "user")
 
+    @property
+    def status_name(self):
+        return dict(AccountLinkStatus.statuses()).get(self.link_status)
+
+    @property
+    def status_key(self):
+        status_keys = dict((extended_status[0], extended_status[2]) for extended_status in AccountLinkStatus.extended_statuses())
+        return status_keys.get(self.link_status)
+
+    @property
+    def display_status(self):
+        # linked accounts in "system account required" should be displayed as "active".
+        # accounts in "active", "pending", and "join" statuses should be displayed as such.
+        # all other statuses should be displayed as "wallet only"
+        if (self.scheme_account.link_date or self.scheme_account.join_date) and self.link_status in AccountLinkStatus.system_action_required():
+            return AccountLinkStatus.ACTIVE
+        elif self.link_status in [AccountLinkStatus.ACTIVE, AccountLinkStatus.PENDING, AccountLinkStatus.JOIN]:
+            return self.link_status
+        elif self.link_status in AccountLinkStatus.join_action_required():
+            return AccountLinkStatus.JOIN
+        else:
+            return AccountLinkStatus.WALLET_ONLY
+
     @cached_property
     def credential_answers(self):
         return self.schemeaccountcredentialanswer_set.filter(
@@ -470,22 +493,16 @@ class SchemeAccountEntry(models.Model):
     def _iceland_hack(self, credentials: dict = None, credentials_override: dict = None) -> bool:
         # todo: we will need to review this for P2
 
-        if self.scheme_account.status in self.scheme_account.ALL_PENDING_STATUSES:
+        if self.link_status in AccountLinkStatus.all_pending_statuses():
             return False
 
         missing = self.missing_credentials(credentials.keys())
 
-        if missing and not credentials_override:
-            bink_users = [
-                user for user in self.scheme_account.user_set.all() if user.client_id == settings.BINK_CLIENT_ID
-            ]
-            for user in bink_users:
-                update_scheme_account_attribute_new_status(
-                    self.scheme_account, user, dict(self.scheme_account.STATUSES).get(self.scheme_account.INCOMPLETE)
-                )
-            self.scheme_account.status = self.scheme_account.INCOMPLETE
-
-            self.scheme_account.save()
+        if missing and not credentials_override and self.user.client_id == settings.BINK_CLIENT_ID:
+            update_scheme_account_attribute_new_status(
+                self, dict(AccountLinkStatus.statuses()).get(AccountLinkStatus.INCOMPLETE)
+            )
+            self.set_link_status(AccountLinkStatus.INCOMPLETE)
             return True  # triggers return None from calling method
         return False
 
@@ -653,6 +670,7 @@ class PaymentCardSchemeEntry(models.Model):
 
     @property
     def computed_active_link(self) -> bool:
+        # todo: PLL-facing - not touching for now!
         # a ubiquity collision is when an attempt is made to link a payment card to more than
         # one loyalty card of the same scheme
         if self.slug == self.UBIQUITY_COLLISION:

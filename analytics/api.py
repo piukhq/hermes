@@ -39,36 +39,36 @@ def reset_user_settings(user):
     update_attributes(user, dict((attr_name, None) for attr_name in SETTING_CUSTOM_ATTRIBUTES))
 
 
-def update_scheme_account_attribute_new_status(account, user, new_status):
+def update_scheme_account_attribute_new_status(scheme_account_entry, new_status):
 
     attributes = {
-        account.scheme.company: "{},{},{},{},prev_{},current_{}".format(
-            str(account.is_deleted).lower(),
+        scheme_account_entry.scheme_account.scheme.company: "{},{},{},{},prev_{},current_{}".format(
+            str(scheme_account_entry.account.is_deleted).lower(),
             new_status,
             _get_today_datetime().strftime("%Y/%m/%d"),
-            account.scheme.slug,
-            account.status_key,
+            scheme_account_entry.scheme_account.scheme.slug,
+            scheme_account_entry.status_key,
             new_status,
         )
     }
 
-    update_attributes(user, attributes)
+    update_attributes(scheme_account_entry.user, attributes)
 
 
-def update_scheme_account_attribute(account, user, old_status=None):
+def update_scheme_account_attribute(scheme_account_entry, old_status=None):
 
     attributes = {
-        account.scheme.company: "{},{},{},{},prev_{},current_{}".format(
-            str(account.is_deleted).lower(),
-            account.status_key,
+        scheme_account_entry.scheme_account.scheme.company: "{},{},{},{},prev_{},current_{}".format(
+            str(scheme_account_entry.scheme_account.is_deleted).lower(),
+            scheme_account_entry.status_key,
             _get_today_datetime().strftime("%Y/%m/%d"),
-            account.scheme.slug,
+            scheme_account_entry.scheme_account.scheme.slug,
             old_status,
-            account.status_key,
+            scheme_account_entry.status_key,
         )
     }
 
-    update_attributes(user, attributes)
+    update_attributes(scheme_account_entry.user, attributes)
 
 
 def update_attributes(user, attributes):

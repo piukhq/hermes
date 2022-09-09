@@ -4,6 +4,8 @@ from django.db import connection
 
 from scheme.models import SchemeAccount
 
+# todo: Don't think we use this any more - checking with Michael and co.
+
 
 def scheme_account_status_data():
     db_data = status_summary_from_db()

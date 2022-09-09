@@ -40,8 +40,8 @@ from ubiquity.channel_vault import AESKeyNames
 from ubiquity.models import SchemeAccountEntry, AccountLinkStatus
 
 DATAWAREHOUSE_EVENTS = {
-    SchemeAccount.ADD_AUTH_PENDING: add_auth_outcome_task,
-    SchemeAccount.AUTH_PENDING: auth_outcome_task,
+    AccountLinkStatus.ADD_AUTH_PENDING: add_auth_outcome_task,
+    AccountLinkStatus.AUTH_PENDING: auth_outcome_task,
 }
 
 
@@ -95,13 +95,13 @@ class BaseLinkMixin(object):
         #  - not present for cached balances only fresh crepes
         if dw_event:
             success, journey = dw_event
-            DATAWAREHOUSE_EVENTS[journey].delay(success=success, user=user, scheme_account=scheme_account)
+            DATAWAREHOUSE_EVENTS[journey].delay(success=success, scheme_account_entry=scheme_account_entry)
 
         response_data = {
             "balance": midas_information,
-            "status": scheme_account.status,
-            "status_name": scheme_account.status_name,
-            "display_status": scheme_account.display_status,
+            "status": scheme_account_entry.link_status,
+            "status_name": scheme_account_entry.status_name,
+            "display_status": scheme_account_entry.display_status,
         }
         response_data.update(dict(data))
 
@@ -167,12 +167,13 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         return serializer
 
     def create_account(self, data: dict, user: "CustomUser") -> t.Tuple[SchemeAccount, dict, bool, str, str]:
+        # todo: Only used by deprecated endpoint - can we remove this?
         serializer = self.get_validated_data(data, user)
         scheme = Scheme.get_scheme_and_questions_by_scheme_id(data["scheme"])
-        return self.create_account_with_valid_data(serializer, user, scheme, SchemeAccount.WALLET_ONLY)
+        return self.create_account_with_valid_data(serializer, user, scheme)
 
     def create_account_with_valid_data(
-        self, serializer: "Serializer", user: "CustomUser", scheme: Scheme, create_status=SchemeAccount.PENDING
+        self, serializer: "Serializer", user: "CustomUser", scheme: Scheme
     ) -> t.Tuple[SchemeAccount, dict, bool, str, str]:
         data = serializer.validated_data
         answer_type = serializer.context["answer_type"]
@@ -186,7 +187,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             scheme_account = SchemeAccount.objects.get(**{"scheme": scheme, main_answer_field: data[answer_type]})
         except SchemeAccount.DoesNotExist:
             account_created = True
-            scheme_account = self._create_new_account(user, scheme, data, answer_type, create_status)
+            scheme_account = self._create_new_account(user, scheme, data, answer_type)
             resp = (scheme_account, data, account_created, answer_type, data[answer_type])
         else:
             # handle_existing_scheme_account is called after this function
@@ -217,31 +218,30 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         )
 
     def _create_new_account(
-        self, user: "CustomUser", scheme: Scheme, data: dict, answer_type: str, create_status: int
+        self, user: "CustomUser", scheme: Scheme, data: dict, answer_type: str
     ) -> SchemeAccount:
         main_answer_field = SchemeAccount.get_key_cred_field_from_question_type(answer_type)
 
         with transaction.atomic():
             scheme_account = SchemeAccount.objects.create(
-                scheme=scheme, order=data["order"], status=create_status, **{main_answer_field: data[answer_type]}
+                scheme=scheme, order=data["order"] **{main_answer_field: data[answer_type]}
             )
-            self.analytics_update(user, scheme_account, acc_created=True)
             self.save_consents(user, scheme_account, data, JourneyTypes.LINK.value)
         return scheme_account
 
     @staticmethod
-    def analytics_update(user: "CustomUser", scheme_account: "SchemeAccount", acc_created: bool) -> None:
-        if user.client_id == settings.BINK_CLIENT_ID:
+    def analytics_update(scheme_account_entry: "SchemeAccountEntry", acc_created: bool) -> None:
+        if scheme_account_entry.user.client_id == settings.BINK_CLIENT_ID:
             if acc_created:
-                analytics.update_scheme_account_attribute(scheme_account, user)
+                analytics.update_scheme_account_attribute(scheme_account_entry)
             else:
                 # Assume an update of a join account
                 analytics.update_scheme_account_attribute(
-                    scheme_account, user, old_status=dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN)
+                    scheme_account_entry, old_status=dict(AccountLinkStatus.statuses()).get(AccountLinkStatus.JOIN)
                 )
 
     def save_consents(
-        self, user: "CustomUser", scheme_account: "SchemeAccount", data: dict, journey_type: JourneyTypes
+        self, user: "CustomUser", scheme_account: "SchemeAccount", data: dict, journey_type: int
     ) -> None:
         if "consents" in data:
             if hasattr(self, "current_scheme"):
@@ -369,16 +369,16 @@ class SchemeAccountJoinMixin:
 
         if user.client_id == settings.BINK_CLIENT_ID:
             analytics.update_scheme_account_attribute(
-                scheme_account, user, dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN)
+                scheme_account_entry, dict(AccountLinkStatus.statuses()).get(AccountLinkStatus.JOIN)
             )
 
         Payment.process_payment_void(scheme_account)
 
         if card_number:
-            scheme_account.status = SchemeAccount.REGISTRATION_FAILED
+            scheme_account.status = AccountLinkStatus.REGISTRATION_FAILED
             scheme_account_entry.set_link_status(AccountLinkStatus.REGISTRATION_FAILED)
         else:
-            scheme_account.status = SchemeAccount.ENROL_FAILED
+            scheme_account.status = AccountLinkStatus.ENROL_FAILED
             scheme_account_entry.set_link_status(AccountLinkStatus.ENROL_FAILED)
             scheme_account.alt_main_answer = ""
         scheme_account.save()
@@ -392,12 +392,11 @@ class SchemeAccountJoinMixin:
         with transaction.atomic():
             try:
                 scheme_account = SchemeAccount.objects.get(
-                    user_set__id=user.id, scheme_id=scheme_id, status__in=SchemeAccount.JOIN_ACTION_REQUIRED
+                    user_set__id=user.id, scheme_id=scheme_id, status__in=AccountLinkStatus.join_action_required()
                 )
 
                 scheme_account.order = data["order"]
-                scheme_account.status = SchemeAccount.PENDING
-                scheme_account.save(update_fields=["order", "status"])
+                scheme_account.save(update_fields=["order"])
                 update = True
 
                 scheme_account_entry = scheme_account.schemeaccountentry_set.filter(user_id=user.id).first()
@@ -406,17 +405,17 @@ class SchemeAccountJoinMixin:
 
             except SchemeAccount.DoesNotExist:
                 scheme_account = SchemeAccount.objects.create(
-                    scheme_id=data["scheme"], order=data["order"], status=SchemeAccount.PENDING
+                    scheme_id=data["scheme"], order=data["order"]
                 )
                 SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user,
                                                   link_status=AccountLinkStatus.PENDING)
 
         if user.client_id == settings.BINK_CLIENT_ID and update:
             analytics.update_scheme_account_attribute(
-                scheme_account, user, dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN)
+                scheme_account_entry, dict(AccountLinkStatus.statuses()).get(AccountLinkStatus.JOIN)
             )
         elif user.client_id == settings.BINK_CLIENT_ID:
-            analytics.update_scheme_account_attribute(scheme_account, user)
+            analytics.update_scheme_account_attribute(scheme_account_entry)
 
         return scheme_account
 

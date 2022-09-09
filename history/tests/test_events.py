@@ -15,6 +15,7 @@ from history.data_warehouse import (
 )
 from scheme.models import SchemeBundleAssociation
 from scheme.tests.factories import SchemeAccountFactory, SchemeBundleAssociationFactory, SchemeFactory
+from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import (
     ClientApplicationBundleFactory,
     ClientApplicationFactory,
@@ -43,11 +44,14 @@ class TestRemoveLCEventHandlers(TransactionTestCase):
         SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE)
 
         cls.mcard = SchemeAccountFactory(scheme=cls.scheme)
+
+        cls.scheme_acc_entry = SchemeAccountEntryFactory(scheme_account=cls.mcard, user=cls.user)
+
         super().setUpClass()
 
     @patch("history.data_warehouse.to_data_warehouse")
     def test_remove_loyalty_card_event(self, mock_to_warehouse):
-        remove_loyalty_card_event(self.user, self.mcard)
+        remove_loyalty_card_event(self.scheme_acc_entry)
 
         self.assertTrue(mock_to_warehouse.called)
         data = mock_to_warehouse.call_args.args[0]

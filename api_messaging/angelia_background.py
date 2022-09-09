@@ -206,10 +206,8 @@ def loyalty_card_add_authorise(message: dict) -> None:
         if journey == "ADD_AND_AUTH":
             create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
             scheme_account_entry.set_link_status(AccountLinkStatus.ADD_AUTH_PENDING)
-            account.set_add_auth_pending()
         elif journey == "AUTH":
             scheme_account_entry.set_link_status(AccountLinkStatus.AUTH_PENDING)
-            account.set_auth_pending()
 
         async_link(
             auth_fields=all_credentials_and_consents,
@@ -263,9 +261,9 @@ def loyalty_card_join(message: dict) -> None:
 
 def delete_loyalty_card(message: dict) -> None:
     with AngeliaContext(message) as ac:
-        user = CustomUser.objects.get(pk=ac.user_id)
-        account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
-        deleted_membership_card_cleanup(account.id, arrow.utcnow().format(), user.id)
+        scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account_id=message.get("loyalty_card_id"),
+                                                              user_id=ac.user_id)
+        deleted_membership_card_cleanup(scheme_account_entry, arrow.utcnow().format())
 
 
 def delete_user(message: dict) -> None:
@@ -376,16 +374,13 @@ def mapper_history(message: dict) -> None:
 
 def add_auth_outcome_event(message: dict) -> None:
     success = message.get("success")
-    user_id = message.get("user_id")
     journey = message.get("journey")
-    loyalty_card_id = message.get("loyalty_card_id")
-    user = CustomUser.objects.get(id=user_id)
-    scheme_account = SchemeAccount.objects.get(pk=loyalty_card_id)
+    scheme_account_entry = SchemeAccountEntry.objects.get(pk=message.get("entry_id"))
 
     if journey == "ADD_AND_AUTH":
-        add_auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
+        add_auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry)
     elif journey == "AUTH":
-        auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
+        auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry)
 
 
 def add_auth_request_event(message: dict) -> None:

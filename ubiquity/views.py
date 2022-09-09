@@ -618,16 +618,15 @@ class MembershipCardView(
         new_account = SchemeAccount.objects.create(
             scheme=scheme_account_entry.scheme_account.scheme,
             order=scheme_account_entry.scheme_account.order,
-            status=SchemeAccount.PENDING,
             **{main_answer_field: main_answer_value},
         )
-        self.analytics_update(scheme_account_entry.user, new_account, acc_created=True)
 
         original_account = scheme_account_entry.scheme_account
 
         scheme_account_entry.scheme_account = new_account
-        scheme_account_entry.link_status = AccountLinkStatus.PENDING
         scheme_account_entry.save()
+
+        self.analytics_update(scheme_account_entry.user, new_account, acc_created=True)
 
         account = new_account
 
@@ -681,8 +680,6 @@ class MembershipCardView(
 
             if existing_account:
                 scheme_account_entry.set_link_status(AccountLinkStatus.FAILED_UPDATE)
-                account.status = account.FAILED_UPDATE
-                account.save(update_fields=["status"])
                 return account
 
         # update credentials
@@ -707,7 +704,6 @@ class MembershipCardView(
             )
             relink_pll = True
 
-        account.set_pending()
         scheme_account_entry.set_link_status(AccountLinkStatus.PENDING)
 
         # todo: we should be able to replace this with async_balance but will need to consider event handling.
@@ -749,7 +745,6 @@ class MembershipCardView(
         scheme_acc_entry.link_status = AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS
         scheme_acc_entry.save(update_fields=["auth_provided"])
 
-        account.set_async_registration_status()
         async_registration.delay(
             user.id,
             serializer,
@@ -767,6 +762,8 @@ class MembershipCardView(
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
         account = self.get_object()
+        sch_acc_entry = account.schemeaccountentry_set.get(user=request.user)
+
         if auto_link(request):
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=request.user.id).values_list(
                 "payment_card_account_id", flat=True
@@ -774,10 +771,10 @@ class MembershipCardView(
         else:
             payment_cards_to_link = []
 
-        if account.status in [
-            SchemeAccount.PENDING,
-            SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
-            SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS,
+        if sch_acc_entry.link_status in [
+            AccountLinkStatus.PENDING,
+            AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS,
+            AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS,
         ]:
             raise ParseError("requested card is still in a pending state, please wait for current journey to finish")
 
@@ -799,8 +796,6 @@ class MembershipCardView(
 
         account.delete_saved_balance()
         account.delete_cached_balance()
-
-        sch_acc_entry = account.schemeaccountentry_set.get(user=request.user)
 
         if enrol_fields:
             self._replace_with_enrol_fields(
@@ -866,8 +861,7 @@ class MembershipCardView(
         scheme_acc_entry.save(update_fields=["auth_provided"])
 
         scheme_acc_entry.schemeaccountcredentialanswer_set.all().delete()
-        account.set_async_join_status(commit_change=False)
-        account.save(update_fields=["status", "alt_main_answer"])
+        account.save(update_fields=["alt_main_answer"])
         async_join.delay(
             scheme_account_id=account.id,
             user_id=req.user.id,
@@ -909,8 +903,6 @@ class MembershipCardView(
 
         if existing_account:
             scheme_acc_entry.set_link_status(AccountLinkStatus.FAILED_UPDATE)
-            account.status = account.FAILED_UPDATE
-            account.save(update_fields=["status"])
             return metrics_route, account
 
         # update credentials
@@ -933,7 +925,6 @@ class MembershipCardView(
 
             relink_pll = True
 
-        account.set_pending()
         scheme_acc_entry.set_link_status(AccountLinkStatus.PENDING)
 
         # todo: we should be able to replace this with async_balance but will need to consider event handling.
@@ -950,16 +941,16 @@ class MembershipCardView(
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
         scheme_account = self.get_object()
-        if scheme_account.status in (SchemeAccount.JOIN_PENDING + SchemeAccount.REGISTER_PENDING):
+        scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user_id=request.user.id)
+        if scheme_account_entry.link_status in (AccountLinkStatus.join_pending() + AccountLinkStatus.register_pending()):
             # Ideally we would create a different error message for pending registrations as this is a little misleading
             # , but this would mean non-agreed changes to the API for Barclays so will keep this the same for now.
             error = {"join_pending": "Membership card cannot be deleted until the Join process has completed."}
             return Response(error, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
         deleted_membership_card_cleanup.delay(
-            scheme_account.id,
+            scheme_account_entry,
             arrow.utcnow().format(),
-            request.user.id,
             history_kwargs={
                 "user_info": user_info(
                     user_id=request.channels_permit.user.id, channel=request.channels_permit.bundle_id
@@ -1091,6 +1082,8 @@ class MembershipCardView(
                 answer_type=answer_type, scheme_account_entry=sch_acc_entry, main_answer=main_answer
             )
 
+            self.analytics_update(sch_acc_entry, acc_created=True)
+
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
         if account_created and auth_fields:
@@ -1107,9 +1100,6 @@ class MembershipCardView(
                 metrics_route = MembershipCardAddRoute.LINK
             else:
                 metrics_route = MembershipCardAddRoute.WALLET_ONLY
-
-            scheme_account.status = SchemeAccount.ADD_AUTH_PENDING
-            scheme_account.save(update_fields=["status"])
 
             sch_acc_entry.link_status = AccountLinkStatus.ADD_AUTH_PENDING
             sch_acc_entry.save(update_fields=["link_status"])
@@ -1194,7 +1184,6 @@ class MembershipCardView(
         creation_args = {
             "order": 0,
             "scheme_id": scheme.id,
-            "status": SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
             "originating_journey": JourneyTypes.JOIN,
         }
 
@@ -1212,7 +1201,9 @@ class MembershipCardView(
         )
 
         scheme_account.save()
-        sch_acc_entry = SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account, auth_provided=True)
+        sch_acc_entry = SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account,
+                                                          link_status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS,
+                                                          auth_provided=True)
 
         # send this event to data_warehouse
         join_request_lc_event(user, scheme_account, channels_permit.bundle_id)
