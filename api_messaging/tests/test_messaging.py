@@ -171,9 +171,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
 
     @patch("api_messaging.angelia_background.loyalty_card_authorise")
     def loyalty_card_add_and_authorise_routing(self, mock_loyalty_card_authorise):
-        route.route_message(
-            self.loyalty_card_add_and_authorise_headers, self.loyalty_card_auth_autolink_message
-        )
+        route.route_message(self.loyalty_card_add_and_authorise_headers, self.loyalty_card_auth_autolink_message)
 
         self.assertTrue(mock_loyalty_card_authorise.called)
 

@@ -626,8 +626,6 @@ class MembershipCardView(
         scheme_account_entry.scheme_account = new_account
         scheme_account_entry.save()
 
-        self.analytics_update(scheme_account_entry.user, new_account, acc_created=True)
-
         account = new_account
 
         # Deletes old account if no longer associated with any user
@@ -942,7 +940,9 @@ class MembershipCardView(
     def destroy(self, request, *args, **kwargs):
         scheme_account = self.get_object()
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user_id=request.user.id)
-        if scheme_account_entry.link_status in (AccountLinkStatus.join_pending() + AccountLinkStatus.register_pending()):
+        if scheme_account_entry.link_status in (
+            AccountLinkStatus.join_pending() + AccountLinkStatus.register_pending()
+        ):
             # Ideally we would create a different error message for pending registrations as this is a little misleading
             # , but this would mean non-agreed changes to the API for Barclays so will keep this the same for now.
             error = {"join_pending": "Membership card cannot be deleted until the Join process has completed."}
@@ -1082,8 +1082,6 @@ class MembershipCardView(
                 answer_type=answer_type, scheme_account_entry=sch_acc_entry, main_answer=main_answer
             )
 
-            self.analytics_update(sch_acc_entry, acc_created=True)
-
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
         if account_created and auth_fields:
@@ -1201,9 +1199,12 @@ class MembershipCardView(
         )
 
         scheme_account.save()
-        sch_acc_entry = SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account,
-                                                          link_status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS,
-                                                          auth_provided=True)
+        sch_acc_entry = SchemeAccountEntry.objects.create(
+            user=user,
+            scheme_account=scheme_account,
+            link_status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS,
+            auth_provided=True,
+        )
 
         # send this event to data_warehouse
         join_request_lc_event(user, scheme_account, channels_permit.bundle_id)

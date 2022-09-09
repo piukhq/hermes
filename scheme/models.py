@@ -24,7 +24,6 @@ from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
-from analytics.api import update_scheme_account_attribute
 from common.models import Image
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
@@ -646,7 +645,9 @@ class SchemeAccount(models.Model):
         ]
 
     @staticmethod
-    def _process_midas_response(response, scheme_account_entry: "SchemeAccountEntry") -> tuple[Optional[bool], int, Optional[bool]]:
+    def _process_midas_response(
+        response, scheme_account_entry: "SchemeAccountEntry"
+    ) -> tuple[Optional[bool], int, Optional[bool]]:
         # todo: liaise with Merchant to work out how we parse credentials back in.
         points = None
         previous_status = scheme_account_entry.link_status
@@ -729,14 +730,7 @@ class SchemeAccount(models.Model):
 
             queryset.all().delete()
 
-        if scheme_account_entry.link_status != AccountLinkStatus.PENDING:
-            self.call_analytics(self.user_set.all(), old_status)
         return saved
-
-    def call_analytics(self, user_set, old_status):
-        bink_users = [user for user in user_set if user.client_id == settings.BINK_CLIENT_ID]
-        for user in bink_users:  # Update intercom
-            update_scheme_account_attribute(self, user, dict(AccountLinkStatus.statuses()).get(old_status))
 
     def _get_balance(self, credentials, journey, scheme_account_entry):
         # todo: liaise with Midas to work out what we need to see here
@@ -820,7 +814,12 @@ class SchemeAccount(models.Model):
                 new_status=scheme_account_entry.link_status,
             )
             update_fields.append("status")
-            logger.info("%s of id %s has been updated with status: %s", self.__class__.__name__, self.id, scheme_account_entry.link_status)
+            logger.info(
+                "%s of id %s has been updated with status: %s",
+                self.__class__.__name__,
+                self.id,
+                scheme_account_entry.link_status,
+            )
 
         if update_fields:
             self.save(update_fields=update_fields)

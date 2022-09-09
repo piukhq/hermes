@@ -29,9 +29,13 @@ class TestNotificationTask(GlobalMockAPITestCase):
         cls.user = UserFactory(client=cls.client_application, external_id=cls.external_id)
         cls.user_two = UserFactory(client=cls.client_application, external_id=cls.external_id_two)
         cls.user_three = UserFactory(client=cls.client_application, external_id=cls.external_id_three)
-        cls.scheme_account = SchemeAccountFactory(status=SchemeAccount.PENDING)
-        cls.scheme_account_entry = SchemeAccountEntryFactory(user=cls.user, scheme_account=cls.scheme_account)
-        cls.scheme_account_entry_two = SchemeAccountEntryFactory(user=cls.user_two, scheme_account=cls.scheme_account)
+        cls.scheme_account = SchemeAccountFactory()
+        cls.scheme_account_entry = SchemeAccountEntryFactory(
+            user=cls.user, scheme_account=cls.scheme_account, link_status=AccountLinkStatus.PENDING
+        )
+        cls.scheme_account_entry_two = SchemeAccountEntryFactory(
+            user=cls.user_two, scheme_account=cls.scheme_account, link_status=AccountLinkStatus.PENDING
+        )
 
         cls.mocked_now_datetime = timezone.now().replace(hour=12)
         cls.mocked_datetime = cls.mocked_now_datetime + timedelta(hours=2)
@@ -49,13 +53,13 @@ class TestNotificationTask(GlobalMockAPITestCase):
             (
                 self.scheme_account_entry.user.external_id,
                 self.scheme_account_entry.scheme_account.scheme.slug,
-                SchemeAccount.PENDING,
+                AccountLinkStatus.PENDING,
                 self.scheme_account_entry.scheme_account.created,
             ),
             (
                 self.scheme_account_entry_two.user.external_id,
                 self.scheme_account_entry_two.scheme_account.scheme.slug,
-                SchemeAccount.PENDING,
+                AccountLinkStatus.PENDING,
                 self.scheme_account_entry_two.scheme_account.created,
             ),
         ]
@@ -110,8 +114,10 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
     def test_get_scheme_account_history(self):
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.mocked_now_datetime)):
-            scheme_account = SchemeAccountFactory(status=SchemeAccount.PENDING)
-            scheme_account_entry = SchemeAccountEntryFactory(user=self.user_two, scheme_account=scheme_account)
+            scheme_account = SchemeAccountFactory()
+            scheme_account_entry = SchemeAccountEntryFactory(
+                user=self.user_two, scheme_account=scheme_account, link_status=AccountLinkStatus.PENDING
+            )
 
             HistoricalSchemeAccountEntry(
                 instance_id=scheme_account_entry.id,
@@ -152,8 +158,10 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
     def test_ignore_previous_status_if_same_get_scheme_account_history(self):
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.mocked_now_datetime)):
-            scheme_account = SchemeAccountFactory(status=SchemeAccount.PENDING)
-            scheme_account_entry = SchemeAccountEntryFactory(user=self.user_two, scheme_account=scheme_account)
+            scheme_account = SchemeAccountFactory()
+            scheme_account_entry = SchemeAccountEntryFactory(
+                user=self.user_two, scheme_account=scheme_account, link_status=AccountLinkStatus.PENDING
+            )
 
             HistoricalSchemeAccountEntry(
                 instance_id=scheme_account_entry.id,
@@ -191,8 +199,10 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
     def test_ignore_previous_status_if_same_authorised_get_scheme_account_history(self):
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.mocked_now_datetime)):
-            scheme_account = SchemeAccountFactory(status=SchemeAccount.PENDING)
-            scheme_account_entry = SchemeAccountEntryFactory(user=self.user_two, scheme_account=scheme_account)
+            scheme_account = SchemeAccountFactory()
+            scheme_account_entry = SchemeAccountEntryFactory(
+                user=self.user_two, scheme_account=scheme_account, link_status=AccountLinkStatus.PENDING
+            )
 
             HistoricalSchemeAccountEntry(
                 instance_id=scheme_account_entry.id,

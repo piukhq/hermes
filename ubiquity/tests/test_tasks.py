@@ -10,7 +10,7 @@ from scheme.credentials import CARD_NUMBER, EMAIL, PASSWORD, POSTCODE
 from scheme.models import SchemeAccount, SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.serializers import JoinSerializer
 from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory
-from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
+from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry, AccountLinkStatus
 from ubiquity.tasks import (
     async_all_balance,
     async_balance,
@@ -65,15 +65,13 @@ class TestTasks(GlobalMockAPITestCase):
             auth_field=True,
         )
 
-    @patch("scheme.models.SchemeAccount.call_analytics")
     @patch("requests.get")
-    def test_async_balance(self, mock_midas_balance, mock_analytics):
-        mock_midas_balance.return_value.status_code = SchemeAccount.TRIPPED_CAPTCHA
+    def test_async_balance(self, mock_midas_balance):
+        mock_midas_balance.return_value.status_code = AccountLinkStatus.TRIPPED_CAPTCHA
         scheme_account_id = self.entry.scheme_account.id
         scheme_slug = self.entry.scheme_account.scheme.slug
         async_balance(self.entry)
 
-        self.assertTrue(mock_analytics.called)
         self.assertTrue(mock_midas_balance.called)
         self.assertTrue(scheme_slug in mock_midas_balance.call_args[0][0])
         self.assertTrue(scheme_account_id in mock_midas_balance.call_args[1]["params"].values())
@@ -108,16 +106,15 @@ class TestTasks(GlobalMockAPITestCase):
         SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=scheme_account_1.scheme)
         channels_permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
 
-        entry_pending = SchemeAccountEntryFactory(user=user, scheme_account=scheme_account_2)
-        entry_invalid_credentials = SchemeAccountEntryFactory(user=user, scheme_account=scheme_account_3)
-        entry_end_site_down = SchemeAccountEntryFactory(user=user, scheme_account=scheme_account_4)
-
-        entry_pending.scheme_account.status = SchemeAccount.PENDING
-        entry_pending.scheme_account.save()
-        entry_invalid_credentials.scheme_account.status = SchemeAccount.INVALID_CREDENTIALS
-        entry_invalid_credentials.scheme_account.save()
-        entry_end_site_down.scheme_account.status = SchemeAccount.END_SITE_DOWN
-        entry_end_site_down.scheme_account.save()
+        entry_pending = SchemeAccountEntryFactory(
+            user=user, scheme_account=scheme_account_2, link_status=AccountLinkStatus.PENDING
+        )
+        entry_invalid_credentials = SchemeAccountEntryFactory(
+            user=user, scheme_account=scheme_account_3, link_status=AccountLinkStatus.INVALID_CREDENTIALS
+        )
+        entry_end_site_down = SchemeAccountEntryFactory(
+            user=user, scheme_account=scheme_account_4, link_status=AccountLinkStatus.END_SITE_DOWN
+        )
 
         async_all_balance(user.id, channels_permit=channels_permit)
 
@@ -138,9 +135,8 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertFalse(self.entry in async_balance_call_args)
         self.assertTrue(self.entry2 in async_balance_call_args)
 
-    @patch("scheme.models.SchemeAccount.call_analytics")
     @patch("requests.get")
-    def test_async_link_validation_error(self, mock_midas_balance, mock_analytics):
+    def test_async_link_validation_error(self, mock_midas_balance):
         scheme_account = self.link_entry.scheme_account
         user_id = self.link_entry.user_id
         SchemeCredentialAnswerFactory(question=self.manual_question, scheme_account_entry=self.link_entry)
@@ -153,9 +149,7 @@ class TestTasks(GlobalMockAPITestCase):
         scheme_account.refresh_from_db()
         self.assertEqual(scheme_account.status, scheme_account.INVALID_CREDENTIALS)
         self.assertFalse(mock_midas_balance.called)
-        self.assertFalse(mock_analytics.called)
 
-    @patch("analytics.api.update_scheme_account_attribute")
     @patch("scheme.mixins.SchemeAccountJoinMixin.post_midas_join")
     @patch("scheme.mixins.SchemeAccountJoinMixin.save_consents")
     def test_async_register_validation_failure(self, mock_save_consents, *_):

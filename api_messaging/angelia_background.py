@@ -261,8 +261,9 @@ def loyalty_card_join(message: dict) -> None:
 
 def delete_loyalty_card(message: dict) -> None:
     with AngeliaContext(message) as ac:
-        scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account_id=message.get("loyalty_card_id"),
-                                                              user_id=ac.user_id)
+        scheme_account_entry = SchemeAccountEntry.objects.get(
+            scheme_account_id=message.get("loyalty_card_id"), user_id=ac.user_id
+        )
         deleted_membership_card_cleanup(scheme_account_entry, arrow.utcnow().format())
 
 

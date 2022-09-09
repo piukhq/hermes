@@ -36,7 +36,13 @@ from scheme.models import (
 from scheme.serializers import JoinSerializer, SchemeAnswerSerializer, UserConsentSerializer
 from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import retry_session
-from ubiquity.models import MembershipPlanDocument, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent
+from ubiquity.models import (
+    MembershipPlanDocument,
+    PaymentCardSchemeEntry,
+    SchemeAccountEntry,
+    ServiceConsent,
+    AccountLinkStatus,
+)
 from ubiquity.reason_codes import get_state_reason_code_and_text
 from ubiquity.tasks import async_balance
 from user.exceptions import UserConflictError
@@ -697,12 +703,12 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         return filtered_images
 
     @staticmethod
-    def get_translated_status(instance: "SchemeAccount", status: "SchemeAccount.STATUSES") -> dict:
-        if status in instance.SYSTEM_ACTION_REQUIRED:
-            if instance.balances:
-                status = instance.ACTIVE
+    def get_translated_status(scheme_account_entry: "SchemeAccountEntry", status: int) -> dict:
+        if status in AccountLinkStatus.system_action_required():
+            if scheme_account_entry.scheme_account.balances:
+                status = AccountLinkStatus.ACTIVE
             else:
-                status = instance.PENDING
+                status = AccountLinkStatus.PENDING
 
         state, reason_codes, text = get_state_reason_code_and_text(status)
         return {"state": state, "reason_codes": reason_codes}
@@ -712,9 +718,9 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         return [{k: v for k, v in balance.items() if k != "reward_tier"} for balance in balances]
 
     def _wallet_only_filter(
-        self, instance: "SchemeAccount"
-    ) -> t.Tuple["SchemeAccount.STATUSES", list, list, t.Union[list, dict], list]:
-        status = SchemeAccount.WALLET_ONLY
+        self, scheme_account_entry: "SchemeAccountEntry"
+    ) -> t.Tuple["AccountLinkStatus.statuses()", list, list, t.Union[list, dict], list]:
+        status = AccountLinkStatus.WALLET_ONLY
         balances = []
         transactions = []
         vouchers = {}
@@ -722,20 +728,21 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         mcard_user_auth_provided_map = self.context.get("mcard_user_auth_provided_map", {})
         try:
-            auth_provided = mcard_user_auth_provided_map[instance.id]
+            auth_provided = mcard_user_auth_provided_map[scheme_account_entry.scheme_account.id]
             if auth_provided:
-                status = instance.status
-                balances = instance.balances
-                transactions = instance.transactions
-                vouchers = instance.vouchers
-                pll_links = instance.pll_links
+                status = scheme_account_entry.link_status
+                balances = scheme_account_entry.scheme_account.balances
+                transactions = scheme_account_entry.scheme_account.transactions
+                vouchers = scheme_account_entry.scheme_account.vouchers
+                pll_links = scheme_account_entry.scheme_account.pll_links
 
-            elif not auth_provided and instance.status in SchemeAccount.JOIN_ACTION_REQUIRED:
-                status = instance.status
+            elif not auth_provided and scheme_account_entry.link_status in AccountLinkStatus.join_action_required():
+                status = scheme_account_entry.link_status
 
         except KeyError:
             logger.error(
-                f"Unable to determine auth status between user and SchemeAccount (id={instance.id})"
+                f"Unable to determine auth status between user and SchemeAccount (id="
+                f"{scheme_account_entry.scheme_account.id})"
                 " - Defaulting user to Unauthorised status - This will hide the following fields: "
                 "status, balances, transactions, vouchers, pll_links\n"
                 "Has a mcard_user_auth_provided_map been provided to the serializer context?"
@@ -783,7 +790,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         scheme_account_entry = instance.schemeaccountentry_set.get(user_id=self.context["user_id"])
 
-        if instance.status not in instance.EXCLUDE_BALANCE_STATUSES:
+        if scheme_account_entry.link_status not in AccountLinkStatus.exclude_balance_statuses():
             async_balance.delay(scheme_account_entry)
         try:
             reward_tier = instance.balances[0]["reward_tier"]
@@ -797,9 +804,9 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         scheme = current_scheme if current_scheme is not None else instance.scheme
         images = self._get_images(instance, scheme, str(reward_tier))
-        status, balances, transactions, vouchers, pll_links = self._wallet_only_filter(instance)
+        status, balances, transactions, vouchers, pll_links = self._wallet_only_filter(scheme_account_entry)
 
-        status = self.get_translated_status(instance, status)
+        status = self.get_translated_status(scheme_account_entry, status)
         balances = self._strip_reward_tier(balances)
         for voucher in vouchers:
             if voucher.get("code"):

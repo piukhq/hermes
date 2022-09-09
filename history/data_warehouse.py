@@ -110,7 +110,7 @@ def remove_loyalty_card_event(scheme_account_entry: "SchemeAccountEntry"):
         to_data_warehouse(payload)
 
 
-def join_outcome(success: bool, scheme_account_entry:"SchemeAccountEntry"):
+def join_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
     extra_data = {}
     if success:
         event_type = "lc.join.success"
@@ -187,7 +187,7 @@ def auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
     to_data_warehouse(payload)
 
 
-def register_outcome(success: bool, scheme_account_entry:"SchemeAccountEntry"):
+def register_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
     extra_data = {}
     if success:
         event_type = "lc.register.success"

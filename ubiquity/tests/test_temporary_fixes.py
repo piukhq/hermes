@@ -62,9 +62,8 @@ class TestTemporaryFixesBink(GlobalMockAPITestCase):
         cls.auth_headers = {"HTTP_AUTHORIZATION": "Token " + cls.user.create_token()}
         cls.auth_service_headers = {"HTTP_AUTHORIZATION": "Token " + settings.SERVICE_API_KEY}
 
-    @patch("analytics.api.update_attributes")
     @patch("analytics.api._get_today_datetime")
-    def test_membership_card_creation_same_payment_card_lock(self, mock_date, *_):
+    def test_membership_card_creation_same_payment_card_lock(self, mock_date):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         payload = {"scheme": self.scheme.id, USER_NAME: "Test User", "order": 0}
         new_user = UserFactory(client=self.user.client)

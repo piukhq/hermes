@@ -15,7 +15,7 @@ from history.models import HistoricalBase, HistoricalSchemeAccount, HistoricalSc
 from notification import stfp_connect
 from scheme.models import SchemeAccount
 from ubiquity.channel_vault import BarclaysSftpKeyNames, get_barclays_sftp_key, load_secrets
-from ubiquity.models import SchemeAccountEntry
+from ubiquity.models import SchemeAccountEntry, AccountLinkStatus
 from ubiquity.reason_codes import DELETED, ubiquity_status_translation
 from user.models import CustomUser
 
@@ -136,7 +136,7 @@ class NotificationProcessor:
         status = None
         state = None
         if history_obj.change_type == HistoricalBase.CREATE:
-            status = SchemeAccount.PENDING
+            status = AccountLinkStatus.PENDING
         elif history_obj.change_type == HistoricalBase.DELETE:
             status = DELETED
         else:
@@ -162,11 +162,11 @@ class NotificationProcessor:
         if status == DELETED:
             state = DELETED
         else:
-            if status in SchemeAccount.SYSTEM_ACTION_REQUIRED:
+            if status in AccountLinkStatus.system_action_required():
                 if scheme_account.balances:
-                    state = ubiquity_status_translation[scheme_account.ACTIVE]
+                    state = ubiquity_status_translation[AccountLinkStatus.ACTIVE]
                 else:
-                    state = ubiquity_status_translation[scheme_account.PENDING]
+                    state = ubiquity_status_translation[AccountLinkStatus.PENDING]
             else:
                 state = ubiquity_status_translation.get(status, status)
 

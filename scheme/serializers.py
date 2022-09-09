@@ -298,11 +298,13 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
         if self.verify_account_exists:
             user_id = self.context["request"].user.id
             self.check_scheme_linked_to_same_payment_card(user_id=user_id, scheme_id=scheme.id)
-            scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id, scheme=scheme)
-            non_join_accounts = scheme_accounts.exclude(status__in=SchemeAccount.JOIN_ACTION_REQUIRED)
 
-            for sa in non_join_accounts.all():
-                scheme_account_entry = sa.schemeaccountentry_set.get(user=user_id)
+            scheme_account_entries = SchemeAccountEntry.objects.filter(user_id=user_id, scheme_account__scheme=scheme)
+            non_join_scheme_account_entries = scheme_account_entries.exclude(
+                link_status__in=AccountLinkStatus.join_action_required()
+            )
+
+            for scheme_account_entry in non_join_scheme_account_entries.all():
                 if scheme_account_entry.schemeaccountcredentialanswer_set.filter(answer=data[answer_type]).exists():
                     raise serializers.ValidationError("You already added this account for scheme: '{0}'".format(scheme))
 
@@ -567,15 +569,15 @@ class JoinSerializer(SchemeAnswerSerializer):
             user_id = user_id.id
 
         # Validate scheme account for this doesn't already exist
-        exclude_status_list = SchemeAccount.JOIN_ACTION_REQUIRED + [
-            SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
-            SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS,
+        exclude_status_list = AccountLinkStatus.join_action_required() + [
+            AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS,
+            AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS,
         ]
-        scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id, scheme=scheme).exclude(
-            status__in=exclude_status_list
-        )
+        scheme_account_entries = SchemeAccountEntry.objects.filter(
+            user_id=user_id, scheme_account__scheme=scheme
+        ).exclude(link_status__in=exclude_status_list)
 
-        if scheme_accounts.exists():
+        if scheme_account_entries.exists():
             raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
         required_question_types = [question.type for question in scheme.join_questions if question.required]
@@ -663,8 +665,11 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
         return q_objs
 
     def _validate_existing_main_answer(
-        self, credentials: dict, questions: dict, scheme_account_entry: "SchemeAccountEntry",
-            allow_existing_main_answer: bool
+        self,
+        credentials: dict,
+        questions: dict,
+        scheme_account_entry: "SchemeAccountEntry",
+        allow_existing_main_answer: bool,
     ) -> None:
         main_question_types = {question.type for question in questions if question.is_main_question}
 

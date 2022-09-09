@@ -12,7 +12,6 @@ from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
 
-import analytics
 from api_messaging.midas_messaging import send_midas_join_request
 from hermes.channels import Permit
 from history.tasks import add_auth_outcome_task, auth_outcome_task
@@ -151,11 +150,6 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             raise serializers.ValidationError("This scheme is temporarily unavailable.")
 
         if scheme.url == settings.MY360_SCHEME_URL:
-            metadata = {
-                "scheme name": scheme.name,
-            }
-            if user.client_id == settings.BINK_CLIENT_ID:
-                analytics.post_event(user, analytics.events.MY360_APP_EVENT, metadata, True)
 
             raise serializers.ValidationError(
                 {
@@ -217,32 +211,17 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             f"Could not find question of type: {question_type} for scheme: {scheme_account.scheme.slug}."
         )
 
-    def _create_new_account(
-        self, user: "CustomUser", scheme: Scheme, data: dict, answer_type: str
-    ) -> SchemeAccount:
+    def _create_new_account(self, user: "CustomUser", scheme: Scheme, data: dict, answer_type: str) -> SchemeAccount:
         main_answer_field = SchemeAccount.get_key_cred_field_from_question_type(answer_type)
 
         with transaction.atomic():
             scheme_account = SchemeAccount.objects.create(
-                scheme=scheme, order=data["order"] **{main_answer_field: data[answer_type]}
+                scheme=scheme, order=data["order"] ** {main_answer_field: data[answer_type]}
             )
             self.save_consents(user, scheme_account, data, JourneyTypes.LINK.value)
         return scheme_account
 
-    @staticmethod
-    def analytics_update(scheme_account_entry: "SchemeAccountEntry", acc_created: bool) -> None:
-        if scheme_account_entry.user.client_id == settings.BINK_CLIENT_ID:
-            if acc_created:
-                analytics.update_scheme_account_attribute(scheme_account_entry)
-            else:
-                # Assume an update of a join account
-                analytics.update_scheme_account_attribute(
-                    scheme_account_entry, old_status=dict(AccountLinkStatus.statuses()).get(AccountLinkStatus.JOIN)
-                )
-
-    def save_consents(
-        self, user: "CustomUser", scheme_account: "SchemeAccount", data: dict, journey_type: int
-    ) -> None:
+    def save_consents(self, user: "CustomUser", scheme_account: "SchemeAccount", data: dict, journey_type: int) -> None:
         if "consents" in data:
             if hasattr(self, "current_scheme"):
                 scheme = self.current_scheme
@@ -367,11 +346,6 @@ class SchemeAccountJoinMixin:
         queryset.all().delete()
         scheme_account.userconsent_set.filter(status=ConsentStatus.PENDING).delete()
 
-        if user.client_id == settings.BINK_CLIENT_ID:
-            analytics.update_scheme_account_attribute(
-                scheme_account_entry, dict(AccountLinkStatus.statuses()).get(AccountLinkStatus.JOIN)
-            )
-
         Payment.process_payment_void(scheme_account)
 
         if card_number:
@@ -386,7 +360,6 @@ class SchemeAccountJoinMixin:
 
     @staticmethod
     def create_join_account(data: dict, user: "CustomUser", scheme_id: int) -> SchemeAccount:
-        update = False
         # todo: Needs a bit of thought in P3.
 
         with transaction.atomic():
@@ -397,25 +370,16 @@ class SchemeAccountJoinMixin:
 
                 scheme_account.order = data["order"]
                 scheme_account.save(update_fields=["order"])
-                update = True
 
                 scheme_account_entry = scheme_account.schemeaccountentry_set.filter(user_id=user.id).first()
                 if scheme_account_entry:
                     scheme_account_entry.set_link_status(AccountLinkStatus.PENDING)
 
             except SchemeAccount.DoesNotExist:
-                scheme_account = SchemeAccount.objects.create(
-                    scheme_id=data["scheme"], order=data["order"]
+                scheme_account = SchemeAccount.objects.create(scheme_id=data["scheme"], order=data["order"])
+                SchemeAccountEntry.objects.create(
+                    scheme_account=scheme_account, user=user, link_status=AccountLinkStatus.PENDING
                 )
-                SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user,
-                                                  link_status=AccountLinkStatus.PENDING)
-
-        if user.client_id == settings.BINK_CLIENT_ID and update:
-            analytics.update_scheme_account_attribute(
-                scheme_account_entry, dict(AccountLinkStatus.statuses()).get(AccountLinkStatus.JOIN)
-            )
-        elif user.client_id == settings.BINK_CLIENT_ID:
-            analytics.update_scheme_account_attribute(scheme_account_entry)
 
         return scheme_account
 

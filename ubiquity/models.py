@@ -13,7 +13,6 @@ from django.db.models import F, signals
 from django.dispatch import receiver
 from django.utils.functional import cached_property
 
-from analytics.api import update_scheme_account_attribute_new_status
 from hermes import settings
 from hermes.vop_tasks import send_deactivation, vop_activate_request
 from history.signals import HISTORY_CONTEXT
@@ -231,7 +230,9 @@ class SchemeAccountEntry(models.Model):
 
     @property
     def status_key(self):
-        status_keys = dict((extended_status[0], extended_status[2]) for extended_status in AccountLinkStatus.extended_statuses())
+        status_keys = dict(
+            (extended_status[0], extended_status[2]) for extended_status in AccountLinkStatus.extended_statuses()
+        )
         return status_keys.get(self.link_status)
 
     @property
@@ -239,7 +240,9 @@ class SchemeAccountEntry(models.Model):
         # linked accounts in "system account required" should be displayed as "active".
         # accounts in "active", "pending", and "join" statuses should be displayed as such.
         # all other statuses should be displayed as "wallet only"
-        if (self.scheme_account.link_date or self.scheme_account.join_date) and self.link_status in AccountLinkStatus.system_action_required():
+        if (
+            self.scheme_account.link_date or self.scheme_account.join_date
+        ) and self.link_status in AccountLinkStatus.system_action_required():
             return AccountLinkStatus.ACTIVE
         elif self.link_status in [AccountLinkStatus.ACTIVE, AccountLinkStatus.PENDING, AccountLinkStatus.JOIN]:
             return self.link_status
@@ -389,7 +392,7 @@ class SchemeAccountEntry(models.Model):
 
         self.link_status = status_to_set
         if commit_change:
-            self.save(update_fields=['link_status'])
+            self.save(update_fields=["link_status"])
 
     def missing_credentials(self, credential_types):
         """
@@ -499,9 +502,6 @@ class SchemeAccountEntry(models.Model):
         missing = self.missing_credentials(credentials.keys())
 
         if missing and not credentials_override and self.user.client_id == settings.BINK_CLIENT_ID:
-            update_scheme_account_attribute_new_status(
-                self, dict(AccountLinkStatus.statuses()).get(AccountLinkStatus.INCOMPLETE)
-            )
             self.set_link_status(AccountLinkStatus.INCOMPLETE)
             return True  # triggers return None from calling method
         return False

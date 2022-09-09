@@ -27,8 +27,7 @@ def record_history(model_name: str, **kwargs) -> None:
 
 
 @shared_task
-def join_outcome_event(success: bool, scheme_account_entry: object) -> None:
-    from ubiquity.models import SchemeAccountEntry
+def join_outcome_event(success: bool, scheme_account_entry: "SchemeAccountEntry") -> None:
 
     join_outcome(success, scheme_account_entry)
 
@@ -44,8 +43,8 @@ def auth_outcome_task(success: bool, scheme_account_entry: "SchemeAccountEntry")
 
 
 @shared_task
-def register_outcome_event(success: bool, scheme_account_entry: object) -> None:
-    from ubiquity.models import SchemeAccountEntry
+def register_outcome_event(success: bool, scheme_account_entry: "SchemeAccountEntry") -> None:
+
     register_outcome(success, scheme_account_entry)
 
 

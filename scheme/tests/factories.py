@@ -96,7 +96,6 @@ class SchemeAccountFactory(factory.django.DjangoModelFactory):
         model = models.SchemeAccount
 
     scheme = factory.SubFactory(SchemeFactory)
-    status = models.SchemeAccount.ACTIVE
     order = 0
     vouchers = [
         {

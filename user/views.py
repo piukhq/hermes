@@ -35,7 +35,6 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 from rest_framework.views import APIView
 
-import analytics
 from errors import (
     FACEBOOK_CANT_VALIDATE,
     FACEBOOK_GRAPH_ACCESS,
@@ -49,9 +48,9 @@ from history.utils import user_info
 from magic_link.tasks import send_magic_link
 from prometheus.metrics import service_creation_counter
 from scheme.credentials import EMAIL
-from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer
+from scheme.models import SchemeAccountCredentialAnswer
 from ubiquity.channel_vault import get_jwt_secret
-from ubiquity.models import SchemeAccountEntry
+from ubiquity.models import SchemeAccountEntry, AccountLinkStatus
 from ubiquity.versioning.base.serializers import ServiceSerializer
 from user.authentication import JwtAuthentication
 from user.exceptions import MagicLinkExpiredTokenError, MagicLinkValidationError
@@ -653,11 +652,6 @@ class UserSettings(APIView):
                 validation_errors.extend(e.messages)
             else:
                 user_setting.save()
-                if slug_key in analytics.SETTING_CUSTOM_ATTRIBUTES:
-
-                    attributes = {slug_key: user_setting.to_boolean()}
-                    if request.user.client_id == settings.BINK_CLIENT_ID:
-                        analytics.update_attributes(request.user, attributes)
 
         if validation_errors:
             return Response(
@@ -676,8 +670,6 @@ class UserSettings(APIView):
         Responds with a 204 - No Content.
         """
         UserSetting.objects.filter(user=request.user).delete()
-        if request.user.client_id == settings.BINK_CLIENT_ID:
-            analytics.reset_user_settings(request.user)
 
         return Response(status=HTTP_204_NO_CONTENT)
 
@@ -766,7 +758,7 @@ class MagicLinkAuthView(CreateAPIView):
         an auth field.
         """
 
-        # LOY-1609 - we only want to do this for wasabi for for now until later on.
+        # LOY-1609 - we only want to do this for wasabi for now until later on.
         # Remove this when we want to open this up for all schemes.
         if bundle_id == "com.wasabi.bink.web":
             # Make sure scheme account is authorised with the same email in the magic link
@@ -774,7 +766,7 @@ class MagicLinkAuthView(CreateAPIView):
                 question__type=EMAIL,
                 question__auth_field=True,
                 scheme_account_entry__scheme_account__scheme__slug="wasabi-club",
-                scheme_account_entry__scheme_account__status=SchemeAccount.ACTIVE,
+                scheme_account_entry__link_status=AccountLinkStatus.ACTIVE,
                 answer=user.email,
             ).values_list("scheme_account_entry__scheme_account__pk", flat=True)
 
