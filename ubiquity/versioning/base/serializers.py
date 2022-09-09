@@ -608,7 +608,6 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
             "card": {
                 "barcode_type": instance.barcode_type,
                 "colour": instance.colour,
-                "text_colour": instance.text_colour,
                 "base64_image": "",
                 "scan_message": instance.scan_message,
             },
@@ -808,6 +807,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             if voucher.get("code"):
                 if voucher["state"] in [VoucherStateStr.EXPIRED, VoucherStateStr.REDEEMED, VoucherStateStr.CANCELLED]:
                     voucher["code"] = ""
+            if voucher.get("body_text"):
+                voucher["body_text"] = None
         card_repr = {
             "id": instance.id,
             "membership_plan": instance.scheme_id,
@@ -819,7 +820,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 "membership_id": instance.card_number,
                 "barcode_type": scheme.barcode_type,
                 "colour": scheme.colour,
-                "text_colour": scheme.text_colour,
             },
             "images": self.image_serializer_class(images, many=True).data,
             "account": {"tier": reward_tier},
