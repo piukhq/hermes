@@ -1118,12 +1118,11 @@ class MembershipCardView(
             addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
 
-        elif not auth_fields and account_created:
+        elif not auth_fields:
             # no auth provided, new scheme account created
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
             self._handle_add_fields_only_link(sch_acc_entry, sch_acc_entry_created)
-
-        elif auth_fields and not account_created:
+        else:
             # auth fields provided, new scheme account not created (linking to existing scheme account)
             if not sch_acc_entry_created:
                 auth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
@@ -1140,10 +1139,6 @@ class MembershipCardView(
                     "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
                 },
             )
-
-        else:
-            # no auth fields provided, no new scheme account (return existing)
-            metrics_route = MembershipCardAddRoute.WALLET_ONLY
 
         return scheme_account, sch_acc_entry, return_status, metrics_route
 
@@ -1359,6 +1354,9 @@ class MembershipCardView(
 
             # todo: this is just until we remove the auth_provided flag
             scheme_account_entry.auth_provided = False
+
+            scheme_account_entry.scheme_account.status = AccountLinkStatus.WALLET_ONLY
+            scheme_account_entry.scheme_account.save()
 
             scheme_account_entry.save(update_fields=["link_status", "auth_provided"])
             logger.info(

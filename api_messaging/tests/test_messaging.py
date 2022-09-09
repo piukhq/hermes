@@ -134,6 +134,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             "channel_slug": "com.bink.wallet",
             "auto_link": True,
             "loyalty_plan_id": cls.scheme_account.id,
+            "add_fields": [{"credential_slug": "card_number", "value": "76389246123642384"}],
             "register_fields": [{"credential_slug": "postcode", "value": "GU552RH"}],
             "consents": cls.consents,
         }

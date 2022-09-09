@@ -930,7 +930,7 @@ class TestResources(GlobalMockAPITestCase):
         )
         resp_json = resp.json()
 
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(400, resp.status_code)
         self.assertEqual("Card already exists in your wallet", resp_json["detail"])
 
         user_links = SchemeAccountEntry.objects.filter(scheme_account=existing_scheme_account)
