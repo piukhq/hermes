@@ -34,7 +34,7 @@ jobs:
         image: rabbitmq:latest
         ports:
           - 5672:5672
-    container: ghcr.io/binkhq/python:3.10-pipenv
+    container: ghcr.io/binkhq/python:3.9-pipenv
     steps:
       - uses: actions/checkout@v2
       - run: pipenv install --dev --system --deploy --ignore-pipfile
