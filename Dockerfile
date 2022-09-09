@@ -1,9 +1,8 @@
-FROM ghcr.io/binkhq/python:3.9-pipenv
+FROM ghcr.io/binkhq/python:3.10-pipenv
 
 WORKDIR /app
 ADD . .
 
-RUN pip install --no-cache pipenv
 RUN pipenv install --system --deploy --ignore-pipfile
 
 ENTRYPOINT [ "/app/entrypoint.sh" ]
