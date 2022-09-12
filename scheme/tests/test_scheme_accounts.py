@@ -368,6 +368,8 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         response = self.client.post(
             "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
         )
+        scheme_account_entry.refresh_from_db()
+
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["id"], scheme_account.id)
         self.assertEqual(response.data["status"], AccountLinkStatus.MIDAS_UNREACHABLE)
