@@ -1432,7 +1432,7 @@ class TestUserSettings(GlobalMockAPITestCase):
         self.assertEqual(data[0]["value"], "1")
         self.assertEqual(data[0]["value_type"], setting.value_type_name)
 
-    def test_delete_user_settings(self, mock_reset_user_settings):
+    def test_delete_user_settings(self):
         settings = [SettingFactory(slug="marketing-bink"), SettingFactory()]
         UserSettingFactory(user=self.user, value="1", setting=settings[0])
         UserSettingFactory(user=self.user, value="0", setting=settings[1])
@@ -1446,8 +1446,6 @@ class TestUserSettings(GlobalMockAPITestCase):
 
         user_settings = UserSetting.objects.filter(user=self.user)
         self.assertEqual(len(user_settings), 0)
-
-        self.assertEqual(mock_reset_user_settings.call_count, 1)
 
     def test_update_analytic_user_settings(self):
         settings = [SettingFactory(slug="marketing-bink"), SettingFactory(slug="marketing-external")]

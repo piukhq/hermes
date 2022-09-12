@@ -1095,7 +1095,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
-        self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.ACTIVE)
+        self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.UNKNOWN_ERROR)
 
     @patch("requests.get", auto_spec=True, return_value=MagicMock())
     def test_get_midas_balance_link_limit_exceeded(self, mock_request):
@@ -1164,7 +1164,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
-        self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.ACTIVE)
+        self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.JOIN_ERROR)
         self.assertEqual(scheme_account_entry.display_status, AccountLinkStatus.ACTIVE)
 
     @patch("requests.get", auto_spec=True, return_value=MagicMock())
@@ -1202,7 +1202,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.RESOURCE_LIMIT_REACHED)
-        self.assertEqual(scheme_account_entry.display_status, scheme_account.WALLET_ONLY)
+        self.assertEqual(scheme_account_entry.display_status, AccountLinkStatus.WALLET_ONLY)
 
 
 class TestAccessTokens(GlobalMockAPITestCase):

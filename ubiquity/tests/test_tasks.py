@@ -248,7 +248,7 @@ class TestTasks(GlobalMockAPITestCase):
         answers = scheme_account_entry_alt.schemeaccountcredentialanswer_set
         self.assertEqual(3, answers.count())
 
-        deleted_membership_card_cleanup(scheme_account_entry.id, "")
+        deleted_membership_card_cleanup(scheme_account_entry, "")
 
         scheme_account.refresh_from_db()
 

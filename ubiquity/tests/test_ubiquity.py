@@ -1388,8 +1388,9 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(mock_to_warehouse.call_count, 1)
 
     def test_membership_card_delete_error_on_pending_join_mcard(self):
-        scheme_account = SchemeAccountFactory(status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS, scheme=self.scheme)
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        scheme_account = SchemeAccountFactory(scheme=self.scheme)
+        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user,
+                                  link_status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS,)
 
         resp = self.client.delete(
             reverse("membership-card", args=[scheme_account.id]), content_type="application/json", **self.auth_headers

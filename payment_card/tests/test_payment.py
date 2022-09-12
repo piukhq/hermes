@@ -403,8 +403,7 @@ class TestPayment(GlobalMockAPITestCase):
     @patch.object(Payment, "process_payment_void")
     @patch.object(Payment, "process_payment_success")
     def test_successful_join_processes_successful_payment(self, mock_payment_success, mock_payment_void, *_):
-        scheme_account = SchemeAccountFactory(status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS)
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        entry = SchemeAccountEntryFactory(user=self.user, link_status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS)
         user_set = str(self.user.id)
 
         auth_headers = {"HTTP_AUTHORIZATION": "Token " + settings.SERVICE_API_KEY}
@@ -414,12 +413,12 @@ class TestPayment(GlobalMockAPITestCase):
             "user_info": {"user_set": user_set, "bink_user_id": self.user.id},
         }
         response = self.client.post(
-            reverse("change_account_status", args=[scheme_account.id]), data, format="json", **auth_headers
+            reverse("change_account_status", args=[entry.scheme_account.id]), data, format="json", **auth_headers
         )
 
         self.assertEqual(response.status_code, 200)
-        scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.status, AccountLinkStatus.ACTIVE)
+        entry.scheme_account.refresh_from_db()
+        self.assertEqual(entry.link_status, AccountLinkStatus.ACTIVE)
         self.assertTrue(mock_payment_success.called)
         self.assertFalse(mock_payment_void.called)
 

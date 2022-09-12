@@ -153,7 +153,7 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
         create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
 
         if path == LoyaltyCardPath.REGISTER:
-            register_lc_event(user, account, ac.channel_slug)
+            register_lc_event(scheme_account_entry, ac.channel_slug)
 
         if message.get("auto_link"):
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=user.id).values_list(
@@ -169,7 +169,6 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
             scheme_questions=questions,
             registration_fields=all_credentials_and_consents,
             scheme=scheme,
-            account=account,
         )
 
 

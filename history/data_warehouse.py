@@ -57,33 +57,33 @@ def auth_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount", b
     to_data_warehouse(payload)
 
 
-def register_lc_event(user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str):
+def register_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id: str):
     payload = {
         "event_type": "lc.register.request",
         "origin": "channel",
         "channel": bundle_id,
         "event_date_time": arrow.utcnow().isoformat(),
-        "external_user_ref": user.external_id,
-        "internal_user_ref": user.id,
-        "email": user.email,
-        "scheme_account_id": scheme_account.id,
-        "loyalty_plan": scheme_account.scheme_id,
-        "main_answer": scheme_account.alt_main_answer,
+        "external_user_ref": scheme_account_entry.user.external_id,
+        "internal_user_ref": scheme_account_entry.user.id,
+        "email": scheme_account_entry.user.email,
+        "scheme_account_id": scheme_account_entry.scheme_account.id,
+        "loyalty_plan": scheme_account_entry.scheme_account.scheme_id,
+        "main_answer": scheme_account_entry.scheme_account.alt_main_answer,
     }
     to_data_warehouse(payload)
 
 
-def join_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str):
+def join_request_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id: str):
     payload = {
         "event_type": "lc.join.request",
         "origin": "channel",
         "channel": bundle_id,
         "event_date_time": arrow.utcnow().isoformat(),
-        "external_user_ref": user.external_id,
-        "internal_user_ref": user.id,
-        "email": user.email,
-        "scheme_account_id": scheme_account.id,
-        "loyalty_plan": scheme_account.scheme_id,
+        "external_user_ref": scheme_account_entry.user.external_id,
+        "internal_user_ref": scheme_account_entry.user.id,
+        "email": scheme_account_entry.user.email,
+        "scheme_account_id": scheme_account_entry.scheme_account.id,
+        "loyalty_plan": scheme_account_entry.scheme_account.scheme_id,
     }
     to_data_warehouse(payload)
 

@@ -372,7 +372,6 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
 
 class ListSchemeAccountSerializer(serializers.ModelSerializer):
     scheme = SchemeSerializerNoQuestions()
-    status_name = serializers.ReadOnlyField()
     barcode = serializers.ReadOnlyField()
     card_label = serializers.ReadOnlyField()
     images = serializers.SerializerMethodField()
@@ -386,11 +385,8 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "scheme",
-            "status",
             "order",
             "created",
-            "display_status",
-            "status_name",
             "barcode",
             "card_label",
             "images",
