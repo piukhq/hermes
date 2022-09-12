@@ -310,9 +310,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         response = self.client.get("/schemes/accounts", **auth_headers)
         self.assertEqual(response.json(), [])
 
-    def test_wallet_only(self, mock_date):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-
+    def test_wallet_only(self):
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
         SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)

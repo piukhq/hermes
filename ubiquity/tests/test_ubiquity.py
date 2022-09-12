@@ -2863,7 +2863,6 @@ class TestResourcesV1_2(GlobalMockAPITestCase):
     @patch("ubiquity.channel_vault._secret_keys", mock_secrets["secret_keys"])
     @patch("ubiquity.channel_vault._bundle_secrets", mock_secrets["bundle_secrets"])
     @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch("analytics.api")
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     def test_sensitive_field_decryption(self, mock_async_balance, mock_async_link, *_):
@@ -2924,7 +2923,6 @@ class TestResourcesV1_2(GlobalMockAPITestCase):
     @patch("ubiquity.channel_vault._secret_keys", mock_secrets["secret_keys"])
     @patch("ubiquity.channel_vault._bundle_secrets", mock_secrets["bundle_secrets"])
     @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch("analytics.api")
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     def test_double_escaped_sensitive_field_value(self, mock_async_balance, mock_async_link, *_):
@@ -2969,7 +2967,6 @@ class TestResourcesV1_2(GlobalMockAPITestCase):
 
     @patch("ubiquity.channel_vault._secret_keys", mock_secrets["secret_keys"])
     @patch("ubiquity.channel_vault._bundle_secrets", mock_secrets["bundle_secrets"])
-    @patch("analytics.api")
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
