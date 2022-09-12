@@ -1386,7 +1386,7 @@ class ListMembershipCardView(MembershipCardView):
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
-        accounts = self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN)
+        accounts = self.filter_queryset(self.get_queryset()).exclude(status=AccountLinkStatus.JOIN)
 
         auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, accounts)
         response = self.get_serializer_by_request(

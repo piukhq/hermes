@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+from ubiquity.models import AccountLinkStatus
+
 from django.db import connection
 
 from scheme.models import SchemeAccount
@@ -52,7 +54,7 @@ def scheme_summary_list(db_data):
 def generate_all_statuses(statuses):
     name = list(statuses.values())[0]["name"]  # We just need the first name
     all_statuses = []
-    for code, description in SchemeAccount.STATUSES:
+    for code, description in AccountLinkStatus.statuses():
         all_statuses.append(
             {"name": name, "count": statuses.get(code, {}).get("count", 0), "status": code, "description": description}
         )

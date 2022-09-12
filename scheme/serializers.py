@@ -691,8 +691,6 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
 
             if len(existing_accounts) > 0 and not allow_existing_main_answer:
                 scheme_account_entry.set_link_status(AccountLinkStatus.ACCOUNT_ALREADY_EXISTS)
-                scheme_account.status = scheme_account.ACCOUNT_ALREADY_EXISTS
-                scheme_account.save(update_fields=["status"])
                 raise serializers.ValidationError("An account already exists with the given credentials")
 
             elif len(existing_accounts) > 1:
@@ -702,8 +700,6 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
                     f"{[acc[0] for acc in existing_accounts]}: {query_args.keys()}"
                 )
                 scheme_account_entry.set_link_status(AccountLinkStatus.ACCOUNT_ALREADY_EXISTS)
-                scheme_account.status = scheme_account.ACCOUNT_ALREADY_EXISTS
-                scheme_account.save(update_fields=["status"])
                 raise serializers.ValidationError("An account already exists with the given credentials")
 
 

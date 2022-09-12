@@ -216,7 +216,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
         with transaction.atomic():
             scheme_account = SchemeAccount.objects.create(
-                scheme=scheme, order=data["order"] ** {main_answer_field: data[answer_type]}
+                scheme=scheme, order=data["order"], **{main_answer_field: data[answer_type]}
             )
             self.save_consents(user, scheme_account, data, JourneyTypes.LINK.value)
         return scheme_account
@@ -364,18 +364,17 @@ class SchemeAccountJoinMixin:
 
         with transaction.atomic():
             try:
-                scheme_account = SchemeAccount.objects.get(
-                    user_set__id=user.id, scheme_id=scheme_id, status__in=AccountLinkStatus.join_action_required()
-                )
+                scheme_account_entry = SchemeAccountEntry.objects.get(
+                    user=user, scheme_account__scheme_id=scheme_id,
+                    link_status__in=AccountLinkStatus.join_action_required())
 
-                scheme_account.order = data["order"]
-                scheme_account.save(update_fields=["order"])
+                scheme_account_entry.scheme_account.order = data["order"]
+                scheme_account_entry.scheme_account.save(update_fields=["order"])
 
-                scheme_account_entry = scheme_account.schemeaccountentry_set.filter(user_id=user.id).first()
                 if scheme_account_entry:
                     scheme_account_entry.set_link_status(AccountLinkStatus.PENDING)
 
-            except SchemeAccount.DoesNotExist:
+            except SchemeAccountEntry.DoesNotExist:
                 scheme_account = SchemeAccount.objects.create(scheme_id=data["scheme"], order=data["order"])
                 SchemeAccountEntry.objects.create(
                     scheme_account=scheme_account, user=user, link_status=AccountLinkStatus.PENDING

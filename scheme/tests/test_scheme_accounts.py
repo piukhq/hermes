@@ -310,7 +310,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         response = self.client.get("/schemes/accounts", **auth_headers)
         self.assertEqual(response.json(), [])
 
-    @patch("analytics.api._get_today_datetime")
     def test_wallet_only(self, mock_date):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
 
@@ -331,7 +330,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             AccountLinkStatus.WALLET_ONLY,
         )
 
-    @patch("analytics.api.requests.post")
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
     def test_scheme_account_update_status_bink_user(self, *_):
         scheme_account = SchemeAccountFactory()
@@ -354,7 +352,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         scheme_account.refresh_from_db()
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.MIDAS_UNREACHABLE)
 
-    @patch("analytics.api.requests.post")
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
     def test_scheme_account_update_status_ubiquity_user(self, *_):
         client_app = ClientApplicationFactory(name="barclays")
@@ -379,7 +376,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         scheme_account.refresh_from_db()
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.MIDAS_UNREACHABLE)
 
-    @patch("analytics.api.requests.post")
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
     def test_scheme_account_update_status_join_callback(self, *_):
         scheme_account = SchemeAccountFactory()
@@ -438,7 +434,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, ["Invalid status code sent."])
 
-    @patch("analytics.api.requests.post")
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
     def test_scheme_account_update_status_async_join_fail_deletes_main_answer(self, *_):
         client_app = ClientApplicationFactory(name="barclays")
@@ -468,7 +463,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(scheme_account.alt_main_answer, "")
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.ENROL_FAILED)
 
-    @patch("analytics.api.requests.post")
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
     def test_scheme_account_update_join_acc_already_exists_fails(self, *_):
         client_app = ClientApplicationFactory(name="barclays")
@@ -604,8 +598,10 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertNotIn(scheme_2.id, scheme_ids)
 
     def test_system_retry_scheme_accounts(self):
-        scheme = SchemeAccountFactory(status=SchemeAccount.RETRY_LIMIT_REACHED)
-        scheme_2 = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
+        scheme = SchemeAccountFactory()
+        scheme_2 = SchemeAccountFactory(status=AccountLinkStatus.ACTIVE)
+        SchemeAccountEntryFactory(link_status=AccountLinkStatus.RETRY_LIMIT_REACHED, scheme_account=scheme)
+        SchemeAccountEntryFactory(link_status=AccountLinkStatus.ACTIVE, scheme_account=scheme_2)
         response = self.client.get("/schemes/accounts/system_retry", **self.auth_service_headers)
         scheme_ids = [result["id"] for result in response.data["results"]]
 
@@ -701,7 +697,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
         encrypted_credentials = scheme_account_entry.credentials()
         self.assertIsNone(encrypted_credentials)
-        self.assertEqual(scheme_account.status, SchemeAccount.INCOMPLETE)
+        self.assertEqual(scheme_account_entry.status, AccountLinkStatus.INCOMPLETE)
 
     def test_temporary_iceland_fix_ignores_credential_validation_for_iceland(self):
         scheme = SchemeFactory(slug="iceland-bonus-card")
@@ -744,60 +740,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
                 if status_code not in scheme_status_codes:
                     return False
         return True
-
-    @patch("analytics.api.post_event")
-    @patch("analytics.api._get_today_datetime")
-    def test_create_join_account_and_notify_analytics(self, mock_post_event, mock_date):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        scheme = SchemeFactory()
-
-        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, manual_question=True)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
-
-        resp = self.client.post(
-            "/schemes/accounts/join/{}/{}".format(scheme.slug, self.user.id), **self.auth_service_headers
-        )
-
-        self.assertEqual(resp.status_code, 201)
-
-        json = resp.json()
-        self.assertIsInstance(json, dict)
-        self.assertIn("display_status", json)
-        self.assertIn("barcode", json)
-        self.assertIn("card_label", json)
-        self.assertIn("created", json)
-        self.assertIn("id", json)
-        self.assertIn("images", json)
-        self.assertIn("order", json)
-        self.assertIn("scheme", json)
-        self.assertIn("status", json)
-
-        self.assertEqual(mock_post_event.call_count, 1)
-        self.assertEqual(len(mock_post_event.call_args), 2)
-
-    @patch("analytics.api.post_event")
-    def test_create_join_account_against_user_setting(self, mock_post_event):
-        scheme = SchemeFactory()
-
-        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, manual_question=True)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
-
-        setting = SettingFactory(scheme=scheme, slug="join-{}".format(scheme.slug), value_type=Setting.BOOLEAN)
-        UserSettingFactory(setting=setting, user=self.user, value="0")
-
-        resp = self.client.post(
-            "/schemes/accounts/join/{}/{}".format(scheme.slug, self.user.id), **self.auth_service_headers
-        )
-
-        self.assertEqual(resp.status_code, 200)
-
-        json = resp.json()
-        self.assertEqual(json["code"], 200)
-        self.assertEqual(json["message"], "User has disabled join cards for this scheme")
-
-        self.assertFalse(mock_post_event.called)
 
     def test_register_join_endpoint_missing_credential_question(self):
         scheme = SchemeFactory()
@@ -900,7 +842,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         scheme_account = SchemeAccount.objects.get(user_set__id=self.user.id, scheme_id=scheme.id)
         scheme_account_entry = SchemeAccountEntry.objects.get(user=self.user, scheme_account=scheme_account)
         self.assertEqual(resp_json["id"], scheme_account.id)
-        self.assertEqual("Pending", scheme_account.status_name)
+        self.assertEqual("Pending", scheme_account_entry.status_name)
         self.assertEqual(len(scheme_account_entry.schemeaccountcredentialanswer_set.all()), 1)
         self.assertTrue(scheme_account_entry.schemeaccountcredentialanswer_set.filter(question=link_question))
 
@@ -1243,25 +1185,26 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
 
     @patch("requests.get", auto_spec=True, return_value=MagicMock())
     def test_ignore_midas_500_error(self, mock_request):
-        test_status = SchemeAccount.TRIPPED_CAPTCHA
+        test_status = AccountLinkStatus.TRIPPED_CAPTCHA
         mock_request.return_value.status_code = test_status
-        scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+        scheme_account = SchemeAccountFactory()
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, link_status=AccountLinkStatus.ACTIVE)
         scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
-        self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
-        self.assertEqual(scheme_account.display_status, scheme_account.ACTIVE)
+        self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.ACTIVE)
+        self.assertEqual(scheme_account_entry.display_status, AccountLinkStatus.ACTIVE)
 
     @patch("requests.get", auto_spec=True, return_value=MagicMock())
     def test_midas_500_error_preserve_scheme_account_error_status(self, mock_request):
-        test_status = SchemeAccount.RESOURCE_LIMIT_REACHED
+        test_status = AccountLinkStatus.RESOURCE_LIMIT_REACHED
         mock_request.return_value.status_code = test_status
-        scheme_account = SchemeAccountFactory(status=SchemeAccount.TRIPPED_CAPTCHA)
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+        scheme_account = SchemeAccountFactory()
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account,
+                                                         link_status=AccountLinkStatus.TRIPPED_CAPTCHA)
         scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
-        self.assertEqual(scheme_account.status, SchemeAccount.RESOURCE_LIMIT_REACHED)
-        self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
+        self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.RESOURCE_LIMIT_REACHED)
+        self.assertEqual(scheme_account_entry.display_status, scheme_account.WALLET_ONLY)
 
 
 class TestAccessTokens(GlobalMockAPITestCase):
@@ -1323,7 +1266,6 @@ class TestAccessTokens(GlobalMockAPITestCase):
         self.test_user = self.test_scheme_acc_entry.user
         self.test_scheme_acc = self.test_scheme_acc_entry.scheme_account
 
-    @patch("analytics.api._get_today_datetime")
     def test_retrieve_scheme_accounts(self, mock_date):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
 

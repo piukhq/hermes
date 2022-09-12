@@ -399,7 +399,6 @@ class TestPayment(GlobalMockAPITestCase):
         self.assertTrue(mock_capture_message.called)
         self.assertEqual(mock_capture_message.call_count, 1)
 
-    @patch("analytics.api.requests.post")
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
     @patch.object(Payment, "process_payment_void")
     @patch.object(Payment, "process_payment_success")
@@ -410,7 +409,7 @@ class TestPayment(GlobalMockAPITestCase):
 
         auth_headers = {"HTTP_AUTHORIZATION": "Token " + settings.SERVICE_API_KEY}
         data = {
-            "status": SchemeAccount.ACTIVE,
+            "status": AccountLinkStatus.ACTIVE,
             "journey": "join",
             "user_info": {"user_set": user_set, "bink_user_id": self.user.id},
         }
@@ -424,7 +423,6 @@ class TestPayment(GlobalMockAPITestCase):
         self.assertTrue(mock_payment_success.called)
         self.assertFalse(mock_payment_void.called)
 
-    @patch("analytics.api.requests.post")
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
     @patch.object(Payment, "process_payment_void")
     @patch.object(Payment, "process_payment_success")

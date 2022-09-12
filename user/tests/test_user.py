@@ -531,7 +531,7 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         scheme = SchemeFactory(company="Wasabi", slug="wasabi-club")
         question = SchemeCredentialQuestionFactory(scheme=scheme, type=EMAIL, auth_field=True)
         scheme_account_entry = SchemeAccountEntryFactory(
-            user=user, scheme_account__scheme=scheme, scheme_account__status=SchemeAccount.REGISTRATION_FAILED
+            user=user, scheme_account__scheme=scheme, link_status=AccountLinkStatus.REGISTRATION_FAILED
         )
 
         SchemeCredentialAnswerFactory(
@@ -1432,7 +1432,6 @@ class TestUserSettings(GlobalMockAPITestCase):
         self.assertEqual(data[0]["value"], "1")
         self.assertEqual(data[0]["value_type"], setting.value_type_name)
 
-    @mock.patch("analytics.reset_user_settings")
     def test_delete_user_settings(self, mock_reset_user_settings):
         settings = [SettingFactory(slug="marketing-bink"), SettingFactory()]
         UserSettingFactory(user=self.user, value="1", setting=settings[0])

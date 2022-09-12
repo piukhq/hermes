@@ -413,7 +413,6 @@ class TestResources(GlobalMockAPITestCase):
             self.assertFalse(join_id in resp_join_ids)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_creation(self, *_):
         payload = {
@@ -441,7 +440,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 201)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_creation_other_wallet_same_fingerprint(self, *_):
         payload = {
@@ -482,7 +480,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(card.is_deleted, False)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_creation_other_wallet_date_changed(self, *_):
         payload = {
@@ -530,7 +527,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(card.is_deleted, False)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_creation_with_id_fails_when_not_internal_user(self, *_):
         payload = {
@@ -560,7 +556,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertNotEqual(resp.json()["id"], provided_id)
 
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_replace(self, *_):
         pca = PaymentCardAccountFactory(token="original-token")
@@ -634,8 +629,8 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_status_mapping_user_error(self, *_):
-        user_error = SchemeAccount.INVALID_CREDENTIALS
-        self.scheme_account.status = user_error
+        user_error = AccountLinkStatus.INVALID_CREDENTIALS
+        self.scheme_account_entry.link_status = user_error
         self.scheme_account.balances = {}
         self.scheme_account.save()
 
@@ -661,8 +656,8 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_status_mapping_system_error(self, *_):
-        user_error = SchemeAccount.END_SITE_DOWN
-        self.scheme_account.status = user_error
+        user_error = AccountLinkStatus.END_SITE_DOWN
+        self.scheme_account_entry.link_status = user_error
         self.scheme_account.balances = {}
         self.scheme_account.save()
 
@@ -745,7 +740,6 @@ class TestResources(GlobalMockAPITestCase):
         ).data
         self.assertEqual(status, data["status"])
 
-    @patch("analytics.api")
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
@@ -820,9 +814,7 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("analytics.api")
     def test_link_user_to_existing_wallet_only_card(self, mock_analytics, *_):
-        mock_analytics._get_today_datetime.return_value = datetime.datetime(year=2000, month=5, day=19)
         test_schemes = (
             (self.wallet_only_scheme, self.wallet_only_question),
             (self.scheme, self.scheme.manual_question),
@@ -918,7 +910,7 @@ class TestResources(GlobalMockAPITestCase):
             scheme_account=existing_scheme_account,
             user=self.user,
             auth_provided=True,
-            link_status=SchemeAccount.WALLET_ONLY,
+            link_status=AccountLinkStatus.WALLET_ONLY,
         )
         SchemeCredentialAnswerFactory(
             question=self.scheme.manual_question,
@@ -946,9 +938,7 @@ class TestResources(GlobalMockAPITestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch("analytics.api")
-    def test_autolink_for_wallet_only_mcard_does_not_soft_link(self, mock_analytics, *_):
-        mock_analytics._get_today_datetime.return_value = datetime.datetime(year=2000, month=5, day=19)
+    def test_autolink_for_wallet_only_mcard_does_not_soft_link(self, *_):
         self.payment_card_account.status = PaymentCardAccount.ACTIVE
         self.payment_card_account.save()
 
@@ -977,7 +967,7 @@ class TestResources(GlobalMockAPITestCase):
             scheme_account=existing_scheme_account,
             user=self.user,
             auth_provided=False,
-            link_status=SchemeAccount.WALLET_ONLY,
+            link_status=AccountLinkStatus.WALLET_ONLY,
         )
         SchemeCredentialAnswerFactory(
             question=self.scheme.manual_question,
@@ -1009,7 +999,7 @@ class TestResources(GlobalMockAPITestCase):
             scheme_account=existing_scheme_account,
             user=self.user,
             auth_provided=False,
-            status=AccountLinkStatus.WALLET_ONLY,
+            link_status=AccountLinkStatus.WALLET_ONLY,
         )
         SchemeCredentialAnswerFactory(
             question=self.scheme.manual_question,
@@ -1282,7 +1272,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertIsInstance(headers["transaction-id"], str)
 
     @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch("analytics.api")
     @patch("ubiquity.views.async_join", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
@@ -1355,7 +1344,6 @@ class TestResources(GlobalMockAPITestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("ubiquity.views.async_link", autospec=True)
-    @patch("ubiquity.tasks.analytics", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.tasks.remove_loyalty_card_event")
     def test_membership_card_delete(self, mock_to_warehouse, *_):
@@ -1400,7 +1388,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(mock_to_warehouse.call_count, 1)
 
     def test_membership_card_delete_error_on_pending_join_mcard(self):
-        scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS, scheme=self.scheme)
+        scheme_account = SchemeAccountFactory(status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS, scheme=self.scheme)
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
 
         resp = self.client.delete(
@@ -1594,7 +1582,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp_payment.status_code, 404)
         self.assertEqual(resp_membership.status_code, 404)
 
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
@@ -1693,7 +1680,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertTrue(httpretty.has_request())
         self.assertEqual(expected_resp, resp.json())
 
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
@@ -1716,7 +1702,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json(), {"detail": "required field membership_plan is missing"})
 
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
@@ -1775,7 +1760,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(new_scheme_acc.card_number, "12345")
         self.assertEqual(new_scheme_acc_entry.link_status, AccountLinkStatus.PENDING)
 
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
@@ -1837,7 +1821,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(new_scheme_acc.card_number, "12345")
         self.assertEqual(new_scheme_acc_entry.link_status, AccountLinkStatus.PENDING)
 
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
@@ -1885,11 +1868,10 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp_put.status_code, 200)
 
         self.assertFalse(scheme_account.is_deleted)
-        self.assertEqual(scheme_account.status, SchemeAccount.FAILED_UPDATE)
+        self.assertEqual(scheme_account_entry.status, AccountLinkStatus.FAILED_UPDATE)
         self.assertEqual(scheme_account_entry_2.scheme_account, scheme_account)
         self.assertEqual(scheme_account_entry.scheme_account, scheme_account)
 
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
@@ -1946,7 +1928,6 @@ class TestResources(GlobalMockAPITestCase):
         new_scan_answer = answers.get(self.put_scheme_scan_q.type)
         self.assertEqual(new_scan_answer, "67890")
 
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
@@ -1996,7 +1977,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(new_scheme_acc_entry.link_status, AccountLinkStatus.PENDING)
         self.assertFalse(new_scheme_acc.balances)
 
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
@@ -2047,7 +2027,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(auth_answer, test_pass)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(10, "", None))
     @patch("ubiquity.tasks.async_balance", autospec=True)
     @patch("ubiquity.views.async_registration", autospec=True)
@@ -2095,7 +2074,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(10, "", None))
     @patch("ubiquity.tasks.async_balance", autospec=True)
     @patch("ubiquity.views.async_registration", autospec=True)
@@ -2279,7 +2257,6 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
     def test_existing_membership_card_creation_success(self, *_):
         new_external_id = "Test User mcard creation success"
         new_user = UserFactory(external_id=new_external_id, client=self.client_app, email=new_external_id)
@@ -2327,7 +2304,6 @@ class TestResources(GlobalMockAPITestCase):
     @patch.object(SchemeAccount, "get_midas_balance")
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
     def test_credential_emails_are_stored_as_lowercase_auth_route(self, *_):
         new_user, scheme, card_num_question, email_question, auth_header = self._setup_user_and_email_scheme()
 
@@ -2365,7 +2341,6 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
     @patch("scheme.mixins.requests.post")
     def test_credential_emails_are_stored_as_lowercase_enrol_route(self, mock_join_resp, *_):
         mock_join_resp.return_value.json.return_value = {"message": "success"}
@@ -2399,7 +2374,6 @@ class TestResources(GlobalMockAPITestCase):
     @patch.object(SchemeAccount, "get_midas_balance")
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
     @patch("scheme.mixins.requests.post")
     def test_credential_emails_are_stored_as_lowercase_register_route(self, mock_join_resp, *_):
         mock_join_resp.return_value.json.return_value = {"message": "success"}
@@ -2445,7 +2419,6 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
     def test_existing_membership_card_creation_postcode_space_handling(self, *_):
         # Setup new scheme with all question types as auth fields and create existing scheme account
         new_external_id = "Test User non case sensitive auth fields"
@@ -2523,7 +2496,6 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
     def test_existing_membership_card_creation_non_matching_question_type(self, mock_analytics, *_):
         mock_analytics._get_today_datetime.return_value = datetime.datetime(year=2000, month=5, day=19)
         payload = {
@@ -2610,7 +2582,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(mock_to_warehouse.call_count, 2)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch.object(BaseLinkMixin, "link_account", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
@@ -2674,7 +2645,7 @@ class TestResources(GlobalMockAPITestCase):
     def test_replace_mcard_with_enrol_fields(self, mock_secret, mock_async_join, mock_async_balance):
         mock_secret.return_value = "test_secret"
         self.scheme_account_entry.link_status = AccountLinkStatus.ENROL_FAILED
-        self.scheme_account_entry.save(update_fields=["status"])
+        self.scheme_account_entry.save(update_fields=["link_status"])
 
         consent_label = "Consent 1"
         consent = ConsentFactory.create(scheme=self.scheme, journey=JourneyTypes.JOIN.value)
@@ -2712,7 +2683,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 200)
         self.scheme_account.refresh_from_db()
         self.assertEqual(self.scheme_account_entry.link_status, AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS)
-        self.assertIn(self.scheme_account_entry.link_status, AccountLinkStatus.JOIN_PENDING)
+        self.assertIn(self.scheme_account_entry.link_status, AccountLinkStatus.join_pending())
         self.assertTrue(not self.scheme_account_entry.schemeaccountcredentialanswer_set.all())
         self.assertTrue(mock_async_join.delay.called)
         self.assertTrue(mock_async_balance.delay.called)
@@ -2725,7 +2696,7 @@ class TestResources(GlobalMockAPITestCase):
     ):
         mock_secret.return_value = "test_secret"
         self.scheme_account_entry.status = AccountLinkStatus.ENROL_FAILED
-        self.scheme_account_entry.save(update_fields=["status"])
+        self.scheme_account_entry.save(update_fields=["link_status"])
 
         consent_label = "Consent 1"
         consent = ConsentFactory.create(scheme=self.scheme, journey=JourneyTypes.JOIN.value)

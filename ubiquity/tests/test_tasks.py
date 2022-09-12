@@ -142,12 +142,12 @@ class TestTasks(GlobalMockAPITestCase):
         SchemeCredentialAnswerFactory(question=self.manual_question, scheme_account_entry=self.link_entry)
 
         auth_fields = {"password": "test123"}
-        self.assertEqual(scheme_account.status, scheme_account.ACTIVE)
+        self.assertEqual(self.link_entry.link_status, AccountLinkStatus.ACTIVE)
         with self.assertRaises(serializers.ValidationError):
             async_link(auth_fields, scheme_account.id, user_id, False)
 
-        scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.status, scheme_account.INVALID_CREDENTIALS)
+        self.link_entry.refresh_from_db()
+        self.assertEqual(self.link_entry.link_status, AccountLinkStatus.INVALID_CREDENTIALS)
         self.assertFalse(mock_midas_balance.called)
 
     @patch("scheme.mixins.SchemeAccountJoinMixin.post_midas_join")
@@ -173,7 +173,7 @@ class TestTasks(GlobalMockAPITestCase):
         async_registration(user_id, JoinSerializer, scheme_account_id, {"credentials": {}}, self.bundle.bundle_id)
 
         self.link_entry.scheme_account.refresh_from_db()
-        self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.REGISTRATION_FAILED)
+        self.assertEqual(self.link_entry.link_status, AccountLinkStatus.REGISTRATION_FAILED)
 
     @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
     def test_deleted_membership_card_cleanup_ubiquity_collision(self, mock_metrics):
@@ -183,7 +183,7 @@ class TestTasks(GlobalMockAPITestCase):
         user2 = UserFactory(external_id=external_id_2, email=external_id_2)
 
         main_mcard = SchemeAccountFactory()
-        SchemeAccountEntryFactory(scheme_account=main_mcard, user=user1)
+        main_mcard_entry = SchemeAccountEntryFactory(scheme_account=main_mcard, user=user1)
 
         # Add an Active payment account and link mcard to test PLL link handling
         payment_card = PaymentCardAccountFactory()
@@ -204,7 +204,7 @@ class TestTasks(GlobalMockAPITestCase):
         )
 
         # TEST
-        deleted_membership_card_cleanup(main_mcard.id, "", user1.id)
+        deleted_membership_card_cleanup(main_mcard_entry, "")
 
         main_mcard.refresh_from_db()
         self.assertTrue(main_mcard.is_deleted)
@@ -248,7 +248,7 @@ class TestTasks(GlobalMockAPITestCase):
         answers = scheme_account_entry_alt.schemeaccountcredentialanswer_set
         self.assertEqual(3, answers.count())
 
-        deleted_membership_card_cleanup(scheme_account.id, "", user2.id)
+        deleted_membership_card_cleanup(scheme_account_entry.id, "")
 
         scheme_account.refresh_from_db()
 

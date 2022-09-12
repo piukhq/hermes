@@ -3,12 +3,13 @@ from typing import TYPE_CHECKING
 
 from rest_framework import serializers
 
+from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
 from ubiquity.reason_codes import get_state_reason_code_and_text, ubiquity_status_translation
 from ubiquity.versioning.base import serializers as base_serializers
 from ubiquity.versioning.v1_2 import serializers as v1_2_serializers
 
 if TYPE_CHECKING:
-    from scheme.models import Scheme, SchemeAccount
+    from scheme.models import Scheme
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +25,9 @@ class UbiquityImageSerializer(base_serializers.UbiquityImageSerializer):
 
 class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
     @staticmethod
-    def get_translated_status(instance: "SchemeAccount", status: "SchemeAccount.STATUSES") -> dict:
+    def get_translated_status(scheme_account_entry: "SchemeAccountEntry", status: int) -> dict:
         state, reason_codes, error_text = get_state_reason_code_and_text(status)
-        scheme_errors = instance.scheme.schemeoverrideerror_set.all()
+        scheme_errors = scheme_account_entry.scheme_account.scheme.schemeoverrideerror_set.all()
 
         for error in scheme_errors:
             if error.error_code == status:
@@ -34,11 +35,11 @@ class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
                 reason_codes = [error.reason_code]
                 break
 
-        if status in instance.SYSTEM_ACTION_REQUIRED:
-            if instance.balances:
-                state = ubiquity_status_translation[instance.ACTIVE]
+        if status in AccountLinkStatus.system_action_required():
+            if scheme_account_entry.scheme_account.balances:
+                state = ubiquity_status_translation[AccountLinkStatus.ACTIVE]
             else:
-                state = ubiquity_status_translation[instance.PENDING]
+                state = ubiquity_status_translation[AccountLinkStatus.PENDING]
 
         return {"state": state, "reason_codes": reason_codes, "error_text": error_text}
 
