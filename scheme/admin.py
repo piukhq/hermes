@@ -4,6 +4,8 @@ from django.contrib.admin.actions import delete_selected
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.forms import BaseInlineFormSet, ModelForm
+from django.http import HttpResponseRedirect
+from django.shortcuts import render
 from django.utils.html import format_html
 from redis import Redis
 
@@ -34,6 +36,7 @@ from scheme.models import (
     VoucherScheme,
 )
 from ubiquity.models import SchemeAccountEntry
+from user.models import ClientApplicationBundle
 
 r = Redis(connection_pool=settings.REDIS_WRITE_API_CACHE_POOL)
 
@@ -537,6 +540,63 @@ class ExchangeAdmin(admin.ModelAdmin):
 @admin.register(SchemeOverrideError)
 class SchemeOverrideErrorAdmin(admin.ModelAdmin):
     list_display = ("id", "error_code", "scheme", "message", "reason_code", "channel")
+    actions = ["copy_to_channel"]
+    list_filter = ("channel", "error_code", "reason_code", "scheme")
+
+    def copy_to_channel(self, request, queryset):
+
+        if "apply" in request.POST:
+            # The user clicked submit on the intermediate form.
+            # So do the copy for every item:
+            chosen_channel = request.POST["chosen_channel"]
+            selected_action_list = request.POST["selected_action_list"].split(",")
+            new_channel = ClientApplicationBundle.objects.get(bundle_id=chosen_channel)
+            success = 0
+            failed = 0
+            errors = []
+            for origin_pk in selected_action_list:
+                try:
+                    entry = SchemeOverrideError.objects.get(pk=origin_pk)
+                    SchemeOverrideError.objects.create(
+                        error_code=entry.error_code,
+                        scheme=entry.scheme,
+                        message=entry.message,
+                        reason_code=entry.reason_code,
+                        error_slug=entry.error_slug,
+                        channel=new_channel,
+                    )
+                    success += 1
+                except Exception as e:
+                    failed += 1
+                    errors.append(e)
+
+            failed_message = ""
+            if failed:
+                failed_message = (
+                    f"Unfortunately, {failed} items did not get copied. "
+                    f"Check that the error_code is not duplicated by the copy. Errors: {errors}"
+                )
+
+            self.message_user(request, f"Copied {success} items to {chosen_channel}  {failed_message}")
+            return HttpResponseRedirect(request.get_full_path())
+
+        to_channels = ClientApplicationBundle.objects.all()
+        action_pks = []
+        for entry in queryset:
+            to_channels = to_channels.exclude(bundle_id=entry.channel.bundle_id)
+            action_pks.append(str(entry.pk))
+
+        channels = []
+        for to_channel in to_channels:
+            channels.append(to_channel.bundle_id)
+
+        return render(
+            request,
+            "admin/scheme/over_ride_errors/select_action_channel.html",
+            context={"copy_channels": channels, "count": len(action_pks), "selected_items": ",".join(action_pks)},
+        )
+
+    copy_to_channel.short_description = "Copy to another channel"
 
 
 @admin.register(UserConsent)

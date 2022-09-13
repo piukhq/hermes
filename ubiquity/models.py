@@ -69,6 +69,8 @@ class AccountLinkStatus(IntEnum):
     REGISTRATION_ASYNC_IN_PROGRESS = 443
     ENROL_FAILED = 901
     REGISTRATION_FAILED = 902
+    JOIN_FAILED = 903
+    AUTHORISATION_FAILED = 904
     ADD_AUTH_PENDING = 1001
     AUTH_PENDING = 2001
 
@@ -124,6 +126,8 @@ class AccountLinkStatus(IntEnum):
             ),
             (cls.ENROL_FAILED.value, "Enrol Failed", "ENROL_FAILED"),
             (cls.REGISTRATION_FAILED.value, "Ghost Card Registration Failed", "REGISTRATION_FAILED"),
+            (cls.JOIN_FAILED, "JoinFailed", "JOIN_FAILED"),
+            (cls.AUTHORISATION_FAILED, "AuthorisationFailed", "AUTHORISATION_FAILED"),
             (cls.ADD_AUTH_PENDING.value, "Add and Auth pending", "ADD_AUTH_PENDING"),
             (cls.AUTH_PENDING.value, "Auth pending", "AUTH_PENDING"),
         )

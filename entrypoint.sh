@@ -1,4 +1,7 @@
 #!/bin/sh
+
+set -e
+
 echo "Waiting for Linkerd to be up"
 
 linkerd-await
