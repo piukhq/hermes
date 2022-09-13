@@ -310,7 +310,7 @@ class TestJoinSuccessEventHandlers(TransactionTestCase):
         self.assertEqual(data["scheme_account_id"], self.mcard.id)
         self.assertEqual(data["loyalty_plan"], self.mcard.scheme_id)
         self.assertEqual(data["main_answer"], self.mcard.alt_main_answer)
-        self.assertEqual(data["status"], self.entry.link_status)
+        self.assertEqual(data["status"], self.mcard_entry.link_status)
 
     @classmethod
     def tearDownClass(cls):
@@ -347,7 +347,7 @@ class TestJoinFailEventHandlers(TransactionTestCase):
 
     @patch("history.data_warehouse.to_data_warehouse")
     def test_failed_join(self, mock_to_warehouse):
-        join_outcome(False, self.scheme)
+        join_outcome(False, self.mcard_entry)
         self.assertTrue(mock_to_warehouse.called)
         data = mock_to_warehouse.call_args.args[0]
         self.assertEqual(data["event_type"], "lc.join.failed")
@@ -631,11 +631,12 @@ class TestRegisterFailEventHandlers(TransactionTestCase):
         SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE)
 
         cls.mcard = SchemeAccountFactory(scheme=cls.scheme)
+        cls.mcard_entry = SchemeAccountEntryFactory(scheme_account=cls.mcard, user=cls.user)
         super().setUpClass()
 
     @patch("history.data_warehouse.to_data_warehouse")
     def test_failed_register(self, mock_to_warehouse):
-        register_outcome(False, self.entry)
+        register_outcome(False, self.mcard_entry)
         self.assertTrue(mock_to_warehouse.called)
         data = mock_to_warehouse.call_args.args[0]
         self.assertEqual(data["event_type"], "lc.register.failed")
@@ -646,7 +647,7 @@ class TestRegisterFailEventHandlers(TransactionTestCase):
         self.assertEqual(data["email"], self.user.email)
         self.assertEqual(data["scheme_account_id"], self.mcard.id)
         self.assertEqual(data["loyalty_plan"], self.mcard.scheme_id)
-        self.assertEqual(data["status"], self.entry.link_status)
+        self.assertEqual(data["status"], self.mcard_entry.link_status)
 
     @classmethod
     def tearDownClass(cls):
