@@ -11,6 +11,7 @@ from history.data_warehouse import (
     auth_request_lc_event,
     join_request_lc_event,
     register_lc_event,
+    to_data_warehouse,
 )
 from history.enums import SchemeAccountJourney
 from history.models import get_required_extra_fields
@@ -21,7 +22,7 @@ from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
-from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent
+from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent, AccountLinkStatus
 from ubiquity.tasks import (
     async_all_balance,
     async_join,
@@ -146,13 +147,11 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
         user = CustomUser.objects.get(pk=ac.user_id)
         permit = Permit(bundle_id=ac.channel_slug, user=user)
         account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
-        sch_acc_entry = account.schemeaccountentry_set.get(user=user)
         scheme = account.scheme
         questions = scheme.questions.all()
 
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
-        create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry,
-                                              add_fields=ac.add_fields)
+        create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
 
         if path == LoyaltyCardPath.REGISTER:
             register_lc_event(user, account, ac.channel_slug)
@@ -167,7 +166,7 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
         MembershipCardView.handle_registration_route(
             user=user,
             permit=permit,
-            scheme_acc_entry=sch_acc_entry,
+            scheme_acc_entry=scheme_account_entry,
             scheme_questions=questions,
             registration_fields=all_credentials_and_consents,
             scheme=scheme,
@@ -179,8 +178,7 @@ def loyalty_card_add(message: dict) -> None:
     with AngeliaContext(message) as ac:
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
 
-        create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry,
-                                              add_fields=ac.add_fields)
+        create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
 
 
 def loyalty_card_add_authorise(message: dict) -> None:
@@ -204,12 +202,14 @@ def loyalty_card_add_authorise(message: dict) -> None:
 
         set_auth_provided(account, ac.user_id, True)
 
+        scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
+
         if journey == "ADD_AND_AUTH":
-            scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
-            create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry,
-                                                  add_fields=ac.add_fields)
+            create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
+            scheme_account_entry.set_link_status(AccountLinkStatus.ADD_AUTH_PENDING)
             account.set_add_auth_pending()
         elif journey == "AUTH":
+            scheme_account_entry.set_link_status(AccountLinkStatus.AUTH_PENDING)
             account.set_auth_pending()
 
         async_link(
@@ -293,6 +293,22 @@ def refresh_balances(message: dict) -> None:
         permit = Permit(bundle_id=ac.channel_slug, user=user)
         async_all_balance(ac.user_id, permit)
         logger.info(f"User {ac.user_id} refresh balances called. ")
+
+
+def user_session(message: dict) -> None:
+    user = CustomUser.objects.get(id=message.get("user_id"))
+    user.last_accessed = message.get("time")
+    user.save()
+    payload = {
+        "event_type": "user.session.start",
+        "origin": "channel",
+        "channel": message.get("channel_slug"),
+        "event_date_time": user.last_accessed,
+        "external_user_ref": user.external_id,
+        "internal_user_ref": user.id,
+        "email": user.email,
+    }
+    to_data_warehouse(payload)
 
 
 table_to_model = {
@@ -430,13 +446,11 @@ def sql_history(message: dict) -> None:
 
 
 def create_key_credential_from_add_fields(scheme_account_entry: SchemeAccountEntry, add_fields):
-    cred_type = add_fields[0]['credential_slug']
-    answer = add_fields[0]['value']
+    cred_type = add_fields[0]["credential_slug"]
+    answer = add_fields[0]["value"]
 
     question = scheme_account_entry.scheme_account.scheme.questions.get(type=cred_type)
 
     SchemeAccountCredentialAnswer.objects.create(
-        scheme_account_entry=scheme_account_entry,
-        question=question,
-        answer=answer
+        scheme_account_entry=scheme_account_entry, question=question, answer=answer
     )

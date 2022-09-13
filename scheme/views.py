@@ -52,7 +52,7 @@ from scheme.serializers import (
     StatusSerializer,
     UpdateUserConsentSerializer,
 )
-from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
+from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry, AccountLinkStatus
 from ubiquity.tasks import async_join_journey_fetch_balance_and_update_status, send_merchant_metrics_for_link_delete
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin, TransactionSerializer
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
@@ -364,8 +364,7 @@ class CreateJoinSchemeAccount(APIView):
 
 
 class UpdateSchemeAccountStatus(GenericAPIView):
-    # todo: this will all need to change to an 'UpdateSchemeAccountEntryStatus'-type endpoint. This will be straight-up
-    #  broken for now.
+
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
     serializer_class = StatusSerializer
@@ -376,12 +375,14 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         """
 
         scheme_account_id = int(kwargs["pk"])
+        user_id = int(request.data["user_info"]["bink_user_id"])
         journey = request.data.get("journey")
         new_status_code = int(request.data["status"])
         if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
             raise serializers.ValidationError("Invalid status code sent.")
 
         scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id, is_deleted=False)
+        scheme_account_entry = scheme_account.schemeaccountentry_set.get(user_id=user_id)
         previous_status = scheme_account.status
 
         if journey == "join" and previous_status == scheme_account.ACCOUNT_ALREADY_EXISTS:
@@ -399,12 +400,13 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         self.process_active_accounts(scheme_account, journey, new_status_code)
 
         if new_status_code != previous_status:
-            self.process_new_status(new_status_code, previous_status, scheme_account)
+            self.process_new_status(new_status_code, previous_status, scheme_account_entry)
 
         return Response({"id": scheme_account.id, "status": new_status_code})
 
     @staticmethod
-    def set_user_authorisations_and_status(new_status_code: int, scheme_account: SchemeAccount) -> None:
+    def set_user_authorisations_and_status(new_status_code: int, scheme_account: SchemeAccount,
+                                           scheme_account_entry: SchemeAccountEntry) -> None:
         mcard_entries = scheme_account.schemeaccountentry_set.all()
 
         # Todo: LOY-1953 - will need rework when implementing multi-wallet add_and_register to update single user.
@@ -431,12 +433,15 @@ class UpdateSchemeAccountStatus(GenericAPIView):
                     f"to zero users having an authorised link - "
                     f"Status being overwritten: {status_dict.get(new_status_code)}"
                 )
+
+                scheme_account_entry.set_link_status(AccountLinkStatus.WALLET_ONLY)
                 scheme_account.status = SchemeAccount.WALLET_ONLY
         else:
             scheme_account.status = new_status_code
+            scheme_account_entry.set_link_status(new_status_code)
 
     @staticmethod
-    def process_new_status(new_status_code, previous_status, scheme_account):
+    def process_new_status(new_status_code, previous_status, scheme_account_entry):
         update_fields = []
 
         pending_statuses = (
@@ -448,10 +453,13 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         )
 
         capture_membership_card_status_change_metric(
-            scheme_slug=Scheme.get_scheme_slug_by_scheme_id(scheme_account.scheme_id),
+            scheme_slug=Scheme.get_scheme_slug_by_scheme_id(scheme_account_entry.scheme_account.scheme_id),
             old_status=previous_status,
             new_status=new_status_code,
         )
+
+        scheme_account = scheme_account_entry.scheme_account
+
         PaymentCardSchemeEntry.update_active_link_status({"scheme_account": scheme_account})
 
         # delete main answer credential if an async join failed
@@ -478,7 +486,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         elif new_status_code not in pending_statuses:
             Payment.process_payment_void(scheme_account)
 
-        UpdateSchemeAccountStatus.set_user_authorisations_and_status(new_status_code, scheme_account)
+        UpdateSchemeAccountStatus.set_user_authorisations_and_status(new_status_code, scheme_account, scheme_account_entry)
         update_fields.append("status")
 
         if update_fields:
@@ -627,12 +635,12 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         ---
         """
         account = get_object_or_404(SchemeAccount.objects, id=self.kwargs["pk"])
-        new_credentials = request.data["credentials"]
-        user_id = request.data["bink_user_id"]
+        credential_answers = request.data
+        user_id = credential_answers.pop('bink_user_id')
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=account, user_id=user_id)
 
         response = self.update_credentials(
-            account, new_credentials, scheme_account_entry, allow_existing_main_answer=False
+            account, credential_answers, scheme_account_entry, allow_existing_main_answer=False
         )
         scheme_account_entry.update_scheme_account_key_credential_fields()
         return Response(response, status=status.HTTP_200_OK)

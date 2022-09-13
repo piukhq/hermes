@@ -2,6 +2,7 @@ import json
 import logging
 import re
 import sre_constants
+from enum import IntEnum
 from typing import TYPE_CHECKING, Iterable, Type, Union
 
 import django
@@ -29,12 +30,197 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# todo: Replace all usages of SchemeAccount statuses with this and delete from SchemeAccount.
+#  This should be replaced again once these statuses have been moved to a shared library
+class AccountLinkStatus(IntEnum):
+    PENDING = 0
+    ACTIVE = 1
+    INVALID_CREDENTIALS = 403
+    INVALID_MFA = 432
+    END_SITE_DOWN = 530
+    IP_BLOCKED = 531
+    TRIPPED_CAPTCHA = 532
+    INCOMPLETE = 5
+    LOCKED_BY_ENDSITE = 434
+    RETRY_LIMIT_REACHED = 429
+    RESOURCE_LIMIT_REACHED = 503
+    UNKNOWN_ERROR = 520
+    MIDAS_UNREACHABLE = 9
+    AGENT_NOT_FOUND = 404
+    WALLET_ONLY = 10
+    PASSWORD_EXPIRED = 533
+    JOIN = 900
+    NO_SUCH_RECORD = 444
+    CONFIGURATION_ERROR = 536
+    NOT_SENT = 535
+    ACCOUNT_ALREADY_EXISTS = 445
+    SERVICE_CONNECTION_ERROR = 537
+    VALIDATION_ERROR = 401
+    PRE_REGISTERED_CARD = 406
+    FAILED_UPDATE = 446
+    SCHEME_REQUESTED_DELETE = 447
+    PENDING_MANUAL_CHECK = 204
+    CARD_NUMBER_ERROR = 436
+    LINK_LIMIT_EXCEEDED = 437
+    CARD_NOT_REGISTERED = 438
+    GENERAL_ERROR = 439
+    JOIN_IN_PROGRESS = 441
+    JOIN_ERROR = 538
+    JOIN_ASYNC_IN_PROGRESS = 442
+    REGISTRATION_ASYNC_IN_PROGRESS = 443
+    ENROL_FAILED = 901
+    REGISTRATION_FAILED = 902
+    ADD_AUTH_PENDING = 1001
+    AUTH_PENDING = 2001
+
+    @classmethod
+    def extended_statuses(cls):
+        return (
+            (cls.PENDING.value, "Pending", "PENDING"),
+            (cls.ACTIVE.value, "Active", "ACTIVE"),
+            (cls.INVALID_CREDENTIALS.value, "Invalid credentials", "INVALID_CREDENTIALS"),
+            (cls.INVALID_MFA.value, "Invalid mfa", "INVALID_MFA"),
+            (cls.END_SITE_DOWN.value, "End site down", "END_SITE_DOWN"),
+            (cls.IP_BLOCKED.value, "IP blocked", "IP_BLOCKED"),
+            (cls.TRIPPED_CAPTCHA.value, "Tripped captcha", "TRIPPED_CAPTCHA"),
+            (cls.INCOMPLETE.value, "Please check your scheme account login details.", "INCOMPLETE"),
+            (cls.LOCKED_BY_ENDSITE.value, "Account locked on end site", "LOCKED_BY_ENDSITE"),
+            (cls.RETRY_LIMIT_REACHED.value, "Cannot connect, too many retries", "RETRY_LIMIT_REACHED"),
+            (cls.RESOURCE_LIMIT_REACHED.value, "Too many balance requests running", "RESOURCE_LIMIT_REACHED"),
+            (cls.UNKNOWN_ERROR.value, "An unknown error has occurred", "UNKNOWN_ERROR"),
+            (cls.MIDAS_UNREACHABLE.value, "Midas unavailable", "MIDAS_UNREACHABLE"),
+            (cls.WALLET_ONLY.value, "Wallet only card", "WALLET_ONLY"),
+            (cls.AGENT_NOT_FOUND.value, "Agent does not exist on midas", "AGENT_NOT_FOUND"),
+            (cls.PASSWORD_EXPIRED.value, "Password expired", "PASSWORD_EXPIRED"),
+            (cls.JOIN.value, "Join", "JOIN"),
+            (cls.NO_SUCH_RECORD.value, "No user currently found", "NO_SUCH_RECORD"),
+            (
+                cls.CONFIGURATION_ERROR.value,
+                "Error with the configuration or it was not possible to retrieve",
+                "CONFIGURATION_ERROR",
+            ),
+            (cls.NOT_SENT.value, "Request was not sent", "NOT_SENT"),
+            (cls.ACCOUNT_ALREADY_EXISTS.value, "Account already exists", "ACCOUNT_ALREADY_EXISTS"),
+            (cls.SERVICE_CONNECTION_ERROR.value, "Service connection error", "SERVICE_CONNECTION_ERROR"),
+            (cls.VALIDATION_ERROR.value, "Failed validation", "VALIDATION_ERROR"),
+            (cls.PRE_REGISTERED_CARD.value, "Pre-registered card", "PRE_REGISTERED_CARD"),
+            (cls.FAILED_UPDATE.value, "Update failed. Delete and re-add card.", "FAILED_UPDATE"),
+            (cls.PENDING_MANUAL_CHECK.value, "Pending manual check.", "PENDING_MANUAL_CHECK"),
+            (cls.CARD_NUMBER_ERROR.value, "Invalid card_number", "CARD_NUMBER_ERROR"),
+            (cls.LINK_LIMIT_EXCEEDED.value, "You can only Link one card per day.", "LINK_LIMIT_EXCEEDED"),
+            (cls.CARD_NOT_REGISTERED.value, "Unknown Card number", "CARD_NOT_REGISTERED"),
+            (cls.GENERAL_ERROR.value, "General Error such as incorrect user details", "GENERAL_ERROR"),
+            (cls.JOIN_IN_PROGRESS.value, "Join in progress", "JOIN_IN_PROGRESS"),
+            (cls.JOIN_ERROR.value, "A system error occurred during join", "JOIN_ERROR"),
+            (
+                cls.SCHEME_REQUESTED_DELETE.value,
+                "The scheme has requested this account should be deleted",
+                "SCHEME_REQUESTED_DELETE",
+            ),
+            (cls.JOIN_ASYNC_IN_PROGRESS.value, "Asynchronous join in progress", "JOIN_ASYNC_IN_PROGRESS"),
+            (
+                cls.REGISTRATION_ASYNC_IN_PROGRESS.value,
+                "Asynchronous registration in progress",
+                "REGISTRATION_ASYNC_IN_PROGRESS",
+            ),
+            (cls.ENROL_FAILED.value, "Enrol Failed", "ENROL_FAILED"),
+            (cls.REGISTRATION_FAILED.value, "Ghost Card Registration Failed", "REGISTRATION_FAILED"),
+            (cls.ADD_AUTH_PENDING.value, "Add and Auth pending", "ADD_AUTH_PENDING"),
+            (cls.AUTH_PENDING.value, "Auth pending", "AUTH_PENDING"),
+        )
+
+    @classmethod
+    def statuses(cls):
+        return tuple(extended_status[:2] for extended_status in AccountLinkStatus.extended_statuses())
+
+    @classmethod
+    def join_action_required(cls):
+        return [
+            cls.JOIN,
+            cls.CARD_NOT_REGISTERED,
+            cls.PRE_REGISTERED_CARD,
+            cls.REGISTRATION_FAILED,
+            cls.ENROL_FAILED,
+            cls.ACCOUNT_ALREADY_EXISTS,
+        ]
+
+    @classmethod
+    def user_action_required(cls):
+        return [
+            cls.INVALID_CREDENTIALS,
+            cls.INVALID_MFA,
+            cls.INCOMPLETE,
+            cls.LOCKED_BY_ENDSITE,
+            cls.VALIDATION_ERROR,
+            cls.PRE_REGISTERED_CARD,
+            cls.REGISTRATION_FAILED,
+            cls.CARD_NUMBER_ERROR,
+            cls.GENERAL_ERROR,
+            cls.JOIN_IN_PROGRESS,
+            cls.SCHEME_REQUESTED_DELETE,
+            cls.FAILED_UPDATE,
+        ]
+
+    @classmethod
+    def system_action_required(cls):
+        return [
+            cls.END_SITE_DOWN,
+            cls.RETRY_LIMIT_REACHED,
+            cls.UNKNOWN_ERROR,
+            cls.MIDAS_UNREACHABLE,
+            cls.IP_BLOCKED,
+            cls.TRIPPED_CAPTCHA,
+            cls.RESOURCE_LIMIT_REACHED,
+            cls.LINK_LIMIT_EXCEEDED,
+            cls.CONFIGURATION_ERROR,
+            cls.NOT_SENT,
+            cls.SERVICE_CONNECTION_ERROR,
+            cls.JOIN_ERROR,
+            cls.AGENT_NOT_FOUND,
+        ]
+
+    @classmethod
+    def exclude_balance_statuses(cls):
+        return (
+            cls.join_action_required()
+            + cls.user_action_required()
+            + [cls.PENDING, cls.PENDING_MANUAL_CHECK, cls.WALLET_ONLY, cls.ADD_AUTH_PENDING, cls.AUTH_PENDING]
+        )
+
+    @classmethod
+    def join_exclude_balance_statuses(cls):
+        return [
+            cls.PENDING_MANUAL_CHECK,
+            cls.JOIN,
+            cls.JOIN_ASYNC_IN_PROGRESS,
+            cls.REGISTRATION_ASYNC_IN_PROGRESS,
+            cls.ENROL_FAILED,
+        ]
+
+    @classmethod
+    def join_pending(cls):
+        return [cls.JOIN_ASYNC_IN_PROGRESS]
+
+    @classmethod
+    def register_pending(cls):
+        return [cls.REGISTRATION_ASYNC_IN_PROGRESS]
+
+    @classmethod
+    def pre_pending_statuses(cls):
+        return [cls.AUTH_PENDING, cls.ADD_AUTH_PENDING]
+
+    @classmethod
+    def all_pending_statuses(cls):
+        return [cls.PENDING, cls.AUTH_PENDING, cls.ADD_AUTH_PENDING]
+
+
 class SchemeAccountEntry(models.Model):
     scheme_account = models.ForeignKey(
         "scheme.SchemeAccount", on_delete=models.CASCADE, verbose_name="Associated Scheme Account"
     )
     user = models.ForeignKey("user.CustomUser", on_delete=models.CASCADE, verbose_name="Associated User")
     auth_provided = models.BooleanField(default=False)
+    link_status = models.IntegerField(default=AccountLinkStatus.PENDING, choices=AccountLinkStatus.statuses())
 
     class Meta:
         unique_together = ("scheme_account", "user")
@@ -171,6 +357,16 @@ class SchemeAccountEntry(models.Model):
                     )
                 except IndexError:
                     pass
+
+    def set_link_status(self, new_status: int, commit_change=True):
+        if self.auth_provided is True:
+            status_to_set = new_status
+        else:
+            status_to_set = AccountLinkStatus.WALLET_ONLY
+
+        self.link_status = status_to_set
+        if commit_change:
+            self.save(update_fields=['link_status'])
 
     def missing_credentials(self, credential_types):
         """

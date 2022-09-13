@@ -6,7 +6,7 @@ import uuid
 from decimal import ROUND_HALF_UP, Decimal
 from enum import IntEnum
 from functools import lru_cache
-from typing import TYPE_CHECKING, Dict, Iterable, Type, Union
+from typing import TYPE_CHECKING, Dict, Iterable, Type, Union, Optional
 
 import arrow
 import requests
@@ -32,7 +32,7 @@ from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED
 from scheme.encryption import AESCipher
 from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import AESKeyNames
-from ubiquity.models import SchemeAccountEntry
+from ubiquity.models import SchemeAccountEntry, AccountLinkStatus
 from ubiquity.reason_codes import REASON_CODES
 
 if TYPE_CHECKING:
@@ -632,6 +632,9 @@ class SchemeAccount(models.Model):
     REGISTRATION_ASYNC_IN_PROGRESS = 443
     ENROL_FAILED = 901
     REGISTRATION_FAILED = 902
+    JOIN_FAILED = 903
+    AUTHORISATION_FAILED = 904
+
     ADD_AUTH_PENDING = 1001
     AUTH_PENDING = 2001
 
@@ -675,6 +678,8 @@ class SchemeAccount(models.Model):
         (REGISTRATION_FAILED, "Ghost Card Registration Failed", "REGISTRATION_FAILED"),
         (ADD_AUTH_PENDING, "Add and Auth pending", "ADD_AUTH_PENDING"),
         (AUTH_PENDING, "Auth pending", "AUTH_PENDING"),
+        (JOIN_FAILED, "Join Failed", "JOIN_FAILED"),
+        (AUTHORISATION_FAILED, "Authorisation Failed", "AUTHORISATION_FAILED"),
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     JOIN_ACTION_REQUIRED = [
@@ -792,37 +797,37 @@ class SchemeAccount(models.Model):
             for user_consent in user_consents
         ]
 
-    def _process_midas_response(self, response):
+    def _process_midas_response(self, response) -> tuple[Optional[bool], int, Optional[bool]]:
         # todo: liaise with Merchant to work out how we parse credentials back in.
         points = None
-        current_status = self.status
+        previous_status = self.status
         dw_event = None
-        self.status = response.status_code
-        if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
-            self.status = SchemeAccount.UNKNOWN_ERROR
 
         if response.status_code == 200:
             points = response.json()
-            self.status = SchemeAccount.PENDING if points.get("pending") else SchemeAccount.ACTIVE
+            account_status = SchemeAccount.PENDING if points.get("pending") else SchemeAccount.ACTIVE
             points["balance"] = points.get("balance")  # serializers.DecimalField does not allow blank fields
             points["is_stale"] = False
 
-        # When receiving a 500 error from Midas, keep SchemeAccount active only
-        # if it's already active.
-        elif response.status_code >= 500 and current_status == SchemeAccount.ACTIVE:
-            self.status = SchemeAccount.ACTIVE
-            logger.info(f"Ignoring Midas {self.status} response code")
+        elif response.status_code >= 500 and previous_status == SchemeAccount.ACTIVE:
+            # When receiving a 500 error from Midas, keep SchemeAccount active only
+            # if it's already active.
+            account_status = previous_status
+            logger.info(f"Ignoring Midas {response.status_code} response code")
+
+        elif response.status_code not in [status[0] for status in self.EXTENDED_STATUSES]:
+            account_status = SchemeAccount.UNKNOWN_ERROR
+
+        else:
+            account_status = response.status_code
 
         # data warehouse event, not used for subsequent midas calls
         # only when a scheme_account was in a pre-pending status
-        if current_status in self.PRE_PENDING_STATUSES:
+        if previous_status in self.PRE_PENDING_STATUSES:
             # dw_event is a tuple(success: bool, SchemeAccount.STATUS: int)
-            if self.status == SchemeAccount.ACTIVE:
-                dw_event = (True, current_status)
-            else:
-                dw_event = (False, current_status)
+            dw_event = (response.status_code == SchemeAccount.ACTIVE, previous_status)
 
-        return points, dw_event
+        return points, account_status, dw_event
 
     def get_key_cred_value_from_question_type(self, question_type):
         if question_type == CARD_NUMBER:
@@ -854,10 +859,13 @@ class SchemeAccount(models.Model):
             if not credentials:
                 return points, dw_event
             response = self._get_balance(credentials, journey, scheme_account_entry)
-            points, dw_event = self._process_midas_response(response)
+            points, account_status, dw_event = self._process_midas_response(response)
+            self.status = account_status
 
         except ConnectionError:
-            self.status = SchemeAccount.MIDAS_UNREACHABLE
+            self.status = account_status = SchemeAccount.MIDAS_UNREACHABLE
+
+        scheme_account_entry.set_link_status(account_status)
 
         self._received_balance_checks(old_status, scheme_account_entry)
         return points, dw_event
@@ -1202,6 +1210,7 @@ class SchemeCredentialQuestion(models.Model):
         (2, "choice"),
         (3, "boolean"),
         (4, "payment_card_hash"),
+        (5, "date"),
     )
 
     scheme = models.ForeignKey("Scheme", related_name="questions", on_delete=models.PROTECT)
@@ -1401,6 +1410,8 @@ class VoucherScheme(models.Model):
         (BURNTYPE_DISCOUNT, "Discount"),
     )
 
+    VOUCHER_BARCODE_TYPES = BARCODE_TYPES + ((9, "Barcode Not Supported"),)
+
     scheme = models.ForeignKey("scheme.Scheme", on_delete=models.CASCADE)
 
     earn_currency = models.CharField(max_length=50, blank=True, verbose_name="Currency")
@@ -1420,7 +1431,7 @@ class VoucherScheme(models.Model):
     burn_type = models.CharField(max_length=50, choices=BURN_TYPES, verbose_name="Burn Type")
     burn_value = models.FloatField(blank=True, null=True, verbose_name="Value")
 
-    barcode_type = models.IntegerField(choices=BARCODE_TYPES)
+    barcode_type = models.IntegerField(choices=VOUCHER_BARCODE_TYPES)
 
     headline_inprogress = models.CharField(max_length=250, verbose_name="In Progress")
     headline_expired = models.CharField(max_length=250, verbose_name="Expired")
@@ -1479,7 +1490,7 @@ class VoucherScheme(models.Model):
         return float(earn_target_value)
 
     @staticmethod
-    def get_earn_value(voucher_fields: Dict, earn_target_value: float) -> [float, int]:
+    def get_earn_value(voucher_fields: Dict, earn_target_value: float) -> float:
         """
         Get the value from the incoming voucher. If it's None then assume
         it's been completed and set to the earn target value, otherwise return the value of the field.
