@@ -632,6 +632,9 @@ class SchemeAccount(models.Model):
     REGISTRATION_ASYNC_IN_PROGRESS = 443
     ENROL_FAILED = 901
     REGISTRATION_FAILED = 902
+    JOIN_FAILED = 903
+    AUTHORISATION_FAILED = 904
+
     ADD_AUTH_PENDING = 1001
     AUTH_PENDING = 2001
 
@@ -675,6 +678,8 @@ class SchemeAccount(models.Model):
         (REGISTRATION_FAILED, "Ghost Card Registration Failed", "REGISTRATION_FAILED"),
         (ADD_AUTH_PENDING, "Add and Auth pending", "ADD_AUTH_PENDING"),
         (AUTH_PENDING, "Auth pending", "AUTH_PENDING"),
+        (JOIN_FAILED, "Join Failed", "JOIN_FAILED"),
+        (AUTHORISATION_FAILED, "Authorisation Failed", "AUTHORISATION_FAILED"),
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     JOIN_ACTION_REQUIRED = [
@@ -1205,6 +1210,7 @@ class SchemeCredentialQuestion(models.Model):
         (2, "choice"),
         (3, "boolean"),
         (4, "payment_card_hash"),
+        (5, "date"),
     )
 
     scheme = models.ForeignKey("Scheme", related_name="questions", on_delete=models.PROTECT)
@@ -1404,6 +1410,8 @@ class VoucherScheme(models.Model):
         (BURNTYPE_DISCOUNT, "Discount"),
     )
 
+    VOUCHER_BARCODE_TYPES = BARCODE_TYPES + ((9, "Barcode Not Supported"),)
+
     scheme = models.ForeignKey("scheme.Scheme", on_delete=models.CASCADE)
 
     earn_currency = models.CharField(max_length=50, blank=True, verbose_name="Currency")
@@ -1423,7 +1431,7 @@ class VoucherScheme(models.Model):
     burn_type = models.CharField(max_length=50, choices=BURN_TYPES, verbose_name="Burn Type")
     burn_value = models.FloatField(blank=True, null=True, verbose_name="Value")
 
-    barcode_type = models.IntegerField(choices=BARCODE_TYPES)
+    barcode_type = models.IntegerField(choices=VOUCHER_BARCODE_TYPES)
 
     headline_inprogress = models.CharField(max_length=250, verbose_name="In Progress")
     headline_expired = models.CharField(max_length=250, verbose_name="Expired")
@@ -1482,7 +1490,7 @@ class VoucherScheme(models.Model):
         return float(earn_target_value)
 
     @staticmethod
-    def get_earn_value(voucher_fields: Dict, earn_target_value: float) -> [float, int]:
+    def get_earn_value(voucher_fields: Dict, earn_target_value: float) -> float:
         """
         Get the value from the incoming voucher. If it's None then assume
         it's been completed and set to the earn target value, otherwise return the value of the field.

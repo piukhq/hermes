@@ -11,6 +11,7 @@ from history.data_warehouse import (
     auth_request_lc_event,
     join_request_lc_event,
     register_lc_event,
+    to_data_warehouse,
 )
 from history.enums import SchemeAccountJourney
 from history.models import get_required_extra_fields
@@ -292,6 +293,22 @@ def refresh_balances(message: dict) -> None:
         permit = Permit(bundle_id=ac.channel_slug, user=user)
         async_all_balance(ac.user_id, permit)
         logger.info(f"User {ac.user_id} refresh balances called. ")
+
+
+def user_session(message: dict) -> None:
+    user = CustomUser.objects.get(id=message.get("user_id"))
+    user.last_accessed = message.get("time")
+    user.save()
+    payload = {
+        "event_type": "user.session.start",
+        "origin": "channel",
+        "channel": message.get("channel_slug"),
+        "event_date_time": user.last_accessed,
+        "external_user_ref": user.external_id,
+        "internal_user_ref": user.id,
+        "email": user.email,
+    }
+    to_data_warehouse(payload)
 
 
 table_to_model = {
