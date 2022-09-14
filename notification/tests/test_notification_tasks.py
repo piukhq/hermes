@@ -71,7 +71,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
     def test_get_status_translation(self):
         balance = [{"value": 1480.0}]
 
-        sys_action_required_scheme_account = SchemeAccountFactory(status=SchemeAccount.END_SITE_DOWN, balances=balance)
+        sys_action_required_scheme_account = SchemeAccountFactory(status=AccountLinkStatus.END_SITE_DOWN, balances=balance)
 
         notification_processor = NotificationProcessor()
         state = notification_processor.get_status_translation(
@@ -94,7 +94,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
         self.assertEqual(state, DELETED)
 
-        sys_action_required_scheme_account.status = SchemeAccount.VALIDATION_ERROR
+        sys_action_required_scheme_account.status = AccountLinkStatus.VALIDATION_ERROR
         sys_action_required_scheme_account.save(update_fields=["status"])
 
         state = notification_processor.get_status_translation(
@@ -103,7 +103,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
         self.assertEqual(state, FAILED)
 
-        sys_action_required_scheme_account.status = SchemeAccount.INVALID_MFA
+        sys_action_required_scheme_account.status = AccountLinkStatus.INVALID_MFA
         sys_action_required_scheme_account.save(update_fields=["status"])
 
         state = notification_processor.get_status_translation(
@@ -131,19 +131,19 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 change_type=HistoricalSchemeAccount.CREATE,
                 instance_id=scheme_account.id,
                 change_details="",
-                body={"id": scheme_account.id, "status": SchemeAccount.PENDING},
+                body={"id": scheme_account.id, "status": AccountLinkStatus.PENDING},
                 channel=self.barclays_channel,
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.mocked_datetime)):
-            scheme_account.status = SchemeAccount.ACTIVE
+            scheme_account.status = AccountLinkStatus.ACTIVE
             scheme_account.save(update_fields=["status"])
 
             HistoricalSchemeAccount(
                 change_type=HistoricalSchemeAccount.UPDATE,
                 instance_id=scheme_account.id,
                 change_details="status",
-                body={"id": scheme_account.id, "status": SchemeAccount.ACTIVE},
+                body={"id": scheme_account.id, "status": AccountLinkStatus.ACTIVE},
                 channel=self.barclays_channel,
             ).save()
 
@@ -175,19 +175,19 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 change_type=HistoricalSchemeAccount.CREATE,
                 instance_id=scheme_account.id,
                 change_details="",
-                body={"id": scheme_account.id, "status": SchemeAccount.PENDING},
+                body={"id": scheme_account.id, "status": AccountLinkStatus.PENDING},
                 channel=self.barclays_channel,
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.mocked_datetime)):
-            scheme_account.status = SchemeAccount.END_SITE_DOWN
+            scheme_account.status = AccountLinkStatus.END_SITE_DOWN
             scheme_account.save(update_fields=["status"])
 
             HistoricalSchemeAccount(
                 change_type=HistoricalSchemeAccount.UPDATE,
                 instance_id=scheme_account.id,
                 change_details="status",
-                body={"id": scheme_account.id, "status": SchemeAccount.END_SITE_DOWN},
+                body={"id": scheme_account.id, "status": AccountLinkStatus.END_SITE_DOWN},
                 channel=self.barclays_channel,
             ).save()
 
@@ -216,11 +216,11 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 change_type=HistoricalSchemeAccount.CREATE,
                 instance_id=scheme_account.id,
                 change_details="",
-                body={"id": scheme_account.id, "status": SchemeAccount.PENDING},
+                body={"id": scheme_account.id, "status": AccountLinkStatus.PENDING},
                 channel=self.barclays_channel,
             ).save()
 
-            scheme_account.status = SchemeAccount.ACTIVE
+            scheme_account.status = AccountLinkStatus.ACTIVE
             scheme_account.balances = [{"value": 1480.0}]
             scheme_account.save(update_fields=["status", "balances"])
 
@@ -228,19 +228,19 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 change_type=HistoricalSchemeAccount.UPDATE,
                 instance_id=scheme_account.id,
                 change_details="",
-                body={"id": scheme_account.id, "status": SchemeAccount.ACTIVE},
+                body={"id": scheme_account.id, "status": AccountLinkStatus.ACTIVE},
                 channel=self.barclays_channel,
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.mocked_datetime)):
-            scheme_account.status = SchemeAccount.END_SITE_DOWN
+            scheme_account.status = AccountLinkStatus.END_SITE_DOWN
             scheme_account.save(update_fields=["status"])
 
             HistoricalSchemeAccount(
                 change_type=HistoricalSchemeAccount.UPDATE,
                 instance_id=scheme_account.id,
                 change_details="status",
-                body={"id": scheme_account.id, "status": SchemeAccount.END_SITE_DOWN},
+                body={"id": scheme_account.id, "status": AccountLinkStatus.END_SITE_DOWN},
                 channel=self.barclays_channel,
             ).save()
 
@@ -272,19 +272,19 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 change_type=HistoricalSchemeAccount.CREATE,
                 instance_id=self.scheme_account.id,
                 change_details="",
-                body={"id": self.scheme_account.id, "status": SchemeAccount.PENDING},
+                body={"id": self.scheme_account.id, "status": AccountLinkStatus.PENDING},
                 channel=self.barclays_channel,
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.mocked_datetime)):
-            self.scheme_account.status = SchemeAccount.ACTIVE
+            self.scheme_account.status = AccountLinkStatus.ACTIVE
             self.scheme_account.save(update_fields=["status"])
 
             HistoricalSchemeAccount(
                 change_type=HistoricalSchemeAccount.UPDATE,
                 instance_id=self.scheme_account.id,
                 change_details="status",
-                body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE},
+                body={"id": self.scheme_account.id, "status": AccountLinkStatus.ACTIVE},
                 channel=self.barclays_channel,
             ).save()
 
@@ -315,19 +315,19 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 change_type=HistoricalSchemeAccount.CREATE,
                 instance_id=self.scheme_account.id,
                 change_details="",
-                body={"id": self.scheme_account.id, "status": SchemeAccount.PENDING},
+                body={"id": self.scheme_account.id, "status": AccountLinkStatus.PENDING},
                 channel=self.barclays_channel,
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.mocked_datetime)):
-            self.scheme_account.status = SchemeAccount.ACTIVE
+            self.scheme_account.status = AccountLinkStatus.ACTIVE
             self.scheme_account.save(update_fields=["status"])
 
             HistoricalSchemeAccount(
                 change_type=HistoricalSchemeAccount.UPDATE,
                 instance_id=self.scheme_account.id,
                 change_details="status",
-                body={"id": self.scheme_account.id, "status": SchemeAccount.INVALID_MFA},
+                body={"id": self.scheme_account.id, "status": AccountLinkStatus.INVALID_MFA},
                 channel=self.barclays_channel,
             ).save()
 
@@ -335,7 +335,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 change_type=HistoricalSchemeAccount.UPDATE,
                 instance_id=self.scheme_account.id,
                 change_details="status",
-                body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE},
+                body={"id": self.scheme_account.id, "status": AccountLinkStatus.ACTIVE},
                 channel=self.barclays_channel,
             ).save()
 
@@ -386,7 +386,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 change_type=HistoricalSchemeAccount.CREATE,
                 instance_id=self.scheme_account.id,
                 change_details="",
-                body={"id": self.scheme_account.id, "status": SchemeAccount.PENDING},
+                body={"id": self.scheme_account.id, "status": AccountLinkStatus.PENDING},
                 channel=self.barclays_channel,
             ).save()
 
@@ -398,7 +398,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 change_type=HistoricalSchemeAccount.DELETE,
                 instance_id=self.scheme_account.id,
                 change_details="status",
-                body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE},
+                body={"id": self.scheme_account.id, "status": AccountLinkStatus.ACTIVE},
                 channel=self.barclays_channel,
             ).save()
 
@@ -437,19 +437,19 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 change_type=HistoricalSchemeAccount.CREATE,
                 instance_id=self.scheme_account.id,
                 change_details="",
-                body={"id": self.scheme_account.id, "status": SchemeAccount.PENDING},
+                body={"id": self.scheme_account.id, "status": AccountLinkStatus.PENDING},
                 channel=self.barclays_channel,
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.mocked_datetime)):
-            self.scheme_account.status = SchemeAccount.ACTIVE
+            self.scheme_account.status = AccountLinkStatus.ACTIVE
             self.scheme_account.save(update_fields=["status"])
 
             HistoricalSchemeAccount(
                 change_type=HistoricalSchemeAccount.UPDATE,
                 instance_id=self.scheme_account.id,
                 change_details="status",
-                body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE},
+                body={"id": self.scheme_account.id, "status": AccountLinkStatus.ACTIVE},
                 channel=self.barclays_channel,
             ).save()
 
@@ -474,7 +474,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
     def test_get_data_outside_notification_run_time(self):
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.mocked_now_datetime)):
-            scheme_account = SchemeAccountFactory(status=SchemeAccount.PENDING)
+            scheme_account = SchemeAccountFactory(status=AccountLinkStatus.PENDING)
             scheme_account_entry = SchemeAccountEntryFactory(user=self.user_two, scheme_account=scheme_account)
 
             HistoricalSchemeAccountEntry(
@@ -489,21 +489,21 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 change_type=HistoricalSchemeAccount.CREATE,
                 instance_id=scheme_account.id,
                 change_details="",
-                body={"id": scheme_account.id, "status": SchemeAccount.PENDING},
+                body={"id": scheme_account.id, "status": AccountLinkStatus.PENDING},
                 channel=self.barclays_channel,
             ).save()
 
         mocked_replaced_time = self.mocked_now_datetime.replace(hour=23, minute=0, second=0, microsecond=0)
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=mocked_replaced_time)):
-            scheme_account.status = SchemeAccount.ACTIVE
+            scheme_account.status = AccountLinkStatus.ACTIVE
             scheme_account.save(update_fields=["status"])
 
             HistoricalSchemeAccount(
                 change_type=HistoricalSchemeAccount.UPDATE,
                 instance_id=scheme_account.id,
                 change_details="status",
-                body={"id": scheme_account.id, "status": SchemeAccount.ACTIVE},
+                body={"id": scheme_account.id, "status": AccountLinkStatus.ACTIVE},
                 channel=self.barclays_channel,
             ).save()
 
@@ -528,7 +528,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
             [
                 self.external_id,
                 self.scheme_account.scheme.slug,
-                ubiquity_status_translation[SchemeAccount.ACTIVE],
+                ubiquity_status_translation[AccountLinkStatus.ACTIVE],
                 datetime_now,
             ]
         ]
@@ -537,7 +537,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 "01",
                 self.external_id,
                 self.scheme_account.scheme.slug,
-                ubiquity_status_translation[SchemeAccount.ACTIVE],
+                ubiquity_status_translation[AccountLinkStatus.ACTIVE],
                 int(datetime_now.timestamp()),
             ]
         ]
@@ -545,14 +545,14 @@ class TestNotificationTask(GlobalMockAPITestCase):
         result = sftp.format_data(data)
         self.assertEqual(result, expected_result)
 
-        data = [[self.external_id, self.scheme_account.scheme.slug, SchemeAccount.PENDING, datetime_now]]
+        data = [[self.external_id, self.scheme_account.scheme.slug, AccountLinkStatus.PENDING, datetime_now]]
 
         expected_result = [
             [
                 "01",
                 self.external_id,
                 self.scheme_account.scheme.slug,
-                ubiquity_status_translation[SchemeAccount.PENDING],
+                ubiquity_status_translation[AccountLinkStatus.PENDING],
                 int(datetime_now.timestamp()),
             ]
         ]
@@ -599,7 +599,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
     @mock.patch("notification.tasks.SftpManager.transfer_file")
     @mock.patch("paramiko.RSAKey.from_private_key")
     def test_transfer_file(self, mock_connection, mock_transfer, mock_rsa_key):
-        test_data = [[self.external_id, self.scheme_account.scheme.slug, SchemeAccount.ACTIVE, timezone.now()]]
+        test_data = [[self.external_id, self.scheme_account.scheme.slug, AccountLinkStatus.ACTIVE, timezone.now()]]
         sftp = SftpManager(rows=test_data)
         result = sftp.transfer_file()
 
