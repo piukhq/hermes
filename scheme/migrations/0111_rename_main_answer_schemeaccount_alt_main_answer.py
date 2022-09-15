@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("scheme", "0108_remove_schemeaccountcredentialanswer_scheme_account"),
+        ("scheme", "0110_remove_schemeaccountcredentialanswer_scheme_account"),
     ]
 
     operations = [
