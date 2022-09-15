@@ -366,7 +366,7 @@ class SchemeAccountEntry(models.Model):
 
         self.link_status = status_to_set
         if commit_change:
-            self.save(update_fields=['link_status'])
+            self.save(update_fields=["link_status"])
 
     def missing_credentials(self, credential_types):
         """

@@ -408,9 +408,11 @@ class TestPayment(GlobalMockAPITestCase):
         user_set = str(self.user.id)
 
         auth_headers = {"HTTP_AUTHORIZATION": "Token " + settings.SERVICE_API_KEY}
-        data = {"status": SchemeAccount.ACTIVE, "journey": "join", "user_info": {
-            "user_set": user_set, "bink_user_id": self.user.id
-        }}
+        data = {
+            "status": SchemeAccount.ACTIVE,
+            "journey": "join",
+            "user_info": {"user_set": user_set, "bink_user_id": self.user.id},
+        }
         response = self.client.post(
             reverse("change_account_status", args=[scheme_account.id]), data, format="json", **auth_headers
         )
@@ -431,8 +433,11 @@ class TestPayment(GlobalMockAPITestCase):
         user_set = str(self.user.id)
 
         auth_headers = {"HTTP_AUTHORIZATION": "Token " + settings.SERVICE_API_KEY}
-        data = {"status": SchemeAccount.ENROL_FAILED, "journey": "join",
-                "user_info": {"user_set": user_set, "bink_user_id": self.user.id}}
+        data = {
+            "status": SchemeAccount.ENROL_FAILED,
+            "journey": "join",
+            "user_info": {"user_set": user_set, "bink_user_id": self.user.id},
+        }
         response = self.client.post(
             reverse("change_account_status", args=[scheme_account.id]), data, format="json", **auth_headers
         )

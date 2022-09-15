@@ -37,7 +37,7 @@ from scheme.models import (
 )
 from scheme.serializers import UbiquityJoinSerializer, UpdateCredentialSerializer, UserConsentSerializer
 from ubiquity.channel_vault import AESKeyNames
-from ubiquity.models import SchemeAccountEntry, AccountLinkStatus
+from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
 
 DATAWAREHOUSE_EVENTS = {
     SchemeAccount.ADD_AUTH_PENDING: add_auth_outcome_task,
@@ -408,8 +408,9 @@ class SchemeAccountJoinMixin:
                 scheme_account = SchemeAccount.objects.create(
                     scheme_id=data["scheme"], order=data["order"], status=SchemeAccount.PENDING
                 )
-                SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user,
-                                                  link_status=AccountLinkStatus.PENDING)
+                SchemeAccountEntry.objects.create(
+                    scheme_account=scheme_account, user=user, link_status=AccountLinkStatus.PENDING
+                )
 
         if user.client_id == settings.BINK_CLIENT_ID and update:
             analytics.update_scheme_account_attribute(
