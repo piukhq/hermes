@@ -5,7 +5,35 @@ from django.db import migrations, models
 import ubiquity.models
 
 
+def populate_link_status(apps, *stuff):
+    # get the models from the app argument passed through the migration
+    SchemeAccountEntry = apps.get_model("ubiquity", "SchemeAccountEntry")
+    SchemeAccount = apps.get_model("scheme", "SchemeAccount")
+
+    bulk_update_cache = []
+
+    for entry in SchemeAccountEntry.objects.all():
+        if entry.auth_provided:
+            # only create a sa object when we must
+            try:
+                scheme_account = SchemeAccount.objects.get(pk=entry.scheme_account_id)
+                entry.link_status = scheme_account.status
+            except SchemeAccount.DoesNotExist:
+                # no matching scheme account for this scheme account entry
+                # will result in 0 status (as the default)
+                pass 
+        else:
+            # auth_provided is false, must be wallet only
+            entry.link_status = 10
+
+        bulk_update_cache.append(entry)
+
+    # save all the things
+    SchemeAccountEntry.objects.bulk_update(bulk_update_cache, ["link_status"])
+
+
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [
         ("ubiquity", "0014_update_active_link_slugs"),
@@ -60,4 +88,6 @@ class Migration(migrations.Migration):
                 default=ubiquity.models.AccountLinkStatus["PENDING"],
             ),
         ),
+        # data population, do not need a reverse as the field will be removed if we un-migrate
+        migrations.RunPython(populate_link_status),
     ]
