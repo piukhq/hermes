@@ -58,12 +58,12 @@ from ubiquity.channel_vault import KeyType, SecretKeyName, get_bundle_key, get_s
 from ubiquity.exceptions import AlreadyExistsError, CardAuthError
 from ubiquity.influx_audit import audit
 from ubiquity.models import (
+    AccountLinkStatus,
     PaymentCardAccountEntry,
     PaymentCardSchemeEntry,
     SchemeAccountEntry,
     ServiceConsent,
     VopActivation,
-    AccountLinkStatus,
 )
 from ubiquity.tasks import (
     async_all_balance,

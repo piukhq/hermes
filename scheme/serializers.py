@@ -20,7 +20,7 @@ from scheme.models import (
     SchemeImage,
     UserConsent,
 )
-from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, AccountLinkStatus
+from ubiquity.models import AccountLinkStatus, PaymentCardAccountEntry, SchemeAccountEntry
 from user.models import CustomUser
 
 logger = logging.getLogger(__name__)
@@ -663,8 +663,11 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
         return q_objs
 
     def _validate_existing_main_answer(
-        self, credentials: dict, questions: dict, scheme_account_entry: "SchemeAccountEntry",
-            allow_existing_main_answer: bool
+        self,
+        credentials: dict,
+        questions: dict,
+        scheme_account_entry: "SchemeAccountEntry",
+        allow_existing_main_answer: bool,
     ) -> None:
         main_question_types = {question.type for question in questions if question.is_main_question}
 

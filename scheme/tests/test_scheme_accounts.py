@@ -347,9 +347,11 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.bink_user)
         user_set = str(self.bink_user.id)
 
-        data = {"status": SchemeAccount.MIDAS_UNREACHABLE, "journey": "join", "user_info": {
-            "user_set": user_set, "bink_user_id": self.bink_user.id
-        }}
+        data = {
+            "status": SchemeAccount.MIDAS_UNREACHABLE,
+            "journey": "join",
+            "user_info": {"user_set": user_set, "bink_user_id": self.bink_user.id},
+        }
         response = self.client.post(
             "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
         )
@@ -368,9 +370,11 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=user)
         user_set = str(user.id)
 
-        data = {"status": SchemeAccount.MIDAS_UNREACHABLE, "journey": "join", "user_info": {
-            "user_set": user_set, "bink_user_id": user.id}
-                }
+        data = {
+            "status": SchemeAccount.MIDAS_UNREACHABLE,
+            "journey": "join",
+            "user_info": {"user_set": user_set, "bink_user_id": user.id},
+        }
         response = self.client.post(
             "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
         )
@@ -387,7 +391,11 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.bink_user)
 
         # join callback has no user_set
-        data = {"status": SchemeAccount.MIDAS_UNREACHABLE, "journey": "join", "user_info": {"bink_user_id": self.bink_user.id}}
+        data = {
+            "status": SchemeAccount.MIDAS_UNREACHABLE,
+            "journey": "join",
+            "user_info": {"bink_user_id": self.bink_user.id},
+        }
         response = self.client.post(
             "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
         )
@@ -445,7 +453,11 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         scheme_account.alt_main_answer = "Somemainanswer"
         scheme_account.save()
 
-        data = {"status": SchemeAccount.ENROL_FAILED, "journey": "join", "user_info": {"user_set": user_set, "bink_user_id": user.id}}
+        data = {
+            "status": SchemeAccount.ENROL_FAILED,
+            "journey": "join",
+            "user_info": {"user_set": user_set, "bink_user_id": user.id},
+        }
         response = self.client.post(
             reverse("change_account_status", args=[scheme_account.id]), data, format="json", **self.auth_service_headers
         )
@@ -466,9 +478,11 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=user)
         user_set = str(user.id)
 
-        data = {"status": SchemeAccount.ACTIVE, "journey": "join", "user_info": {
-            "user_set": user_set, "bink_user_id": user.id}
-                }
+        data = {
+            "status": SchemeAccount.ACTIVE,
+            "journey": "join",
+            "user_info": {"user_set": user_set, "bink_user_id": user.id},
+        }
         response = self.client.post(
             reverse("change_account_status", args=[scheme_account.id]), data, format="json", **self.auth_service_headers
         )
@@ -1608,7 +1622,9 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
 
     def test_update_new_and_existing_credentials(self):
         payload = {
-            "bink_user_id": self.scheme_account_entry2.user.id, "card_number": "0123456", "password": "newpassword",
+            "bink_user_id": self.scheme_account_entry2.user.id,
+            "card_number": "0123456",
+            "password": "newpassword",
         }
 
         response = self.client.put(
@@ -1641,9 +1657,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         self.assertEqual(len(credential_list), 0)
 
     def test_update_credentials_bad_credential_type(self):
-        payload = {
-            "bink_user_id": self.scheme_account_entry_no_answers.user.id, "user_name": "user_name not username"
-        }
+        payload = {"bink_user_id": self.scheme_account_entry_no_answers.user.id, "user_name": "user_name not username"}
 
         response = self.client.put(
             f"/schemes/accounts/{self.scheme_account_no_answers.id}/credentials",

@@ -52,7 +52,7 @@ from scheme.serializers import (
     StatusSerializer,
     UpdateUserConsentSerializer,
 )
-from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry, AccountLinkStatus
+from ubiquity.models import AccountLinkStatus, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import async_join_journey_fetch_balance_and_update_status, send_merchant_metrics_for_link_delete
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin, TransactionSerializer
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
@@ -405,8 +405,9 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         return Response({"id": scheme_account.id, "status": new_status_code})
 
     @staticmethod
-    def set_user_authorisations_and_status(new_status_code: int, scheme_account: SchemeAccount,
-                                           scheme_account_entry: SchemeAccountEntry) -> None:
+    def set_user_authorisations_and_status(
+        new_status_code: int, scheme_account: SchemeAccount, scheme_account_entry: SchemeAccountEntry
+    ) -> None:
         mcard_entries = scheme_account.schemeaccountentry_set.all()
 
         # Todo: LOY-1953 - will need rework when implementing multi-wallet add_and_register to update single user.
@@ -486,7 +487,9 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         elif new_status_code not in pending_statuses:
             Payment.process_payment_void(scheme_account)
 
-        UpdateSchemeAccountStatus.set_user_authorisations_and_status(new_status_code, scheme_account, scheme_account_entry)
+        UpdateSchemeAccountStatus.set_user_authorisations_and_status(
+            new_status_code, scheme_account, scheme_account_entry
+        )
         update_fields.append("status")
 
         if update_fields:
@@ -636,7 +639,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         """
         account = get_object_or_404(SchemeAccount.objects, id=self.kwargs["pk"])
         credential_answers = request.data
-        user_id = credential_answers.pop('bink_user_id')
+        user_id = credential_answers.pop("bink_user_id")
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=account, user_id=user_id)
 
         response = self.update_credentials(

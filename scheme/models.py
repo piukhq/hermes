@@ -6,7 +6,7 @@ import uuid
 from decimal import ROUND_HALF_UP, Decimal
 from enum import IntEnum
 from functools import lru_cache
-from typing import TYPE_CHECKING, Dict, Iterable, Type, Union, Optional
+from typing import TYPE_CHECKING, Dict, Iterable, Optional, Type, Union
 
 import arrow
 import requests
@@ -32,7 +32,7 @@ from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED
 from scheme.encryption import AESCipher
 from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import AESKeyNames
-from ubiquity.models import SchemeAccountEntry, AccountLinkStatus
+from ubiquity.models import SchemeAccountEntry
 from ubiquity.reason_codes import REASON_CODES
 
 if TYPE_CHECKING:

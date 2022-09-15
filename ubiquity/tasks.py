@@ -19,7 +19,7 @@ from payment_card.models import PaymentCard, PaymentCardAccount
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
-from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry, VopActivation, AccountLinkStatus
+from ubiquity.models import AccountLinkStatus, PaymentCardSchemeEntry, SchemeAccountEntry, VopActivation
 from user.models import CustomUser
 
 if t.TYPE_CHECKING:
