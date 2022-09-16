@@ -8,7 +8,6 @@ import ubiquity.models
 def populate_link_status(apps, *stuff):
     # get the models from the app argument passed through the migration
     SchemeAccountEntry = apps.get_model("ubiquity", "SchemeAccountEntry")
-    SchemeAccount = apps.get_model("scheme", "SchemeAccount")
 
     # ap = false first, wallet only cards
     ap_false_entries = SchemeAccountEntry.objects.filter(auth_provided=False)
