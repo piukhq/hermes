@@ -12,19 +12,12 @@ def populate_link_status(apps, *stuff):
 
     # ap = false first, wallet only cards
     ap_false_entries = SchemeAccountEntry.objects.filter(auth_provided=False)
-    ap_false_entries.update(link_status=10)
+    ap_false_entries.update(link_status=ubiquity.models.AccountLinkStatus["WALLET_ONLY"])
 
     # ap = True now...
     bulk_update_cache = []
-    for entry in SchemeAccountEntry.objects.filter(auth_provided=True):
-        try:
-            scheme_account = SchemeAccount.objects.get(pk=entry.scheme_account_id)
-            entry.link_status = scheme_account.status
-        except SchemeAccount.DoesNotExist:
-            # no matching scheme account for this scheme account entry
-            # will result in link_status=0 (the default)
-            continue
-
+    for entry in SchemeAccountEntry.objects.filter(auth_provided=True).select_related("scheme_account"):
+        entry.link_status = entry.scheme_account.status
         bulk_update_cache.append(entry)
 
     # save all the things
