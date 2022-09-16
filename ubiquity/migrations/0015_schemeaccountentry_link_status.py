@@ -14,7 +14,6 @@ def populate_link_status(apps, *stuff):
     ap_false_entries = SchemeAccountEntry.objects.filter(auth_provided=False)
     ap_false_entries.update(link_status=10)
 
-
     # ap = True now...
     bulk_update_cache = []
     for entry in SchemeAccountEntry.objects.filter(auth_provided=True):
@@ -25,7 +24,7 @@ def populate_link_status(apps, *stuff):
             # no matching scheme account for this scheme account entry
             # will result in link_status=0 (the default)
             continue
-    
+
         bulk_update_cache.append(entry)
 
     # save all the things
