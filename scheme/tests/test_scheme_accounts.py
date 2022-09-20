@@ -181,6 +181,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
     def test_get_scheme_account(self):
         self.scheme_account.alt_main_answer = self.scheme_account_answer.answer
         self.scheme_account.save()
+
         response = self.client.get("/schemes/accounts/{0}".format(self.scheme_account.id), **self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
@@ -191,7 +192,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertNotIn("is_deleted", response.data)
         self.assertEqual(response.data["scheme"]["id"], self.scheme.id)
         self.assertNotIn("card_number_prefix", response.data["scheme"])
-        self.assertEqual(response.data["display_status"], AccountLinkStatus.ACTIVE)
+        self.assertEqual(response.data["display_status"], AccountLinkStatus.PENDING)
 
         self.scheme_bundle_association.test_scheme = True
         self.scheme_bundle_association.save()

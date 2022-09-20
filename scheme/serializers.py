@@ -355,7 +355,7 @@ class ReadSchemeAccountAnswerSerializer(serializers.ModelSerializer):
 
 class GetSchemeAccountSerializer(serializers.ModelSerializer):
     scheme = SchemeSerializerNoQuestions(read_only=True)
-    display_status = serializers.ReadOnlyField()
+    display_status = serializers.SerializerMethodField()
     barcode = serializers.ReadOnlyField()
     card_label = serializers.ReadOnlyField()
     images = serializers.SerializerMethodField()
@@ -363,6 +363,11 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
     @staticmethod
     def get_images(scheme_account):
         return get_images_for_scheme_account(scheme_account)
+
+    def get_display_status(self, scheme_account):
+        user = self.context['request'].user
+        entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user=user)
+        return entry.display_status
 
     class Meta:
         model = SchemeAccount
