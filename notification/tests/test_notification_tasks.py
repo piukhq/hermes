@@ -9,7 +9,7 @@ from paramiko import RSAKey, SSHException
 from history.models import HistoricalSchemeAccount, HistoricalSchemeAccountEntry
 from history.utils import GlobalMockAPITestCase
 from notification.tasks import NotificationProcessor, SftpManager
-from scheme.models import SchemeAccount
+from scheme.models import SchemeAccount, AccountLinkStatus
 from scheme.tests.factories import SchemeAccountFactory
 from ubiquity.reason_codes import AUTHORISED, DELETED, FAILED, PENDING, UNAUTHORISED, ubiquity_status_translation
 from ubiquity.tests.factories import SchemeAccountEntryFactory
