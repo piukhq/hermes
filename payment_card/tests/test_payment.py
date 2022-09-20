@@ -417,7 +417,7 @@ class TestPayment(GlobalMockAPITestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        entry.scheme_account.refresh_from_db()
+        entry.refresh_from_db()
         self.assertEqual(entry.link_status, AccountLinkStatus.ACTIVE)
         self.assertTrue(mock_payment_success.called)
         self.assertFalse(mock_payment_void.called)
@@ -443,7 +443,7 @@ class TestPayment(GlobalMockAPITestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        scheme_account.refresh_from_db()
+        scheme_account_entry.refresh_from_db()
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.ENROL_FAILED)
         self.assertTrue(mock_payment_void.called)
         self.assertFalse(mock_payment_success.called)

@@ -234,6 +234,7 @@ def loyalty_card_join(message: dict) -> None:
 
         user = CustomUser.objects.get(pk=ac.user_id)
         account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
+        entry = SchemeAccountEntry.objects.get(scheme_account=account, user=user)
         scheme = Scheme.objects.get(pk=message.get("loyalty_plan_id"))
         permit = Permit(bundle_id=ac.channel_slug, user=user)
 
@@ -246,7 +247,7 @@ def loyalty_card_join(message: dict) -> None:
         )
 
         # send event to data warehouse
-        join_request_lc_event(user, account, ac.channel_slug)
+        join_request_lc_event(entry, ac.channel_slug)
 
         async_join(
             scheme_account_id=account.id,
