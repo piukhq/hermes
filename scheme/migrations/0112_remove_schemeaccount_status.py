@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("scheme", "0109_rename_main_answer_schemeaccount_alt_main_answer"),
+        ("scheme", "0111_rename_main_answer_schemeaccount_alt_main_answer"),
     ]
 
     operations = [
