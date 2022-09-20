@@ -234,7 +234,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         response = self.client.get("/schemes/accounts", **self.auth_headers)
         self.assertEqual(type(response.data), ReturnList)
         self.assertEqual(response.data[0]["scheme"]["name"], self.scheme.name)
-        self.assertEqual(response.data[0]["status_name"], "Active")
+        self.assertEqual(response.data[0]["status_name"], "Pending")
         self.assertIn("barcode", response.data[0])
         self.assertIn("card_label", response.data[0])
         self.assertNotIn("barcode_regex", response.data[0]["scheme"])
@@ -348,7 +348,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["id"], scheme_account.id)
         self.assertEqual(response.data["status"], AccountLinkStatus.MIDAS_UNREACHABLE)
-        scheme_account.refresh_from_db()
+        scheme_account_entry.refresh_from_db()
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.MIDAS_UNREACHABLE)
 
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
@@ -396,7 +396,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["id"], scheme_account.id)
         self.assertEqual(response.data["status"], AccountLinkStatus.MIDAS_UNREACHABLE)
-        scheme_account.refresh_from_db()
+        scheme_account_entry.refresh_from_db()
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.MIDAS_UNREACHABLE)
 
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
@@ -460,7 +460,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(response.data["id"], scheme_account.id)
         self.assertEqual(response.data["status"], AccountLinkStatus.ENROL_FAILED)
 
-        scheme_account.refresh_from_db()
+        scheme_account_entry.refresh_from_db()
         self.assertEqual(scheme_account.alt_main_answer, "")
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.ENROL_FAILED)
 
