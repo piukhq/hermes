@@ -9,7 +9,7 @@ def populate_answers(apps, *stuff):
     SchemeAccountCredentialAnswer = apps.get_model("scheme", "SchemeAccountCredentialAnswer")
     SchemeAccountEntry = apps.get_model("ubiquity", "SchemeAccountEntry")
 
-    for entry_id, scheme_account_id, user_id, auth_provided in SchemeAccountEntry.objects.values_list():
+    for entry_id, scheme_account_id, user_id, auth_provided, link_status in SchemeAccountEntry.objects.values_list():
         ## fetch the answers for this scheme account
         answers = SchemeAccountCredentialAnswer.objects.filter(
             scheme_account_id=scheme_account_id, scheme_account_entry__isnull=True
@@ -56,7 +56,7 @@ class Migration(migrations.Migration):
     atomic = False
 
     dependencies = [
-        ("ubiquity", "0014_update_active_link_slugs"),
+        ("ubiquity", "0015_schemeaccountentry_link_status"),
         ("scheme", "0108_alter_schemeaccount_status_and_more"),
     ]
 
