@@ -1266,9 +1266,7 @@ class TestAccessTokens(GlobalMockAPITestCase):
         self.test_user = self.test_scheme_acc_entry.user
         self.test_scheme_acc = self.test_scheme_acc_entry.scheme_account
 
-    def test_retrieve_scheme_accounts(self, mock_date):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-
+    def test_retrieve_scheme_accounts(self):
         # GET Request
         response = self.client.get("/schemes/accounts/{}".format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 200)
