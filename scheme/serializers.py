@@ -380,10 +380,15 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
     barcode = serializers.ReadOnlyField()
     card_label = serializers.ReadOnlyField()
     images = serializers.SerializerMethodField()
+    status_name = serializers.SerializerMethodField()
 
     @staticmethod
     def get_images(scheme_account):
         return get_images_for_scheme_account(scheme_account)
+
+    def get_status_name(self, scheme_account):
+        entry = SchemeAccountEntry.objects.get(user=self.context['request'].user, scheme_account=scheme_account)
+        return entry.status_name
 
     class Meta:
         model = SchemeAccount
@@ -395,6 +400,7 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
             "barcode",
             "card_label",
             "images",
+            "status_name"
         )
 
 
