@@ -97,7 +97,7 @@ class TestRegisterLCEventHandlers(TransactionTestCase):
         SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE)
 
         cls.mcard = SchemeAccountFactory(scheme=cls.scheme)
-        cls.mcard_entry = SchemeAccountFactory(scheme_account=cls.mcard, user=cls.user)
+        cls.mcard_entry = SchemeAccountEntryFactory(scheme_account=cls.mcard, user=cls.user)
         super().setUpClass()
 
     @patch("history.data_warehouse.to_data_warehouse")

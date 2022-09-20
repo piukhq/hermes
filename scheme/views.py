@@ -472,7 +472,9 @@ class ActiveSchemeAccountAccounts(ListAPIView):
     authentication_classes = (ServiceAuthentication,)
 
     def get_queryset(self):
-        return SchemeAccount.objects.filter(status=AccountLinkStatus.ACTIVE)
+        return [
+            sae.scheme_account for sae in SchemeAccountEntry.objects.filter(link_status=AccountLinkStatus.ACTIVE).all()
+        ]
 
     serializer_class = SchemeAccountIdsSerializer
     pagination_class = Pagination

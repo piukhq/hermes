@@ -585,17 +585,23 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
     def test_scheme_accounts_active(self):
         # todo: Endpoint may be deprecated
-        scheme = SchemeAccountFactory(status=AccountLinkStatus.ACTIVE)
-        scheme_2 = SchemeAccountFactory(status=AccountLinkStatus.END_SITE_DOWN)
+        scheme_account = SchemeAccountFactory()
+        SchemeAccountEntryFactory(user=self.user,
+                                  scheme_account=scheme_account,
+                                  link_status=AccountLinkStatus.ACTIVE)
+        scheme_account_2 = SchemeAccountFactory()
+        SchemeAccountEntryFactory(user=self.user,
+                                  scheme_account=scheme_account_2,
+                                  link_status=AccountLinkStatus.END_SITE_DOWN)
         response = self.client.get("/schemes/accounts/active", **self.auth_service_headers)
 
         self.assertEqual(response.status_code, 200)
         scheme_ids = [result["id"] for result in response.data["results"]]
         self.assertIsNone(response.data["next"])
-        self.assertIn(scheme.id, scheme_ids)
+        self.assertIn(scheme_account.id, scheme_ids)
         self.assertNotIn("credentials", response.data["results"][0])
         self.assertNotIn("scheme", response.data["results"][0])
-        self.assertNotIn(scheme_2.id, scheme_ids)
+        self.assertNotIn(scheme_account_2.id, scheme_ids)
 
     def test_system_retry_scheme_accounts(self):
         scheme = SchemeAccountFactory()
