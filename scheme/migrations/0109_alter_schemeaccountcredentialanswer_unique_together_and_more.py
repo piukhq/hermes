@@ -57,7 +57,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("ubiquity", "0014_update_active_link_slugs"),
-        ("scheme", "0106_alter_schemeoverrideerror_unique_together"),
+        ("scheme", "0108_alter_schemeaccount_status_and_more"),
     ]
 
     operations = [

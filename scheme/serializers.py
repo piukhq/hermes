@@ -20,7 +20,7 @@ from scheme.models import (
     SchemeImage,
     UserConsent,
 )
-from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, AccountLinkStatus
+from ubiquity.models import AccountLinkStatus, PaymentCardAccountEntry, SchemeAccountEntry
 from user.models import CustomUser
 
 logger = logging.getLogger(__name__)

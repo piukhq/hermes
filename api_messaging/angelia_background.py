@@ -22,7 +22,7 @@ from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
-from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent, AccountLinkStatus
+from ubiquity.models import AccountLinkStatus, PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent
 from ubiquity.tasks import (
     async_all_balance,
     async_join,
