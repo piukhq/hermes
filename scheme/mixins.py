@@ -182,6 +182,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         except SchemeAccount.DoesNotExist:
             account_created = True
             scheme_account = self._create_new_account(user, scheme, data, answer_type)
+            SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
             resp = (scheme_account, data, account_created, answer_type, data[answer_type])
         else:
             # handle_existing_scheme_account is called after this function

@@ -312,6 +312,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(response.json(), [])
 
     def test_wallet_only(self):
+        #todo: Deprecated endpoint - do we care?
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
         SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
