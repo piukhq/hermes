@@ -7,11 +7,12 @@ urlpatterns = [
     re_path(r"^/accounts/active$", views.ActiveSchemeAccountAccounts.as_view(), name="create_scheme_account"),
     re_path(r"^/accounts/system_retry$", views.SystemActionSchemeAccounts.as_view(), name="create_scheme_account"),
     re_path(
-        r"^/accounts/(?P<pk>[0-9]+)/credentials",
+        r"^/accounts/(?P<pk>[0-9]+)/credentials",  # In use by Midas
         views.SchemeAccountsCredentials.as_view(),
         name="change_account_credentials",
     ),
     re_path(
+        # In use by Midas
         r"^/accounts/(?P<pk>[0-9]+)/status/?$", views.UpdateSchemeAccountStatus.as_view(), name="change_account_status"
     ),
     re_path(
