@@ -489,7 +489,11 @@ class SystemActionSchemeAccounts(ListAPIView):
     authentication_classes = (ServiceAuthentication,)
 
     def get_queryset(self):
-        return SchemeAccount.objects.filter(status__in=SchemeAccount.SYSTEM_ACTION_REQUIRED)
+        return set(
+            [sae.scheme_account for sae in SchemeAccountEntry.objects.filter(
+                link_status__in=AccountLinkStatus.system_action_required()
+            ).all()]
+        )
 
     serializer_class = SchemeAccountIdsSerializer
     pagination_class = Pagination
@@ -535,7 +539,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         """
         account = get_object_or_404(SchemeAccount.objects, id=self.kwargs["pk"])
         credential_answers = request.data
-        user_id = credential_answers.pop("bink_user_id")
+        user_id = request.headers['bink_user_id']
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=account, user_id=user_id)
 
         response = self.update_credentials(
@@ -563,7 +567,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
             description: list, e.g. ['username', 'password'] of all credential types to delete
         """
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs["pk"])
-        user_id = self.request.data["bink_user_id"]
+        user_id = request.headers['bink-user-id']
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user_id=user_id)
         serializer = DeleteCredentialSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
