@@ -160,12 +160,6 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             )
         return serializer
 
-    def create_account(self, data: dict, user: "CustomUser") -> t.Tuple[SchemeAccount, dict, bool, str, str]:
-        # todo: Only used by deprecated endpoint - can we remove this?
-        serializer = self.get_validated_data(data, user)
-        scheme = Scheme.get_scheme_and_questions_by_scheme_id(data["scheme"])
-        return self.create_account_with_valid_data(serializer, user, scheme)
-
     def create_account_with_valid_data(
         self, serializer: "Serializer", user: "CustomUser", scheme: Scheme
     ) -> t.Tuple[SchemeAccount, dict, bool, str, str]:

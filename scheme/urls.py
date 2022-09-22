@@ -3,7 +3,6 @@ from django.urls import re_path
 from scheme import views
 
 urlpatterns = [
-    re_path(r"^/accounts/?$", views.CreateAccount.as_view(), name="create_scheme_account"),
     re_path(r"^/accounts/query$", views.SchemeAccountQuery.as_view(), name="query_scheme_accounts"),
     re_path(r"^/accounts/active$", views.ActiveSchemeAccountAccounts.as_view(), name="create_scheme_account"),
     re_path(r"^/accounts/system_retry$", views.SystemActionSchemeAccounts.as_view(), name="create_scheme_account"),

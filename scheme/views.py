@@ -36,12 +36,10 @@ from scheme.mixins import (
 )
 from scheme.models import ConsentStatus, Exchange, Scheme, SchemeAccount, SchemeAccountImage, SchemeImage, UserConsent
 from scheme.serializers import (
-    CreateSchemeAccountSerializer,
     DeleteCredentialSerializer,
     DonorSchemeSerializer,
     GetSchemeAccountSerializer,
     JoinSerializer,
-    ListSchemeAccountSerializer,
     QuerySchemeAccountSerializer,
     ReferenceImageSerializer,
     SchemeAccountCredentialsSerializer,
@@ -173,63 +171,6 @@ class UpdateUserConsent(UpdateAPIView):
             return Response(serializer.data)
         else:
             return self.update(request, *args, **kwargs)
-
-
-class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
-    override_serializer_classes = {
-        "GET": ListSchemeAccountSerializer,
-        "POST": CreateSchemeAccountSerializer,
-        "OPTIONS": ListSchemeAccountSerializer,
-    }
-
-    def get(self, request, *args, **kwargs):
-        """
-        DO NOT USE - NOT FOR APP ACCESS
-        """
-        return super().get(self, request, *args, **kwargs)
-
-    def get_queryset(self):
-        channels_permit = self.request.channels_permit
-        queryset = SchemeAccount.objects
-
-        exclude_by = {}
-        suspended_schemes = Scheme.get_suspended_schemes_by_bundle(channels_permit.bundle)
-        join_action_scheme_account_ids = [
-            sae.scheme_account.id for sae in SchemeAccountEntry.objects.filter(
-                user=self.request.user.id, link_status__in=AccountLinkStatus.join_action_required()
-            ).all()
-        ]
-        if suspended_schemes:
-            exclude_by = {
-                "scheme__in": suspended_schemes,
-                "id__in": join_action_scheme_account_ids,
-            }
-
-        return channels_permit.scheme_account_query(
-            queryset.exclude(**exclude_by),
-            user_id=self.request.user.id,
-            user_filter=True,
-        )
-
-    def post(self, request, *args, **kwargs):
-        """
-        Create a new scheme account within the users wallet.<br>
-        This does not log into the loyalty scheme end site.
-        """
-        # todo: Not sure if we're using this endpoint, but it doesn't currently create a link to a new SA (which would
-        #  break our system), so I'm guessing not.
-        if not request.channels_permit.is_scheme_available(int(self.request.data["scheme"])):
-            return Response(
-                "Not Found",
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        _, response, _, _, _ = self.create_account(request.data, request.user)
-        return Response(
-            response,
-            status=status.HTTP_201_CREATED,
-            headers={"Location": reverse("retrieve_account", args=[response["id"]], request=request)},
-        )
 
 
 class CreateJoinSchemeAccount(APIView):

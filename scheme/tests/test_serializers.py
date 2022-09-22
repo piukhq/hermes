@@ -8,7 +8,6 @@ from scheme.credentials import BARCODE, CARD_NUMBER, FIRST_NAME, LAST_NAME, PASS
 from scheme.models import Consent, ConsentStatus, Control, JourneyTypes, SchemeCredentialQuestion
 from scheme.serializers import (
     ControlSerializer,
-    CreateSchemeAccountSerializer,
     JoinSerializer,
     LinkSchemeSerializer,
     SchemeSerializer,
@@ -25,43 +24,6 @@ from scheme.tests.factories import (
 )
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import UserFactory
-
-
-class TestCreateSchemeAccountSerializer(GlobalMockAPITestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.user = UserFactory()
-        request = MagicMock()
-        request.user = cls.user
-        cls.serializer = CreateSchemeAccountSerializer()
-        cls.serializer.context["request"] = request
-
-    def test_allowed_answers(self):
-        question = SchemeCredentialQuestionFactory(type=BARCODE, scan_question=True)
-        allowed_answers = CreateSchemeAccountSerializer.allowed_answers(question.scheme)
-        self.assertEqual(
-            allowed_answers,
-            [
-                BARCODE,
-            ],
-        )
-
-    def test_validate_no_scheme(self):
-        with self.assertRaises(ValidationError) as e:
-            self.serializer.validate({"scheme": 2342342})
-        self.assertEqual(e.exception.detail[0], "Scheme '2342342' does not exist")
-
-    def test_validate_answer_types(self):
-        question = SchemeCredentialQuestionFactory(type=BARCODE, manual_question=True)
-        with self.assertRaises(ValidationError) as e:
-            self.serializer.validate({"scheme": question.scheme.id})
-        self.assertEqual(e.exception.detail[0], "You must submit one scan or manual question answer")
-
-    def test_validate_bad_question_type(self):
-        question = SchemeCredentialQuestionFactory(type=BARCODE, manual_question=True)
-        with self.assertRaises(ValidationError) as e:
-            self.serializer.validate({"scheme": question.scheme.id, "email": "dfg@gmail.com"})
-        self.assertEqual(e.exception.detail[0], "Your answer type 'email' is not allowed")
 
 
 class TestAnswerValidation(GlobalMockAPITestCase):

@@ -35,7 +35,7 @@ from scheme.models import (
     SchemeCredentialQuestion,
     UserConsent,
 )
-from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer
+from scheme.serializers import LinkSchemeSerializer
 from scheme.tests.factories import (
     ConsentFactory,
     ExchangeFactory,
@@ -229,106 +229,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         response = self.client.delete("/schemes/accounts/{0}/service".format(123456), **self.auth_service_headers)
 
         self.assertEqual(response.status_code, 404)
-
-    def test_list_schemes_accounts(self):
-        response = self.client.get("/schemes/accounts", **self.auth_headers)
-        self.assertEqual(type(response.data), ReturnList)
-        self.assertEqual(response.data[0]["scheme"]["name"], self.scheme.name)
-        self.assertEqual(response.data[0]["status_name"], "Pending")
-        self.assertIn("barcode", response.data[0])
-        self.assertIn("card_label", response.data[0])
-        self.assertNotIn("barcode_regex", response.data[0]["scheme"])
-        expected_transaction_headers = [{"name": "header 1"}, {"name": "header 2"}, {"name": "header 3"}]
-        self.assertListEqual(expected_transaction_headers, response.data[0]["scheme"]["transaction_headers"])
-        schemes_number = len(response.json())
-
-        self.scheme_bundle_association.test_scheme = True
-        self.scheme_bundle_association.save()
-        response = self.client.get("/schemes/accounts", **self.auth_headers)
-        self.assertLess(len(response.json()), schemes_number)
-
-        self.user.is_tester = True
-        self.user.save()
-        response = self.client.get("/schemes/accounts", **self.auth_headers)
-        self.assertEqual(len(response.json()), schemes_number)
-
-        self.scheme_bundle_association.test_scheme = False
-        self.scheme_bundle_association.save()
-        self.user.is_tester = False
-        self.user.save()
-
-    def test_list_schemes_accounts_with_suspended_scheme(self):
-        join_scheme = SchemeFactory()
-        join_card = SchemeAccountFactory(scheme=join_scheme)
-        join_entry = SchemeAccountEntryFactory(scheme_account=join_card, link_status=AccountLinkStatus.JOIN)
-
-        bundle_assoc = SchemeBundleAssociationFactory(
-            scheme=join_scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE
-        )
-        SchemeBundleAssociationFactory(scheme=join_scheme, status=SchemeBundleAssociation.SUSPENDED)
-
-        auth_headers = {"HTTP_AUTHORIZATION": "Token " + join_entry.user.create_token()}
-
-        response = self.client.get("/schemes/accounts", **auth_headers)
-        self.assertTrue(len(response.json()) > 0)
-        scheme_account = response.json()[0]
-        self.assertEqual(scheme_account["status_name"], "Join")
-        self.assertEqual(scheme_account["scheme"]["slug"], join_scheme.slug)
-
-        bundle_assoc.status = SchemeBundleAssociation.SUSPENDED
-        bundle_assoc.save()
-        response = self.client.get("/schemes/accounts", **auth_headers)
-        self.assertEqual(response.json(), [])
-
-        bundle_assoc.status = SchemeBundleAssociation.ACTIVE
-        bundle_assoc.save()
-        response = self.client.get("/schemes/accounts", **auth_headers)
-        self.assertTrue(len(response.json()) > 0)
-        scheme_account = response.json()[0]
-        self.assertEqual(scheme_account["status_name"], "Join")
-        self.assertEqual(scheme_account["scheme"]["slug"], join_scheme.slug)
-
-    def test_list_error_schemes_account_with_suspended_scheme(self):
-        join_scheme = SchemeFactory()
-        error_join_card = SchemeAccountFactory(scheme=join_scheme)
-        error_join_entry = SchemeAccountEntryFactory(
-            scheme_account=error_join_card, link_status=AccountLinkStatus.CARD_NOT_REGISTERED
-        )
-        scheme_bundle_association = SchemeBundleAssociationFactory(
-            scheme=join_scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE
-        )
-
-        auth_headers = {"HTTP_AUTHORIZATION": "Token " + error_join_entry.user.create_token()}
-
-        response = self.client.get("/schemes/accounts", **auth_headers)
-        self.assertTrue(len(response.json()) > 0)
-        scheme_account = response.json()[0]
-        self.assertEqual(scheme_account["status_name"], "Unknown Card number")
-        self.assertEqual(scheme_account["scheme"]["slug"], join_scheme.slug)
-
-        scheme_bundle_association.status = SchemeBundleAssociation.SUSPENDED
-        scheme_bundle_association.save()
-        response = self.client.get("/schemes/accounts", **auth_headers)
-        self.assertEqual(response.json(), [])
-
-    def test_wallet_only(self):
-        #todo: Deprecated endpoint - do we care?
-        scheme = SchemeFactory()
-        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
-        SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
-        response = self.client.post(
-            "/schemes/accounts", data={"scheme": scheme.id, CARD_NUMBER: "1234", "order": 0}, **self.auth_headers
-        )
-
-        self.assertEqual(response.status_code, 201)
-        content = response.data
-        self.assertEqual(content["scheme"], scheme.id)
-        self.assertEqual(content["card_number"], "1234")
-        self.assertIn("/schemes/accounts/", response.headers["location"])
-        self.assertEqual(
-            SchemeAccountEntry.objects.get(scheme_account_id=content["id"], user_id=self.user.id).link_status,
-            AccountLinkStatus.WALLET_ONLY,
-        )
 
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
     def test_scheme_account_update_status_bink_user(self, *_):
@@ -741,7 +641,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertTrue(self.all_statuses_correct(response.data))
 
     def all_statuses_correct(self, scheme_list):
-        status_dict = dict(SchemeAccount.STATUSES)
+        status_dict = dict(AccountLinkStatus.statuses())
         for scheme in scheme_list:
             scheme_status_codes = [int(s["status"]) for s in scheme["statuses"]]
             for status_code in status_dict:
@@ -1410,27 +1310,12 @@ class TestSchemeAccountImages(GlobalMockAPITestCase):
         cls.user = cls.scheme_account_entry.user
         cls.auth_headers = {"HTTP_AUTHORIZATION": "Token " + cls.user.create_token()}
 
-    def test_image_property(self):
-        serializer = ListSchemeAccountSerializer()
-        images = serializer.get_images(self.scheme_account)
-        our_image = next((i for i in images if i["image"] == self.scheme_account_image.image.url), None)
-        self.assertIsNotNone(our_image)
-
     def test_CSV_upload(self):
         csv_file = SimpleUploadedFile("file.csv", content=b"", content_type="text/csv")
         response = self.client.post(
             "/schemes/csv_upload", {"scheme": self.scheme_account.scheme.name, "emails": csv_file}, **self.auth_headers
         )
         self.assertEqual(response.status_code, 200)
-
-    def test_images_have_object_type_properties(self):
-        serializer = ListSchemeAccountSerializer()
-        images = serializer.get_images(self.scheme_account)
-
-        self.assertEqual(images[0]["object_type"], "scheme_account_image")
-        self.assertEqual(images[1]["object_type"], "scheme_image")
-        self.assertEqual(images[2]["object_type"], "scheme_image")
-
 
 class TestExchange(GlobalMockAPITestCase):
     def test_get_donor_schemes(self):
