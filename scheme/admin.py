@@ -737,6 +737,7 @@ class VoucherSchemeAdmin(admin.ModelAdmin):
                     "headline_expired",
                     "headline_redeemed",
                     "headline_issued",
+                    "headline_cancelled",
                 ),
             },
         ),
@@ -748,6 +749,7 @@ class VoucherSchemeAdmin(admin.ModelAdmin):
                     "body_text_expired",
                     "body_text_redeemed",
                     "body_text_issued",
+                    "body_text_cancelled",
                 )
             },
         ),
