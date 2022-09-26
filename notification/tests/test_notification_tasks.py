@@ -70,7 +70,9 @@ class TestNotificationTask(GlobalMockAPITestCase):
     def test_get_status_translation(self):
         balance = [{"value": 1480.0}]
 
-        sys_action_required_scheme_account = SchemeAccountFactory(status=AccountLinkStatus.END_SITE_DOWN, balances=balance)
+        sys_action_required_scheme_account = SchemeAccountFactory(
+            status=AccountLinkStatus.END_SITE_DOWN, balances=balance
+        )
 
         notification_processor = NotificationProcessor()
         state = notification_processor.get_status_translation(

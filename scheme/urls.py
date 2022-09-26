@@ -13,7 +13,9 @@ urlpatterns = [
     ),
     re_path(
         # In use by Midas
-        r"^/accounts/(?P<pk>[0-9]+)/status/?$", views.UpdateSchemeAccountStatus.as_view(), name="change_account_status"
+        r"^/accounts/(?P<pk>[0-9]+)/status/?$",
+        views.UpdateSchemeAccountStatus.as_view(),
+        name="change_account_status",
     ),
     re_path(
         r"^/accounts/(?P<pk>[0-9]+)/transactions/?$",

@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -23,7 +23,6 @@ from scheme.tests.factories import (
     UserConsentFactory,
 )
 from ubiquity.tests.factories import SchemeAccountEntryFactory
-from user.tests.factories import UserFactory
 
 
 class TestAnswerValidation(GlobalMockAPITestCase):

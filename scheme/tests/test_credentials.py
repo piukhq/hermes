@@ -55,8 +55,10 @@ class TestCredentials(GlobalMockAPITestCase):
             auth_field=True,
         )
         GenerateJWToken(client.organisation.name, client.secret, cls.bundle.bundle_id, external_id).get_token()
-        cls.auth_headers = {"HTTP_AUTHORIZATION": "Token {}".format(settings.SERVICE_API_KEY),
-                            "HTTP_BINK_USER_ID": cls.user.id}
+        cls.auth_headers = {
+            "HTTP_AUTHORIZATION": "Token {}".format(settings.SERVICE_API_KEY),
+            "HTTP_BINK_USER_ID": cls.user.id,
+        }
 
     def test_clean_answer(self):
         question = SchemeCredentialQuestionFactory(type=PASSWORD)

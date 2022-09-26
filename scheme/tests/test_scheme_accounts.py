@@ -1,4 +1,3 @@
-import datetime
 import json
 import secrets
 from decimal import Decimal
@@ -7,7 +6,7 @@ from unittest.mock import MagicMock, patch
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
-from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
+from rest_framework.utils.serializer_helpers import ReturnDict
 
 from history.utils import GlobalMockAPITestCase
 from scheme.credentials import (
@@ -50,10 +49,10 @@ from scheme.tests.factories import (
     UserConsentFactory,
 )
 from ubiquity.channel_vault import AESKeyNames
-from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry, AccountLinkStatus
+from ubiquity.models import AccountLinkStatus, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tests.factories import PaymentCardSchemeEntryFactory, SchemeAccountEntryFactory
-from user.models import ClientApplication, ClientApplicationBundle, Setting
-from user.tests.factories import ClientApplicationFactory, SettingFactory, UserFactory, UserSettingFactory
+from user.models import ClientApplication, ClientApplicationBundle
+from user.tests.factories import ClientApplicationFactory, UserFactory
 
 
 class TestSchemeAccountViews(GlobalMockAPITestCase):
@@ -488,13 +487,11 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
     def test_scheme_accounts_active(self):
         # todo: Endpoint may be deprecated
         scheme_account = SchemeAccountFactory()
-        SchemeAccountEntryFactory(user=self.user,
-                                  scheme_account=scheme_account,
-                                  link_status=AccountLinkStatus.ACTIVE)
+        SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account, link_status=AccountLinkStatus.ACTIVE)
         scheme_account_2 = SchemeAccountFactory()
-        SchemeAccountEntryFactory(user=self.user,
-                                  scheme_account=scheme_account_2,
-                                  link_status=AccountLinkStatus.END_SITE_DOWN)
+        SchemeAccountEntryFactory(
+            user=self.user, scheme_account=scheme_account_2, link_status=AccountLinkStatus.END_SITE_DOWN
+        )
         response = self.client.get("/schemes/accounts/active", **self.auth_service_headers)
 
         self.assertEqual(response.status_code, 200)
@@ -989,8 +986,9 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         invalid_status = 502
         mock_request.return_value.status_code = invalid_status
         scheme_account = SchemeAccountFactory()
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account,
-                                                         link_status=AccountLinkStatus.PENDING)
+        scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=scheme_account, link_status=AccountLinkStatus.PENDING
+        )
         points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         # check this status hasn't been added to scheme account status
@@ -1092,7 +1090,9 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         test_status = AccountLinkStatus.TRIPPED_CAPTCHA
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory()
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, link_status=AccountLinkStatus.ACTIVE)
+        scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=scheme_account, link_status=AccountLinkStatus.ACTIVE
+        )
         scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.ACTIVE)
@@ -1103,8 +1103,9 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         test_status = AccountLinkStatus.RESOURCE_LIMIT_REACHED
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory()
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account,
-                                                         link_status=AccountLinkStatus.TRIPPED_CAPTCHA)
+        scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=scheme_account, link_status=AccountLinkStatus.TRIPPED_CAPTCHA
+        )
         scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.RESOURCE_LIMIT_REACHED)
@@ -1313,6 +1314,7 @@ class TestSchemeAccountImages(GlobalMockAPITestCase):
         )
         self.assertEqual(response.status_code, 200)
 
+
 class TestExchange(GlobalMockAPITestCase):
     def test_get_donor_schemes(self):
         host_scheme = self.create_scheme()
@@ -1424,8 +1426,14 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         cls.user3 = cls.scheme_account_entry_no_answers.user
 
         cls.auth_headers = {"HTTP_AUTHORIZATION": "Token " + cls.user.create_token(), "HTTP_BINK_USER_ID": cls.user.id}
-        cls.auth_headers2 = {"HTTP_AUTHORIZATION": "Token " + cls.user2.create_token(), "HTTP_BINK_USER_ID": cls.user2.id}
-        cls.auth_headers3 = {"HTTP_AUTHORIZATION": "Token " + cls.user3.create_token(), "HTTP_BINK_USER_ID": cls.user3.id}
+        cls.auth_headers2 = {
+            "HTTP_AUTHORIZATION": "Token " + cls.user2.create_token(),
+            "HTTP_BINK_USER_ID": cls.user2.id,
+        }
+        cls.auth_headers3 = {
+            "HTTP_AUTHORIZATION": "Token " + cls.user3.create_token(),
+            "HTTP_BINK_USER_ID": cls.user3.id,
+        }
 
     def send_delete_credential_request(self, data):
 
@@ -1488,9 +1496,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         self.assertEqual(len(credential_list), 0)
 
     def test_delete_credentials_by_type(self):
-        response = self.send_delete_credential_request(
-            {"type_list": ["card_number", "username"]}
-        )
+        response = self.send_delete_credential_request({"type_list": ["card_number", "username"]})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["deleted"], "['card_number', 'username']")
 
@@ -1499,9 +1505,7 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         self.assertTrue("card_number" not in scheme_account_types)
 
     def test_delete_credentials_by_property(self):
-        response = self.send_delete_credential_request(
-            {"property_list": ["link_questions"]}
-        )
+        response = self.send_delete_credential_request({"property_list": ["link_questions"]})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["deleted"], "['card_number', 'password']")
 

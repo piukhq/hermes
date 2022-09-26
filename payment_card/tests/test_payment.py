@@ -12,7 +12,6 @@ from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentAudit, PaymentCardAccount, PaymentStatus
 from payment_card.payment import Payment, PaymentError
 from payment_card.tests.factories import PaymentAuditFactory, PaymentCardAccountFactory
-from scheme.models import SchemeAccount
 from scheme.tests.factories import SchemeAccountFactory
 from ubiquity.channel_vault import SecretKeyName
 from ubiquity.models import AccountLinkStatus

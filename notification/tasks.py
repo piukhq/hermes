@@ -15,7 +15,7 @@ from history.models import HistoricalBase, HistoricalSchemeAccount, HistoricalSc
 from notification import stfp_connect
 from scheme.models import SchemeAccount
 from ubiquity.channel_vault import BarclaysSftpKeyNames, get_barclays_sftp_key, load_secrets
-from ubiquity.models import SchemeAccountEntry, AccountLinkStatus
+from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
 from ubiquity.reason_codes import DELETED, ubiquity_status_translation
 from user.models import CustomUser
 

@@ -303,7 +303,9 @@ def deleted_membership_card_cleanup(
 
     remove_loyalty_card_event(scheme_account_entry)
 
-    other_scheme_account_entries = SchemeAccountEntry.objects.filter(scheme_account=scheme_account_entry.scheme_account).exclude(id=scheme_account_entry.id)
+    other_scheme_account_entries = SchemeAccountEntry.objects.filter(
+        scheme_account=scheme_account_entry.scheme_account
+    ).exclude(id=scheme_account_entry.id)
 
     if other_scheme_account_entries.count() <= 0:
         # Last man standing

@@ -9,30 +9,16 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound
-from rest_framework.generics import (
-    GenericAPIView,
-    ListAPIView,
-    ListCreateAPIView,
-    RetrieveAPIView,
-    UpdateAPIView,
-    get_object_or_404,
-)
+from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView, get_object_or_404
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 from history.tasks import join_outcome_event, register_outcome_event
 from payment_card.payment import Payment
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme.forms import CSVUploadForm
-from scheme.mixins import (
-    IdentifyCardMixin,
-    SchemeAccountCreationMixin,
-    SchemeAccountJoinMixin,
-    SwappableSerializerMixin,
-    UpdateCredentialsMixin,
-)
+from scheme.mixins import IdentifyCardMixin, SchemeAccountJoinMixin, SwappableSerializerMixin, UpdateCredentialsMixin
 from scheme.models import ConsentStatus, Exchange, Scheme, SchemeAccount, SchemeAccountImage, SchemeImage, UserConsent
 from scheme.serializers import (
     DeleteCredentialSerializer,
@@ -47,7 +33,7 @@ from scheme.serializers import (
     StatusSerializer,
     UpdateUserConsentSerializer,
 )
-from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry, AccountLinkStatus
+from ubiquity.models import AccountLinkStatus, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import async_join_journey_fetch_balance_and_update_status, send_merchant_metrics_for_link_delete
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin, TransactionSerializer
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
@@ -429,9 +415,12 @@ class SystemActionSchemeAccounts(ListAPIView):
 
     def get_queryset(self):
         return set(
-            [sae.scheme_account for sae in SchemeAccountEntry.objects.filter(
-                link_status__in=AccountLinkStatus.system_action_required()
-            ).all()]
+            [
+                sae.scheme_account
+                for sae in SchemeAccountEntry.objects.filter(
+                    link_status__in=AccountLinkStatus.system_action_required()
+                ).all()
+            ]
         )
 
     serializer_class = SchemeAccountIdsSerializer
@@ -478,7 +467,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         """
         account = get_object_or_404(SchemeAccount.objects, id=self.kwargs["pk"])
         credential_answers = request.data
-        user_id = request.headers['bink_user_id']
+        user_id = request.headers["bink-user-id"]
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=account, user_id=user_id)
 
         response = self.update_credentials(
@@ -506,7 +495,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
             description: list, e.g. ['username', 'password'] of all credential types to delete
         """
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs["pk"])
-        user_id = request.headers['bink-user-id']
+        user_id = request.headers["bink-user-id"]
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user_id=user_id)
         serializer = DeleteCredentialSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -573,20 +562,6 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
     def invalid_data_response(invalid_data):
         message = {"message": "No answers found for: {}. Not deleting any credential answers".format(invalid_data)}
         return Response(message, status=status.HTTP_404_NOT_FOUND)
-
-
-class SchemeAccountStatusData(ListAPIView):
-    """
-    DO NOT USE - NOT FOR APP ACCESS
-    """
-
-    permission_classes = (AllowService,)
-    authentication_classes = (ServiceAuthentication,)
-
-    def get_queryset(self):
-        queryset = scheme_account_status_data()
-
-        return queryset
 
 
 # TODO: Make this a class based view

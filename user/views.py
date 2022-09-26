@@ -50,7 +50,7 @@ from prometheus.metrics import service_creation_counter
 from scheme.credentials import EMAIL
 from scheme.models import SchemeAccountCredentialAnswer
 from ubiquity.channel_vault import get_jwt_secret
-from ubiquity.models import SchemeAccountEntry, AccountLinkStatus
+from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
 from ubiquity.versioning.base.serializers import ServiceSerializer
 from user.authentication import JwtAuthentication
 from user.exceptions import MagicLinkExpiredTokenError, MagicLinkValidationError

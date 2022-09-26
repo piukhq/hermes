@@ -7,10 +7,10 @@ from hermes.channels import Permit
 from history.utils import GlobalMockAPITestCase
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.credentials import CARD_NUMBER, EMAIL, PASSWORD, POSTCODE
-from scheme.models import SchemeAccount, SchemeBundleAssociation, SchemeCredentialQuestion
+from scheme.models import SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.serializers import JoinSerializer
 from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory
-from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry, AccountLinkStatus
+from ubiquity.models import AccountLinkStatus, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import (
     async_all_balance,
     async_balance,
@@ -43,7 +43,7 @@ class TestTasks(GlobalMockAPITestCase):
         cls.bundle = ClientApplicationBundleFactory(client=cls.client)
         cls.user = UserFactory(external_id=external_id, email=external_id)
         cls.entry = SchemeAccountEntryFactory(user=cls.user, link_status=AccountLinkStatus.ACTIVE)
-        cls.entry2 = SchemeAccountEntryFactory(user=cls.user,  link_status=AccountLinkStatus.ACTIVE)
+        cls.entry2 = SchemeAccountEntryFactory(user=cls.user, link_status=AccountLinkStatus.ACTIVE)
 
         cls.link_entry = SchemeAccountEntryFactory(user=cls.user, link_status=AccountLinkStatus.ACTIVE)
         cls.link_scheme = cls.link_entry.scheme_account.scheme
@@ -101,8 +101,9 @@ class TestTasks(GlobalMockAPITestCase):
         scheme_account_3 = SchemeAccountFactory(scheme=scheme_account_1.scheme)
         scheme_account_4 = SchemeAccountFactory(scheme=scheme_account_1.scheme)
 
-        entry_active = SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account_1,
-                                                 link_status=AccountLinkStatus.ACTIVE)
+        entry_active = SchemeAccountEntryFactory(
+            user=self.user, scheme_account=scheme_account_1, link_status=AccountLinkStatus.ACTIVE
+        )
         user = entry_active.user
         SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=scheme_account_1.scheme)
         channels_permit = Permit(self.bundle.bundle_id, client=self.bundle.client)

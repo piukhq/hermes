@@ -36,7 +36,7 @@ from scheme.models import (
 )
 from scheme.serializers import UbiquityJoinSerializer, UpdateCredentialSerializer, UserConsentSerializer
 from ubiquity.channel_vault import AESKeyNames
-from ubiquity.models import SchemeAccountEntry, AccountLinkStatus
+from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
 
 DATAWAREHOUSE_EVENTS = {
     AccountLinkStatus.ADD_AUTH_PENDING: add_auth_outcome_task,
@@ -360,8 +360,10 @@ class SchemeAccountJoinMixin:
         with transaction.atomic():
             try:
                 scheme_account_entry = SchemeAccountEntry.objects.get(
-                    user=user, scheme_account__scheme_id=scheme_id,
-                    link_status__in=AccountLinkStatus.join_action_required())
+                    user=user,
+                    scheme_account__scheme_id=scheme_id,
+                    link_status__in=AccountLinkStatus.join_action_required(),
+                )
 
                 scheme_account_entry.scheme_account.order = data["order"]
                 scheme_account_entry.scheme_account.save(update_fields=["order"])

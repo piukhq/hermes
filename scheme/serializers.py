@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from common.models import Image
-from scheme.credentials import BARCODE, CARD_NUMBER, CASE_SENSITIVE_CREDENTIALS, credential_types_set
+from scheme.credentials import BARCODE, CARD_NUMBER, CASE_SENSITIVE_CREDENTIALS
 from scheme.models import (
     Consent,
     ConsentStatus,
@@ -20,7 +20,7 @@ from scheme.models import (
     SchemeImage,
     UserConsent,
 )
-from ubiquity.models import AccountLinkStatus, PaymentCardAccountEntry, SchemeAccountEntry
+from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
 from user.models import CustomUser
 
 logger = logging.getLogger(__name__)
@@ -292,7 +292,7 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
         return get_images_for_scheme_account(scheme_account)
 
     def get_display_status(self, scheme_account):
-        user = self.context['request'].user
+        user = self.context["request"].user
         entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user=user)
         return entry.display_status
 

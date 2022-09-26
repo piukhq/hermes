@@ -17,9 +17,8 @@ from rest_framework.utils.serializer_helpers import ReturnList
 from hermes import settings
 from history.utils import GlobalMockAPITestCase
 from scheme.credentials import EMAIL
-from scheme.models import SchemeAccount
 from scheme.tests.factories import SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory
-from ubiquity.models import SchemeAccountEntry, AccountLinkStatus
+from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.models import (

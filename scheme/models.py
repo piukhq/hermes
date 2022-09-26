@@ -31,7 +31,7 @@ from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED
 from scheme.encryption import AESCipher
 from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import AESKeyNames
-from ubiquity.models import SchemeAccountEntry, AccountLinkStatus
+from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
 from ubiquity.reason_codes import REASON_CODES
 
 if TYPE_CHECKING:

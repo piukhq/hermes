@@ -465,8 +465,9 @@ class SchemeUserAssociationAdmin(HistoryAdmin):
         messages.add_message(request, messages.INFO, "Refreshed balance, vouchers and transactions information.")
 
     def scheme_account_link(self, obj):
-        return format_html('<a href="/admin/scheme/schemeaccount/{0}/change/">scheme_account {0}</a>',
-                           obj.scheme_account.id)
+        return format_html(
+            '<a href="/admin/scheme/schemeaccount/{0}/change/">scheme_account {0}</a>', obj.scheme_account.id
+        )
 
     def user_link(self, obj):
         user_name = obj.user.external_id

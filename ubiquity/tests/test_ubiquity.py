@@ -48,7 +48,7 @@ from scheme.tests.factories import (
 )
 from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.channel_vault import AESKeyNames
-from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, AccountLinkStatus
+from ubiquity.models import AccountLinkStatus, PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.reason_codes import CURRENT_STATUS_CODES
 from ubiquity.tasks import deleted_membership_card_cleanup
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
@@ -1393,8 +1393,11 @@ class TestResources(GlobalMockAPITestCase):
 
     def test_membership_card_delete_error_on_pending_join_mcard(self):
         scheme_account = SchemeAccountFactory(scheme=self.scheme)
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user,
-                                  link_status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS,)
+        SchemeAccountEntryFactory(
+            scheme_account=scheme_account,
+            user=self.user,
+            link_status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS,
+        )
 
         resp = self.client.delete(
             reverse("membership-card", args=[scheme_account.id]), content_type="application/json", **self.auth_headers
@@ -1776,8 +1779,12 @@ class TestResources(GlobalMockAPITestCase):
         (Multiple link/ NOT LastManStanding)
         """
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme, card_number="55555")
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user, link_status=AccountLinkStatus.ACTIVE)
-        scheme_account_entry_2 = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user2, link_status=AccountLinkStatus.ACTIVE)
+        scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=scheme_account, user=self.user, link_status=AccountLinkStatus.ACTIVE
+        )
+        scheme_account_entry_2 = SchemeAccountEntryFactory(
+            scheme_account=scheme_account, user=self.user2, link_status=AccountLinkStatus.ACTIVE
+        )
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_manual_q,
             answer="55555",
@@ -1824,7 +1831,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertIsNone(answers.get(self.put_scheme_scan_q.type))
 
         self.assertEqual(new_scheme_acc.card_number, "12345")
-
 
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)

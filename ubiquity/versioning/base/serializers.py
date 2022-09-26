@@ -37,11 +37,11 @@ from scheme.serializers import JoinSerializer, SchemeAnswerSerializer, UserConse
 from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import retry_session
 from ubiquity.models import (
+    AccountLinkStatus,
     MembershipPlanDocument,
     PaymentCardSchemeEntry,
     SchemeAccountEntry,
     ServiceConsent,
-    AccountLinkStatus,
 )
 from ubiquity.reason_codes import get_state_reason_code_and_text
 from ubiquity.tasks import async_balance

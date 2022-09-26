@@ -490,7 +490,6 @@ class ListPaymentCardView(
         return Response(self.get_serializer_by_request(pcard).data, status=status_code)
 
 
-
 class MembershipCardView(
     RetrieveDeleteAccount,
     VersionedSerializerMixin,
@@ -513,14 +512,16 @@ class MembershipCardView(
 
     def get_queryset(self):
         return self.request.channels_permit.scheme_account_entry_query(
-            SchemeAccountEntry.objects.select_related("scheme_account__scheme").prefetch_related("scheme_account__scheme__schemeoverrideerror_set"),
+            SchemeAccountEntry.objects.select_related("scheme_account__scheme").prefetch_related(
+                "scheme_account__scheme__schemeoverrideerror_set"
+            ),
             user_id=self.request.user.id,
             user_filter=True,
         )
 
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
-        entry = get_object_or_404(self.get_queryset(), scheme_account=self.kwargs['pk'])
+        entry = get_object_or_404(self.get_queryset(), scheme_account=self.kwargs["pk"])
         auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, entry.scheme_account)
         return Response(
             self.get_serializer_by_request(
@@ -542,7 +543,7 @@ class MembershipCardView(
 
     @censor_and_decorate
     def update(self, request, *args, **kwargs):
-        entry = get_object_or_404(self.get_queryset(), scheme_account=self.kwargs['pk'])
+        entry = get_object_or_404(self.get_queryset(), scheme_account=self.kwargs["pk"])
         self.log_update(entry.scheme_account.pk)
         scheme = entry.scheme_account.scheme
         scheme_questions = scheme.questions.all()
@@ -759,7 +760,7 @@ class MembershipCardView(
 
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
-        entry = get_object_or_404(self.get_queryset(), scheme_account=self.kwargs['pk'])
+        entry = get_object_or_404(self.get_queryset(), scheme_account=self.kwargs["pk"])
 
         if auto_link(request):
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=request.user.id).values_list(
@@ -923,10 +924,8 @@ class MembershipCardView(
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
-        entry = get_object_or_404(self.get_queryset(), scheme_account=self.kwargs['pk'])
-        if entry.link_status in (
-            AccountLinkStatus.join_pending() + AccountLinkStatus.register_pending()
-        ):
+        entry = get_object_or_404(self.get_queryset(), scheme_account=self.kwargs["pk"])
+        if entry.link_status in (AccountLinkStatus.join_pending() + AccountLinkStatus.register_pending()):
             # Ideally we would create a different error message for pending registrations as this is a little misleading
             # , but this would mean non-agreed changes to the API for Barclays so will keep this the same for now.
             error = {"join_pending": "Membership card cannot be deleted until the Join process has completed."}
