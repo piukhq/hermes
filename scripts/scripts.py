@@ -8,6 +8,7 @@ from .find_errors.vop_activations_stuck_in_activating import FindVOPActivationsS
 from .find_errors.vop_activations_stuck_in_deactivating import FindVOPActivationsStuckInDeactivating
 from .find_errors.vop_cards_in_duplicate_card_status import FindVOPCardsInDuplicateCardStatus
 from .find_errors.vop_cards_needing_activations import FindVopCardsNeedingActivation
+from .find_errors.find_duplicate_cards import FindDuplicatePaymentCardsWithSameFingerprint
 
 # New scripts which find records to correct should be imported above and mapped in script functions
 # Define name and title here.  Only Scripts names in SCRIPT_CLASSES will have a link on /admin/scripts/ page
@@ -24,6 +25,7 @@ class DataScripts(IntEnum):
     SCHEMEACCOUNT_INVALIDCREDS = auto()
     BARCLAYS_HASH_UPLOAD = auto()
     DELETE_LISTED_PAYMENT_ACCOUNTS = auto()
+    DELETE_DUPLICATE_CARDS_SAME_FINGERPRINT = auto()
 
 
 SCRIPT_TITLES = {
@@ -37,6 +39,7 @@ SCRIPT_TITLES = {
     DataScripts.SCHEMEACCOUNT_INVALIDCREDS: "SchemeAccounts stuck in Invalid Credentials status",
     DataScripts.BARCLAYS_HASH_UPLOAD: "Barclays hash replacement using Azure upload files",
     DataScripts.DELETE_LISTED_PAYMENT_ACCOUNTS: "Remove Payment Accounts in supplied CSV File",
+    DataScripts.DELETE_DUPLICATE_CARDS_SAME_FINGERPRINT: "Soft delete duplicate Payment Account with same fingerprint",
 }
 
 SCRIPT_CLASSES = {
@@ -49,6 +52,7 @@ SCRIPT_CLASSES = {
     DataScripts.SCHEMEACCOUNT_INVALIDCREDS: FindSchemeAccountsStuckInInvalidCreds,
     DataScripts.BARCLAYS_HASH_UPLOAD: BarclaysHashCorrectionsUpload,
     DataScripts.DELETE_LISTED_PAYMENT_ACCOUNTS: BarclaysDeleteUpload,
+    DataScripts.DELETE_DUPLICATE_CARDS_SAME_FINGERPRINT: FindDuplicatePaymentCardsWithSameFingerprint,
 }
 # End of new script definition - you do not need to do anything else to add a new find script
 # But you may need to add one or more corrective actions see actions/corrections.py

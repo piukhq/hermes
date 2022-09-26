@@ -31,74 +31,84 @@ def loop_through_record(delete_recs, payment_scheme_entry_recs, user_links_recs)
 
 
 def fix_duplcate_cards(apps, schema_editor):
-    PaymentCardSchemeEntry = apps.get_model("ubiquity", "PaymentCardSchemeEntry")
-    PaymentCardAccountEntry = apps.get_model("ubiquity", "PaymentCardAccountEntry")
+    pass
 
-    dupe_fingerprints = (
-        PaymentCardAccount.objects.values("fingerprint")
-        .annotate(count=Count("fingerprint"))
-        .values("fingerprint")
-        .order_by()
-        .filter(count__gt=1)
-    )
+    # PaymentCardSchemeEntry = apps.get_model("ubiquity", "PaymentCardSchemeEntry")
+    # PaymentCardAccountEntry = apps.get_model("ubiquity", "PaymentCardAccountEntry")
+    #
+    # dupe_fingerprints = (
+    #     PaymentCardAccount.objects.values("fingerprint")
+    #     .annotate(count=Count("fingerprint"))
+    #     .values("fingerprint")
+    #     .order_by()
+    #     .filter(count__gt=1)
+    # )
+    #
+    # payment_accounts = (
+    #     PaymentCardAccount.objects.filter(fingerprint__in=dupe_fingerprints)
+    #     .prefetch_related("paymentcardschemeentry_set", "user_set")
+    #     .order_by("-expiry_year", "-expiry_month")
+    #     .all()
+    # )
+    #
+    # accs_sorted_by_fingerprint = defaultdict(list)
+    # for payment_account in payment_accounts:
+    #     accs_sorted_by_fingerprint[payment_account.fingerprint].append(payment_account)
+    #
+    # accs_to_keep = defaultdict(list)
+    # accs_to_delete = defaultdict(list)
+    #
+    # import pdb; pdb.set_trace()
+    #
+    # for fingerprint, sorted_accounts in accs_sorted_by_fingerprint.items():
+    #     accs_to_keep[fingerprint] = sorted_accounts[0]
+    #     accs_to_delete[fingerprint].extend(sorted_accounts[1:])
+    #
+    #
+    # users_to_migrate = []
+    # scheme_accs_to_migrate = []
+    # payment_scheme_entries_to_create = []
+    # user_links_to_create = []
+    # for fingerprint, payment_accounts in accs_to_delete.items():
+    #     for x in payment_accounts:
+    #
+    #         with transaction.atomic():
+    #             # Get schemes to link and delete PaymentCardSchemeEntry object
+    #             scheme_accs_to_migrate.extend(
+    #                 x.paymentcardschemeentry_set.values_list("scheme_account_id", flat=True).all()
+    #             )
+    #             x.paymentcardschemeentry_set.all().delete()
+    #
+    #             # Get users to link and delete PaymentCardAccountEntry
+    #             users_to_migrate.extend(x.user_set.values_list("id", flat=True).all())
+    #             x.paymentcardaccountentry_set.all().delete()
+    #
+    #     # create payment scheme entry instances to bulk create later
+    #     for acc in scheme_accs_to_migrate:
+    #         payment_scheme_entries_to_create.append(
+    #             PaymentCardSchemeEntry(scheme_account_id=acc, payment_card_account_id=accs_to_keep[fingerprint].id)
+    #         )
+    #
+    #     for acc in users_to_migrate:
+    #         user_links_to_create.append(
+    #             PaymentCardAccountEntry(user_id=acc, payment_card_account_id=accs_to_keep[fingerprint].id)
+    #         )
+    # # bulk update the accounts to delete to set deleted flag to True
+    # payment_accs_to_delete_grouped = []
+    # for payment_accs_list in accs_to_delete.values():
+    #     payment_accs_to_delete_grouped.extend(payment_accs_list)
+    #     for acc in payment_accs_list:
+    #         acc.is_deleted = True
+    #
+    # loop_through_record(
+    #     delete_recs=payment_accs_to_delete_grouped,
+    #     payment_scheme_entry_recs=payment_scheme_entries_to_create,
+    #     user_links_recs=user_links_to_create,
+    # )
 
-    payment_accounts = (
-        PaymentCardAccount.objects.filter(fingerprint__in=dupe_fingerprints)
-        .prefetch_related("paymentcardschemeentry_set", "user_set")
-        .order_by("-expiry_year", "-expiry_month")
-        .all()
-    )
 
-    accs_sorted_by_fingerprint = defaultdict(list)
-    for payment_account in payment_accounts:
-        accs_sorted_by_fingerprint[payment_account.fingerprint].append(payment_account)
-
-    accs_to_keep = defaultdict(list)
-    accs_to_delete = defaultdict(list)
-    for fingerprint, sorted_accounts in accs_sorted_by_fingerprint.items():
-        accs_to_keep[fingerprint] = sorted_accounts[0]
-        accs_to_delete[fingerprint].extend(sorted_accounts[1:])
-
-    users_to_migrate = []
-    scheme_accs_to_migrate = []
-    payment_scheme_entries_to_create = []
-    user_links_to_create = []
-    for fingerprint, payment_accounts in accs_to_delete.items():
-        for x in payment_accounts:
-
-            with transaction.atomic():
-                # Get schemes to link and delete PaymentCardSchemeEntry object
-                scheme_accs_to_migrate.extend(
-                    x.paymentcardschemeentry_set.values_list("scheme_account_id", flat=True).all()
-                )
-                x.paymentcardschemeentry_set.all().delete()
-
-                # Get users to link and delete PaymentCardAccountEntry
-                users_to_migrate.extend(x.user_set.values_list("id", flat=True).all())
-                x.paymentcardaccountentry_set.all().delete()
-
-        # create payment scheme entry instances to bulk create later
-        for acc in scheme_accs_to_migrate:
-            payment_scheme_entries_to_create.append(
-                PaymentCardSchemeEntry(scheme_account_id=acc, payment_card_account_id=accs_to_keep[fingerprint].id)
-            )
-
-        for acc in users_to_migrate:
-            user_links_to_create.append(
-                PaymentCardAccountEntry(user_id=acc, payment_card_account_id=accs_to_keep[fingerprint].id)
-            )
-    # bulk update the accounts to delete to set deleted flag to True
-    payment_accs_to_delete_grouped = []
-    for payment_accs_list in accs_to_delete.values():
-        payment_accs_to_delete_grouped.extend(payment_accs_list)
-        for acc in payment_accs_list:
-            acc.is_deleted = True
-
-    loop_through_record(
-        delete_recs=payment_accs_to_delete_grouped,
-        payment_scheme_entry_recs=payment_scheme_entries_to_create,
-        user_links_recs=user_links_to_create,
-    )
+def reverse_code(apps, scheme_editor):
+    pass
 
 
 class Migration(migrations.Migration):
@@ -108,4 +118,4 @@ class Migration(migrations.Migration):
         ("payment_card", "0057_alter_paymentcard_formatted_images_and_more"),
     ]
 
-    operations = [migrations.RunPython(fix_duplcate_cards)]
+    operations = [migrations.RunPython(fix_duplcate_cards, reverse_code=reverse_code)]
