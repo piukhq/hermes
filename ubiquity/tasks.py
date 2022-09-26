@@ -160,7 +160,7 @@ def async_all_balance(user_id: int, channels_permit) -> None:
     )
     entries = entries.exclude(**exclude_query)
 
-    for entry in entries:
+    for entry in entries.all():
         async_balance.delay(entry)
 
 

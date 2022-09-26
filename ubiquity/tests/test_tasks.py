@@ -42,10 +42,10 @@ class TestTasks(GlobalMockAPITestCase):
         cls.client = ClientApplicationFactory(organisation=cls.org, name="Barclays-client")
         cls.bundle = ClientApplicationBundleFactory(client=cls.client)
         cls.user = UserFactory(external_id=external_id, email=external_id)
-        cls.entry = SchemeAccountEntryFactory(user=cls.user)
-        cls.entry2 = SchemeAccountEntryFactory(user=cls.user)
+        cls.entry = SchemeAccountEntryFactory(user=cls.user, link_status=AccountLinkStatus.ACTIVE)
+        cls.entry2 = SchemeAccountEntryFactory(user=cls.user,  link_status=AccountLinkStatus.ACTIVE)
 
-        cls.link_entry = SchemeAccountEntryFactory(user=cls.user)
+        cls.link_entry = SchemeAccountEntryFactory(user=cls.user, link_status=AccountLinkStatus.ACTIVE)
         cls.link_scheme = cls.link_entry.scheme_account.scheme
         cls.manual_question = SchemeCredentialQuestionFactory(
             scheme=cls.link_scheme,
