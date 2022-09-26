@@ -1354,8 +1354,8 @@ class TestResources(GlobalMockAPITestCase):
         payload = {
             "membership_plan": self.scheme.id,
             "account": {
-                "add_fields": [{"column": "barcode", "value": "3038401022657083"}],
-                "authorise_fields": [{"column": "last_name", "value": "Test"}],
+                "add_fields": [{"column": "barcode", "value": "3038401022657082131"}],
+                "authorise_fields": [{"column": "last_name", "value": "Testy"}],
             },
         }
         resp = self.client.post(

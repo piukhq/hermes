@@ -303,10 +303,7 @@ def deleted_membership_card_cleanup(
 
     remove_loyalty_card_event(scheme_account_entry)
 
-    # Delete this user's credentials
-    scheme_account_entry.schemeaccountcredentialanswer_set.all().delete()
-
-    other_scheme_account_entries = SchemeAccountEntry.objects.filter(scheme_account=scheme_account_entry.scheme_account)
+    other_scheme_account_entries = SchemeAccountEntry.objects.filter(scheme_account=scheme_account_entry.scheme_account).exclude(id=scheme_account_entry.id)
 
     if other_scheme_account_entries.count() <= 0:
         # Last man standing
@@ -318,7 +315,7 @@ def deleted_membership_card_cleanup(
         m_card_users = other_scheme_account_entries.values_list("user_id", flat=True)
         pll_links = pll_links.exclude(payment_card_account__user_set__in=m_card_users)
 
-    # Delete this user's scheme account entry
+    # Delete this user's scheme account entry (and credentials by cascade)
     scheme_account_entry.delete()
 
     activations = VopActivation.find_activations_matching_links(pll_links)
