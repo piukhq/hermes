@@ -101,7 +101,8 @@ class TestTasks(GlobalMockAPITestCase):
         scheme_account_3 = SchemeAccountFactory(scheme=scheme_account_1.scheme)
         scheme_account_4 = SchemeAccountFactory(scheme=scheme_account_1.scheme)
 
-        entry_active = SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account_1)
+        entry_active = SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account_1,
+                                                 link_status=AccountLinkStatus.ACTIVE)
         user = entry_active.user
         SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=scheme_account_1.scheme)
         channels_permit = Permit(self.bundle.bundle_id, client=self.bundle.client)

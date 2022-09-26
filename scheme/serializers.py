@@ -356,11 +356,6 @@ class SchemeAccountStatusSerializer(serializers.Serializer):
     count = serializers.IntegerField()
 
 
-class SchemeAccountSummarySerializer(serializers.Serializer):
-    scheme_id = serializers.IntegerField()
-    statuses = SchemeAccountStatusSerializer(many=True, read_only=True)
-
-
 def add_object_type_to_image_response(data, obj_type):
     new_data = copy(data)
     new_data["object_type"] = obj_type

@@ -25,7 +25,6 @@ from rest_framework.views import APIView
 from history.tasks import join_outcome_event, register_outcome_event
 from payment_card.payment import Payment
 from prometheus.utils import capture_membership_card_status_change_metric
-from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
 from scheme.mixins import (
     IdentifyCardMixin,
@@ -44,7 +43,6 @@ from scheme.serializers import (
     ReferenceImageSerializer,
     SchemeAccountCredentialsSerializer,
     SchemeAccountIdsSerializer,
-    SchemeAccountSummarySerializer,
     SchemeSerializer,
     StatusSerializer,
     UpdateUserConsentSerializer,
@@ -589,8 +587,6 @@ class SchemeAccountStatusData(ListAPIView):
         queryset = scheme_account_status_data()
 
         return queryset
-
-    serializer_class = SchemeAccountSummarySerializer
 
 
 # TODO: Make this a class based view

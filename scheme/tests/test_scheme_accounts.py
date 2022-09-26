@@ -633,13 +633,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         expected_fields["consents"] = None  # Add consents
         self.assertEqual(set(expected_fields.keys()), set(LinkSchemeSerializer._declared_fields.keys()))
 
-    def test_scheme_account_summary(self):
-        response = self.client.get("/schemes/accounts/summary", **self.auth_service_headers)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(type(response.data), ReturnList)
-        self.assertTrue(len(response.data) > 0)
-        self.assertTrue(self.all_statuses_correct(response.data))
-
     def all_statuses_correct(self, scheme_list):
         status_dict = dict(AccountLinkStatus.statuses())
         for scheme in scheme_list:
