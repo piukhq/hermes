@@ -14,6 +14,7 @@ from scheme.tests.factories import (
     SchemeCredentialQuestionFactory,
     SchemeFactory,
 )
+from ubiquity.models import AccountLinkStatus
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.tests.factories import (
@@ -117,8 +118,8 @@ class TestCredentials(GlobalMockAPITestCase):
                     )
 
                 self.assertNotEqual(ans, answer)
-                scheme_account2.refresh_from_db()
-                self.assertEqual(scheme_account2.ACCOUNT_ALREADY_EXISTS, scheme_account2.status)
+                scheme_account_entry_2.refresh_from_db()
+                self.assertEqual(AccountLinkStatus.ACCOUNT_ALREADY_EXISTS, scheme_account_entry_2.link_status)
 
     def test_internal_update_existing_main_answer_with_same_credential_is_accepted(self):
         for field in [CARD_NUMBER, BARCODE]:
