@@ -1828,57 +1828,6 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    def test_membership_card_put_manual_question_existing_answer(self, *_):
-        """
-        Tests that a PUT with a different, pre-existing add_field (manual_question_answer) results in
-        the action being blocked, and scheme account status set to 446 - FAILED UPDATE
-        """
-        scheme_account = SchemeAccountFactory(scheme=self.put_scheme, card_number="55555")
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
-        scheme_account_entry_2 = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user2)
-
-        SchemeAccountFactory(scheme=self.put_scheme, card_number="12345")
-
-        SchemeCredentialAnswerFactory(
-            question=self.put_scheme_manual_q,
-            answer="55555",
-            scheme_account_entry=scheme_account_entry,
-        )
-        SchemeCredentialAnswerFactory(
-            question=self.put_scheme_auth_q,
-            answer="pass",
-            scheme_account_entry=scheme_account_entry,
-        )
-
-        payload = {
-            "membership_plan": self.put_scheme.id,
-            "account": {
-                "add_fields": [{"column": "card_number", "value": "12345"}],
-                "authorise_fields": [{"column": "password", "value": "pass"}],
-            },
-        }
-
-        resp_put = self.client.put(
-            reverse("membership-card", args=[scheme_account.id]),
-            data=json.dumps(payload),
-            content_type="application/json",
-            **self.auth_headers,
-        )
-
-        scheme_account.refresh_from_db()
-        scheme_account_entry.refresh_from_db()
-
-        self.assertEqual(resp_put.status_code, 200)
-
-        self.assertFalse(scheme_account.is_deleted)
-        self.assertEqual(scheme_account_entry.status, AccountLinkStatus.FAILED_UPDATE)
-        self.assertEqual(scheme_account_entry_2.scheme_account, scheme_account)
-        self.assertEqual(scheme_account_entry.scheme_account, scheme_account)
-
-    @patch("ubiquity.views.async_link", autospec=True)
-    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
-    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_put_scan_question_single_link(self, *_):
         """
         Tests that a PUT with a different, non-existing add_field (scan_question_answer) results in a new account

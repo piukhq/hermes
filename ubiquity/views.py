@@ -801,7 +801,7 @@ class MembershipCardView(
             metrics_route = MembershipCardAddRoute.ENROL
         else:
             metrics_route, account = self._handle_replace_add_and_auth_fields(
-                entry.scheme_account,
+                entry,
                 add_fields,
                 auth_fields,
                 payment_cards_to_link,
@@ -887,18 +887,6 @@ class MembershipCardView(
         main_answer_field = scheme_acc_entry.scheme_account.get_key_cred_field_from_question_type(main_answer_type)
 
         metrics_route = MembershipCardAddRoute.UPDATE
-
-        # Fail the update if the new main_answer is already used in another account
-        existing_account = self.get_existing_account_with_same_manual_answer(
-            scheme_account=scheme_acc_entry.scheme_account,
-            scheme_id=scheme_acc_entry.scheme_account.scheme.id,
-            main_answer=main_answer_value,
-            main_answer_field=main_answer_field,
-        )
-
-        if existing_account:
-            scheme_acc_entry.set_link_status(AccountLinkStatus.FAILED_UPDATE)
-            return metrics_route, scheme_acc_entry.scheme_account
 
         # update credentials
         UpdateCredentialsMixin().update_credentials(
