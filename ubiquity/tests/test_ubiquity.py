@@ -680,7 +680,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(["X300"], data["status"]["reason_codes"])
 
     def test_membership_card_V1_3_returns_default_error_message_if_no_override_exists(self, *_):
-        self.scheme_account_entry.status = AccountLinkStatus.ACCOUNT_ALREADY_EXISTS
+        self.scheme_account_entry.link_status = AccountLinkStatus.ACCOUNT_ALREADY_EXISTS
         self.scheme_account_entry.save()
         error_messages = dict((code, message) for code, message in CURRENT_STATUS_CODES)
         mcard_user_auth_provided_map = {self.scheme_account.id: True}

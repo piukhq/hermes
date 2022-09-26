@@ -173,7 +173,7 @@ class TestTasks(GlobalMockAPITestCase):
 
         async_registration(user_id, JoinSerializer, scheme_account_id, {"credentials": {}}, self.bundle.bundle_id)
 
-        self.link_entry.scheme_account.refresh_from_db()
+        self.link_entry.refresh_from_db()
         self.assertEqual(self.link_entry.link_status, AccountLinkStatus.REGISTRATION_FAILED)
 
     @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
