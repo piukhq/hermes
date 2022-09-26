@@ -658,6 +658,8 @@ class TestResources(GlobalMockAPITestCase):
     def test_membership_card_status_mapping_system_error(self, *_):
         user_error = AccountLinkStatus.END_SITE_DOWN
         self.scheme_account_entry.link_status = user_error
+        self.scheme_account_entry.save()
+
         self.scheme_account.balances = {}
         self.scheme_account.save()
 
