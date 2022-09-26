@@ -1211,9 +1211,9 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertEqual(response.status_code, 201)
         scheme_account = SchemeAccount.objects.get(pk=response.json()["id"])
-        scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user=self.user)
+        scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user=user)
         self.assertEqual(scheme_account.barcode, main_answer)
-        self.assertIn(scheme_account_entry.status, AccountLinkStatus.join_pending())
+        self.assertIn(scheme_account_entry.link_status, AccountLinkStatus.join_pending())
         self.assertEqual(scheme_account.originating_journey, JourneyTypes.JOIN)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
