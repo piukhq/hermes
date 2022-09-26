@@ -31,6 +31,8 @@ def loop_through_record(delete_recs, payment_scheme_entry_recs, user_links_recs)
 
 
 def fix_duplcate_cards(apps, schema_editor):
+
+    # Do nothing - pending investigation on what to do with VOP activations on duplicate cards
     pass
 
     # PaymentCardSchemeEntry = apps.get_model("ubiquity", "PaymentCardSchemeEntry")
@@ -57,13 +59,9 @@ def fix_duplcate_cards(apps, schema_editor):
     #
     # accs_to_keep = defaultdict(list)
     # accs_to_delete = defaultdict(list)
-    #
-    # import pdb; pdb.set_trace()
-    #
     # for fingerprint, sorted_accounts in accs_sorted_by_fingerprint.items():
     #     accs_to_keep[fingerprint] = sorted_accounts[0]
     #     accs_to_delete[fingerprint].extend(sorted_accounts[1:])
-    #
     #
     # users_to_migrate = []
     # scheme_accs_to_migrate = []
@@ -107,7 +105,7 @@ def fix_duplcate_cards(apps, schema_editor):
     # )
 
 
-def reverse_code(apps, scheme_editor):
+def revert(apps, schema_editor):
     pass
 
 
@@ -118,4 +116,4 @@ class Migration(migrations.Migration):
         ("payment_card", "0057_alter_paymentcard_formatted_images_and_more"),
     ]
 
-    operations = [migrations.RunPython(fix_duplcate_cards, reverse_code=reverse_code)]
+    operations = [migrations.RunPython(fix_duplcate_cards, reverse_code=revert)]

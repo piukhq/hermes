@@ -1,5 +1,4 @@
-from .paymentaccount_actions import (
-    do_delete_payment_account,
+from .paymentaccount_actions import (  # do_delete_payment_account,
     do_remove_payment_account,
     do_retain,
     do_un_enroll_card,
@@ -43,7 +42,6 @@ class Correction:
     DELETE_PAYMENT_ACCOUNT = 2003
     REMOVE_UN_ENROLL_DELETE_PAYMENT_ACCOUNT = 2004
     UN_ENROLL_CARD = 2005
-    PAYMENT_ACCOUNT_DELETE_AND_VOP_DEACTIVATE = 2006
 
     CORRECTION_SCRIPTS = (
         (NO_CORRECTION, "No correction available"),
@@ -70,7 +68,6 @@ class Correction:
         (DELETE_PAYMENT_ACCOUNT, "Delete Payment Card Account"),
         (REMOVE_UN_ENROLL_DELETE_PAYMENT_ACCOUNT, "Remove, Un_enroll, Delete Payment Card Account"),
         (UN_ENROLL_CARD, "UNENROLL Payment Card Account"),
-        (PAYMENT_ACCOUNT_DELETE_AND_VOP_DEACTIVATE, "Soft delete Payment Card Account, Deactivate VOP"),
     )
 
     COMPOUND_CORRECTION_SCRIPTS = {
@@ -87,9 +84,6 @@ class Correction:
             VOP_MULTIPLE_DEACTIVATE_UN_ENROLL,
             DELETE_PAYMENT_ACCOUNT,
         ],
-        PAYMENT_ACCOUNT_DELETE_AND_VOP_DEACTIVATE: [
-            DELETE_PAYMENT_ACCOUNT, VOP_DEACTIVATE
-        ]
     }
 
     TITLES = dict(CORRECTION_SCRIPTS)
