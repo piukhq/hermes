@@ -989,7 +989,8 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         invalid_status = 502
         mock_request.return_value.status_code = invalid_status
         scheme_account = SchemeAccountFactory()
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account,
+                                                         link_status=AccountLinkStatus.PENDING)
         points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         # check this status hasn't been added to scheme account status
