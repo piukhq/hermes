@@ -1767,15 +1767,15 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    def test_membership_card_put_manual_question_multiple_links(self, *_):
+    def test_membership_card_put_different_nonexisting_manual_question_multiple_links(self, *_):
         """
         Tests that a PUT with a different, non-existing add_field (manual_question_answer) results in a new account
         being created, the schemeaccountentry switched to the new account, and the old account unaffected.
         (Multiple link/ NOT LastManStanding)
         """
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme, card_number="55555")
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
-        scheme_account_entry_2 = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user2)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user, link_status=AccountLinkStatus.ACTIVE)
+        scheme_account_entry_2 = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user2, link_status=AccountLinkStatus.ACTIVE)
         SchemeCredentialAnswerFactory(
             question=self.put_scheme_manual_q,
             answer="55555",
@@ -1807,13 +1807,13 @@ class TestResources(GlobalMockAPITestCase):
 
         new_scheme_acc_id = resp_put.data["id"]
         new_scheme_acc = SchemeAccount.objects.get(id=new_scheme_acc_id)
-        new_scheme_acc_entry = SchemeAccountEntry.objects.get(scheme_account=new_scheme_acc, user=self.user)
 
         self.assertEqual(resp_put.status_code, 200)
 
         self.assertFalse(scheme_account.is_deleted)
-        self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.ACTIVE)
+        self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.PENDING)
         self.assertEqual(scheme_account_entry.scheme_account, new_scheme_acc)
+        self.assertEqual(scheme_account_entry_2.link_status, AccountLinkStatus.ACTIVE)
         self.assertEqual(scheme_account_entry_2.scheme_account, scheme_account)
 
         answers = scheme_account_entry._collect_credential_answers()
@@ -1822,7 +1822,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertIsNone(answers.get(self.put_scheme_scan_q.type))
 
         self.assertEqual(new_scheme_acc.card_number, "12345")
-        self.assertEqual(new_scheme_acc_entry.link_status, AccountLinkStatus.PENDING)
+
 
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
