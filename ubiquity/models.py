@@ -672,9 +672,16 @@ class PaymentCardSchemeEntry(models.Model):
         self.description = self.get_status_description()
         super().save(*args, **kwargs)
 
+    def active_scheme_in_any_wallet(self):
+        for entry in self.scheme_account.schemeaccountentry_set.all():
+            if entry.link_status == AccountLinkStatus.ACTIVE:
+                return True
+        return False
+
     @property
     def computed_active_link(self) -> bool:
-        # todo: PLL-facing - not touching for now!
+        # todo: Check PLL changes - this needs consider status of all scheme_account_entries
+        #
         # a ubiquity collision is when an attempt is made to link a payment card to more than
         # one loyalty card of the same scheme
         if self.slug == self.UBIQUITY_COLLISION:
@@ -688,7 +695,7 @@ class PaymentCardSchemeEntry(models.Model):
             not self.payment_card_account.is_deleted
             and not self.scheme_account.is_deleted
             and self.payment_card_account.status == self.payment_card_account.ACTIVE
-            and self.scheme_account.status == self.scheme_account.ACTIVE
+            and self.active_scheme_in_any_wallet()
         ):
             self.state = self.ACTIVE
             self.slug = ""  # slugs are currently reserved to error states only
