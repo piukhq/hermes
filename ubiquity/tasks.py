@@ -491,12 +491,14 @@ def auto_link_membership_to_payments(
     vop_activated_cards = []
     for payment_card_account in payment_cards_to_link:
         if payment_card_account.id in excluded_payment_cards:
+            # todo: PLL stuff
             entry = PaymentCardSchemeEntry(
                 scheme_account=membership_card,
                 payment_card_account=payment_card_account,
                 slug=PaymentCardSchemeEntry.UBIQUITY_COLLISION,
             ).get_instance_with_active_status()
         else:
+            # todo: PLL stuff
             entry = PaymentCardSchemeEntry(
                 scheme_account=membership_card, payment_card_account=payment_card_account
             ).get_instance_with_active_status()
@@ -543,6 +545,7 @@ def _get_instances_to_bulk_create(
     instances_to_bulk_create = {}
     for scheme_account in wallet_scheme_accounts:
         scheme_id = scheme_account.scheme_id
+        # todo: PLL stuff
         link = PaymentCardSchemeEntry(scheme_account=scheme_account, payment_card_account=payment_card_account)
         if scheme_id not in already_linked_scheme_ids:
             if scheme_id in cards_by_scheme_ids:

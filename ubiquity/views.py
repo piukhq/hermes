@@ -1506,6 +1506,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         status_code = status.HTTP_200_OK
 
         try:
+            # todo: PLL stuff
             existing_link = PaymentCardSchemeEntry.objects.get(
                 payment_card_account=pcard, scheme_account__scheme_id=mcard.scheme_id
             )
@@ -1524,6 +1525,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
                 }
             )
         except PaymentCardSchemeEntry.DoesNotExist:
+            # todo: PLL stuff
             link = PaymentCardSchemeEntry(
                 scheme_account=mcard, payment_card_account=pcard
             ).get_instance_with_active_status()

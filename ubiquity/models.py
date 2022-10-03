@@ -2,7 +2,7 @@ import json
 import logging
 import re
 import sre_constants
-from enum import IntEnum
+from enum import IntEnum, Enum
 from typing import TYPE_CHECKING, Iterable, Type, Union
 
 import django
@@ -583,18 +583,23 @@ class VopActivation(models.Model):
     #     return activation_dict
 
 
-class PaymentCardSchemeEntry(models.Model):
-    # General state of a PLL link
+# todo: Replace all usages of Link statuses and slugs
+#  This should be replaced again once these statuses have been moved to a shared library
+class WalletPLLStatus(IntEnum):
     PENDING = 0
     ACTIVE = 1
     INACTIVE = 2
 
-    PLL_STATES = (
-        (PENDING, "pending"),
-        (ACTIVE, "active"),
-        (INACTIVE, "inactive"),
-    )
+    @classmethod
+    def get_states(cls) -> tuple:
+        return (
+            (cls.PENDING, "pending"),
+            (cls.ACTIVE, "active"),
+            (cls.INACTIVE, "inactive")
+        )
 
+
+class WalletPLLSlug(Enum):
     # A more detailed status of a PLL Link
     LOYALTY_CARD_PENDING = "LOYALTY_CARD_PENDING"
     LOYALTY_CARD_NOT_AUTHORISED = "LOYALTY_CARD_NOT_AUTHORISED"
@@ -604,47 +609,236 @@ class PaymentCardSchemeEntry(models.Model):
     PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING = "PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING"
     UBIQUITY_COLLISION = "UBIQUITY_COLLISION"
 
-    PLL_STATUSES = (
-        (
-            LOYALTY_CARD_PENDING,
-            "LOYALTY_CARD_PENDING",
-            "When the Loyalty Card becomes authorised, the PLL link will automatically go active.",
-        ),
-        (
-            LOYALTY_CARD_NOT_AUTHORISED,
-            "LOYALTY_CARD_NOT_AUTHORISED",
-            "The Loyalty Card is not authorised so no PLL link can be created.",
-        ),
-        (
-            PAYMENT_ACCOUNT_PENDING,
-            "PAYMENT_ACCOUNT_PENDING",
-            "When the Payment Account becomes active, the PLL link with automatically go active.",
-        ),
-        (
-            PAYMENT_ACCOUNT_INACTIVE,
-            "PAYMENT_ACCOUNT_INACTIVE",
-            "The Payment Account is not active so no PLL link can be created.",
-        ),
-        (
-            PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE,
-            "PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE",
-            "The Payment Account and Loyalty Card are not active/authorised so no PLL link can be created.",
-        ),
-        (
-            PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING,
-            "PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING",
-            "When the Payment Account and the Loyalty Card become active/authorised, "
-            "the PLL link with automatically go active.",
-        ),
-        (
-            UBIQUITY_COLLISION,
-            "UBIQUITY_COLLISION",
-            "There is already a Loyalty Card from the same Loyalty Plan linked to this Payment Account.",
-        ),
-    )
+    @classmethod
+    def get_descriptions(cls) -> tuple:
+        return (
+            (
+                cls.LOYALTY_CARD_PENDING,
+                "LOYALTY_CARD_PENDING",
+                "When the Loyalty Card becomes authorised, the PLL link will automatically go active.",
+            ),
+            (
+                cls.LOYALTY_CARD_NOT_AUTHORISED,
+                "LOYALTY_CARD_NOT_AUTHORISED",
+                "The Loyalty Card is not authorised so no PLL link can be created.",
+            ),
+            (
+                cls.PAYMENT_ACCOUNT_PENDING,
+                "PAYMENT_ACCOUNT_PENDING",
+                "When the Payment Account becomes active, the PLL link with automatically go active.",
+            ),
+            (
+                cls.PAYMENT_ACCOUNT_INACTIVE,
+                "PAYMENT_ACCOUNT_INACTIVE",
+                "The Payment Account is not active so no PLL link can be created.",
+            ),
+            (
+                cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE,
+                "PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE",
+                "The Payment Account and Loyalty Card are not active/authorised so no PLL link can be created.",
+            ),
+            (
+                cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING,
+                "PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING",
+                "When the Payment Account and the Loyalty Card become active/authorised, "
+                "the PLL link with automatically go active.",
+            ),
+            (
+                cls.UBIQUITY_COLLISION,
+                "UBIQUITY_COLLISION",
+                "There is already a Loyalty Card from the same Loyalty Plan linked to this Payment Account.",
+            )
+        )
 
-    PLL_SLUGS = tuple(status[:2] for status in PLL_STATUSES)
-    PLL_DESCRIPTIONS = tuple(status[::2] for status in PLL_STATUSES)
+    @classmethod
+    def get_map(cls) -> tuple:
+        return (
+            # Payment Card Account Active:  loyalty active, pending, inactive
+            (
+                (WalletPLLStatus.ACTIVE, ""),
+                (WalletPLLStatus.PENDING, cls.LOYALTY_CARD_PENDING),
+                (WalletPLLStatus.INACTIVE, cls.LOYALTY_CARD_NOT_AUTHORISED)
+            ),
+            # Payment Card Account Pending:  loyalty active, pending, inactive
+            (
+                (WalletPLLStatus.PENDING, cls.PAYMENT_ACCOUNT_PENDING),
+                (WalletPLLStatus.PENDING, cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING),
+                (WalletPLLStatus.INACTIVE, cls.LOYALTY_CARD_NOT_AUTHORISED)
+            ),
+            # Payment Card Account inactive:  loyalty active, pending, inactive
+            (
+                (WalletPLLStatus.INACTIVE, cls.PAYMENT_ACCOUNT_INACTIVE),
+                (WalletPLLStatus.INACTIVE, cls.PAYMENT_ACCOUNT_INACTIVE),
+                (WalletPLLStatus.INACTIVE, cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE)
+            ),
+        )
+
+
+class WalletPLLData:
+
+    def __init__(self, payment_card_account=None, scheme_account=None):
+        """
+        It is expected that the links passed will be
+        :param links: query result or list of PllUserAssociations (wallet based PLL links)
+        """
+        self.to_query = True
+        self.pll_user_associations = []
+        if payment_card_account is not None:
+            self.pll_user_associations = PllUserAssociation.objects.select_related('pll__scheme_account')\
+                .filter(pll__payment_card_account=payment_card_account)
+        elif scheme_account is not None:
+            self.pll_user_associations = PllUserAssociation.objects.select_related('pll__scheme_account') \
+                .filter(pll__scheme_account=scheme_account)
+        self.scheme_account_data = {}
+        self.pll_data = {}
+        self.scheme_count = {}
+
+    def all(self):
+        for link in self.pll_user_associations:
+            yield link
+
+    def all_except_collision(self):
+        for link in self.pll_user_associations:
+            if not (link.slug == PllUserAssociation.UBIQUITY_COLLISION and pll.collision(link)):
+                yield link
+        
+    def process_links(self):
+        if self.to_query:
+            # Only reads db when first called and prepares a dict of the pll relationships and status using
+            # results of 2 queries merged assuming that an account is unique in a wallet.
+            # The object is to avoid multiple calls to the database and all class methods to be called repeatedly
+            #
+            self.to_query = False
+            scheme_accounts_users = {}
+            self.scheme_account_data = {}
+            self.scheme_count = {}
+            for link in self.pll_user_associations:
+                if scheme_accounts_users.get(link.user_id):
+                    scheme_accounts_users[link.user_id].append(link)
+                else:
+                    scheme_accounts_users[link.user_id] = [link]
+                scheme_id = link.pll.scheme_account.scheme_id
+                pay_id = link.pll.payment_card_account_id
+                if not self.scheme_count.get(pay_id):
+                    self.scheme_count[pay_id] = {}
+                if self.scheme_count[pay_id].get(scheme_id):
+                    self.scheme_count[pay_id][scheme_id] += 1
+
+            scheme_entries = SchemeAccountEntry.objects.filter(user_id__in=list(scheme_accounts_users.keys()))
+
+            for entry in scheme_entries:
+                matched_link = None
+                for lk in scheme_accounts_users[entry.user.id]:
+                    if lk.scheme_account.id == entry.scheme_account.id:
+                        matched_link = lk
+                pay_id = matched_link.pll.payment_card_account_id
+                scheme_id = matched_link.pll.scheme_account.scheme_id
+                if matched_link is not None:
+                    self.scheme_account_data[entry.scheme_account.id][entry.user.id] = {
+                        "status": entry.link_status,
+                        "link": matched_link,
+                        "collision": self.scheme_count[pay_id][scheme_id]
+                    }
+
+    def get_link_data(self, link: PllUserAssociation):
+        self.process_links()
+        sas = self.scheme_account_data.get(link.pll.scheme_account.id)
+        if sas:
+            sa = sas.get(link.user.id, None)
+            return sa
+        return None
+
+    def scheme_account_status(self, link: PllUserAssociation):
+        data = self.get_link_data(link)
+        return data.get("status")
+
+    def collision(self, link: PllUserAssociation):
+        data = self.get_link_data(link)
+        return data.get("collision", 0) > 1
+
+
+class PllUserAssociation(models.Model):
+    """
+    This model represents the user's wallet view of PLL
+    It has a many-to-many relationship to PaymentCardSchemeEntry.
+
+    PaymentCardSchemeEntry is in effect is the actual PLL relationship between a payment AND scheme accounts
+    ie Harmonia processes all active links.
+
+    Because a user's wallet may have shared Payment and Scheme accounts with different status this view of PLL
+    is a user's view of the link showing status and description slug
+    """
+    # General state of a PLL link
+    PLL_DESCRIPTIONS = tuple(status[::2] for status in WalletPLLSlug.get_descriptions())
+    PLL_SLUG_CHOICE = tuple(status[:2] for status in WalletPLLSlug.get_descriptions())
+
+    state = models.IntegerField(default=WalletPLLStatus.PENDING, choices=WalletPLLStatus.get_states())
+    slug = models.SlugField(blank=True, default="", choices=PLL_SLUG_CHOICE)
+    pll = models.ForeignKey("PaymentCardSchemeEntry", default=None,
+                            on_delete=models.CASCADE, verbose_name="Associated PLL")
+    user = models.ForeignKey("user.CustomUser", on_delete=models.CASCADE, verbose_name="Associated User")
+
+    class Meta:
+        unique_together = ("pll", "user")
+
+    def set_slug_and_state(self):
+        None
+
+    @classmethod
+    def get_slug_description(cls, slug: WalletPLLSlug) -> str:
+        try:
+            if slug:
+                return dict(cls.PLL_DESCRIPTIONS)[slug]
+            return ""
+        except KeyError:
+            raise ValueError(f'Invalid slug value: "{slug}" sent to PllUserAssociation.get_slug_description')
+
+    @classmethod
+    def update_user_pll_by_pay_account(cls, payment_card_account: PaymentCardAccount):
+        pll = WalletPLLData(payment_card_account=payment_card_account)
+        # these are pll user links to all wallets which have this payment_card_account
+        for link in pll.all_except_collision():
+            if payment_card_account.status == PaymentCardAccount.ACTIVE:
+                if pll.scheme_account_status(link) == AccountLinkStatus.ACTIVE:
+                    link.pll.active_link = True
+                    link.pll.save()
+                    link.state = cls.ACTIVE
+                    link.slug = ""  # slugs are currently reserved to error states only
+                elif pll.scheme_account_status(link) == AccountLinkStatus.PENDING:
+                    link.slug = cls.LOYALTY_CARD_PENDING
+                    link.state = cls.PENDING
+                else:
+                    link.slug = cls.LOYALTY_CARD_NOT_AUTHORISED
+                    link.state = cls.INACTIVE
+                link.save()
+
+            elif payment_card_account.status == PaymentCardAccount.PENDING:
+                if pll.scheme_account_status(link) == AccountLinkStatus.ACTIVE:
+                    link.slug = cls.LOYALTY_CARD_PENDING
+                    link.state = cls.PENDING
+                elif pll.scheme_account_status(link) == AccountLinkStatus.PENDING:
+                    link.slug = cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING
+                    link.state = cls.PENDING
+                else:
+                    link.slug = cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE
+                    link.state = cls.INACTIVE
+                link.save()
+
+            else:
+                if pll.scheme_account_status(link) == AccountLinkStatus.ACTIVE:
+                    link.slug = cls.PAYMENT_ACCOUNT_INACTIVE
+                elif pll.scheme_account_status(link) == AccountLinkStatus.PENDING:
+                    link.slug = cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING
+                else:
+                    link.slug = cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE
+                link.state = cls.INACTIVE
+                link.save()
+    @classmethod
+    def update_user_pll_by_scheme_account(cls, scheme_account):
+        pll = WalletPLLData(scheme_account=scheme_account)
+
+
+class PaymentCardSchemeEntry(models.Model):
 
     payment_card_account = models.ForeignKey(
         "payment_card.PaymentCardAccount", on_delete=models.CASCADE, verbose_name="Associated Payment Card Account"
@@ -653,24 +847,11 @@ class PaymentCardSchemeEntry(models.Model):
         "scheme.SchemeAccount", on_delete=models.CASCADE, verbose_name="Associated Membership Card Account"
     )
     active_link = models.BooleanField(default=False)
-    state = models.IntegerField(default=PENDING, choices=PLL_STATES)
-    slug = models.SlugField(blank=True, default="", choices=PLL_SLUGS)
-    description = models.TextField(
-        blank=True,
-        default="",
-        help_text="Short description of the PLL link status. This is automatically populated based on the slug.",
-    )
 
     class Meta:
         unique_together = ("payment_card_account", "scheme_account")
         verbose_name = "Payment Card to Membership Card Association"
         verbose_name_plural = "".join([verbose_name, "s"])
-
-    def save(self, *args, **kwargs):
-        # This is to calculate and save the description when using the save method e.g saving via django admin.
-        # This will not save the description for updates or bulk create/update methods.
-        self.description = self.get_status_description()
-        super().save(*args, **kwargs)
 
     def active_scheme_in_any_wallet(self):
         for entry in self.scheme_account.schemeaccountentry_set.all():
@@ -791,8 +972,19 @@ class PaymentCardSchemeEntry(models.Model):
 
     @classmethod
     def update_active_link_status(cls, query):
+        """
+        This is really a bit back to front ie it will be a method on PllUserAssociation
+        update_user_pll_by_pay
+        update_user_pll_by_scheme
+
+        rather than the basic link but doing it this way for compatibility
+        with API 1.x and existing code.
+
+        """
         links = cls.objects.filter(**query)
         logger.info("updating pll links of id: %s", [link.id for link in links])
+        # These links are between the payment and scheme so we need to find the
+        # associate user and update PllUserAssociation
         for link in links:
             old_active_link = link.active_link
             old_slug = link.slug
