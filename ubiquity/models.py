@@ -651,7 +651,7 @@ class WalletPLLSlug(Enum):
         )
 
     @classmethod
-    def get_map(cls) -> tuple:
+    def get_status_map(cls) -> tuple:
         return (
             # Payment Card Account Active:  loyalty active, pending, inactive
             (
@@ -699,7 +699,7 @@ class WalletPLLData:
 
     def all_except_collision(self):
         for link in self.pll_user_associations:
-            if not (link.slug == PllUserAssociation.UBIQUITY_COLLISION and pll.collision(link)):
+            if not (link.slug == PllUserAssociation.UBIQUITY_COLLISION and self.collision(link)):
                 yield link
         
     def process_links(self):
@@ -731,9 +731,9 @@ class WalletPLLData:
                 for lk in scheme_accounts_users[entry.user.id]:
                     if lk.scheme_account.id == entry.scheme_account.id:
                         matched_link = lk
-                pay_id = matched_link.pll.payment_card_account_id
-                scheme_id = matched_link.pll.scheme_account.scheme_id
                 if matched_link is not None:
+                    pay_id = matched_link.pll.payment_card_account_id
+                    scheme_id = matched_link.pll.scheme_account.scheme_id
                     self.scheme_account_data[entry.scheme_account.id][entry.user.id] = {
                         "status": entry.link_status,
                         "link": matched_link,
@@ -781,8 +781,20 @@ class PllUserAssociation(models.Model):
     class Meta:
         unique_together = ("pll", "user")
 
-    def set_slug_and_state(self):
-        None
+    @classmethod
+    def get_state_and_slug(cls, payment_card_account_status: int, scheme_account_status: int):
+        pay_index = 2
+        scheme_index = 2
+        if payment_card_account_status == PaymentCardAccount.ACTIVE:
+            pay_index = 0
+        elif payment_card_account_status == PaymentCardAccount.PENDING:
+            pay_index = 1
+        if scheme_account_status == AccountLinkStatus.ACTIVE:
+            scheme_index = 0
+        elif scheme_account_status == AccountLinkStatus.PENDING:
+            scheme_index = 1
+        status_map = WalletPLLSlug.get_status_map()
+        return status_map[pay_index][scheme_index]
 
     @classmethod
     def get_slug_description(cls, slug: WalletPLLSlug) -> str:
@@ -793,49 +805,32 @@ class PllUserAssociation(models.Model):
         except KeyError:
             raise ValueError(f'Invalid slug value: "{slug}" sent to PllUserAssociation.get_slug_description')
 
+    @staticmethod
+    def update_link(link: PllUserAssociation):
+        link.save()
+        if link.state == WalletPLLStatus.ACTIVE:
+            # Set the generic pll link to active if not already set
+            if not link.pll.active_link:
+                link.pll.active_link = True
+                # todo process VOP - check that if activation is required.
+                link.pll.save()
+
     @classmethod
     def update_user_pll_by_pay_account(cls, payment_card_account: PaymentCardAccount):
         pll = WalletPLLData(payment_card_account=payment_card_account)
         # these are pll user links to all wallets which have this payment_card_account
         for link in pll.all_except_collision():
-            if payment_card_account.status == PaymentCardAccount.ACTIVE:
-                if pll.scheme_account_status(link) == AccountLinkStatus.ACTIVE:
-                    link.pll.active_link = True
-                    link.pll.save()
-                    link.state = cls.ACTIVE
-                    link.slug = ""  # slugs are currently reserved to error states only
-                elif pll.scheme_account_status(link) == AccountLinkStatus.PENDING:
-                    link.slug = cls.LOYALTY_CARD_PENDING
-                    link.state = cls.PENDING
-                else:
-                    link.slug = cls.LOYALTY_CARD_NOT_AUTHORISED
-                    link.state = cls.INACTIVE
-                link.save()
+            link.state, link.slug = cls.get_state_and_slug(payment_card_account.status, pll.scheme_account_status(link))
+            cls.update_link(link)
 
-            elif payment_card_account.status == PaymentCardAccount.PENDING:
-                if pll.scheme_account_status(link) == AccountLinkStatus.ACTIVE:
-                    link.slug = cls.LOYALTY_CARD_PENDING
-                    link.state = cls.PENDING
-                elif pll.scheme_account_status(link) == AccountLinkStatus.PENDING:
-                    link.slug = cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING
-                    link.state = cls.PENDING
-                else:
-                    link.slug = cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE
-                    link.state = cls.INACTIVE
-                link.save()
-
-            else:
-                if pll.scheme_account_status(link) == AccountLinkStatus.ACTIVE:
-                    link.slug = cls.PAYMENT_ACCOUNT_INACTIVE
-                elif pll.scheme_account_status(link) == AccountLinkStatus.PENDING:
-                    link.slug = cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING
-                else:
-                    link.slug = cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE
-                link.state = cls.INACTIVE
-                link.save()
     @classmethod
     def update_user_pll_by_scheme_account(cls, scheme_account):
         pll = WalletPLLData(scheme_account=scheme_account)
+        # these are pll user links to all wallets which have this payment_card_account
+        for link in pll.all_except_collision():
+            wallet_scheme_account_status = pll.scheme_account_status(link)
+            link.state, link.slug = cls.get_state_and_slug(payment_card_account.status, wallet_scheme_account_status)
+            cls.update_link(link)
 
 
 class PaymentCardSchemeEntry(models.Model):
@@ -1050,6 +1045,7 @@ def _remove_pll_link(instance: PaymentCardSchemeEntry) -> None:
     _remove_deleted_link_from_card(instance.payment_card_account, instance.scheme_account_id)
 
 
+"""
 @receiver(signals.post_save, sender=PaymentCardSchemeEntry)
 def update_pll_links_on_save(instance: PaymentCardSchemeEntry, created: bool, **kwargs) -> None:
     logger.info("payment card scheme entry of id %s updated", instance.id)
@@ -1072,7 +1068,7 @@ def update_pll_links_on_save(instance: PaymentCardSchemeEntry, created: bool, **
 
     elif not created:
         _remove_pll_link(instance)
-
+"""
 
 @receiver(signals.post_delete, sender=PaymentCardSchemeEntry)
 def update_pll_links_on_delete(instance: PaymentCardSchemeEntry, **kwargs) -> None:
