@@ -45,7 +45,7 @@ jobs:
           vuln-type: library
           ignore-unfixed: true
           exit-code: 0
-          severity: UNKNOWN,LOW,MEDIUM,HIGH
+          severity: UNKNOWN,LOW,MEDIUM
       - uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
@@ -54,7 +54,7 @@ jobs:
           vuln-type: library
           ignore-unfixed: true
           exit-code: 1
-          severity: CRITICAL
+          severity: HIGH,CRITICAL
       - run: pipenv install --dev --system --deploy --ignore-pipfile
       - run: coverage run --source='.' manage.py test -v 2
       - run: coverage report
