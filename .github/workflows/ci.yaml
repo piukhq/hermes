@@ -56,7 +56,7 @@ jobs:
           severity: CRITICAL
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.9"
       - run: pip install pipenv
       - run: pipenv install --dev --system --deploy --ignore-pipfile
       - run: coverage run --source='.' manage.py test -v 2
