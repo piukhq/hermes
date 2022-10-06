@@ -34,9 +34,30 @@ jobs:
         image: rabbitmq:latest
         ports:
           - 5672:5672
-    container: ghcr.io/binkhq/python:3.9-pipenv
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+      - uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: "."
+          security-checks: "vuln"
+          vuln-type: library
+          ignore-unfixed: true
+          exit-code: 0
+          severity: UNKNOWN,LOW,MEDIUM,HIGH
+      - uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: "."
+          security-checks: "vuln"
+          vuln-type: library
+          ignore-unfixed: true
+          exit-code: 1
+          severity: CRITICAL
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - run: pip install pipenv
       - run: pipenv install --dev --system --deploy --ignore-pipfile
       - run: coverage run --source='.' manage.py test -v 2
       - run: coverage report
