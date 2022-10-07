@@ -139,6 +139,8 @@ class TestNotificationTask(GlobalMockAPITestCase):
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.mocked_datetime)):
+            scheme_account_entry.link_status = AccountLinkStatus.ACTIVE
+            scheme_account_entry.save(update_fields=["link_status"])
 
             HistoricalSchemeAccount(
                 change_type=HistoricalSchemeAccount.UPDATE,
@@ -150,7 +152,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
             HistoricalSchemeAccountEntry(
                 instance_id=scheme_account_entry.id,
-                change_type=HistoricalSchemeAccount.CREATE,
+                change_type=HistoricalSchemeAccount.UPDATE,
                 scheme_account_id=scheme_account.id,
                 user_id=scheme_account_entry.user.id,
                 channel=self.barclays_channel,

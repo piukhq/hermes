@@ -174,6 +174,8 @@ class NotificationProcessor:
     def get_scheme_account_history(self):
         data = []
 
+        # Todo: need to refactor this to lastest changes from HistoricalSchemeAccountEntry
+        # SchemeAccount not longer gets updated when status changes
         barclays_scheme_account_entries = SchemeAccountEntry.objects.filter(
             user__client__name=self.client_application_name,
             scheme_account__updated__gte=self.from_datetime,
@@ -183,7 +185,7 @@ class NotificationProcessor:
         for scheme_association in barclays_scheme_account_entries:
             history_data = HistoricalSchemeAccountEntry.objects.filter(
                 instance_id=scheme_association.scheme_account_id,
-                created__range=[self.from_datetime, self.to_date]
+                created__range=[self.from_datetime, self.to_date],
             ).last()
 
             if history_data:
