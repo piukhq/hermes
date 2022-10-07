@@ -124,7 +124,6 @@ class NotificationProcessor:
             query = {
                 "instance_id": scheme_account.id,
                 "created__lt": from_date,
-                "change_details__in": self.change_type,
                 "change_type": HistoricalBase.UPDATE,
             }
         else:
@@ -141,17 +140,17 @@ class NotificationProcessor:
             status = DELETED
         else:
             if self.change_type in history_obj.change_details:
-                status = history_obj.body["status"]
+                status = history_obj.link_status
 
         if status is not None:
             state = self.get_status_translation(scheme_account, status)
         else:
             state = None
 
-        history = HistoricalSchemeAccount.objects.filter(**query).last()
+        history = HistoricalSchemeAccountEntry.objects.filter(**query).last()
 
         if history:
-            previous_state = self.get_status_translation(scheme_account, history.body["status"])
+            previous_state = self.get_status_translation(scheme_account, history.link_status)
             if state == previous_state:
                 state = None
 
@@ -182,17 +181,16 @@ class NotificationProcessor:
         )
 
         for scheme_association in barclays_scheme_account_entries:
-            history_data = HistoricalSchemeAccount.objects.filter(
+            history_data = HistoricalSchemeAccountEntry.objects.filter(
                 instance_id=scheme_association.scheme_account_id,
-                created__range=[self.from_datetime, self.to_date],
-                change_details__contains="status",
+                created__range=[self.from_datetime, self.to_date]
             ).last()
 
             if history_data:
                 state = self.check_previous_status(
                     scheme_association.scheme_account,
                     self.from_datetime,
-                    history_data,
+                    history_data
                 )
 
                 if state:
@@ -201,9 +199,33 @@ class NotificationProcessor:
                             scheme_association.user.external_id,
                             scheme_association.scheme_account.scheme.slug,
                             state,
-                            history_data.created,
+                            history_data.created
                         ]
                     )
+
+        # for scheme_association in barclays_scheme_account_entries:
+        #     history_data = HistoricalSchemeAccount.objects.filter(
+        #         instance_id=scheme_association.scheme_account_id,
+        #         created__range=[self.from_datetime, self.to_date],
+        #         change_details__contains="status",
+        #     ).last()
+        #
+        #     if history_data:
+        #         state = self.check_previous_status(
+        #             scheme_association.scheme_account,
+        #             self.from_datetime,
+        #             history_data,
+        #         )
+        #
+        #         if state:
+        #             data.append(
+        #                 [
+        #                     scheme_association.user.external_id,
+        #                     scheme_association.scheme_account.scheme.slug,
+        #                     state,
+        #                     history_data.created,
+        #                 ]
+        #             )
 
         return data
 
@@ -224,23 +246,23 @@ class NotificationProcessor:
             scheme_account = SchemeAccount.all_objects.filter(id=association.scheme_account_id)
             user = CustomUser.all_objects.filter(id=association.user_id)
 
-            if scheme_account and user:
-                if association.change_type == HistoricalBase.DELETE:
-                    # Delete row
-                    data.append([user[0].external_id, scheme_account[0].scheme.slug, DELETED, association.created])
+            # if scheme_account and user:
+            if association.change_type == HistoricalBase.DELETE:
+                # Delete row
+                data.append([user[0].external_id, scheme_account[0].scheme.slug, DELETED, association.created])
 
-                    deleted_user_id_assocations.append([association.user_id, association.scheme_account_id])
+                deleted_user_id_assocations.append([association.user_id, association.scheme_account_id])
 
-                else:
-                    # Gets the current status when the loyalty card is added to another wallet
-                    data.append(
-                        [
-                            user[0].external_id,
-                            scheme_account[0].scheme.slug,
-                            self.get_status_translation(scheme_account[0], scheme_account[0].status),
-                            association.created,
-                        ]
-                    )
+            else:
+                # Gets the current status when the loyalty card is added to another wallet
+                data.append(
+                    [
+                        user[0].external_id,
+                        scheme_account[0].scheme.slug,
+                        self.get_status_translation(scheme_account[0], association.link_status),
+                        association.created,
+                    ]
+                )
 
         return data
 
@@ -253,7 +275,7 @@ class NotificationProcessor:
             scheme_accounts_entries = SchemeAccountEntry.objects.filter(user__client__name=self.client_application_name)
 
             rows_to_write = scheme_accounts_entries.values_list(
-                "user__external_id", "scheme_account__scheme__slug", "scheme_account__status", "scheme_account__created"
+                "user__external_id", "scheme_account__scheme__slug", "link_status", "scheme_account__created"
             )
 
         else:
