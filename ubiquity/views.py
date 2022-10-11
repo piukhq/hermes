@@ -1436,7 +1436,7 @@ class ListMembershipCardView(MembershipCardView):
 class CardLinkView(VersionedSerializerMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
 
-    @censor_and_decorate
+    # @todo PLL stuff
     def update_payment(self, request, *args, **kwargs):
         self.response_serializer = SelectSerializer.PAYMENT_CARD
         link, status_code = self._update_link(request.user, kwargs["pcard_id"], kwargs["mcard_id"])
@@ -1444,6 +1444,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         serializer = self.get_serializer_by_request(link.payment_card_account)
         return Response(serializer.data, status_code)
 
+    # @todo PLL stuff
     @censor_and_decorate
     def update_membership(self, request, *args, **kwargs):
         self.response_serializer = SelectSerializer.MEMBERSHIP_CARD
@@ -1501,6 +1502,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         PaymentCardSchemeEntry.deactivate_activations(activations)
         return pcard, mcard, error
 
+    # @todo PLL stuff
     def _update_link(self, user: CustomUser, pcard_id: int, mcard_id: int) -> t.Tuple[PaymentCardSchemeEntry, int]:
         pcard, mcard = self._collect_cards(pcard_id, mcard_id, user)
         status_code = status.HTTP_200_OK

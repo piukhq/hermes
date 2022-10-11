@@ -185,9 +185,9 @@ class AccountLinkStatus(IntEnum):
     @classmethod
     def exclude_balance_statuses(cls):
         return (
-            cls.join_action_required()
-            + cls.user_action_required()
-            + [cls.PENDING, cls.PENDING_MANUAL_CHECK, cls.WALLET_ONLY, cls.ADD_AUTH_PENDING, cls.AUTH_PENDING]
+                cls.join_action_required()
+                + cls.user_action_required()
+                + [cls.PENDING, cls.PENDING_MANUAL_CHECK, cls.WALLET_ONLY, cls.ADD_AUTH_PENDING, cls.AUTH_PENDING]
         )
 
     @classmethod
@@ -245,7 +245,7 @@ class SchemeAccountEntry(models.Model):
         # accounts in "active", "pending", and "join" statuses should be displayed as such.
         # all other statuses should be displayed as "wallet only"
         if (
-            self.scheme_account.link_date or self.scheme_account.join_date
+                self.scheme_account.link_date or self.scheme_account.join_date
         ) and self.link_status in AccountLinkStatus.system_action_required():
             return AccountLinkStatus.ACTIVE
         elif self.link_status in [AccountLinkStatus.ACTIVE, AccountLinkStatus.PENDING, AccountLinkStatus.JOIN]:
@@ -263,7 +263,7 @@ class SchemeAccountEntry(models.Model):
 
     @staticmethod
     def create_or_retrieve_link(
-        user: "CustomUser", scheme_account: "SchemeAccount", auth_provided: bool
+            user: "CustomUser", scheme_account: "SchemeAccount", auth_provided: bool
     ) -> tuple["SchemeAccountEntry", bool]:
         entry = SchemeAccountEntry(user=user, scheme_account=scheme_account, auth_provided=auth_provided)
         created = True
@@ -341,10 +341,10 @@ class SchemeAccountEntry(models.Model):
             self.scheme_account.save(update_fields=["barcode", "card_number"])
 
     def _update_barcode_and_card_number(
-        self,
-        primary_cred: "SchemeAccountCredentialAnswer",
-        answers: Iterable["SchemeAccountCredentialAnswer"],
-        primary_cred_type: str,
+            self,
+            primary_cred: "SchemeAccountCredentialAnswer",
+            answers: Iterable["SchemeAccountCredentialAnswer"],
+            primary_cred_type: str,
     ) -> None:
         """
         Updates the given primary credential of either card number or barcode. The non-provided (secondary)
@@ -684,7 +684,7 @@ class WalletPLLData:
         self.to_query = True
         self.pll_user_associations = []
         if payment_card_account is not None:
-            self.pll_user_associations = PllUserAssociation.objects.select_related('pll__scheme_account')\
+            self.pll_user_associations = PllUserAssociation.objects.select_related('pll__scheme_account') \
                 .filter(pll__payment_card_account=payment_card_account)
         elif scheme_account is not None:
             self.pll_user_associations = PllUserAssociation.objects.select_related('pll__scheme_account') \
@@ -701,7 +701,7 @@ class WalletPLLData:
         for link in self.pll_user_associations:
             if not (link.slug == PllUserAssociation.UBIQUITY_COLLISION and self.collision(link)):
                 yield link
-        
+
     def process_links(self):
         if self.to_query:
             # Only reads db when first called and prepares a dict of the pll relationships and status using
@@ -812,8 +812,8 @@ class PllUserAssociation(models.Model):
             # Set the generic pll link to active if not already set
             if not link.pll.active_link:
                 link.pll.active_link = True
-                # todo process VOP - check that if activation is required.
                 link.pll.save()
+                link.pll.vop_activate_check()
 
     @classmethod
     def update_user_pll_by_pay_account(cls, payment_card_account: PaymentCardAccount):
@@ -824,7 +824,7 @@ class PllUserAssociation(models.Model):
             cls.update_link(link)
 
     @classmethod
-    def update_user_pll_by_scheme_account(cls, scheme_account):
+    def update_user_pll_by_scheme_account(cls, scheme_account: SchemeAccount):
         pll = WalletPLLData(scheme_account=scheme_account)
         # these are pll user links to all wallets which have this payment_card_account
         for link in pll.all_except_collision():
@@ -832,9 +832,42 @@ class PllUserAssociation(models.Model):
             link.state, link.slug = cls.get_state_and_slug(payment_card_account.status, wallet_scheme_account_status)
             cls.update_link(link)
 
+    @classmethod
+    def create_user_pll(cls, scheme_account: SchemeAccount, payment_card_account: PaymentCardAccount, user: CustomUser):
+        scheme_user_entry = SchemeAccountEntry.objects.get(user=user, scheme_account=scheme_account)
+        status, slug = cls.get_state_and_slug(payment_card_account.status, scheme_user_entry.link_status)
+        base_status = False
+        if status == WalletPLLStatus.ACTIVE:
+            base_status = True
+        scheme_accounts_count = (
+            payment_card_account.scheme_account_set.filter(scheme=scheme_account.scheme_id)
+            .exclude(pk=scheme_account_id).count()
+        )
+
+        if scheme_accounts_count > 0:
+            status = WalletPLLStatus.INACTIVE
+            slug = WalletPLLSlug.UBIQUITY_COLLISION
+
+        base_link, base_created = PaymentCardSchemeEntry.objects.get_or_create(
+            payment_card=payment_card_account, scheme_account=scheme_account, defaults={"active_link": base_status})
+        if not base_link.active_link and base_status:
+            base_link.active_link = true
+            base_link.save()
+            base_link.vop_activate_check()
+
+        user_link, link_created = cls.objects.get_or_create(pll=base_link, user=user,
+                                                            defaults={"slug": slug, "status": status})
+        if not link_created:
+            logger.warning(
+                "PllUserAssociation.create_user_pll: called when user link already exists"
+                f" card_id: {payment_card_account.id} scheme: {scheme_account.scheme.id} user:{user.id}"
+            )
+            user_link.status = status
+            user_link.slug = slug
+            user_link.save()
+
 
 class PaymentCardSchemeEntry(models.Model):
-
     payment_card_account = models.ForeignKey(
         "payment_card.PaymentCardAccount", on_delete=models.CASCADE, verbose_name="Associated Payment Card Account"
     )
@@ -868,10 +901,10 @@ class PaymentCardSchemeEntry(models.Model):
                 return False
 
         if (
-            not self.payment_card_account.is_deleted
-            and not self.scheme_account.is_deleted
-            and self.payment_card_account.status == self.payment_card_account.ACTIVE
-            and self.active_scheme_in_any_wallet()
+                not self.payment_card_account.is_deleted
+                and not self.scheme_account.is_deleted
+                and self.payment_card_account.status == self.payment_card_account.ACTIVE
+                and self.active_scheme_in_any_wallet()
         ):
             self.state = self.ACTIVE
             self.slug = ""  # slugs are currently reserved to error states only
@@ -918,8 +951,8 @@ class PaymentCardSchemeEntry(models.Model):
     def _ubiquity_collision_check(self) -> bool:
         scheme_accounts_count = (
             self.payment_card_account.scheme_account_set.filter(scheme=self.scheme_account.scheme_id)
-            .exclude(pk=self.scheme_account_id)
-            .count()
+                .exclude(pk=self.scheme_account_id)
+                .count()
         )
 
         if scheme_accounts_count > 0:
@@ -945,9 +978,9 @@ class PaymentCardSchemeEntry(models.Model):
                     defaults={"activation_id": "", "status": VopActivation.ACTIVATING},
                 )
                 if (
-                    created
-                    or vop_activation.status == VopActivation.DEACTIVATED
-                    or vop_activation.status == VopActivation.DEACTIVATING
+                        created
+                        or vop_activation.status == VopActivation.DEACTIVATED
+                        or vop_activation.status == VopActivation.DEACTIVATING
                 ):
                     vop_activate_request(vop_activation)
 
@@ -1025,7 +1058,7 @@ def _remove_pll_link(instance: PaymentCardSchemeEntry) -> None:
     logger.info("payment card scheme entry of id %s has been deleted or deactivated", instance.id)
 
     def _remove_deleted_link_from_card(
-        card_to_update: Union["PaymentCardAccount", "SchemeAccount"], linked_card_id: Type[int]
+            card_to_update: Union["PaymentCardAccount", "SchemeAccount"], linked_card_id: Type[int]
     ) -> None:
         model = card_to_update.__class__
         card_id = card_to_update.id
@@ -1069,6 +1102,7 @@ def update_pll_links_on_save(instance: PaymentCardSchemeEntry, created: bool, **
     elif not created:
         _remove_pll_link(instance)
 """
+
 
 @receiver(signals.post_delete, sender=PaymentCardSchemeEntry)
 def update_pll_links_on_delete(instance: PaymentCardSchemeEntry, **kwargs) -> None:
