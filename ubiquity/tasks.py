@@ -19,7 +19,12 @@ from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
 from ubiquity.models import (
-    AccountLinkStatus, PaymentCardSchemeEntry, SchemeAccountEntry, VopActivation, PllUserAssociation)
+    AccountLinkStatus,
+    PaymentCardSchemeEntry,
+    SchemeAccountEntry,
+    VopActivation,
+    PllUserAssociation,
+)
 from user.models import CustomUser
 
 if t.TYPE_CHECKING:
@@ -282,12 +287,13 @@ def deleted_payment_card_cleanup(
     else:
         pll_links = pll_links.exclude(scheme_account__user_set__id__in=p_card_users)
 
-    deleted_link_ids = [link.id for link in pll_links]
+    # deleted_link_ids = [link.id for link in pll_links]
     pll_links.delete()
 
+    # @todo pll stuff removed this if ok - pll_links.delete() handles this now
     # Updates any ubiquity collisions linked to this payment card
-    for entry in payment_card_account.paymentcardschemeentry_set.exclude(id__in=deleted_link_ids).all():
-        entry.update_soft_links({"payment_card_account": payment_card_account})
+    # for entry in payment_card_account.paymentcardschemeentry_set.exclude(id__in=deleted_link_ids).all():
+    #    entry.update_soft_links({"payment_card_account": payment_card_account})
 
     clean_history_kwargs(history_kwargs)
 
@@ -325,15 +331,16 @@ def deleted_membership_card_cleanup(
 
     activations = VopActivation.find_activations_matching_links(pll_links)
 
-    related_pcards = {link.payment_card_account for link in pll_links}
-    deleted_pll_link_ids = {link.id for link in pll_links}
+    # related_pcards = {link.payment_card_account for link in pll_links}
+    # deleted_pll_link_ids = {link.id for link in pll_links}
     pll_links.delete()
 
+    # @todo pll stuff removed this if ok - pll_links.delete() handles this now
     # Resolve ubiquity collisions for any PLL links related to the linked payment card accounts
-    for pcard in related_pcards:
-        pcard_links = pcard.paymentcardschemeentry_set.exclude(id__in=deleted_pll_link_ids).all()
-        for pcard_link in pcard_links:
-            pcard_link.update_soft_links({"payment_card_account": pcard_link.payment_card_account_id})
+    # for pcard in related_pcards:
+    #    pcard_links = pcard.paymentcardschemeentry_set.exclude(id__in=deleted_pll_link_ids).all()
+    #    for pcard_link in pcard_links:
+    #       pcard_link.update_soft_links({"payment_card_account": pcard_link.payment_card_account_id})
 
     if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
         send_merchant_metrics_for_link_delete.delay(
@@ -388,7 +395,9 @@ def _delete_user_payment_cards(user: "CustomUser", run_async: bool = True) -> No
         else:
             # Updates any ubiquity collisions linked to this payment card
             for entry in card.paymentcardschemeentry_set.all():
-                entry.update_soft_links({"payment_card_account": card})
+                user_link = PllUserAssociation.objects.get(pll=entry, user=user)
+                user_link.update_user_pll_by_pay_account(card)
+                # entry.update_soft_links({"payment_card_account": card})
 
     PaymentCardSchemeEntry.objects.filter(payment_card_account_id__in=[card.id for card in cards_to_delete]).delete()
 
@@ -435,7 +444,7 @@ def deleted_service_cleanup(user_id: int, consent: dict, history_kwargs: dict = 
     except Exception:
         sentry_sdk.capture_exception()
 
-"""
+
 def _update_one_card_with_many_new_pll_links(
     card_to_update: t.Union[PaymentCardAccount, SchemeAccount], new_links_ids: list
 ) -> None:
@@ -445,8 +454,8 @@ def _update_one_card_with_many_new_pll_links(
         [{"id": card_id, "active_link": True} for card_id in new_links_ids if card_id not in existing_links]
     )
     card_to_update.save(update_fields=["pll_links"])
-"""
-"""
+
+
 def _update_many_cards_with_one_new_pll_link(
     card_model: UpdateCardType,
     cards_to_update_ids: list,
@@ -459,12 +468,12 @@ def _update_many_cards_with_one_new_pll_link(
             updated_cards.append(card)
 
     card_model.value.objects.bulk_update(updated_cards, ["pll_links"])
-"""
-"""
+
+
 def _process_vop_activations(created_links, prechecked=False):
     for link in created_links:
         link.vop_activate_check(prechecked=prechecked)
-"""
+
 
 # @todo PLL stuff check that PllUserAssociation functions log history and events properly.
 

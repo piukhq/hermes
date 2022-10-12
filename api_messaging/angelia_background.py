@@ -23,7 +23,12 @@ from payment_card.models import PaymentCardAccount
 from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
 from ubiquity.models import (
-    AccountLinkStatus, PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent, PllUserAssociation)
+    AccountLinkStatus,
+    PaymentCardAccountEntry,
+    SchemeAccountEntry,
+    ServiceConsent,
+    PllUserAssociation,
+)
 from ubiquity.tasks import (
     async_all_balance,
     async_join,
