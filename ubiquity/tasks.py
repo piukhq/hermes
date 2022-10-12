@@ -18,7 +18,8 @@ from payment_card.models import PaymentCard, PaymentCardAccount
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
-from ubiquity.models import AccountLinkStatus, PaymentCardSchemeEntry, SchemeAccountEntry, VopActivation
+from ubiquity.models import (
+    AccountLinkStatus, PaymentCardSchemeEntry, SchemeAccountEntry, VopActivation, PllUserAssociation)
 from user.models import CustomUser
 
 if t.TYPE_CHECKING:
@@ -68,7 +69,8 @@ def async_link(
         BaseLinkMixin.link_account(serializer, scheme_account, user, scheme_account_entry)
 
         if payment_cards_to_link:
-            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+            PllUserAssociation.link_user_scheme_account_to_payment_cards(scheme_account, payment_cards_to_link, user)
+            # auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
         clean_history_kwargs(history_kwargs)
 
@@ -123,8 +125,8 @@ def async_balance_with_updated_credentials(
         scheme_account_entry.set_link_status(AccountLinkStatus.ACTIVE)
 
         if relink_pll and payment_cards_to_link:
-            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
-
+            PllUserAssociation.link_users_payment_cards(scheme_account_entry, payment_cards_to_link)
+            # auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
     else:
         logger.debug(
             f"No balance returned from balance call with updated credentials - SchemeAccount (id={scheme_account.id}) -"
@@ -182,7 +184,8 @@ def async_join(
     SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer, channel)
 
     if payment_cards_to_link:
-        auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(scheme_account, payment_cards_to_link, user)
+        # auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
     clean_history_kwargs(history_kwargs)
 
@@ -432,7 +435,7 @@ def deleted_service_cleanup(user_id: int, consent: dict, history_kwargs: dict = 
     except Exception:
         sentry_sdk.capture_exception()
 
-
+"""
 def _update_one_card_with_many_new_pll_links(
     card_to_update: t.Union[PaymentCardAccount, SchemeAccount], new_links_ids: list
 ) -> None:
@@ -442,8 +445,8 @@ def _update_one_card_with_many_new_pll_links(
         [{"id": card_id, "active_link": True} for card_id in new_links_ids if card_id not in existing_links]
     )
     card_to_update.save(update_fields=["pll_links"])
-
-
+"""
+"""
 def _update_many_cards_with_one_new_pll_link(
     card_model: UpdateCardType,
     cards_to_update_ids: list,
@@ -456,12 +459,18 @@ def _update_many_cards_with_one_new_pll_link(
             updated_cards.append(card)
 
     card_model.value.objects.bulk_update(updated_cards, ["pll_links"])
-
-
+"""
+"""
 def _process_vop_activations(created_links, prechecked=False):
     for link in created_links:
         link.vop_activate_check(prechecked=prechecked)
+"""
 
+# @todo PLL stuff check that PllUserAssociation functions log history and events properly.
+
+"""
+This task has been removed and all instances replaced with PllUserAssociation function
+The calls are from other tasks so no task instance was required.
 
 @shared_task
 def auto_link_membership_to_payments(
@@ -529,6 +538,7 @@ def auto_link_membership_to_payments(
         [link for link in created_links if link.payment_card_account_id in vop_activated_cards], prechecked=True
     )
     clean_history_kwargs(history_kwargs)
+"""
 
 
 def _get_instances_to_bulk_create(

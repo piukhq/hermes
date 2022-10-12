@@ -22,12 +22,13 @@ from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
-from ubiquity.models import AccountLinkStatus, PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent
+from ubiquity.models import (
+    AccountLinkStatus, PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent, PllUserAssociation)
 from ubiquity.tasks import (
     async_all_balance,
     async_join,
     async_link,
-    auto_link_membership_to_payments,
+    # auto_link_membership_to_payments,
     deleted_membership_card_cleanup,
     deleted_payment_card_cleanup,
     deleted_service_cleanup,
@@ -161,7 +162,8 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
                 "payment_card_account_id", flat=True
             )
             if payment_cards_to_link:
-                auto_link_membership_to_payments(payment_cards_to_link=payment_cards_to_link, membership_card=account)
+                PllUserAssociation.link_users_payment_cards(scheme_account_entry, payment_cards_to_link)
+                # auto_link_membership_to_payments(payment_cards_to_link=payment_cards_to_link, membership_card=account)
 
         MembershipCardView.handle_registration_route(
             user=user,
