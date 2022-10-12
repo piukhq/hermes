@@ -21,9 +21,9 @@ from scheme.serializers import LinkSchemeSerializer
 from ubiquity.models import (
     AccountLinkStatus,
     PaymentCardSchemeEntry,
+    PllUserAssociation,
     SchemeAccountEntry,
     VopActivation,
-    PllUserAssociation,
 )
 from user.models import CustomUser
 

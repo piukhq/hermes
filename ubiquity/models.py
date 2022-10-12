@@ -2,7 +2,7 @@ import json
 import logging
 import re
 import sre_constants
-from enum import IntEnum, Enum
+from enum import Enum, IntEnum
 from typing import TYPE_CHECKING, Iterable, Type, Union
 
 from django.contrib.postgres.fields import ArrayField
@@ -873,13 +873,13 @@ class PllUserAssociation(models.Model):
     ):
         scheme_account = scheme_account_entry.scheme_account
         user = scheme_account_entry.user
-        status, slug = cls.get_state_and_slug(payment_card_account.status, scheme_user_entry.link_status)
+        status, slug = cls.get_state_and_slug(payment_card_account.status, scheme_account_entry.link_status)
         base_status = False
         if status == WalletPLLStatus.ACTIVE:
             base_status = True
         scheme_count = (
             payment_card_account.scheme_account_set.filter(scheme=scheme_account.scheme_id)
-            .exclude(pk=scheme_account_id)
+            .exclude(pk=scheme_account.id)
             .count()
         )
 

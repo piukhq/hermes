@@ -33,7 +33,7 @@ from scheme.serializers import (
     StatusSerializer,
     UpdateUserConsentSerializer,
 )
-from ubiquity.models import AccountLinkStatus, PaymentCardSchemeEntry, SchemeAccountEntry, PllUserAssociation
+from ubiquity.models import AccountLinkStatus, PaymentCardSchemeEntry, PllUserAssociation, SchemeAccountEntry
 from ubiquity.tasks import async_join_journey_fetch_balance_and_update_status, send_merchant_metrics_for_link_delete
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin, TransactionSerializer
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
