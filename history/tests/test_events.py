@@ -64,7 +64,7 @@ class TestRemoveLCEventHandlers(TransactionTestCase):
         self.assertEqual(data["scheme_account_id"], self.mcard.id)
         self.assertEqual(data["loyalty_plan"], self.mcard.scheme_id)
         self.assertEqual(data["main_answer"], self.mcard.alt_main_answer)
-        self.assertEqual(data["status"], self.entry.link_status)
+        self.assertEqual(data["status"], self.scheme_acc_entry.link_status)
 
     @classmethod
     def tearDownClass(cls):
@@ -584,11 +584,14 @@ class TestRegisterSuccessEventHandlers(TransactionTestCase):
         SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE)
 
         cls.mcard = SchemeAccountFactory(scheme=cls.scheme)
+
+        cls.scheme_acc_entry = SchemeAccountEntryFactory(scheme_account=cls.mcard, user=cls.user)
+
         super().setUpClass()
 
     @patch("history.data_warehouse.to_data_warehouse")
     def test_failed_register(self, mock_to_warehouse):
-        register_outcome(True, self.user, self.entry)
+        register_outcome(True, self.scheme_acc_entry)
         self.assertTrue(mock_to_warehouse.called)
         data = mock_to_warehouse.call_args.args[0]
         self.assertEqual(data["event_type"], "lc.register.success")
@@ -599,7 +602,7 @@ class TestRegisterSuccessEventHandlers(TransactionTestCase):
         self.assertEqual(data["email"], self.user.email)
         self.assertEqual(data["scheme_account_id"], self.mcard.id)
         self.assertEqual(data["loyalty_plan"], self.mcard.scheme_id)
-        self.assertEqual(data["status"], self.entry.link_status)
+        self.assertEqual(data["status"], self.scheme_acc_entry.link_status)
 
     @classmethod
     def tearDownClass(cls):
