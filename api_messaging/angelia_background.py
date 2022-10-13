@@ -25,15 +25,14 @@ from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
 from ubiquity.models import (
     AccountLinkStatus,
     PaymentCardAccountEntry,
+    PllUserAssociation,
     SchemeAccountEntry,
     ServiceConsent,
-    PllUserAssociation,
 )
-from ubiquity.tasks import (
+from ubiquity.tasks import (  # auto_link_membership_to_payments,
     async_all_balance,
     async_join,
     async_link,
-    # auto_link_membership_to_payments,
     deleted_membership_card_cleanup,
     deleted_payment_card_cleanup,
     deleted_service_cleanup,

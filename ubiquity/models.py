@@ -827,7 +827,7 @@ class PllUserAssociation(models.Model):
                 link.pll.activate()
 
     @classmethod
-    def update_user_pll_by_both(cls, payment_card_account: PaymentCardAccount, scheme_account: SchemeAccount):
+    def update_user_pll_by_both(cls, payment_card_account: "PaymentCardAccount", scheme_account: "SchemeAccount"):
         pll = WalletPLLData(payment_card_account=payment_card_account, scheme_account=scheme_account)
         # these are pll user links to all wallets which have this payment_card_account
         for link in pll.all_except_collision():
@@ -835,7 +835,7 @@ class PllUserAssociation(models.Model):
             cls.update_link(link)
 
     @classmethod
-    def update_user_pll_by_pay_account(cls, payment_card_account: PaymentCardAccount):
+    def update_user_pll_by_pay_account(cls, payment_card_account: "PaymentCardAccount"):
         pll = WalletPLLData(payment_card_account=payment_card_account)
         # these are pll user links to all wallets which have this payment_card_account
         for link in pll.all_except_collision():
@@ -843,7 +843,7 @@ class PllUserAssociation(models.Model):
             cls.update_link(link)
 
     @classmethod
-    def update_user_pll_by_scheme_account(cls, scheme_account: SchemeAccount):
+    def update_user_pll_by_scheme_account(cls, scheme_account: "SchemeAccount"):
         pll = WalletPLLData(scheme_account=scheme_account)
         # these are pll user links to all wallets which have this payment_card_account
         for link in pll.all_except_collision():
@@ -855,21 +855,21 @@ class PllUserAssociation(models.Model):
 
     @classmethod
     def link_user_scheme_account_to_payment_cards(
-        cls, scheme_account: SchemeAccount, payment_card_accounts: list[PaymentCardAccount], user: CustomUser
+        cls, scheme_account: "SchemeAccount", payment_card_accounts: list["PaymentCardAccount"], user: "CustomUser"
     ):
         scheme_user_entry = SchemeAccountEntry.objects.get(user=user, scheme_account=scheme_account)
         cls.link_users_payment_cards(scheme_user_entry, payment_card_accounts)
 
     @classmethod
     def link_users_payment_cards(
-        cls, scheme_account_entry: SchemeAccountEntry, payment_card_accounts: list[PaymentCardAccount]
+        cls, scheme_account_entry: SchemeAccountEntry, payment_card_accounts: list["PaymentCardAccount"]
     ):
         for payment_card_account in payment_card_accounts:
             cls.link_users_scheme_account_to_payment(scheme_account_entry, payment_card_account)
 
     @classmethod
     def link_users_scheme_account_to_payment(
-        cls, scheme_account_entry: SchemeAccountEntry, payment_card_account: PaymentCardAccount
+        cls, scheme_account_entry: SchemeAccountEntry, payment_card_account: "PaymentCardAccount"
     ):
         scheme_account = scheme_account_entry.scheme_account
         user = scheme_account_entry.user
