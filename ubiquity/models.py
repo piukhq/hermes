@@ -697,11 +697,11 @@ class WalletPLLData:
         self.pll_data = {}
         self.scheme_count = {}
 
-    def all(self):
+    def all(self) -> PllUserAssociation:
         for link in self.pll_user_associations:
             yield link
 
-    def all_except_collision(self):
+    def all_except_collision(self) -> PllUserAssociation:
         for link in self.pll_user_associations:
             if not self.collision(link):
                 yield link
@@ -832,28 +832,30 @@ class PllUserAssociation(models.Model):
 
     @classmethod
     def update_user_pll_by_both(cls, payment_card_account: "PaymentCardAccount", scheme_account: "SchemeAccount"):
-        pll = WalletPLLData(payment_card_account=payment_card_account, scheme_account=scheme_account)
+        wallet_pll_data = WalletPLLData(payment_card_account=payment_card_account, scheme_account=scheme_account)
         # these are pll user links to all wallets which have this payment_card_account
-        for link in pll.all_except_collision():
-            link.state, link.slug = cls.get_state_and_slug(payment_card_account.status, pll.scheme_account_status(link))
+        for link in wallet_pll_data.all_except_collision():
+            link.state, link.slug = cls.get_state_and_slug(payment_card_account.status,
+                                                           wallet_pll_data.scheme_account_status(link))
             cls.update_link(link)
 
     @classmethod
     def update_user_pll_by_pay_account(cls, payment_card_account: "PaymentCardAccount"):
-        pll = WalletPLLData(payment_card_account=payment_card_account)
+        wallet_pll_data = WalletPLLData(payment_card_account=payment_card_account)
         # these are pll user links to all wallets which have this payment_card_account
-        for link in pll.all_except_collision():
-            link.state, link.slug = cls.get_state_and_slug(payment_card_account.status, pll.scheme_account_status(link))
+        for link in wallet_pll_data.all_except_collision():
+            link.state, link.slug = cls.get_state_and_slug(payment_card_account.status,
+                                                           wallet_pll_data.scheme_account_status(link))
             cls.update_link(link)
 
     @classmethod
     def update_user_pll_by_scheme_account(cls, scheme_account: "SchemeAccount"):
-        pll = WalletPLLData(scheme_account=scheme_account)
+        wallet_pll_data = WalletPLLData(scheme_account=scheme_account)
         # these are pll user links to all wallets which have this payment_card_account
-        for link in pll.all_except_collision():
-            wallet_scheme_account_status = pll.scheme_account_status(link)
+        for link in wallet_pll_data.all_except_collision():
+            wallet_scheme_account_status = wallet_pll_data.scheme_account_status(link)
             link.state, link.slug = cls.get_state_and_slug(
-                pll.payment_card_account.status, wallet_scheme_account_status
+                link.pll.payment_card_account.status, wallet_scheme_account_status
             )
             cls.update_link(link)
 
