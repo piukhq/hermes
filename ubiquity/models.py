@@ -697,11 +697,11 @@ class WalletPLLData:
         self.pll_data = {}
         self.scheme_count = {}
 
-    def all(self) -> PllUserAssociation:
+    def all(self) -> "PllUserAssociation":
         for link in self.pll_user_associations:
             yield link
 
-    def all_except_collision(self) -> PllUserAssociation:
+    def all_except_collision(self) -> "PllUserAssociation":
         for link in self.pll_user_associations:
             if not self.collision(link):
                 yield link
