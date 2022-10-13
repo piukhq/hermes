@@ -591,7 +591,11 @@ class WalletPLLStatus(IntEnum):
 
     @classmethod
     def get_states(cls) -> tuple:
-        return ((cls.PENDING, "pending"), (cls.ACTIVE, "active"), (cls.INACTIVE, "inactive"))
+        return (
+            (cls.PENDING.value, "pending"),
+            (cls.ACTIVE.value, "active"),
+            (cls.INACTIVE.value, "inactive")
+        )
 
 
 class WalletPLLSlug(Enum):
@@ -608,38 +612,38 @@ class WalletPLLSlug(Enum):
     def get_descriptions(cls) -> tuple:
         return (
             (
-                cls.LOYALTY_CARD_PENDING,
+                cls.LOYALTY_CARD_PENDING.value,
                 "LOYALTY_CARD_PENDING",
                 "When the Loyalty Card becomes authorised, the PLL link will automatically go active.",
             ),
             (
-                cls.LOYALTY_CARD_NOT_AUTHORISED,
+                cls.LOYALTY_CARD_NOT_AUTHORISED.value,
                 "LOYALTY_CARD_NOT_AUTHORISED",
                 "The Loyalty Card is not authorised so no PLL link can be created.",
             ),
             (
-                cls.PAYMENT_ACCOUNT_PENDING,
+                cls.PAYMENT_ACCOUNT_PENDING.value,
                 "PAYMENT_ACCOUNT_PENDING",
                 "When the Payment Account becomes active, the PLL link with automatically go active.",
             ),
             (
-                cls.PAYMENT_ACCOUNT_INACTIVE,
+                cls.PAYMENT_ACCOUNT_INACTIVE.value,
                 "PAYMENT_ACCOUNT_INACTIVE",
                 "The Payment Account is not active so no PLL link can be created.",
             ),
             (
-                cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE,
+                cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE.value,
                 "PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE",
                 "The Payment Account and Loyalty Card are not active/authorised so no PLL link can be created.",
             ),
             (
-                cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING,
+                cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING.value,
                 "PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING",
                 "When the Payment Account and the Loyalty Card become active/authorised, "
                 "the PLL link with automatically go active.",
             ),
             (
-                cls.UBIQUITY_COLLISION,
+                cls.UBIQUITY_COLLISION.value,
                 "UBIQUITY_COLLISION",
                 "There is already a Loyalty Card from the same Loyalty Plan linked to this Payment Account.",
             ),
@@ -784,7 +788,7 @@ class PllUserAssociation(models.Model):
     PLL_DESCRIPTIONS = tuple(status[::2] for status in WalletPLLSlug.get_descriptions())
     PLL_SLUG_CHOICE = tuple(status[:2] for status in WalletPLLSlug.get_descriptions())
 
-    state = models.IntegerField(default=WalletPLLStatus.PENDING, choices=WalletPLLStatus.get_states())
+    state = models.IntegerField(default=WalletPLLStatus.PENDING.value, choices=WalletPLLStatus.get_states())
     slug = models.SlugField(blank=True, default="", choices=PLL_SLUG_CHOICE)
     pll = models.ForeignKey(
         "PaymentCardSchemeEntry", default=None, on_delete=models.CASCADE, verbose_name="Associated PLL"
@@ -917,6 +921,13 @@ class PaymentCardSchemeEntry(models.Model):
         unique_together = ("payment_card_account", "scheme_account")
         verbose_name = "Payment Card to Membership Card Association"
         verbose_name_plural = "".join([verbose_name, "s"])
+
+    def __str__(self):
+        return (
+            f"PaymentCardSchemeEntry id: {self.id} - "
+            f"PaymentCardAccount id: {self.payment_card_account.id} - "
+            f"SchemeAccount id: {self.scheme_account.id}"
+        )
 
     def delete(self):
         # It might make sense to put the VOP deactivations logic here
