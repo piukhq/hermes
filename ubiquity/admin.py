@@ -3,7 +3,7 @@ from django.utils.html import format_html
 
 from payment_card.admin import titled_filter
 from scheme.admin import CacheResetAdmin
-from ubiquity.models import MembershipPlanDocument, PaymentCardSchemeEntry, VopActivation, PllUserAssociation
+from ubiquity.models import MembershipPlanDocument, PaymentCardSchemeEntry, PllUserAssociation, VopActivation
 
 
 @admin.register(PaymentCardSchemeEntry)
@@ -41,9 +41,7 @@ class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
         "scheme_account",
     )
 
-    readonly_fields = (
-        "active_link",
-    )
+    readonly_fields = ("active_link",)
 
     def payment_card_account_link(self, obj):
         return format_html(
@@ -76,17 +74,10 @@ class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
 
 @admin.register(PllUserAssociation)
 class PllUserAssociationAdmin(admin.ModelAdmin):
-    list_display = (
-        "id",
-        "user",
-        "pll",
-        "state",
-        "slug"
-    )
+    list_display = ("id", "user", "pll", "state", "slug")
     search_fields = (
         "id",
-        "user"
-        "pll__payment_card_account_id",
+        "user" "pll__payment_card_account_id",
         "pll__scheme_account_id",
     )
 
@@ -102,10 +93,7 @@ class PllUserAssociationAdmin(admin.ModelAdmin):
         ("pll__scheme_account__scheme", titled_filter("Loyalty Plan")),
     )
 
-    raw_id_fields = (
-        "user",
-        "pll"
-    )
+    raw_id_fields = ("user", "pll")
 
     readonly_fields = (
         # "user",

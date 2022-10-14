@@ -81,7 +81,7 @@ def async_link(
 
     except serializers.ValidationError as e:
         scheme_account_entry.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
-        scheme_account.status = scheme_account.INVALID_CREDENTIALS
+        # scheme_account.status = scheme_account.INVALID_CREDENTIALS
         scheme_account.save()
         clean_history_kwargs(history_kwargs)
         raise e
@@ -395,8 +395,7 @@ def _delete_user_payment_cards(user: "CustomUser", run_async: bool = True) -> No
         else:
             # Updates any ubiquity collisions linked to this payment card
             for entry in card.paymentcardschemeentry_set.all():
-                user_link = PllUserAssociation.objects.get(pll=entry, user=user)
-                user_link.update_user_pll_by_pay_account(card)
+                PllUserAssociation.update_user_pll_by_both(entry.payment_card_account, entry.scheme_account)
                 # entry.update_soft_links({"payment_card_account": card})
 
     PaymentCardSchemeEntry.objects.filter(payment_card_account_id__in=[card.id for card in cards_to_delete]).delete()

@@ -4,7 +4,14 @@ import factory
 
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.tests.factories import SchemeAccountFactory
-from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent
+from ubiquity.models import (
+    PaymentCardAccountEntry,
+    PaymentCardSchemeEntry,
+    PllUserAssociation,
+    SchemeAccountEntry,
+    ServiceConsent,
+    WalletPLLStatus,
+)
 from user.tests.factories import UserFactory
 
 
@@ -23,9 +30,16 @@ class PaymentCardSchemeEntryFactory(factory.django.DjangoModelFactory):
     payment_card_account = factory.SubFactory(PaymentCardAccountFactory)
     scheme_account = factory.SubFactory(SchemeAccountFactory)
     active_link = True
-    state = PaymentCardSchemeEntry.ACTIVE
+
+
+class PllUserAssociationFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = PllUserAssociation
+
+    state = WalletPLLStatus.ACTIVE
     slug = ""
-    description = ""
+    pll = factory.SubFactory(PaymentCardSchemeEntryFactory)
+    user = factory.SubFactory(UserFactory)
 
 
 class SchemeAccountEntryFactory(factory.django.DjangoModelFactory):

@@ -591,11 +591,7 @@ class WalletPLLStatus(IntEnum):
 
     @classmethod
     def get_states(cls) -> tuple:
-        return (
-            (cls.PENDING.value, "pending"),
-            (cls.ACTIVE.value, "active"),
-            (cls.INACTIVE.value, "inactive")
-        )
+        return ((cls.PENDING.value, "pending"), (cls.ACTIVE.value, "active"), (cls.INACTIVE.value, "inactive"))
 
 
 class WalletPLLSlug(Enum):
@@ -697,11 +693,11 @@ class WalletPLLData:
         self.pll_data = {}
         self.scheme_count = {}
 
-    def all(self) -> "PllUserAssociation":
+    def all(self) -> list["PllUserAssociation"]:
         for link in self.pll_user_associations:
             yield link
 
-    def all_except_collision(self) -> "PllUserAssociation":
+    def all_except_collision(self) -> list["PllUserAssociation"]:
         for link in self.pll_user_associations:
             if not self.collision(link):
                 yield link
@@ -835,8 +831,9 @@ class PllUserAssociation(models.Model):
         wallet_pll_data = WalletPLLData(payment_card_account=payment_card_account, scheme_account=scheme_account)
         # these are pll user links to all wallets which have this payment_card_account
         for link in wallet_pll_data.all_except_collision():
-            link.state, link.slug = cls.get_state_and_slug(payment_card_account.status,
-                                                           wallet_pll_data.scheme_account_status(link))
+            link.state, link.slug = cls.get_state_and_slug(
+                payment_card_account.status, wallet_pll_data.scheme_account_status(link)
+            )
             cls.update_link(link)
 
     @classmethod
@@ -844,8 +841,9 @@ class PllUserAssociation(models.Model):
         wallet_pll_data = WalletPLLData(payment_card_account=payment_card_account)
         # these are pll user links to all wallets which have this payment_card_account
         for link in wallet_pll_data.all_except_collision():
-            link.state, link.slug = cls.get_state_and_slug(payment_card_account.status,
-                                                           wallet_pll_data.scheme_account_status(link))
+            link.state, link.slug = cls.get_state_and_slug(
+                payment_card_account.status, wallet_pll_data.scheme_account_status(link)
+            )
             cls.update_link(link)
 
     @classmethod
@@ -931,11 +929,11 @@ class PaymentCardSchemeEntry(models.Model):
             f"SchemeAccount id: {self.scheme_account.id}"
         )
 
-    def delete(self):
+    def delete(self, *kwargs):
         # It might make sense to put the VOP deactivations logic here
         PllUserAssociation.objects.filter(pll=self).delete()
         PllUserAssociation.update_user_pll_by_both(self.payment_card_account, self.scheme_account)
-        self.delete()
+        self.delete(kwargs)
 
     def activate(self):
         """
