@@ -13,7 +13,6 @@ if typing.TYPE_CHECKING:
 
 @shared_task
 def record_history(model_name: str, **kwargs) -> None:
-    import pdb; pdb.set_trace()
     serializer = get_historical_serializer(model_name)(data=kwargs)
     serializer.is_valid(raise_exception=True)
     if model_name == HistoryModel.CUSTOM_USER.value:

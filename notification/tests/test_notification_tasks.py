@@ -76,18 +76,14 @@ class TestNotificationTask(GlobalMockAPITestCase):
         )
 
         notification_processor = NotificationProcessor()
-        state = notification_processor.get_status_translation(
-            scheme_account, scheme_account_entry.link_status
-        )
+        state = notification_processor.get_status_translation(scheme_account, scheme_account_entry.link_status)
 
         self.assertEqual(state, AUTHORISED)
 
         scheme_account.balances = {}
         scheme_account.save(update_fields=["balances"])
 
-        state = notification_processor.get_status_translation(
-            scheme_account, scheme_account_entry.link_status
-        )
+        state = notification_processor.get_status_translation(scheme_account, scheme_account_entry.link_status)
 
         self.assertEqual(state, PENDING)
 
@@ -99,18 +95,14 @@ class TestNotificationTask(GlobalMockAPITestCase):
         scheme_account_entry.link_status = AccountLinkStatus.VALIDATION_ERROR
         scheme_account_entry.save(update_fields=["link_status"])
 
-        state = notification_processor.get_status_translation(
-            scheme_account, scheme_account_entry.link_status
-        )
+        state = notification_processor.get_status_translation(scheme_account, scheme_account_entry.link_status)
 
         self.assertEqual(state, FAILED)
 
         scheme_account_entry.link_status = AccountLinkStatus.INVALID_MFA
         scheme_account_entry.save(update_fields=["link_status"])
 
-        state = notification_processor.get_status_translation(
-            scheme_account, scheme_account_entry.link_status
-        )
+        state = notification_processor.get_status_translation(scheme_account, scheme_account_entry.link_status)
 
         self.assertEqual(state, UNAUTHORISED)
 
@@ -127,7 +119,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=scheme_account.id,
                 user_id=scheme_account_entry.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.PENDING
+                link_status=AccountLinkStatus.PENDING,
             ).save()
 
             HistoricalSchemeAccount(
@@ -156,7 +148,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=scheme_account.id,
                 user_id=scheme_account_entry.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.ACTIVE
+                link_status=AccountLinkStatus.ACTIVE,
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.three_hours_plus)):
@@ -181,7 +173,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=scheme_account.id,
                 user_id=scheme_account_entry.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.PENDING
+                link_status=AccountLinkStatus.PENDING,
             ).save()
 
             HistoricalSchemeAccount(
@@ -202,7 +194,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=scheme_account.id,
                 user_id=scheme_account_entry.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.END_SITE_DOWN
+                link_status=AccountLinkStatus.END_SITE_DOWN,
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.three_hours_plus)):
@@ -224,14 +216,14 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=scheme_account.id,
                 user_id=scheme_account_entry.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.PENDING
+                link_status=AccountLinkStatus.PENDING,
             ).save()
 
             HistoricalSchemeAccount(
                 change_type=HistoricalSchemeAccount.CREATE,
                 instance_id=scheme_account.id,
                 change_details="",
-                body={"id": scheme_account.id, "status": AccountLinkStatus.PENDING},
+                body={"id": scheme_account.id},
                 channel=self.barclays_channel,
             ).save()
 
@@ -254,7 +246,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=scheme_account.id,
                 user_id=scheme_account_entry.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.ACTIVE
+                link_status=AccountLinkStatus.ACTIVE,
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.mocked_datetime)):
@@ -267,7 +259,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=scheme_account.id,
                 user_id=scheme_account_entry.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.END_SITE_DOWN
+                link_status=AccountLinkStatus.ACTIVE,
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.three_hours_plus)):
@@ -284,7 +276,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=self.scheme_account.id,
                 user_id=self.scheme_account_entry.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.PENDING
+                link_status=AccountLinkStatus.PENDING,
             ).save()
 
             HistoricalSchemeAccountEntry(
@@ -293,7 +285,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=self.scheme_account.id,
                 user_id=self.scheme_account_entry_two.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.PENDING
+                link_status=AccountLinkStatus.PENDING,
             ).save()
 
             HistoricalSchemeAccount(
@@ -322,7 +314,16 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=self.scheme_account.id,
                 user_id=self.scheme_account_entry.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.ACTIVE
+                link_status=AccountLinkStatus.ACTIVE,
+            ).save()
+
+            HistoricalSchemeAccountEntry(
+                instance_id=self.scheme_account_entry_two.id,
+                change_type=HistoricalSchemeAccount.UPDATE,
+                scheme_account_id=self.scheme_account.id,
+                user_id=self.scheme_account_entry_two.user.id,
+                channel=self.barclays_channel,
+                link_status=AccountLinkStatus.ACTIVE,
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.three_hours_plus)):
@@ -383,7 +384,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=self.scheme_account.id,
                 user_id=scheme_account_entry_three.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.ACTIVE
+                link_status=AccountLinkStatus.ACTIVE,
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.three_hours_plus)):
@@ -408,7 +409,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=self.scheme_account.id,
                 user_id=self.scheme_account_entry.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.PENDING
+                link_status=AccountLinkStatus.PENDING,
             ).save()
 
             HistoricalSchemeAccountEntry(
@@ -417,7 +418,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=self.scheme_account.id,
                 user_id=self.scheme_account_entry_two.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.PENDING
+                link_status=AccountLinkStatus.PENDING,
             ).save()
 
             HistoricalSchemeAccount(
@@ -436,7 +437,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 change_type=HistoricalSchemeAccount.DELETE,
                 instance_id=self.scheme_account.id,
                 change_details="status",
-                body={"id": self.scheme_account.id, "status": AccountLinkStatus.ACTIVE},
+                body={"id": self.scheme_account.id},
                 channel=self.barclays_channel,
             ).save()
 
@@ -446,7 +447,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=self.scheme_account.id,
                 user_id=self.scheme_account_entry.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.PENDING
+                link_status=AccountLinkStatus.ACTIVE,
             ).save()
 
             HistoricalSchemeAccountEntry(
@@ -455,7 +456,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=self.scheme_account.id,
                 user_id=self.scheme_account_entry_two.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.ACTIVE
+                link_status=AccountLinkStatus.ACTIVE,
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.three_hours_plus)):
@@ -514,7 +515,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=self.scheme_account.id,
                 user_id=self.scheme_account_entry_two.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.ACTIVE
+                link_status=AccountLinkStatus.ACTIVE,
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.three_hours_plus)):
@@ -531,7 +532,9 @@ class TestNotificationTask(GlobalMockAPITestCase):
     def test_get_data_outside_notification_run_time(self):
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.mocked_now_datetime)):
             scheme_account = SchemeAccountFactory()
-            scheme_account_entry = SchemeAccountEntryFactory(user=self.user_two, scheme_account=scheme_account, link_status=AccountLinkStatus.PENDING)
+            scheme_account_entry = SchemeAccountEntryFactory(
+                user=self.user_two, scheme_account=scheme_account, link_status=AccountLinkStatus.PENDING
+            )
 
             HistoricalSchemeAccountEntry(
                 instance_id=scheme_account_entry.id,
@@ -539,7 +542,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=scheme_account.id,
                 user_id=scheme_account_entry.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.PENDING
+                link_status=AccountLinkStatus.PENDING,
             ).save()
 
             HistoricalSchemeAccount(
@@ -562,7 +565,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 scheme_account_id=scheme_account.id,
                 user_id=scheme_account_entry.user.id,
                 channel=self.barclays_channel,
-                link_status=AccountLinkStatus.ACTIVE
+                link_status=AccountLinkStatus.ACTIVE,
             ).save()
 
         plus_one_day = timezone.now() + timedelta(days=1)

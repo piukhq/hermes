@@ -11,7 +11,7 @@ from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
 
-from history.models import HistoricalBase, HistoricalSchemeAccount, HistoricalSchemeAccountEntry
+from history.models import HistoricalBase, HistoricalSchemeAccountEntry
 from notification import stfp_connect
 from scheme.models import SchemeAccount
 from ubiquity.channel_vault import BarclaysSftpKeyNames, get_barclays_sftp_key, load_secrets
@@ -122,13 +122,13 @@ class NotificationProcessor:
     def check_previous_status(self, scheme_account, from_date, history_obj, deleted=False):
         if deleted:
             query = {
-                "instance_id": scheme_account.id,
+                "scheme_account_id": scheme_account.id,
                 "created__lt": from_date,
                 "change_type": HistoricalBase.UPDATE,
             }
         else:
             query = {
-                "instance_id": scheme_account.id,
+                "scheme_account_id": scheme_account.id,
                 "created__lt": from_date,
             }
 
@@ -139,8 +139,7 @@ class NotificationProcessor:
         elif history_obj.change_type == HistoricalBase.DELETE:
             status = DELETED
         else:
-            if self.change_type in history_obj.change_details:
-                status = history_obj.link_status
+            status = history_obj.link_status
 
         if status is not None:
             state = self.get_status_translation(scheme_account, status)
@@ -174,60 +173,20 @@ class NotificationProcessor:
     def get_scheme_account_history(self):
         data = []
 
-        # Todo: need to refactor this to lastest changes from HistoricalSchemeAccountEntry
-        # SchemeAccount not longer gets updated when status changes
-        barclays_scheme_account_entries = SchemeAccountEntry.objects.filter(
-            user__client__name=self.client_application_name,
-            scheme_account__updated__gte=self.from_datetime,
-            scheme_account__updated__lte=self.to_date,
+        historical_scheme_associations = (
+            HistoricalSchemeAccountEntry.objects.filter(
+                created__range=[self.from_datetime, self.to_date], channel=self.channel
+            )
+            .order_by("scheme_account_id", "user_id", "-created")
+            .distinct("scheme_account_id", "user_id")
         )
 
-        for scheme_association in barclays_scheme_account_entries:
-            history_data = HistoricalSchemeAccountEntry.objects.filter(
-                instance_id=scheme_association.scheme_account_id,
-                created__range=[self.from_datetime, self.to_date],
-            ).last()
-
-            if history_data:
-                state = self.check_previous_status(
-                    scheme_association.scheme_account,
-                    self.from_datetime,
-                    history_data
-                )
-
-                if state:
-                    data.append(
-                        [
-                            scheme_association.user.external_id,
-                            scheme_association.scheme_account.scheme.slug,
-                            state,
-                            history_data.created
-                        ]
-                    )
-
-        # for scheme_association in barclays_scheme_account_entries:
-        #     history_data = HistoricalSchemeAccount.objects.filter(
-        #         instance_id=scheme_association.scheme_account_id,
-        #         created__range=[self.from_datetime, self.to_date],
-        #         change_details__contains="status",
-        #     ).last()
-        #
-        #     if history_data:
-        #         state = self.check_previous_status(
-        #             scheme_association.scheme_account,
-        #             self.from_datetime,
-        #             history_data,
-        #         )
-        #
-        #         if state:
-        #             data.append(
-        #                 [
-        #                     scheme_association.user.external_id,
-        #                     scheme_association.scheme_account.scheme.slug,
-        #                     state,
-        #                     history_data.created,
-        #                 ]
-        #             )
+        for history in historical_scheme_associations:
+            scheme_account = SchemeAccount.all_objects.get(id=history.scheme_account_id)
+            user = CustomUser.all_objects.get(id=history.user_id)
+            state = self.check_previous_status(scheme_account, self.from_datetime, history)
+            if state:
+                data.append([user.external_id, scheme_account.scheme.slug, state, history.created])
 
         return data
 

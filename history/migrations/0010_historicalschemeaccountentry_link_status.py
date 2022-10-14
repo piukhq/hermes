@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('history', '0009_historicalcustomuser_uuid'),
+        ("history", "0009_historicalcustomuser_uuid"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='historicalschemeaccountentry',
-            name='link_status',
+            model_name="historicalschemeaccountentry",
+            name="link_status",
             field=models.IntegerField(null=True),
         ),
     ]
