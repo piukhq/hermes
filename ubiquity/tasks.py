@@ -550,8 +550,9 @@ def auto_link_membership_to_payments(
 
 
 def _get_instances_to_bulk_create(
-    payment_card_account: PaymentCardAccount, wallet_scheme_accounts: list, just_created: bool
+    payment_card_account: PaymentCardAccount, wallet_scheme_account_entries: list, just_created: bool
 ) -> dict:
+
     if just_created:
         already_linked_scheme_ids = []
     else:
@@ -561,25 +562,35 @@ def _get_instances_to_bulk_create(
 
     cards_by_scheme_ids = {}
     instances_to_bulk_create = {}
-    for scheme_account in wallet_scheme_accounts:
+    for scheme_account_entry in wallet_scheme_account_entries:
+        scheme_account = scheme_account_entry.scheme_account
         scheme_id = scheme_account.scheme_id
-        # todo: PLL stuff
+        scheme_account_status = scheme_account_entry.link_status
+        # @todo: PLL stuff none - reworked to use wallet_scheme_account_entries. A link is only created if
+        # the scheme account does not share the same scheme as other cards in the wallet (ubiquity collision)
+        # When this occurs only the latest card (highest id) is linked regardless of status
+        # Note this is only done on a wallets membership cards it would work if the collision occurs across
+        # wallets - We either live with this for API 1.0x or need to add across wallet Collision detection perhaps
+        # setting status accordingly - may be run this extra collision check as a background task
+
         link = PaymentCardSchemeEntry(scheme_account=scheme_account, payment_card_account=payment_card_account)
         if scheme_id not in already_linked_scheme_ids:
             if scheme_id in cards_by_scheme_ids:
                 if cards_by_scheme_ids[scheme_id] > scheme_account.id:
                     cards_by_scheme_ids[scheme_id] = scheme_account.id
-                    instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
+                    # instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
+                    instances_to_bulk_create[scheme_id] = link.set_active_link_status(scheme_account_status)
             else:
                 cards_by_scheme_ids[scheme_id] = scheme_account.id
-                instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
+                # instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
+                instances_to_bulk_create[scheme_id] = link.set_active_link_status(scheme_account_status)
 
     return instances_to_bulk_create
 
 
 @shared_task
 def auto_link_payment_to_memberships(
-    wallet_scheme_accounts: list,
+    wallet_scheme_account_entries: list,
     payment_card_account: t.Union[PaymentCardAccount, int],
     just_created: bool,
     history_kwargs: dict = None,
@@ -589,10 +600,11 @@ def auto_link_payment_to_memberships(
     if isinstance(payment_card_account, int):
         payment_card_account = PaymentCardAccount.objects.select_related("payment_card").get(pk=payment_card_account)
 
-    if isinstance(wallet_scheme_accounts[0], int):
-        wallet_scheme_accounts = SchemeAccount.objects.filter(id__in=wallet_scheme_accounts).all()
+    if isinstance(wallet_scheme_account_entries[0], int):
+        wallet_scheme_account_entries = SchemeAccountEntry.objects.filter(id__in=wallet_scheme_account_entries).all()
 
-    instances_to_bulk_create = _get_instances_to_bulk_create(payment_card_account, wallet_scheme_accounts, just_created)
+    instances_to_bulk_create = _get_instances_to_bulk_create(
+        payment_card_account, wallet_scheme_account_entries, just_created)
     pll_activated_membership_cards = [
         link.scheme_account_id for link in instances_to_bulk_create.values() if link.active_link is True
     ]

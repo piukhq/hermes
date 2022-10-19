@@ -109,6 +109,7 @@ def set_auth_provided(scheme_account: SchemeAccount, user_id: int, new_value: bo
     link.save(update_fields=["auth_provided"])
 
 
+# @todo we must use API method of linking here:
 def post_payment_account(message: dict) -> None:
     # Calls Metis to enrol payment card if account was just created.
     logger.info("Handling onward POST/payment_account journey from Angelia. ")
@@ -116,6 +117,7 @@ def post_payment_account(message: dict) -> None:
         payment_card_account = PaymentCardAccount.objects.get(pk=message.get("payment_account_id"))
         user = CustomUser.objects.get(pk=ac.user_id)
         if message.get("auto_link"):
+            # @todo - No not for API 2.0
             AutoLinkOnCreationMixin.auto_link_to_membership_cards(
                 user, payment_card_account, ac.channel_slug, just_created=True
             )
@@ -123,6 +125,7 @@ def post_payment_account(message: dict) -> None:
             metis.enrol_new_payment_card(payment_card_account, run_async=False)
 
 
+# @todo we must use API method of linking here:
 def delete_payment_account(message: dict) -> None:
     logger.info("Handling DELETE/payment_account journey from Angelia.")
     with AngeliaContext(message) as ac:

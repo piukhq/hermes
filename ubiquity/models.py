@@ -795,12 +795,12 @@ class PllUserAssociation(models.Model):
         unique_together = ("pll", "user")
 
     @classmethod
-    def get_state_and_slug(cls, payment_card_account_status: int, scheme_account_status: int):
+    def get_state_and_slug(cls, payment_card_account: "PaymentCardAccount", scheme_account_status: int):
         pay_index = 2
         scheme_index = 2
-        if payment_card_account_status == PaymentCardAccount.ACTIVE:
+        if payment_card_account.status == payment_card_account.ACTIVE:
             pay_index = 0
-        elif payment_card_account_status == PaymentCardAccount.PENDING:
+        elif payment_card_account.status == payment_card_account.PENDING:
             pay_index = 1
         if scheme_account_status == AccountLinkStatus.ACTIVE:
             scheme_index = 0
@@ -832,7 +832,7 @@ class PllUserAssociation(models.Model):
         # these are pll user links to all wallets which have this payment_card_account
         for link in wallet_pll_data.all_except_collision():
             link.state, link.slug = cls.get_state_and_slug(
-                payment_card_account.status, wallet_pll_data.scheme_account_status(link)
+                payment_card_account, wallet_pll_data.scheme_account_status(link)
             )
             cls.update_link(link)
 
@@ -842,7 +842,7 @@ class PllUserAssociation(models.Model):
         # these are pll user links to all wallets which have this payment_card_account
         for link in wallet_pll_data.all_except_collision():
             link.state, link.slug = cls.get_state_and_slug(
-                payment_card_account.status, wallet_pll_data.scheme_account_status(link)
+                payment_card_account, wallet_pll_data.scheme_account_status(link)
             )
             cls.update_link(link)
 
@@ -852,9 +852,7 @@ class PllUserAssociation(models.Model):
         # these are pll user links to all wallets which have this payment_card_account
         for link in wallet_pll_data.all_except_collision():
             wallet_scheme_account_status = wallet_pll_data.scheme_account_status(link)
-            link.state, link.slug = cls.get_state_and_slug(
-                link.pll.payment_card_account.status, wallet_scheme_account_status
-            )
+            link.state, link.slug = cls.get_state_and_slug(link.pll.payment_card_account, wallet_scheme_account_status)
             cls.update_link(link)
 
     @classmethod
@@ -877,7 +875,7 @@ class PllUserAssociation(models.Model):
     ):
         scheme_account = scheme_account_entry.scheme_account
         user = scheme_account_entry.user
-        status, slug = cls.get_state_and_slug(payment_card_account.status, scheme_account_entry.link_status)
+        status, slug = cls.get_state_and_slug(payment_card_account, scheme_account_entry.link_status)
         base_status = False
         if status == WalletPLLStatus.ACTIVE:
             base_status = True
@@ -892,13 +890,15 @@ class PllUserAssociation(models.Model):
             slug = WalletPLLSlug.UBIQUITY_COLLISION
 
         base_link, base_created = PaymentCardSchemeEntry.objects.get_or_create(
-            payment_card=payment_card_account, scheme_account=scheme_account, defaults={"active_link": base_status}
+            payment_card_account=payment_card_account,
+            scheme_account=scheme_account,
+            defaults={"active_link": base_status},
         )
         if not base_link.active_link and base_status:
             base_link.activate()
 
         user_link, link_created = cls.objects.get_or_create(
-            pll=base_link, user=user, defaults={"slug": slug, "status": status}
+            pll=base_link, user=user, defaults={"slug": slug, "state": status}
         )
 
         # update existing user link but don't change if had a UBIQUITY_COLLISION
@@ -987,6 +987,24 @@ class PaymentCardSchemeEntry(models.Model):
                     history_kwargs = None
 
                 send_deactivation.delay(activation, history_kwargs)
+
+    def set_active_link_status(self, scheme_account_status: bool = False) -> object:
+        """
+        Re=added as needed by API 1.x
+        Returns the instance of its self after having first set the corrected active_link status
+        Allows request to be chained or returned
+        :return: self
+        """
+        if (
+            not self.payment_card_account.is_deleted
+            and not self.scheme_account.is_deleted
+            and self.payment_card_account.status == self.payment_card_account.ACTIVE
+            and scheme_account_status
+        ):
+            self.active_link = True
+        else:
+            self.active_link = False
+        return self
 
     # @todo pll stuff remove methods below this line -----------------------------------
 

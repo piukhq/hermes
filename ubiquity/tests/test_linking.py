@@ -6,12 +6,20 @@ from django.test import override_settings
 from rest_framework.reverse import reverse
 
 from history.utils import GlobalMockAPITestCase
+from django.test import testcases
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardFactory
 from scheme.models import SchemeAccount, SchemeBundleAssociation
 from scheme.tests.factories import SchemeAccountFactory, SchemeBundleAssociationFactory, SchemeFactory
-from ubiquity.models import PaymentCardSchemeEntry
-from ubiquity.tests.factories import SchemeAccountEntryFactory
+from ubiquity.models import (
+    PaymentCardSchemeEntry,
+    WalletPLLData,
+    WalletPLLSlug,
+    WalletPLLStatus,
+    PllUserAssociation,
+    AccountLinkStatus,
+)
+from ubiquity.tests.factories import SchemeAccountEntryFactory, PaymentCardAccountFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.tests.factories import (
     ClientApplicationBundleFactory,
@@ -95,10 +103,61 @@ def set_up_scheme(bundle):
     return scheme, scheme_bundle_association
 
 
-def set_up_membership_card(user, scheme):
+def set_up_membership_card(user, scheme, link_status=1):
     scheme_account = SchemeAccountFactory(scheme=scheme)
-    SchemeAccountEntryFactory(scheme_account=scheme_account, user=user)
+    SchemeAccountEntryFactory(scheme_account=scheme_account, user=user, link_status=link_status)
     return scheme_account
+
+
+class TestUserPLL(testcases.TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        (
+            cls.client_app,
+            cls.bundle,
+            cls.issuer,
+            cls.payment_card,
+            cls.version_header,
+            cls.payload,
+        ) = set_up_payment_card()
+
+        # senario 1 mcards 1 cards 1 mplan
+
+        external_id1 = "test1@user.com"
+        cls.user_wallet_1 = UserFactory(external_id=external_id1, client=cls.client_app, email=external_id1)
+        external_id2 = "test2@user.com"
+        cls.user_wallet_2 = UserFactory(external_id=external_id2, client=cls.client_app, email=external_id2)
+
+        cls.scheme1, cls.scheme_bundle_association1 = set_up_scheme(cls.bundle)
+        cls.scheme2, cls.scheme_bundle_association1 = set_up_scheme(cls.bundle)
+
+    def test_link_accounts_active_pay_to_active_scheme(self):
+        scheme_account = set_up_membership_card(self.user_wallet_1, self.scheme1)
+        payment_card_account = PaymentCardAccountFactory(payment_card=self.payment_card)
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account, [payment_card_account], self.user_wallet_1
+        )
+        base_pll = PaymentCardSchemeEntry.objects.get(
+            payment_card_account=payment_card_account, scheme_account=scheme_account
+        )
+        user_pll = PllUserAssociation.objects.get(pll=base_pll, user=self.user_wallet_1)
+        self.assertEqual(base_pll.active_link, AccountLinkStatus.ACTIVE)
+        self.assertEqual(user_pll.state, WalletPLLStatus.ACTIVE)
+        self.assertEqual(user_pll.slug, "")
+
+    def test_link_accounts_active_pay_to_pending_scheme(self):
+        scheme_account = set_up_membership_card(self.user_wallet_1, self.scheme1, link_status=AccountLinkStatus.PENDING)
+        payment_card_account = PaymentCardAccountFactory(payment_card=self.payment_card)
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account, [payment_card_account], self.user_wallet_1
+        )
+        base_pll = PaymentCardSchemeEntry.objects.get(
+            payment_card_account=payment_card_account, scheme_account=scheme_account
+        )
+        user_pll = PllUserAssociation.objects.get(pll=base_pll, user=self.user_wallet_1)
+        self.assertEqual(base_pll.active_link, AccountLinkStatus.PENDING)
+        self.assertEqual(user_pll.state, WalletPLLStatus.PENDING)
+        self.assertEqual(user_pll.slug, "WalletPLLSlug.LOYALTY_CARD_PENDING")
 
 
 class TestSoftLinking(GlobalMockAPITestCase):

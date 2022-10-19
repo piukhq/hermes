@@ -160,15 +160,19 @@ class AutoLinkOnCreationMixin:
         user: CustomUser, payment_card_account: PaymentCardAccount, bundle_id: str, just_created: bool = False
     ) -> None:
 
-        # Ensure that we only consider membership cards in a user's wallet which can be PLL linked
-        wallet_scheme_accounts = SchemeAccount.objects.filter(user_set=user, scheme__tier=Scheme.PLL).all()
+        # Ensure that we only consider membership cards in a user's wallet which can be PLL linked and ensure
+        # we get the user link_status for the scheme account
+        wallet_scheme_account_entries = \
+            SchemeAccountEntry.objects.filter(user=user, scheme_account__scheme__tier=Scheme.PLL).all()
 
-        if wallet_scheme_accounts:
+        # wallet_scheme_accounts = SchemeAccount.objects.filter(user_set=user, scheme__tier=Scheme.PLL).all()
+
+        if wallet_scheme_account_entries:
             if payment_card_account.status == PaymentCardAccount.ACTIVE:
-                auto_link_payment_to_memberships(wallet_scheme_accounts, payment_card_account, just_created)
+                auto_link_payment_to_memberships(wallet_scheme_account_entries, payment_card_account, just_created)
             else:
                 auto_link_payment_to_memberships.delay(
-                    [sa.id for sa in wallet_scheme_accounts],
+                    [sa.id for sa in wallet_scheme_account_entries],
                     payment_card_account.id,
                     just_created,
                     history_kwargs={"user_info": user_info(user_id=user.id, channel=bundle_id)},
@@ -1528,9 +1532,13 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
             )
         except PaymentCardSchemeEntry.DoesNotExist:
             # todo: PLL stuff
+            # link = PaymentCardSchemeEntry(
+            #    scheme_account=mcard, payment_card_account=pcard
+            # ).get_instance_with_active_status()
+            scheme_account_entry = SchemeAccountEntry.objects.get(user=user, scheme_account=mcard)
             link = PaymentCardSchemeEntry(
                 scheme_account=mcard, payment_card_account=pcard
-            ).get_instance_with_active_status()
+            ).set_active_link_status(scheme_account_entry.link_status)
             link.save()
             link.vop_activate_check()
             status_code = status.HTTP_201_CREATED
