@@ -651,20 +651,20 @@ class WalletPLLSlug(Enum):
             # Payment Card Account Active:  loyalty active, pending, inactive
             (
                 (WalletPLLStatus.ACTIVE, ""),
-                (WalletPLLStatus.PENDING, cls.LOYALTY_CARD_PENDING),
-                (WalletPLLStatus.INACTIVE, cls.LOYALTY_CARD_NOT_AUTHORISED),
+                (WalletPLLStatus.PENDING, cls.LOYALTY_CARD_PENDING.value),
+                (WalletPLLStatus.INACTIVE, cls.LOYALTY_CARD_NOT_AUTHORISED.value),
             ),
             # Payment Card Account Pending:  loyalty active, pending, inactive
             (
-                (WalletPLLStatus.PENDING, cls.PAYMENT_ACCOUNT_PENDING),
-                (WalletPLLStatus.PENDING, cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING),
-                (WalletPLLStatus.INACTIVE, cls.LOYALTY_CARD_NOT_AUTHORISED),
+                (WalletPLLStatus.PENDING, cls.PAYMENT_ACCOUNT_PENDING.value),
+                (WalletPLLStatus.PENDING, cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING.value),
+                (WalletPLLStatus.INACTIVE, cls.LOYALTY_CARD_NOT_AUTHORISED.value),
             ),
             # Payment Card Account inactive:  loyalty active, pending, inactive
             (
-                (WalletPLLStatus.INACTIVE, cls.PAYMENT_ACCOUNT_INACTIVE),
-                (WalletPLLStatus.INACTIVE, cls.PAYMENT_ACCOUNT_INACTIVE),
-                (WalletPLLStatus.INACTIVE, cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE),
+                (WalletPLLStatus.INACTIVE, cls.PAYMENT_ACCOUNT_INACTIVE.value),
+                (WalletPLLStatus.INACTIVE, cls.PAYMENT_ACCOUNT_INACTIVE.value),
+                (WalletPLLStatus.INACTIVE, cls.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE.value),
             ),
         )
 
@@ -761,7 +761,7 @@ class WalletPLLData:
         if data.get("link"):
             return False
         # if the link slug is not marked as collision it must be the link before the collision occurred so false
-        if data["link"].slug != WalletPLLSlug.UBIQUITY_COLLISION and scheme_more_than_once:
+        if data["link"].slug != WalletPLLSlug.UBIQUITY_COLLISION.value and scheme_more_than_once:
             return False
         # returns true for other scheme linked more than once to a payment card and false otherwise even if slug
         # says it was a collision
@@ -887,22 +887,32 @@ class PllUserAssociation(models.Model):
 
         if scheme_count > 0:
             status = WalletPLLStatus.INACTIVE
-            slug = WalletPLLSlug.UBIQUITY_COLLISION
+            slug = WalletPLLSlug.UBIQUITY_COLLISION.value
+            base_status = False
 
         base_link, base_created = PaymentCardSchemeEntry.objects.get_or_create(
             payment_card_account=payment_card_account,
             scheme_account=scheme_account,
             defaults={"active_link": base_status},
         )
-        if not base_link.active_link and base_status:
-            base_link.activate()
+
+        if base_status:
+            # activate if not been done already
+            if not base_link.active_link:
+                base_link.activate(save=True)
+            elif base_created:
+                base_link.activate(save=False)
+
+        if base_link.active_link != base_status:
+            base_link.active_link = base_status
+            base_link.save()
 
         user_link, link_created = cls.objects.get_or_create(
             pll=base_link, user=user, defaults={"slug": slug, "state": status}
         )
 
         # update existing user link but don't change if had a UBIQUITY_COLLISION
-        if not link_created and user_link.slug != WalletPLLSlug.UBIQUITY_COLLISION:
+        if not link_created and user_link.slug != WalletPLLSlug.UBIQUITY_COLLISION.value:
             user_link.status = status
             user_link.slug = slug
             user_link.save()
@@ -935,7 +945,7 @@ class PaymentCardSchemeEntry(models.Model):
         PllUserAssociation.update_user_pll_by_both(self.payment_card_account, self.scheme_account)
         self.delete(kwargs)
 
-    def activate(self):
+    def activate(self, save: bool = True):
         """
         This activates a link - we should be always call this to activate a link for PLL
         and ensure VOP activations are applied
@@ -943,8 +953,9 @@ class PaymentCardSchemeEntry(models.Model):
         @ todo should we update the pll links in associated payment cards and scheme accounts?
         :return:
         """
-        self.active_link = True
-        self.save()
+        if save:
+            self.active_link = True
+            self.save()
         self.vop_activate_check()
 
     def vop_activate_check(self, prechecked=False):

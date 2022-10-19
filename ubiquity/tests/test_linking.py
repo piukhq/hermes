@@ -141,7 +141,7 @@ class TestUserPLL(testcases.TestCase):
             payment_card_account=payment_card_account, scheme_account=scheme_account
         )
         user_pll = PllUserAssociation.objects.get(pll=base_pll, user=self.user_wallet_1)
-        self.assertEqual(base_pll.active_link, AccountLinkStatus.ACTIVE)
+        self.assertTrue(base_pll.active_link)
         self.assertEqual(user_pll.state, WalletPLLStatus.ACTIVE)
         self.assertEqual(user_pll.slug, "")
 
@@ -155,9 +155,36 @@ class TestUserPLL(testcases.TestCase):
             payment_card_account=payment_card_account, scheme_account=scheme_account
         )
         user_pll = PllUserAssociation.objects.get(pll=base_pll, user=self.user_wallet_1)
-        self.assertEqual(base_pll.active_link, AccountLinkStatus.PENDING)
+        self.assertFalse(base_pll.active_link)
         self.assertEqual(user_pll.state, WalletPLLStatus.PENDING)
-        self.assertEqual(user_pll.slug, "WalletPLLSlug.LOYALTY_CARD_PENDING")
+        self.assertEqual(user_pll.slug, WalletPLLSlug.LOYALTY_CARD_PENDING.value)
+
+    def test_link_accounts_ubiquity_collision(self):
+        scheme_account_1 =\
+            set_up_membership_card(self.user_wallet_1, self.scheme1, link_status=AccountLinkStatus.ACTIVE)
+        scheme_account_2 = \
+            set_up_membership_card(self.user_wallet_2, self.scheme1, link_status=AccountLinkStatus.ACTIVE)
+        payment_card_account = PaymentCardAccountFactory(payment_card=self.payment_card)
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account_1, [payment_card_account], self.user_wallet_1
+        )
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account_2, [payment_card_account], self.user_wallet_2
+        )
+        base_pll_1 = PaymentCardSchemeEntry.objects.get(
+            payment_card_account=payment_card_account, scheme_account=scheme_account_1
+        )
+        base_pll_2 = PaymentCardSchemeEntry.objects.get(
+            payment_card_account=payment_card_account, scheme_account=scheme_account_2
+        )
+        user_pll_1 = PllUserAssociation.objects.get(pll=base_pll_1, user=self.user_wallet_1)
+        user_pll_2 = PllUserAssociation.objects.get(pll=base_pll_2, user=self.user_wallet_2)
+        self.assertTrue(base_pll_1.active_link, "1st PLL before Collision must be True")
+        self.assertFalse(base_pll_2.active_link, "PLL for Collided object must be False")
+        self.assertEqual(user_pll_1.state, WalletPLLStatus.ACTIVE)
+        self.assertEqual(user_pll_1.slug, "")
+        self.assertEqual(user_pll_2.state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_pll_2.slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
 
 
 class TestSoftLinking(GlobalMockAPITestCase):
