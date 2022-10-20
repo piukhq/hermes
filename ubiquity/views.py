@@ -162,8 +162,9 @@ class AutoLinkOnCreationMixin:
 
         # Ensure that we only consider membership cards in a user's wallet which can be PLL linked and ensure
         # we get the user link_status for the scheme account
-        wallet_scheme_account_entries = \
-            SchemeAccountEntry.objects.filter(user=user, scheme_account__scheme__tier=Scheme.PLL).all()
+        wallet_scheme_account_entries = SchemeAccountEntry.objects.filter(
+            user=user, scheme_account__scheme__tier=Scheme.PLL
+        ).all()
 
         # wallet_scheme_accounts = SchemeAccount.objects.filter(user_set=user, scheme__tier=Scheme.PLL).all()
 
@@ -1536,9 +1537,9 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
             #    scheme_account=mcard, payment_card_account=pcard
             # ).get_instance_with_active_status()
             scheme_account_entry = SchemeAccountEntry.objects.get(user=user, scheme_account=mcard)
-            link = PaymentCardSchemeEntry(
-                scheme_account=mcard, payment_card_account=pcard
-            ).set_active_link_status(scheme_account_entry.link_status)
+            link = PaymentCardSchemeEntry(scheme_account=mcard, payment_card_account=pcard).set_active_link_status(
+                scheme_account_entry.link_status
+            )
             link.save()
             link.vop_activate_check()
             status_code = status.HTTP_201_CREATED

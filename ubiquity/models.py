@@ -678,15 +678,17 @@ class WalletPLLData:
         self.to_query = True
         self.pll_user_associations = []
         if payment_card_account is not None and scheme_account is not None:
-            self.pll_user_associations = PllUserAssociation.objects.select_related("pll__scheme_account").filter(
-                pll__payment_card_account=payment_card_account, pll__scheme_account=scheme_account
-            )
+            self.pll_user_associations = PllUserAssociation.objects.select_related(
+                "pll__scheme_account", "pll__payment_card_account").filter(
+                payment_card_account, pll__scheme_account=scheme_account)
         elif payment_card_account is not None:
-            self.pll_user_associations = PllUserAssociation.objects.select_related("pll__scheme_account").filter(
+            self.pll_user_associations = PllUserAssociation.objects.select_related(
+                "pll__scheme_account", "pll__payment_card_account").filter(
                 pll__payment_card_account=payment_card_account
             )
         elif scheme_account is not None:
-            self.pll_user_associations = PllUserAssociation.objects.select_related("pll__scheme_account").filter(
+            self.pll_user_associations = PllUserAssociation.objects.select_related(
+                "pll__scheme_account", "pll__payment_card_account").filter(
                 pll__scheme_account=scheme_account
             )
         self.scheme_account_data = {}
@@ -724,19 +726,20 @@ class WalletPLLData:
                 if self.scheme_count[pay_id].get(scheme_id):
                     self.scheme_count[pay_id][scheme_id] += 1
                 else:
-                    self.scheme_count[pay_id][scheme_id] = 0
+                    self.scheme_count[pay_id][scheme_id] = 1
 
             scheme_entries = SchemeAccountEntry.objects.filter(user_id__in=list(scheme_accounts_users.keys()))
 
             for entry in scheme_entries:
                 matched_link = None
                 for lk in scheme_accounts_users[entry.user.id]:
-                    if lk.scheme_account.id == entry.scheme_account.id:
+                    if lk.pll.scheme_account.id == entry.scheme_account.id:
                         matched_link = lk
                 if matched_link is not None:
                     pay_id = matched_link.pll.payment_card_account_id
                     scheme_id = matched_link.pll.scheme_account.scheme_id
-
+                    if not self.scheme_account_data.get(entry.scheme_account.id):
+                        self.scheme_account_data[entry.scheme_account.id] = {}
                     self.scheme_account_data[entry.scheme_account.id][entry.user.id] = {
                         "status": entry.link_status,
                         "link": matched_link,
@@ -849,7 +852,7 @@ class PllUserAssociation(models.Model):
     @classmethod
     def update_user_pll_by_scheme_account(cls, scheme_account: "SchemeAccount"):
         wallet_pll_data = WalletPLLData(scheme_account=scheme_account)
-        # these are pll user links to all wallets which have this payment_card_account
+        # these are pll user links to all wallets which have this scheme_account
         for link in wallet_pll_data.all_except_collision():
             wallet_scheme_account_status = wallet_pll_data.scheme_account_status(link)
             link.state, link.slug = cls.get_state_and_slug(link.pll.payment_card_account, wallet_scheme_account_status)
@@ -859,7 +862,9 @@ class PllUserAssociation(models.Model):
     def link_user_scheme_account_to_payment_cards(
         cls, scheme_account: "SchemeAccount", payment_card_accounts: list["PaymentCardAccount"], user: "CustomUser"
     ):
-        scheme_user_entry = SchemeAccountEntry.objects.get(user=user, scheme_account=scheme_account)
+        scheme_user_entry = SchemeAccountEntry.objects.get(
+            user=user, scheme_account=scheme_account, scheme_account__is_deleted=False
+        )
         cls.link_users_payment_cards(scheme_user_entry, payment_card_accounts)
 
     @classmethod

@@ -604,7 +604,8 @@ def auto_link_payment_to_memberships(
         wallet_scheme_account_entries = SchemeAccountEntry.objects.filter(id__in=wallet_scheme_account_entries).all()
 
     instances_to_bulk_create = _get_instances_to_bulk_create(
-        payment_card_account, wallet_scheme_account_entries, just_created)
+        payment_card_account, wallet_scheme_account_entries, just_created
+    )
     pll_activated_membership_cards = [
         link.scheme_account_id for link in instances_to_bulk_create.values() if link.active_link is True
     ]
