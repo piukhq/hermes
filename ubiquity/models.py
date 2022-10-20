@@ -32,7 +32,7 @@ class SchemeAccountEntry(models.Model):
     @staticmethod
     def create_link(
         user: "CustomUser", scheme_account: "SchemeAccount", auth_provided: bool
-    ) -> tuple(("SchemeAccountEntry", bool)):
+    ) -> tuple["SchemeAccountEntry", bool]:
         entry = SchemeAccountEntry(user=user, scheme_account=scheme_account, auth_provided=auth_provided)
         created = True
         try:
@@ -327,7 +327,9 @@ class PaymentCardSchemeEntry(models.Model):
     @classmethod
     def update_active_link_status(cls, query):
         links = cls.objects.filter(**query)
-        logger.info("updating pll links of id: %s", [link.id for link in links])
+
+        if links:
+            logger.info("updating pll links of id: %s", [link.id for link in links])
         for link in links:
             old_active_link = link.active_link
             old_slug = link.slug
