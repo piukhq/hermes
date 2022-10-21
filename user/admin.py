@@ -275,9 +275,10 @@ class ClientApplicationBundleAdmin(CacheResetAdmin):
             )
 
             scheme_acc_and_user_ids = {(entry.scheme_account_id, entry.user_id) for entry in scheme_acc_entries}
+            entry_count = len(scheme_acc_entries)
             scheme_acc_entries.delete()
             logger.debug(
-                f"Deleted {len(scheme_acc_entries)} SchemeAccountEntrys as part of delete "
+                f"Deleted {entry_count} SchemeAccountEntrys as part of delete "
                 "SchemeBundleAssociation cleanup..."
             )
 
