@@ -504,7 +504,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
     def test_system_retry_scheme_accounts(self):
         scheme = SchemeAccountFactory()
-        scheme_2 = SchemeAccountFactory(status=AccountLinkStatus.ACTIVE)
+        scheme_2 = SchemeAccountFactory()
         SchemeAccountEntryFactory(link_status=AccountLinkStatus.RETRY_LIMIT_REACHED, scheme_account=scheme)
         SchemeAccountEntryFactory(link_status=AccountLinkStatus.ACTIVE, scheme_account=scheme_2)
         response = self.client.get("/schemes/accounts/system_retry", **self.auth_service_headers)
@@ -602,7 +602,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
         encrypted_credentials = scheme_account_entry.credentials()
         self.assertIsNone(encrypted_credentials)
-        self.assertEqual(scheme_account_entry.status, AccountLinkStatus.INCOMPLETE)
+        self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.INCOMPLETE)
 
     def test_temporary_iceland_fix_ignores_credential_validation_for_iceland(self):
         scheme = SchemeFactory(slug="iceland-bonus-card")
@@ -1061,6 +1061,8 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory()
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+
+        
         points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         scheme_account_entry.refresh_from_db()
