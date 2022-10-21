@@ -15,7 +15,7 @@ import analytics
 from hermes.vop_tasks import activate, deactivate
 from history.data_warehouse import remove_loyalty_card_event, to_data_warehouse
 from history.tasks import auth_outcome_task
-from history.utils import clean_history_kwargs, history_bulk_create, history_bulk_update, set_history_kwargs
+from history.utils import clean_history_kwargs, history_bulk_create, history_bulk_update, set_history_kwargs, user_info
 from payment_card import metis
 from payment_card.models import PaymentCard, PaymentCardAccount
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin, UpdateCredentialsMixin
@@ -360,6 +360,44 @@ def deleted_membership_card_cleanup(
 
     PaymentCardSchemeEntry.deactivate_activations(activations)
     clean_history_kwargs(history_kwargs)
+
+
+@shared_task
+def bulk_deleted_membership_card_cleanup(
+    scheme_acc_and_user_ids: t.Sequence[tuple[int, int]],
+    bundle_id: str,
+) -> None:
+    logger.info("Starting cleanup for scheme account deletions")
+
+    accounts_to_clean_up_count = len(scheme_acc_and_user_ids)
+    failed_accounts = []
+    for index, scheme_acc_and_user_id in enumerate(scheme_acc_and_user_ids):
+        scheme_acc_id, user_id = scheme_acc_and_user_id
+        try:
+            # Log at percentage-based intervals, so we don't spam logs for larger cleanups
+            if index > 0 and index % (round(accounts_to_clean_up_count / 100) * 20) == 0:
+                logger.debug(f"Completed cleanup for {index} scheme account deletions")
+
+            deleted_membership_card_cleanup(
+                scheme_acc_id,
+                arrow.utcnow().format(),
+                user_id,
+                history_kwargs={"user_info": user_info(user_id=user_id, channel=bundle_id)},
+            )
+        except Exception as e:
+            failed_accounts.append({"scheme_account_id": scheme_acc_id, "user_id": user_id, "exception": e})
+
+    if failed_accounts:
+        logger.error(
+            "Scheme account deletion cleanup process completed - "
+            f"{accounts_to_clean_up_count} processed with {len(failed_accounts)} errors - "
+            f"Details: \n{failed_accounts}"
+        )
+    else:
+        logger.debug(
+            "Scheme account deletion cleanup process completed with no errors. "
+            f"Total scheme accounts processed: {accounts_to_clean_up_count}"
+        )
 
 
 def _send_data_to_atlas(consent: dict) -> None:
