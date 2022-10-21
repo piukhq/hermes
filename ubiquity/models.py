@@ -692,6 +692,7 @@ class WalletPLLData:
         self.scheme_account_data = {}
         self.pll_data = {}
         self.scheme_count = {}
+        self.link_users = {}
 
     def all(self) -> list["PllUserAssociation"]:
         for link in self.pll_user_associations:
@@ -702,6 +703,33 @@ class WalletPLLData:
             if not self.collision(link):
                 yield link
 
+    def analyse_pll_user_associations(self):
+        """
+        Looks at user pll links to:
+           1) creates a dict of links by link owner ie user id - used for finding scheme entries for related users and
+              parsing the relevant links by wallet
+           2) creates a dict of scheme counts by payment account and scheme id - used to detect ubiquity collision
+              assuming the user links include all links related to either a payment card account or scheme account
+              or both  (see __init__ queries ie this class requires either or both accounts)
+
+        """
+        self.link_users = {}
+        self.scheme_account_data = {}
+        self.scheme_count = {}
+        for link in self.pll_user_associations:
+            if self.link_users.get(link.user_id):
+                self.link_users[link.user_id].append(link)
+            else:
+                self.link_users[link.user_id] = [link]
+            scheme_id = link.pll.scheme_account.scheme_id
+            pay_id = link.pll.payment_card_account_id
+            if not self.scheme_count.get(pay_id):
+                self.scheme_count[pay_id] = {}
+            if self.scheme_count[pay_id].get(scheme_id):
+                self.scheme_count[pay_id][scheme_id] += 1
+            else:
+                self.scheme_count[pay_id][scheme_id] = 1
+
     def process_links(self):
         if self.to_query:
             # Only reads db when first called and prepares a dict of the pll relationships and status using
@@ -709,28 +737,13 @@ class WalletPLLData:
             # The object is to avoid multiple calls to the database and all class methods to be called repeatedly
             #
             self.to_query = False
-            scheme_accounts_users = {}
-            self.scheme_account_data = {}
-            self.scheme_count = {}
-            for link in self.pll_user_associations:
-                if scheme_accounts_users.get(link.user_id):
-                    scheme_accounts_users[link.user_id].append(link)
-                else:
-                    scheme_accounts_users[link.user_id] = [link]
-                scheme_id = link.pll.scheme_account.scheme_id
-                pay_id = link.pll.payment_card_account_id
-                if not self.scheme_count.get(pay_id):
-                    self.scheme_count[pay_id] = {}
-                if self.scheme_count[pay_id].get(scheme_id):
-                    self.scheme_count[pay_id][scheme_id] += 1
-                else:
-                    self.scheme_count[pay_id][scheme_id] = 1
+            self.analyse_pll_user_associations()
 
-            scheme_entries = SchemeAccountEntry.objects.filter(user_id__in=list(scheme_accounts_users.keys()))
+            scheme_entries = SchemeAccountEntry.objects.filter(user_id__in=list(self.link_users.keys()))
 
             for entry in scheme_entries:
                 matched_link = None
-                for lk in scheme_accounts_users[entry.user.id]:
+                for lk in self.link_users[entry.user.id]:
                     if lk.pll.scheme_account.id == entry.scheme_account.id:
                         matched_link = lk
                 if matched_link is not None:

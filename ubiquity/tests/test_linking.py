@@ -4,28 +4,22 @@ from copy import deepcopy
 from unittest.mock import patch
 
 from django.conf import settings
-from django.test import override_settings
-from rest_framework.reverse import reverse
+from django.test import override_settings, testcases
 from factory.fuzzy import FuzzyAttribute
+from rest_framework.reverse import reverse
+
 from history.utils import GlobalMockAPITestCase
-from django.test import testcases
 from payment_card.models import PaymentCardAccount
-from payment_card.tests.factories import (
-    IssuerFactory,
-    PaymentCardFactory,
-    PaymentCardAccountFactory,
-    fake,
-)
+from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory, fake
 from scheme.models import SchemeAccount, SchemeBundleAssociation
 from scheme.tests.factories import SchemeAccountFactory, SchemeBundleAssociationFactory, SchemeFactory
-from ubiquity.models import (
-    PaymentCardSchemeEntry,
+from ubiquity.models import (  # WalletPLLData,
+    AccountLinkStatus,
     PaymentCardAccountEntry,
-    WalletPLLData,
+    PaymentCardSchemeEntry,
+    PllUserAssociation,
     WalletPLLSlug,
     WalletPLLStatus,
-    PllUserAssociation,
-    AccountLinkStatus,
 )
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
