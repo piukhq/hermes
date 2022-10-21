@@ -679,18 +679,16 @@ class WalletPLLData:
         self.pll_user_associations = []
         if payment_card_account is not None and scheme_account is not None:
             self.pll_user_associations = PllUserAssociation.objects.select_related(
-                "pll__scheme_account", "pll__payment_card_account").filter(
-                payment_card_account, pll__scheme_account=scheme_account)
+                "pll__scheme_account", "pll__payment_card_account"
+            ).filter(payment_card_account, pll__scheme_account=scheme_account)
         elif payment_card_account is not None:
             self.pll_user_associations = PllUserAssociation.objects.select_related(
-                "pll__scheme_account", "pll__payment_card_account").filter(
-                pll__payment_card_account=payment_card_account
-            )
+                "pll__scheme_account", "pll__payment_card_account"
+            ).filter(pll__payment_card_account=payment_card_account)
         elif scheme_account is not None:
             self.pll_user_associations = PllUserAssociation.objects.select_related(
-                "pll__scheme_account", "pll__payment_card_account").filter(
-                pll__scheme_account=scheme_account
-            )
+                "pll__scheme_account", "pll__payment_card_account"
+            ).filter(pll__scheme_account=scheme_account)
         self.scheme_account_data = {}
         self.pll_data = {}
         self.scheme_count = {}

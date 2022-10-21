@@ -117,7 +117,9 @@ def post_payment_account(message: dict) -> None:
         payment_card_account = PaymentCardAccount.objects.get(pk=message.get("payment_account_id"))
         user = CustomUser.objects.get(pk=ac.user_id)
         if message.get("auto_link"):
-            # @todo - No not for API 2.0
+            # @todo - Do we must use PllUserAssociation for API 2.0
+            # Linking before enrolment is ok because it ensures the pending states are set up with
+            # a good chance of being ready when the new card goes active.
             AutoLinkOnCreationMixin.auto_link_to_membership_cards(
                 user, payment_card_account, ac.channel_slug, just_created=True
             )

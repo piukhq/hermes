@@ -144,7 +144,7 @@ def set_up_payment_card_account(payment_card, issuer, payload, status=PaymentCar
         status=status,
         start_year=year,
         start_month=month,
-        expiry_year=year+3,
+        expiry_year=year + 3,
         expiry_month=12,
         order=order,
         currency_code=currency_code,
@@ -204,9 +204,7 @@ class TestUserPLL(testcases.TestCase):
             scheme_account, [self.payment_card_account_1], self.user_wallet_1
         )
         user_pll, base_pll = self.get_user_and_base_pll(
-            payment_card_account=self.payment_card_account_1,
-            scheme_account=scheme_account,
-            user=self.user_wallet_1
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
         )
         self.assertTrue(base_pll.active_link)
         self.assertEqual(user_pll.state, WalletPLLStatus.ACTIVE)
@@ -216,15 +214,14 @@ class TestUserPLL(testcases.TestCase):
     @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
     def test_link_accounts_active_pay_to_pending_scheme(self, activate_check):
         scheme_account, _ = set_up_membership_card(
-            self.user_wallet_1, self.scheme1, link_status=AccountLinkStatus.PENDING)
+            self.user_wallet_1, self.scheme1, link_status=AccountLinkStatus.PENDING
+        )
         add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
         PllUserAssociation.link_user_scheme_account_to_payment_cards(
             scheme_account, [self.payment_card_account_1], self.user_wallet_1
         )
         user_pll, base_pll = self.get_user_and_base_pll(
-            payment_card_account=self.payment_card_account_1,
-            scheme_account=scheme_account,
-            user=self.user_wallet_1
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
         )
         self.assertFalse(base_pll.active_link)
         self.assertEqual(user_pll.state, WalletPLLStatus.PENDING)
@@ -248,14 +245,10 @@ class TestUserPLL(testcases.TestCase):
             scheme_account_2, [self.payment_card_account_1], self.user_wallet_2
         )
         user_pll_1, base_pll_1 = self.get_user_and_base_pll(
-            payment_card_account=self.payment_card_account_1,
-            scheme_account=scheme_account_1,
-            user=self.user_wallet_1
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account_1, user=self.user_wallet_1
         )
         user_pll_2, base_pll_2 = self.get_user_and_base_pll(
-            payment_card_account=self.payment_card_account_1,
-            scheme_account=scheme_account_2,
-            user=self.user_wallet_2
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account_2, user=self.user_wallet_2
         )
 
         self.assertTrue(base_pll_1.active_link, "1st PLL before Collision must be True")
@@ -275,7 +268,8 @@ class TestUserPLL(testcases.TestCase):
            and card activation is called
         """
         scheme_account, scheme_account_entry = set_up_membership_card(
-            self.user_wallet_1, self.scheme1, link_status=AccountLinkStatus.PENDING)
+            self.user_wallet_1, self.scheme1, link_status=AccountLinkStatus.PENDING
+        )
         add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
         # Link the cards
         PllUserAssociation.link_user_scheme_account_to_payment_cards(
@@ -283,9 +277,7 @@ class TestUserPLL(testcases.TestCase):
         )
         self.assertEqual(activate_check.call_count, 0, "No PLL should be activated")
         user_pll_1, base_pll_1 = self.get_user_and_base_pll(
-            payment_card_account=self.payment_card_account_1,
-            scheme_account=scheme_account,
-            user=self.user_wallet_1
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
         )
 
         self.assertEqual(user_pll_1.state, WalletPLLStatus.PENDING)
@@ -296,9 +288,7 @@ class TestUserPLL(testcases.TestCase):
         scheme_account_entry.save()
         PllUserAssociation.update_user_pll_by_scheme_account(scheme_account)
         user_pll_1, base_pll_1 = self.get_user_and_base_pll(
-            payment_card_account=self.payment_card_account_1,
-            scheme_account=scheme_account,
-            user=self.user_wallet_1
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
         )
         self.assertEqual(user_pll_1.state, WalletPLLStatus.ACTIVE)
         self.assertEqual(user_pll_1.slug, "")
