@@ -278,8 +278,7 @@ class ClientApplicationBundleAdmin(CacheResetAdmin):
             entry_count = len(scheme_acc_entries)
             scheme_acc_entries.delete()
             logger.debug(
-                f"Deleted {entry_count} SchemeAccountEntrys as part of delete "
-                "SchemeBundleAssociation cleanup..."
+                f"Deleted {entry_count} SchemeAccountEntrys as part of delete " "SchemeBundleAssociation cleanup..."
             )
 
             bulk_deleted_membership_card_cleanup.delay(scheme_acc_and_user_ids, bundle.bundle_id)
