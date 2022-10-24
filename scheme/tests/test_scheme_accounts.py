@@ -1062,7 +1062,6 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         scheme_account = SchemeAccountFactory()
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
 
-        
         points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
         scheme_account_entry.refresh_from_db()
