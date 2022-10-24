@@ -1,23 +1,22 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from rangefilter.filters import DateTimeRangeFilter
 
+from common.admin import InputFilter
 from payment_card.admin import titled_filter
 from scheme.admin import CacheResetAdmin
-from ubiquity.models import MembershipPlanDocument, PaymentCardSchemeEntry, VopActivation
+from ubiquity.models import MembershipPlanDocument, PaymentCardSchemeEntry, PllUserAssociation, VopActivation
 
 
 @admin.register(PaymentCardSchemeEntry)
 class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
     list_display = (
         "id",
-        "state",
-        "slug",
         "active_link",
         "payment_card_account_link",
         "scheme_account_link",
         "pcard_status",
         "pcard_deleted",
-        "mcard_status",
         "mcard_deleted",
     )
     search_fields = (
@@ -32,13 +31,10 @@ class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
 
     list_filter = (
         "active_link",
-        "state",
-        "slug",
         ("payment_card_account__issuer__name", titled_filter("payment card issuer")),
         ("payment_card_account__is_deleted", titled_filter("payment card is deleted")),
         ("scheme_account__is_deleted", titled_filter("membership card is deleted")),
         ("payment_card_account__status", titled_filter("payment card status")),
-        ("scheme_account__status", titled_filter("membership card status")),
         ("payment_card_account__payment_card__name", titled_filter("payment card")),
         ("scheme_account__scheme", titled_filter("membership card")),
     )
@@ -47,12 +43,7 @@ class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
         "scheme_account",
     )
 
-    readonly_fields = (
-        "active_link",
-        "state",
-        "slug",
-        "description",
-    )
+    readonly_fields = ("active_link",)
 
     def payment_card_account_link(self, obj):
         return format_html(
@@ -81,6 +72,65 @@ class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
 
     pcard_deleted.boolean = True
     mcard_deleted.boolean = True
+
+
+class PllFilter(InputFilter):
+    parameter_name = "pll_id"
+    title = "Pll User Association ID:"
+
+    def queryset(self, request, queryset):
+        term = self.value()
+        if term is None:
+            return
+        query = {"pll_id": term}
+        return queryset.filter(**query)
+
+
+class UserFilter(InputFilter):
+    parameter_name = "user_id"
+    title = "User ID:"
+
+    def queryset(self, request, queryset):
+        term = self.value()
+        if term is None:
+            return
+        query = {"user_id": term}
+        return queryset.filter(**query)
+
+
+@admin.register(PllUserAssociation)
+class PllUserAssociationAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "pll", "state", "slug", "created", "updated")
+    search_fields = (
+        "id",
+        "pll__payment_card_account__id",
+        "pll__scheme_account__id",
+    )
+
+    list_filter = (
+        "pll__active_link",
+        "state",
+        "slug",
+        UserFilter,
+        PllFilter,
+        ("created", DateTimeRangeFilter),
+        ("updated", DateTimeRangeFilter),
+        ("pll__payment_card_account__issuer__name", titled_filter("payment card issuer")),
+        ("pll__payment_card_account__is_deleted", titled_filter("payment card account is deleted")),
+        ("pll__scheme_account__is_deleted", titled_filter("membership card is deleted")),
+        ("pll__payment_card_account__status", titled_filter("payment card status")),
+        ("pll__payment_card_account__payment_card__name", titled_filter("payment card")),
+        ("pll__scheme_account__scheme", titled_filter("Loyalty Plan")),
+    )
+
+    raw_id_fields = ("user", "pll")
+
+    readonly_fields = (
+        # "user",
+        # "pll",
+        # "state",
+        # "slug"
+    )
 
 
 @admin.register(MembershipPlanDocument)

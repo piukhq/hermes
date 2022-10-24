@@ -160,15 +160,20 @@ class AutoLinkOnCreationMixin:
         user: CustomUser, payment_card_account: PaymentCardAccount, bundle_id: str, just_created: bool = False
     ) -> None:
 
-        # Ensure that we only consider membership cards in a user's wallet which can be PLL linked
-        wallet_scheme_accounts = SchemeAccount.objects.filter(user_set=user, scheme__tier=Scheme.PLL).all()
+        # Ensure that we only consider membership cards in a user's wallet which can be PLL linked and ensure
+        # we get the user link_status for the scheme account
+        wallet_scheme_account_entries = SchemeAccountEntry.objects.filter(
+            user=user, scheme_account__scheme__tier=Scheme.PLL
+        ).all()
 
-        if wallet_scheme_accounts:
+        # wallet_scheme_accounts = SchemeAccount.objects.filter(user_set=user, scheme__tier=Scheme.PLL).all()
+
+        if wallet_scheme_account_entries:
             if payment_card_account.status == PaymentCardAccount.ACTIVE:
-                auto_link_payment_to_memberships(wallet_scheme_accounts, payment_card_account, just_created)
+                auto_link_payment_to_memberships(wallet_scheme_account_entries, payment_card_account, just_created)
             else:
                 auto_link_payment_to_memberships.delay(
-                    [sa.id for sa in wallet_scheme_accounts],
+                    [sa.id for sa in wallet_scheme_account_entries],
                     payment_card_account.id,
                     just_created,
                     history_kwargs={"user_info": user_info(user_id=user.id, channel=bundle_id)},
@@ -1436,7 +1441,7 @@ class ListMembershipCardView(MembershipCardView):
 class CardLinkView(VersionedSerializerMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
 
-    @censor_and_decorate
+    # @todo PLL stuff
     def update_payment(self, request, *args, **kwargs):
         self.response_serializer = SelectSerializer.PAYMENT_CARD
         link, status_code = self._update_link(request.user, kwargs["pcard_id"], kwargs["mcard_id"])
@@ -1444,6 +1449,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         serializer = self.get_serializer_by_request(link.payment_card_account)
         return Response(serializer.data, status_code)
 
+    # @todo PLL stuff
     @censor_and_decorate
     def update_membership(self, request, *args, **kwargs):
         self.response_serializer = SelectSerializer.MEMBERSHIP_CARD
@@ -1501,11 +1507,13 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         PaymentCardSchemeEntry.deactivate_activations(activations)
         return pcard, mcard, error
 
+    # @todo PLL stuff
     def _update_link(self, user: CustomUser, pcard_id: int, mcard_id: int) -> t.Tuple[PaymentCardSchemeEntry, int]:
         pcard, mcard = self._collect_cards(pcard_id, mcard_id, user)
         status_code = status.HTTP_200_OK
 
         try:
+            # todo: PLL stuff
             existing_link = PaymentCardSchemeEntry.objects.get(
                 payment_card_account=pcard, scheme_account__scheme_id=mcard.scheme_id
             )
@@ -1524,9 +1532,14 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
                 }
             )
         except PaymentCardSchemeEntry.DoesNotExist:
-            link = PaymentCardSchemeEntry(
-                scheme_account=mcard, payment_card_account=pcard
-            ).get_instance_with_active_status()
+            # todo: PLL stuff
+            # link = PaymentCardSchemeEntry(
+            #    scheme_account=mcard, payment_card_account=pcard
+            # ).get_instance_with_active_status()
+            scheme_account_entry = SchemeAccountEntry.objects.get(user=user, scheme_account=mcard)
+            link = PaymentCardSchemeEntry(scheme_account=mcard, payment_card_account=pcard).set_active_link_status(
+                scheme_account_entry.link_status
+            )
             link.save()
             link.vop_activate_check()
             status_code = status.HTTP_201_CREATED

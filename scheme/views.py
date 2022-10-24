@@ -33,7 +33,7 @@ from scheme.serializers import (
     StatusSerializer,
     UpdateUserConsentSerializer,
 )
-from ubiquity.models import AccountLinkStatus, PaymentCardSchemeEntry, SchemeAccountEntry
+from ubiquity.models import AccountLinkStatus, PaymentCardSchemeEntry, PllUserAssociation, SchemeAccountEntry
 from ubiquity.tasks import async_join_journey_fetch_balance_and_update_status, send_merchant_metrics_for_link_delete
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin, TransactionSerializer
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
@@ -302,8 +302,10 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         scheme_account = scheme_account_entry.scheme_account
 
-        # todo: PLL stuff - is this more easily called through autolink functions/methods?
-        PaymentCardSchemeEntry.update_active_link_status({"scheme_account": scheme_account})
+        # todo: PLL stuff - is this more easily called through autolink functions/methods? rmove next line if happy
+        #  PaymentCardSchemeEntry.update_active_link_status({"scheme_account": scheme_account})
+        #  there may be some optimisation here because we have the scheme_account_entry already
+        PllUserAssociation.update_user_pll_by_scheme_account(scheme_account=scheme_account)
 
         # delete main answer credential if an async join failed
         # todo: do we want to delete the main answer credential if the join fails? Why?

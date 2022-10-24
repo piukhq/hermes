@@ -275,8 +275,6 @@ class TestVOP(GlobalMockAPITestCase):
             payment_card_account=self.payment_card_account,
             scheme_account=mcard_2,
             active_link=False,
-            state=PaymentCardSchemeEntry.INACTIVE,
-            slug=PaymentCardSchemeEntry.UBIQUITY_COLLISION,
         )
 
         entry1.vop_activate_check()
