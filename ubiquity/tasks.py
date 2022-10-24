@@ -1,4 +1,5 @@
 import logging
+import math
 import typing as t
 from enum import Enum
 
@@ -15,7 +16,7 @@ import analytics
 from hermes.vop_tasks import activate, deactivate
 from history.data_warehouse import remove_loyalty_card_event, to_data_warehouse
 from history.tasks import auth_outcome_task
-from history.utils import clean_history_kwargs, history_bulk_create, history_bulk_update, set_history_kwargs
+from history.utils import clean_history_kwargs, history_bulk_create, history_bulk_update, set_history_kwargs, user_info
 from payment_card import metis
 from payment_card.models import PaymentCard, PaymentCardAccount
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin, UpdateCredentialsMixin
@@ -360,6 +361,60 @@ def deleted_membership_card_cleanup(
 
     PaymentCardSchemeEntry.deactivate_activations(activations)
     clean_history_kwargs(history_kwargs)
+
+
+@shared_task
+def bulk_deleted_membership_card_cleanup(
+    channel: str,
+    bundle_id: int,
+    scheme_id: int,
+) -> None:
+    logger.info("Starting cleanup for scheme account deletions")
+
+    # could use user__client=bundle.client since users are shared across bundles for a single client
+    # but this is more explicit
+    scheme_acc_entries = SchemeAccountEntry.objects.filter(
+        user__client__clientapplicationbundle=bundle_id, scheme_account__scheme=scheme_id
+    )
+
+    scheme_acc_and_user_ids = {(entry.scheme_account_id, entry.user_id) for entry in scheme_acc_entries}
+    entry_count = len(scheme_acc_entries)
+
+    set_history_kwargs({"table_user_id_column": "user_id"})
+    scheme_acc_entries.delete()
+
+    logger.debug(f"Deleted {entry_count} SchemeAccountEntrys as part of delete " "SchemeBundleAssociation cleanup...")
+
+    accounts_to_clean_up_count = len(scheme_acc_and_user_ids)
+    failed_accounts = []
+    for index, scheme_acc_and_user_id in enumerate(scheme_acc_and_user_ids):
+        scheme_acc_id, user_id = scheme_acc_and_user_id
+        try:
+            # Log at percentage-based intervals, so we don't spam logs for larger cleanups (minimum of 10)
+            log_interval = max([10, math.ceil(accounts_to_clean_up_count / 100) * 20])
+            if index > 0 and index % log_interval == 0:
+                logger.debug(f"Completed cleanup for {index} scheme account deletions")
+
+            deleted_membership_card_cleanup(
+                scheme_acc_id,
+                arrow.utcnow().format(),
+                user_id,
+                history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
+            )
+        except Exception as e:
+            failed_accounts.append({"scheme_account_id": scheme_acc_id, "user_id": user_id, "exception": e})
+
+    if failed_accounts:
+        logger.error(
+            "Scheme account deletion cleanup process completed - "
+            f"{accounts_to_clean_up_count} processed with {len(failed_accounts)} errors - "
+            f"Details: \n{failed_accounts}"
+        )
+    else:
+        logger.debug(
+            "Scheme account deletion cleanup process completed with no errors. "
+            f"Total scheme accounts processed: {accounts_to_clean_up_count}"
+        )
 
 
 def _send_data_to_atlas(consent: dict) -> None:

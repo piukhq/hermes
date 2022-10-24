@@ -668,7 +668,7 @@ admin.site.register(Category)
 @admin.register(SchemeBundleAssociation)
 class SchemeBundleAssociationAdmin(CacheResetAdmin):
     list_display = ("bundle", "scheme", "status", "test_scheme")
-    search_fields = ("bundle_id", "scheme__name")
+    search_fields = ("bundle__bundle_id", "scheme__name")
     raw_id_fields = ("scheme",)
     list_filter = ("bundle", "scheme", "status", "test_scheme")
 
