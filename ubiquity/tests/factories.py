@@ -35,6 +35,7 @@ class SchemeAccountEntryFactory(factory.django.DjangoModelFactory):
     user = factory.SubFactory(UserFactory)
     scheme_account = factory.SubFactory(SchemeAccountFactory)
     auth_provided = True
+    link_status = 1  # ACTIVE (default in DB is PENDING, but this makes more sense here!)
 
 
 class ServiceConsentFactory(factory.django.DjangoModelFactory):

@@ -9,45 +9,26 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound
-from rest_framework.generics import (
-    GenericAPIView,
-    ListAPIView,
-    ListCreateAPIView,
-    RetrieveAPIView,
-    UpdateAPIView,
-    get_object_or_404,
-)
+from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView, get_object_or_404
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
-import analytics
 from history.tasks import join_outcome_event, register_outcome_event
 from payment_card.payment import Payment
 from prometheus.utils import capture_membership_card_status_change_metric
-from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
-from scheme.mixins import (
-    IdentifyCardMixin,
-    SchemeAccountCreationMixin,
-    SchemeAccountJoinMixin,
-    SwappableSerializerMixin,
-    UpdateCredentialsMixin,
-)
+from scheme.mixins import IdentifyCardMixin, SchemeAccountJoinMixin, SwappableSerializerMixin, UpdateCredentialsMixin
 from scheme.models import ConsentStatus, Exchange, Scheme, SchemeAccount, SchemeAccountImage, SchemeImage, UserConsent
 from scheme.serializers import (
-    CreateSchemeAccountSerializer,
     DeleteCredentialSerializer,
     DonorSchemeSerializer,
     GetSchemeAccountSerializer,
     JoinSerializer,
-    ListSchemeAccountSerializer,
     QuerySchemeAccountSerializer,
     ReferenceImageSerializer,
     SchemeAccountCredentialsSerializer,
     SchemeAccountIdsSerializer,
-    SchemeAccountSummarySerializer,
     SchemeSerializer,
     StatusSerializer,
     UpdateUserConsentSerializer,
@@ -135,13 +116,6 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
             instance.is_deleted = True
             instance.save()
 
-            if request.user.client_id == settings.BINK_CLIENT_ID:
-                analytics.update_scheme_account_attribute(
-                    instance,
-                    request.user,
-                    old_status=dict(instance.STATUSES).get(instance.status_key),
-                )
-
             PaymentCardSchemeEntry.objects.filter(scheme_account=instance).delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -157,16 +131,10 @@ class ServiceDeleteAccount(APIView):
 
     def delete(self, request, *args, **kwargs):
         scheme_account = get_object_or_404(SchemeAccount, id=kwargs["pk"])
-        users = list(scheme_account.user_set.all())
 
-        SchemeAccountEntry.objects.filter(scheme_account=scheme_account).delete()
         PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account).delete()
         scheme_account.is_deleted = True
         scheme_account.save()
-        for user in users:
-            if user.client_id == settings.BINK_CLIENT_ID:
-                old_status = dict(scheme_account.STATUSES).get(scheme_account.status_key)
-                analytics.update_scheme_account_attribute(scheme_account, user, old_status=old_status)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -187,121 +155,6 @@ class UpdateUserConsent(UpdateAPIView):
             return Response(serializer.data)
         else:
             return self.update(request, *args, **kwargs)
-
-
-# class LinkCredentials(BaseLinkMixin, GenericAPIView):
-#     serializer_class = SchemeAnswerSerializer
-#     override_serializer_classes = {
-#         'PUT': SchemeAnswerSerializer,
-#         'POST': LinkSchemeSerializer,
-#         'OPTIONS': LinkSchemeSerializer,
-#         'DELETE': DeleteCredentialSerializer,
-#     }
-#
-#     def put(self, request, *args, **kwargs):
-#         """Update manual answer or other credentials
-#         ---
-#         response_serializer: ResponseSchemeAccountAndBalanceSerializer
-#         """
-#         queryset = self.request.channels_permit.scheme_account_query(SchemeAccount.objects, user_filter=False)
-#         scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'],
-#                                            user_set__id=self.request.user.id)
-#         serializer = SchemeAnswerSerializer(data=request.data)
-#         response_data = self.link_account(serializer, scheme_account, request.user)
-#         out_serializer = ResponseSchemeAccountAndBalanceSerializer(response_data)
-#         return Response(out_serializer.data)
-#
-#     def post(self, request, *args, **kwargs):
-#         """
-#         Link credentials for loyalty scheme login
-#         ---
-#         response_serializer: ResponseLinkSerializer
-#         """
-#         permit = request.channels_permit
-#         queryset = permit.scheme_account_query(SchemeAccount.objects, user_filter=False)
-#         scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'], user_set__id=request.user.id)
-#
-#         if permit.is_scheme_suspended(scheme_account.scheme_id):
-#             return Response({
-#                 'error': 'This scheme is temporarily unavailable.'
-#             }, status=status.HTTP_400_BAD_REQUEST)
-#
-#         serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account,
-#                                                                       'user': request.user})
-#
-#         serializer.is_valid(raise_exception=True)
-#
-#         old_status = scheme_account.status
-#
-#         response_data = self.link_account(serializer, scheme_account, request.user)
-#         scheme_account.save()
-#
-#         if request.user.client_id == settings.BINK_CLIENT_ID:
-#             analytics.update_scheme_account_attribute(
-#                 scheme_account,
-#                 request.user,
-#                 dict(scheme_account.STATUSES).get(old_status))
-#
-#         out_serializer = ResponseLinkSerializer(response_data)
-#
-#         scheme_account.update_barcode_and_card_number()
-#         # Update barcode on front end if we get one from linking
-#         response = out_serializer.data
-#         barcode = scheme_account.barcode
-#         if barcode:
-#             response['barcode'] = barcode
-#
-#         return Response(response, status=status.HTTP_201_CREATED)
-
-
-class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
-    override_serializer_classes = {
-        "GET": ListSchemeAccountSerializer,
-        "POST": CreateSchemeAccountSerializer,
-        "OPTIONS": ListSchemeAccountSerializer,
-    }
-
-    def get(self, request, *args, **kwargs):
-        """
-        DO NOT USE - NOT FOR APP ACCESS
-        """
-        return super().get(self, request, *args, **kwargs)
-
-    def get_queryset(self):
-        channels_permit = self.request.channels_permit
-        queryset = SchemeAccount.objects
-
-        exclude_by = {}
-        suspended_schemes = Scheme.get_suspended_schemes_by_bundle(channels_permit.bundle)
-        if suspended_schemes:
-            exclude_by = {
-                "scheme__in": suspended_schemes,
-                "status__in": SchemeAccount.JOIN_ACTION_REQUIRED,
-            }
-
-        return channels_permit.scheme_account_query(
-            queryset.exclude(**exclude_by),
-            user_id=self.request.user.id,
-            user_filter=True,
-        )
-
-    def post(self, request, *args, **kwargs):
-        """
-        Create a new scheme account within the users wallet.<br>
-        This does not log into the loyalty scheme end site.
-        """
-        if not request.channels_permit.is_scheme_available(int(self.request.data["scheme"])):
-            return Response(
-                "Not Found",
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        _, response, _, _, _ = self.create_account(request.data, request.user)
-        return Response(
-            response,
-            status=status.HTTP_201_CREATED,
-            headers={"Location": reverse("retrieve_account", args=[response["id"]], request=request)},
-        )
 
 
 class CreateJoinSchemeAccount(APIView):
@@ -346,17 +199,10 @@ class CreateJoinSchemeAccount(APIView):
         # create a join account.
         account = SchemeAccount(
             scheme=scheme,
-            status=SchemeAccount.JOIN,
             order=0,
         )
         account.save()
-        SchemeAccountEntry.objects.create(scheme_account=account, user=user)
-
-        if user.client_id == settings.BINK_CLIENT_ID:
-            analytics.update_scheme_account_attribute(account, user)
-
-            metadata = {"company name": scheme.company, "slug": scheme.slug}
-            analytics.post_event(user, analytics.events.ISSUED_JOIN_CARD_EVENT, metadata, True)
+        SchemeAccountEntry.objects.create(scheme_account=account, user=user, link_status=AccountLinkStatus.JOIN)
 
         # serialize the account for the response.
         serializer = GetSchemeAccountSerializer(instance=account, context={"request": request})
@@ -364,7 +210,6 @@ class CreateJoinSchemeAccount(APIView):
 
 
 class UpdateSchemeAccountStatus(GenericAPIView):
-
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
     serializer_class = StatusSerializer
@@ -378,14 +223,14 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         user_id = int(request.data["user_info"]["bink_user_id"])
         journey = request.data.get("journey")
         new_status_code = int(request.data["status"])
-        if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
+        if new_status_code not in [status_code[0] for status_code in AccountLinkStatus.statuses()]:
             raise serializers.ValidationError("Invalid status code sent.")
 
         scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id, is_deleted=False)
         scheme_account_entry = scheme_account.schemeaccountentry_set.get(user_id=user_id)
-        previous_status = scheme_account.status
+        previous_status = scheme_account_entry.link_status
 
-        if journey == "join" and previous_status == scheme_account.ACCOUNT_ALREADY_EXISTS:
+        if journey == "join" and previous_status == AccountLinkStatus.ACCOUNT_ALREADY_EXISTS:
             # This prevents midas from setting an account to active when joining with a card that already exists.
             # The attempt to update credentials will set the account to ACCOUNT_ALREADY_EXISTS, but midas will
             # then attempt to set the status to active.
@@ -395,8 +240,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             )
             return Response({"id": scheme_account.id, "status": previous_status}, status=200)
 
-        # method that sends data to Mnemosyne
-        self.send_to_intercom(new_status_code, scheme_account)
         self.process_active_accounts(scheme_account, journey, new_status_code)
 
         if new_status_code != previous_status:
@@ -412,7 +255,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         # Todo: LOY-1953 - will need rework when implementing multi-wallet add_and_register to update single user.
         #  Might need Midas to differentiate join and register journeys?
-        if new_status_code in SchemeAccount.JOIN_ACTION_REQUIRED:
+        if new_status_code in AccountLinkStatus.join_action_required():
             logger.debug(
                 f"Failed Join - setting auth_provided to False for all users linked to "
                 f"Scheme Account (id={scheme_account.id})"
@@ -421,24 +264,22 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         if (
             all(entry.auth_provided is False for entry in mcard_entries)
-            and new_status_code not in SchemeAccount.JOIN_ACTION_REQUIRED
+            and new_status_code not in AccountLinkStatus.join_action_required()
         ):
             # There is a chance that a PATCH attempt to update creds will fail and set auth_provided to False
             # for a user before this status update. This will set the card to Wallet only status instead of an
             # error state when there are no authorised users linked to a card unless the card is in a join error state.
-            if scheme_account.status != SchemeAccount.WALLET_ONLY:
-                status_dict = dict(SchemeAccount.STATUSES)
+            if scheme_account_entry.link_status != AccountLinkStatus.WALLET_ONLY:
+                status_dict = dict(AccountLinkStatus.statuses())
                 logger.debug(
-                    f"Status for Scheme Account (id={scheme_account.id}) set to "
-                    f"{status_dict.get(SchemeAccount.WALLET_ONLY)} due "
-                    f"to zero users having an authorised link - "
+                    f"Status for Scheme Account Entry (id={scheme_account_entry.id}) set to "
+                    f"{status_dict.get(AccountLinkStatus.WALLET_ONLY)} due "
+                    f"to not having an authorised link - "
                     f"Status being overwritten: {status_dict.get(new_status_code)}"
                 )
 
                 scheme_account_entry.set_link_status(AccountLinkStatus.WALLET_ONLY)
-                scheme_account.status = SchemeAccount.WALLET_ONLY
         else:
-            scheme_account.status = new_status_code
             scheme_account_entry.set_link_status(new_status_code)
 
     @staticmethod
@@ -446,11 +287,11 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         update_fields = []
 
         pending_statuses = (
-            SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
-            SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS,
-            SchemeAccount.JOIN_IN_PROGRESS,
-            SchemeAccount.PENDING,
-            SchemeAccount.PENDING_MANUAL_CHECK,
+            AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS,
+            AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS,
+            AccountLinkStatus.JOIN_IN_PROGRESS,
+            AccountLinkStatus.PENDING,
+            AccountLinkStatus.PENDING_MANUAL_CHECK,
         )
 
         capture_membership_card_status_change_metric(
@@ -461,27 +302,30 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         scheme_account = scheme_account_entry.scheme_account
 
+        # todo: PLL stuff - is this more easily called through autolink functions/methods?
         PaymentCardSchemeEntry.update_active_link_status({"scheme_account": scheme_account})
 
         # delete main answer credential if an async join failed
+        # todo: do we want to delete the main answer credential if the join fails? Why?
         if (
-            previous_status in [SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS]
-            and new_status_code != SchemeAccount.ACTIVE
+            previous_status
+            in [AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS, AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS]
+            and new_status_code != AccountLinkStatus.ACTIVE
         ):
             scheme_account.alt_main_answer = ""
             update_fields.append("alt_main_answer")
             # status event join failed
-            if previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS:
-                join_outcome_event.delay(success=False, scheme_account=scheme_account)
-            elif previous_status == SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS:
-                register_outcome_event.delay(success=False, scheme_account=scheme_account)
+            if previous_status == AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS:
+                join_outcome_event.delay(success=False, scheme_account_entry=scheme_account_entry)
+            elif previous_status == AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS:
+                register_outcome_event.delay(success=False, scheme_account_entry=scheme_account_entry)
 
-        if new_status_code == SchemeAccount.ACTIVE:
+        if new_status_code == AccountLinkStatus.ACTIVE:
             # status event join success
-            if previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS:
-                join_outcome_event.delay(success=True, scheme_account=scheme_account)
-            elif previous_status == SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS:
-                register_outcome_event.delay(success=True, scheme_account=scheme_account)
+            if previous_status == AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS:
+                join_outcome_event.delay(success=True, scheme_account_entry=scheme_account_entry)
+            elif previous_status == AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS:
+                register_outcome_event.delay(success=True, scheme_account_entry=scheme_account_entry)
 
             Payment.process_payment_success(scheme_account)
         elif new_status_code not in pending_statuses:
@@ -490,13 +334,12 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         UpdateSchemeAccountStatus.set_user_authorisations_and_status(
             new_status_code, scheme_account, scheme_account_entry
         )
-        update_fields.append("status")
 
         if update_fields:
             scheme_account.save(update_fields=update_fields)
 
     def process_active_accounts(self, scheme_account, journey, new_status_code):
-        if journey in ["join", "join-with-balance"] and new_status_code == SchemeAccount.ACTIVE:
+        if journey in ["join", "join-with-balance"] and new_status_code == AccountLinkStatus.ACTIVE:
             join_date = timezone.now()
             scheme_account.join_date = join_date
             scheme_account.save(update_fields=["join_date"])
@@ -504,7 +347,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             if journey == "join":
                 async_join_journey_fetch_balance_and_update_status.delay(scheme_account.id)
 
-        elif new_status_code == SchemeAccount.ACTIVE and not (scheme_account.link_date or scheme_account.join_date):
+        elif new_status_code == AccountLinkStatus.ACTIVE and not (scheme_account.link_date or scheme_account.join_date):
             date_time_now = timezone.now()
             scheme_slug = scheme_account.scheme.slug
 
@@ -513,31 +356,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
             if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
                 send_merchant_metrics_for_link_delete.delay(scheme_account.id, scheme_slug, date_time_now, "link")
-
-    def send_to_intercom(self, new_status_code: int, scheme_account: SchemeAccount) -> None:
-        try:
-            # use the more accurate user_set if provided
-            user_set_from_midas = self.request.data["user_info"]["user_set"]
-            users = CustomUser.objects.filter(id__in=[int(user_id) for user_id in user_set_from_midas.split(",")]).all()
-        except KeyError:
-            users = scheme_account.user_set.all()
-
-        for user in users:
-            if user.client_id == settings.BINK_CLIENT_ID:
-                if "event_name" in self.request.data:
-                    analytics.post_event(
-                        user,
-                        self.request.data["event_name"],
-                        metadata=self.request.data["metadata"],
-                        to_intercom=True,
-                    )
-
-                if new_status_code != scheme_account.status:
-                    analytics.update_scheme_account_attribute_new_status(
-                        scheme_account,
-                        user,
-                        dict(scheme_account.STATUSES).get(new_status_code),
-                    )
 
 
 class UpdateSchemeAccountTransactions(GenericAPIView, MembershipTransactionsMixin):
@@ -574,11 +392,14 @@ class ActiveSchemeAccountAccounts(ListAPIView):
     DO NOT USE - NOT FOR APP ACCESS
     """
 
+    # todo: Do we still use this anywhere? Doesn't really fit into post-TC
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
 
     def get_queryset(self):
-        return SchemeAccount.objects.filter(status=SchemeAccount.ACTIVE)
+        return [
+            sae.scheme_account for sae in SchemeAccountEntry.objects.filter(link_status=AccountLinkStatus.ACTIVE).all()
+        ]
 
     serializer_class = SchemeAccountIdsSerializer
     pagination_class = Pagination
@@ -593,7 +414,14 @@ class SystemActionSchemeAccounts(ListAPIView):
     authentication_classes = (ServiceAuthentication,)
 
     def get_queryset(self):
-        return SchemeAccount.objects.filter(status__in=SchemeAccount.SYSTEM_ACTION_REQUIRED)
+        return set(
+            [
+                sae.scheme_account
+                for sae in SchemeAccountEntry.objects.filter(
+                    link_status__in=AccountLinkStatus.system_action_required()
+                ).all()
+            ]
+        )
 
     serializer_class = SchemeAccountIdsSerializer
     pagination_class = Pagination
@@ -624,8 +452,8 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
 
         data = {
             "credentials": scheme_account_entry.credentials(),
-            "status_name": account.status_name,
-            "display_status": account.display_status,
+            "status_name": scheme_account_entry.status_name,
+            "display_status": scheme_account_entry.display_status,
             "scheme": account.scheme.slug,
             "id": account.id,
         }
@@ -639,7 +467,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         """
         account = get_object_or_404(SchemeAccount.objects, id=self.kwargs["pk"])
         credential_answers = request.data
-        user_id = credential_answers.pop("bink_user_id")
+        user_id = request.headers["bink-user-id"]
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=account, user_id=user_id)
 
         response = self.update_credentials(
@@ -667,7 +495,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
             description: list, e.g. ['username', 'password'] of all credential types to delete
         """
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs["pk"])
-        user_id = self.request.data["bink_user_id"]
+        user_id = request.headers["bink-user-id"]
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user_id=user_id)
         serializer = DeleteCredentialSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -736,22 +564,6 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         return Response(message, status=status.HTTP_404_NOT_FOUND)
 
 
-class SchemeAccountStatusData(ListAPIView):
-    """
-    DO NOT USE - NOT FOR APP ACCESS
-    """
-
-    permission_classes = (AllowService,)
-    authentication_classes = (ServiceAuthentication,)
-
-    def get_queryset(self):
-        queryset = scheme_account_status_data()
-
-        return queryset
-
-    serializer_class = SchemeAccountSummarySerializer
-
-
 # TODO: Make this a class based view
 # TODO: Better handling of incorrect emails
 def csv_upload(request):
@@ -781,6 +593,8 @@ def csv_upload(request):
 
 
 class DonorSchemes(APIView):
+    # todo: Possibly Deprecated??
+
     authentication_classes = (ServiceAuthentication,)
 
     @staticmethod
@@ -792,7 +606,7 @@ class DonorSchemes(APIView):
 
         """
         host_scheme = Scheme.objects.get(pk=kwargs["scheme_id"])
-        scheme_accounts = SchemeAccount.objects.filter(user_set__id=kwargs["user_id"], status=SchemeAccount.ACTIVE)
+        scheme_accounts = SchemeAccount.objects.filter(user_set__id=kwargs["user_id"])
         exchanges = Exchange.objects.filter(host_scheme=host_scheme, donor_scheme__in=scheme_accounts.values("scheme"))
         return_data = []
 

@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from common.models import Image
-from scheme.credentials import BARCODE, CARD_NUMBER, CASE_SENSITIVE_CREDENTIALS, credential_types_set
+from scheme.credentials import BARCODE, CARD_NUMBER, CASE_SENSITIVE_CREDENTIALS
 from scheme.models import (
     Consent,
     ConsentStatus,
@@ -20,7 +20,7 @@ from scheme.models import (
     SchemeImage,
     UserConsent,
 )
-from ubiquity.models import AccountLinkStatus, PaymentCardAccountEntry, SchemeAccountEntry
+from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
 from user.models import CustomUser
 
 logger = logging.getLogger(__name__)
@@ -263,77 +263,6 @@ class LinkSchemeSerializer(SchemeAnswerSerializer):
         return data
 
 
-class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
-    scheme = serializers.IntegerField()
-    order = serializers.IntegerField()
-    id = serializers.IntegerField(read_only=True)
-    consents = UserConsentSerializer(many=True, write_only=True, required=False)
-    verify_account_exists = True
-
-    def validate(self, data):
-        scheme_query = {"pk": data["scheme"]}
-
-        # Have removed the is user tester check as serializer is no longer used
-        # Seems that test cases do not fully set up bundle permissions and that must be fixed to comment in next lines
-        #
-        # if not self.context['request'].user.is_tester:
-        # replace: scheme_query['test_scheme'] = False -> scheme_query['schemebundleassociation__test_scheme'] = False
-        # But bundle permission is not checked either
-
-        try:
-            scheme = Scheme.objects.get(**scheme_query)
-        except Scheme.DoesNotExist:
-            raise serializers.ValidationError("Scheme '{0}' does not exist".format(data["scheme"]))
-
-        answer_types = set(data).intersection(credential_types_set)
-        if len(answer_types) != 1:
-            raise serializers.ValidationError("You must submit one scan or manual question answer")
-
-        answer_type = answer_types.pop()
-        self.context["answer_type"] = answer_type
-        # only allow one credential
-        if answer_type not in self.allowed_answers(scheme):
-            raise serializers.ValidationError("Your answer type '{0}' is not allowed".format(answer_type))
-
-        if self.verify_account_exists:
-            user_id = self.context["request"].user.id
-            self.check_scheme_linked_to_same_payment_card(user_id=user_id, scheme_id=scheme.id)
-            scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id, scheme=scheme)
-            non_join_accounts = scheme_accounts.exclude(status__in=SchemeAccount.JOIN_ACTION_REQUIRED)
-
-            for sa in non_join_accounts.all():
-                scheme_account_entry = sa.schemeaccountentry_set.get(user=user_id)
-                if scheme_account_entry.schemeaccountcredentialanswer_set.filter(answer=data[answer_type]).exists():
-                    raise serializers.ValidationError("You already added this account for scheme: '{0}'".format(scheme))
-
-        return data
-
-    @staticmethod
-    def check_scheme_linked_to_same_payment_card(user_id, scheme_id):
-        pca_ids = PaymentCardAccountEntry.objects.values("payment_card_account_id").filter(user_id=user_id).all()
-        # todo when the linking of cards is implemented in bink, change this to use PaymentCardSchemeEntry table
-        for pca_id in pca_ids:
-            filter_query = {
-                "payment_card_account_set__id": pca_id["payment_card_account_id"],
-                "scheme_account_set__scheme_id": scheme_id,
-            }
-            if CustomUser.objects.values("scheme_account_set__id").filter(**filter_query).count() >= 1:
-                raise serializers.ValidationError(
-                    "An account for this scheme is already associated " "with one of the payment cards in your wallet."
-                )
-
-    @staticmethod
-    def allowed_answers(scheme):
-        allowed_types = []
-        if scheme.manual_question:
-            allowed_types.append(scheme.manual_question.type)
-        if scheme.scan_question:
-            allowed_types.append(scheme.scan_question.type)
-        if scheme.one_question_link:
-            allowed_types.append(scheme.one_question_link.type)
-        return allowed_types
-
-
 class BalanceSerializer(serializers.Serializer):
     points = serializers.DecimalField(max_digits=30, decimal_places=2, allow_null=True)
     points_label = serializers.CharField(allow_null=True)
@@ -353,7 +282,7 @@ class ReadSchemeAccountAnswerSerializer(serializers.ModelSerializer):
 
 class GetSchemeAccountSerializer(serializers.ModelSerializer):
     scheme = SchemeSerializerNoQuestions(read_only=True)
-    display_status = serializers.ReadOnlyField()
+    display_status = serializers.SerializerMethodField()
     barcode = serializers.ReadOnlyField()
     card_label = serializers.ReadOnlyField()
     images = serializers.SerializerMethodField()
@@ -361,38 +290,16 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
     @staticmethod
     def get_images(scheme_account):
         return get_images_for_scheme_account(scheme_account)
+
+    def get_display_status(self, scheme_account):
+        user = self.context["request"].user
+        entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user=user)
+        return entry.display_status
 
     class Meta:
         model = SchemeAccount
         exclude = ("updated", "is_deleted", "balances", "user_set")
         read_only_fields = ("status",)
-
-
-class ListSchemeAccountSerializer(serializers.ModelSerializer):
-    scheme = SchemeSerializerNoQuestions()
-    status_name = serializers.ReadOnlyField()
-    barcode = serializers.ReadOnlyField()
-    card_label = serializers.ReadOnlyField()
-    images = serializers.SerializerMethodField()
-
-    @staticmethod
-    def get_images(scheme_account):
-        return get_images_for_scheme_account(scheme_account)
-
-    class Meta:
-        model = SchemeAccount
-        fields = (
-            "id",
-            "scheme",
-            "status",
-            "order",
-            "created",
-            "display_status",
-            "status_name",
-            "barcode",
-            "card_label",
-            "images",
-        )
 
 
 class QuerySchemeAccountSerializer(serializers.ModelSerializer):
@@ -447,11 +354,6 @@ class SchemeAccountStatusSerializer(serializers.Serializer):
     status = serializers.CharField()
     description = serializers.CharField()
     count = serializers.IntegerField()
-
-
-class SchemeAccountSummarySerializer(serializers.Serializer):
-    scheme_id = serializers.IntegerField()
-    statuses = SchemeAccountStatusSerializer(many=True, read_only=True)
 
 
 def add_object_type_to_image_response(data, obj_type):
@@ -567,15 +469,15 @@ class JoinSerializer(SchemeAnswerSerializer):
             user_id = user_id.id
 
         # Validate scheme account for this doesn't already exist
-        exclude_status_list = SchemeAccount.JOIN_ACTION_REQUIRED + [
-            SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
-            SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS,
+        exclude_status_list = AccountLinkStatus.join_action_required() + [
+            AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS,
+            AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS,
         ]
-        scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id, scheme=scheme).exclude(
-            status__in=exclude_status_list
-        )
+        scheme_account_entries = SchemeAccountEntry.objects.filter(
+            user_id=user_id, scheme_account__scheme=scheme
+        ).exclude(link_status__in=exclude_status_list)
 
-        if scheme_accounts.exists():
+        if scheme_account_entries.exists():
             raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
         required_question_types = [question.type for question in scheme.join_questions if question.required]
@@ -689,8 +591,6 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
 
             if len(existing_accounts) > 0 and not allow_existing_main_answer:
                 scheme_account_entry.set_link_status(AccountLinkStatus.ACCOUNT_ALREADY_EXISTS)
-                scheme_account.status = scheme_account.ACCOUNT_ALREADY_EXISTS
-                scheme_account.save(update_fields=["status"])
                 raise serializers.ValidationError("An account already exists with the given credentials")
 
             elif len(existing_accounts) > 1:
@@ -700,8 +600,6 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
                     f"{[acc[0] for acc in existing_accounts]}: {query_args.keys()}"
                 )
                 scheme_account_entry.set_link_status(AccountLinkStatus.ACCOUNT_ALREADY_EXISTS)
-                scheme_account.status = scheme_account.ACCOUNT_ALREADY_EXISTS
-                scheme_account.save(update_fields=["status"])
                 raise serializers.ValidationError("An account already exists with the given credentials")
 
 

@@ -15,11 +15,9 @@ exports = {
             "scheme": {
                 "name": None,
             },
-            "status_name": None,
             "order": None,
             "card_number": None,
             "barcode": None,
-            "display_status": None,
             "alt_main_answer": None,
         },
     },

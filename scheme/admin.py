@@ -326,10 +326,9 @@ class SchemeAccountAdmin(HistoryAdmin):
         UserEmailFilter,
         CredentialEmailFilter,
         "is_deleted",
-        "status",
         "scheme",
     )
-    list_display = ("scheme", "user_email", "status", "is_deleted", "created", "updated")
+    list_display = ("scheme", "user_email", "is_deleted", "created", "updated")
     list_per_page = 25
     actions = ["refresh_scheme_account_information"]
     readonly_fields = ("originating_journey",)
@@ -431,9 +430,9 @@ class SchemeUserAssociationAdmin(HistoryAdmin):
     list_display = (
         "scheme_account",
         "user",
+        "link_status",
         "scheme_account_link",
         "user_link",
-        "scheme_status",
         "scheme_is_deleted",
         "scheme_created",
     )
@@ -446,7 +445,7 @@ class SchemeUserAssociationAdmin(HistoryAdmin):
         AssocCardNumberFilter,
         AssocUserEmailFilter,
         "scheme_account__is_deleted",
-        "scheme_account__status",
+        "link_status",
         "scheme_account__scheme",
     )
     raw_id_fields = (
@@ -466,7 +465,9 @@ class SchemeUserAssociationAdmin(HistoryAdmin):
         messages.add_message(request, messages.INFO, "Refreshed balance, vouchers and transactions information.")
 
     def scheme_account_link(self, obj):
-        return format_html('<a href="/admin/scheme/schemeaccount/{0}/change/">scheme id{0}</a>', obj.scheme_account.id)
+        return format_html(
+            '<a href="/admin/scheme/schemeaccount/{0}/change/">scheme_account {0}</a>', obj.scheme_account.id
+        )
 
     def user_link(self, obj):
         user_name = obj.user.external_id
@@ -478,9 +479,6 @@ class SchemeUserAssociationAdmin(HistoryAdmin):
 
     def scheme_account_card_number(self, obj):
         return obj.scheme_account.card_number
-
-    def scheme_status(self, obj):
-        return obj.scheme_account.status_name
 
     def scheme_created(self, obj):
         return obj.scheme_account.created

@@ -343,7 +343,6 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         return resp, linked
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_creation_auto_link(self, *_):
         # scenario 1 1 membership cards 1 plans - user 1
@@ -387,7 +386,6 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
             self.assertEqual(len(item), 2)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_auto_link_2_cards_different_plans(self, *_):
         # senario 2 2 membership cards 2 plans - user 2
@@ -397,7 +395,6 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         self.assertEqual(len(linked), 2)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_auto_link_4_cards_same_plan(self, *_):
         # senario 3 4 membership cards 1 plans - user 3
@@ -409,7 +406,6 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c1_p4.id)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_auto_link_4cards_2users_same_plan(self, *_):
         # senario 4 4 membership cards 1 plans - user 4
@@ -421,7 +417,6 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c1_p5_u4.id)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_auto_link_4cards_2users_same_plan_other_user_linked(self, *_):
         # senario 4 4 membership cards 1 plans - user 5
@@ -444,7 +439,6 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_auto_link_2_payment_cards(self, *_):
         # senario 4 4 membership cards 1 plans - user 5 but with an additional linked payment
@@ -477,7 +471,6 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_auto_links_with_no_auto_link_param(self, *_):
         email = "testnoautolinkparam@bink.com"
@@ -493,7 +486,6 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         self.assertEqual(len(linked), 2)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_auto_link_set_as_false(self, *_):
         email = "testfalseautolinkparam@bink.com"

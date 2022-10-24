@@ -61,6 +61,7 @@ class HistoricalPaymentCardAccountEntry(HistoricalBase):
 class HistoricalSchemeAccountEntry(HistoricalBase):
     user_id = models.IntegerField(null=True)
     scheme_account_id = models.IntegerField()
+    link_status = models.IntegerField(null=True)
 
     class Meta:
         verbose_name = "Historical Scheme account to User association"

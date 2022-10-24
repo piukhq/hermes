@@ -9,7 +9,6 @@ from celery import shared_task
 from django.conf import settings
 from rest_framework import serializers
 
-import analytics
 from hermes.vop_tasks import activate, deactivate
 from history.data_warehouse import remove_loyalty_card_event, to_data_warehouse
 from history.tasks import auth_outcome_task
@@ -103,7 +102,6 @@ def async_balance_with_updated_credentials(
     scheme_account.delete_cached_balance()
     scheme_account.delete_saved_balance()
     cache_key = "scheme_{}".format(scheme_account.pk)
-    user = CustomUser.objects.get(id=user_id)
 
     logger.debug(f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})")
     balance, _, dw_event = scheme_account.update_cached_balance(
@@ -114,7 +112,7 @@ def async_balance_with_updated_credentials(
     # since we're in this function is always AUTH_PENDING
     if dw_event:
         success, _ = dw_event
-        auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
+        auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry)
 
     if balance:
         logger.debug(
@@ -122,7 +120,6 @@ def async_balance_with_updated_credentials(
             "Updating credentials."
         )
 
-        scheme_account_entry.scheme_account.status = SchemeAccount.ACTIVE
         scheme_account_entry.set_link_status(AccountLinkStatus.ACTIVE)
 
         if relink_pll and payment_cards_to_link:
@@ -157,13 +154,13 @@ def async_balance_with_updated_credentials(
 @shared_task
 def async_all_balance(user_id: int, channels_permit) -> None:
     query = {"user": user_id, "scheme_account__is_deleted": False}
-    exclude_query = {"scheme_account__status__in": SchemeAccount.EXCLUDE_BALANCE_STATUSES}
+    exclude_query = {"link_status__in": AccountLinkStatus.exclude_balance_statuses()}
     entries = channels_permit.related_model_query(
         SchemeAccountEntry.objects.filter(**query), "scheme_account__scheme__"
     )
     entries = entries.exclude(**exclude_query)
 
-    for entry in entries:
+    for entry in entries.all():
         async_balance.delay(entry)
 
 
@@ -294,43 +291,34 @@ def deleted_payment_card_cleanup(
 
 @shared_task
 def deleted_membership_card_cleanup(
-    scheme_account_id: int, delete_date: str, user_id: int, history_kwargs: dict = None
+    scheme_account_entry: SchemeAccountEntry, delete_date: str, history_kwargs: dict = None
 ) -> None:
     set_history_kwargs(history_kwargs)
-    scheme_account = SchemeAccount.all_objects.get(id=scheme_account_id)
-    user = CustomUser.objects.get(id=user_id)
-    scheme_slug = scheme_account.scheme.slug
-    scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user=user)
+    scheme_slug = scheme_account_entry.scheme_account.scheme.slug
 
     # todo: review PLL behaviour on card deletion in P3
-    pll_links = PaymentCardSchemeEntry.objects.filter(scheme_account_id=scheme_account.id).prefetch_related(
-        "scheme_account", "payment_card_account", "payment_card_account__paymentcardschemeentry_set"
-    )
+    pll_links = PaymentCardSchemeEntry.objects.filter(
+        scheme_account_id=scheme_account_entry.scheme_account.id
+    ).prefetch_related("scheme_account", "payment_card_account", "payment_card_account__paymentcardschemeentry_set")
 
-    remove_loyalty_card_event(user, scheme_account)
+    remove_loyalty_card_event(scheme_account_entry)
 
-    # Delete this user's credentials
-    scheme_account_entry.schemeaccountcredentialanswer_set.all().delete()
-
-    # Delete this user's scheme account entry
-    scheme_account_entry.delete()
-
-    other_scheme_account_entries = SchemeAccountEntry.objects.filter(scheme_account=scheme_account)
+    other_scheme_account_entries = SchemeAccountEntry.objects.filter(
+        scheme_account=scheme_account_entry.scheme_account
+    ).exclude(id=scheme_account_entry.id)
 
     if other_scheme_account_entries.count() <= 0:
         # Last man standing
-        scheme_account.is_deleted = True
-        scheme_account.save(update_fields=["is_deleted"])
-
-        if user.client_id == settings.BINK_CLIENT_ID:
-            analytics.update_scheme_account_attribute(
-                scheme_account, user, old_status=dict(scheme_account.STATUSES).get(scheme_account.status_key)
-            )
+        scheme_account_entry.scheme_account.is_deleted = True
+        scheme_account_entry.scheme_account.save(update_fields=["is_deleted"])
 
     else:
         # todo: Some PLL link nonsense to look at here for Phase 3.
         m_card_users = other_scheme_account_entries.values_list("user_id", flat=True)
         pll_links = pll_links.exclude(payment_card_account__user_set__in=m_card_users)
+
+    # Delete this user's scheme account entry (and credentials by cascade)
+    scheme_account_entry.delete()
 
     activations = VopActivation.find_activations_matching_links(pll_links)
 
@@ -345,7 +333,9 @@ def deleted_membership_card_cleanup(
             pcard_link.update_soft_links({"payment_card_account": pcard_link.payment_card_account_id})
 
     if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
-        send_merchant_metrics_for_link_delete.delay(scheme_account.id, scheme_slug, delete_date, "delete")
+        send_merchant_metrics_for_link_delete.delay(
+            scheme_account_entry.scheme_account.id, scheme_slug, delete_date, "delete"
+        )
 
     PaymentCardSchemeEntry.deactivate_activations(activations)
     clean_history_kwargs(history_kwargs)
@@ -371,8 +361,7 @@ def _delete_user_membership_cards(user: "CustomUser", send_deactivation: bool = 
     user_card_entries = user.schemeaccountentry_set.all()
 
     for user_card_entry in user_card_entries:
-        scheme_account = user_card_entry.scheme_account
-        remove_loyalty_card_event(user, scheme_account)
+        remove_loyalty_card_event(user_card_entry)
 
     # VOP deactivate
     links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account__in=cards_to_delete)
