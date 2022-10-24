@@ -3,6 +3,7 @@ import typing as t
 from enum import Enum
 
 import arrow
+import math
 import requests
 import sentry_sdk
 from celery import shared_task
@@ -364,25 +365,41 @@ def deleted_membership_card_cleanup(
 
 @shared_task
 def bulk_deleted_membership_card_cleanup(
-    scheme_acc_and_user_ids: t.Sequence[tuple[int, int]],
-    bundle_id: str,
+    channel: str,
+    bundle_id: int,
+    scheme_id: int,
 ) -> None:
     logger.info("Starting cleanup for scheme account deletions")
+
+    # could use user__client=bundle.client since users are shared across bundles for a single client
+    # but this is more explicit
+    scheme_acc_entries = SchemeAccountEntry.objects.filter(
+        user__client__clientapplicationbundle=bundle_id, scheme_account__scheme=scheme_id
+    )
+
+    scheme_acc_and_user_ids = {(entry.scheme_account_id, entry.user_id) for entry in scheme_acc_entries}
+    entry_count = len(scheme_acc_entries)
+
+    set_history_kwargs({"table_user_id_column": "user_id"})
+    scheme_acc_entries.delete()
+
+    logger.debug(f"Deleted {entry_count} SchemeAccountEntrys as part of delete " "SchemeBundleAssociation cleanup...")
 
     accounts_to_clean_up_count = len(scheme_acc_and_user_ids)
     failed_accounts = []
     for index, scheme_acc_and_user_id in enumerate(scheme_acc_and_user_ids):
         scheme_acc_id, user_id = scheme_acc_and_user_id
         try:
-            # Log at percentage-based intervals, so we don't spam logs for larger cleanups
-            if index > 0 and index % (round(accounts_to_clean_up_count / 100) * 20) == 0:
+            # Log at percentage-based intervals, so we don't spam logs for larger cleanups (minimum of 10)
+            log_interval = max([10, math.ceil(accounts_to_clean_up_count / 100) * 20])
+            if index > 0 and index % log_interval == 0:
                 logger.debug(f"Completed cleanup for {index} scheme account deletions")
 
             deleted_membership_card_cleanup(
                 scheme_acc_id,
                 arrow.utcnow().format(),
                 user_id,
-                history_kwargs={"user_info": user_info(user_id=user_id, channel=bundle_id)},
+                history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
             )
         except Exception as e:
             failed_accounts.append({"scheme_account_id": scheme_acc_id, "user_id": user_id, "exception": e})

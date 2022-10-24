@@ -9,7 +9,7 @@ from django.utils.translation import gettext_lazy as _
 
 from scheme.admin import CacheResetAdmin, check_active_scheme
 from scheme.models import SchemeBundleAssociation
-from ubiquity.models import SchemeAccountEntry, ServiceConsent
+from ubiquity.models import ServiceConsent
 from ubiquity.tasks import bulk_deleted_membership_card_cleanup
 from user.models import (
     ClientApplication,
@@ -268,20 +268,7 @@ class ClientApplicationBundleAdmin(CacheResetAdmin):
         )
 
         if not shared_scheme:
-            # could use user__client=bundle.client since users are shared across bundles for a single client
-            # but this is more explicit
-            scheme_acc_entries = SchemeAccountEntry.objects.filter(
-                user__client__clientapplicationbundle=bundle, scheme_account__scheme=scheme
-            )
-
-            scheme_acc_and_user_ids = {(entry.scheme_account_id, entry.user_id) for entry in scheme_acc_entries}
-            entry_count = len(scheme_acc_entries)
-            scheme_acc_entries.delete()
-            logger.debug(
-                f"Deleted {entry_count} SchemeAccountEntrys as part of delete " "SchemeBundleAssociation cleanup..."
-            )
-
-            bulk_deleted_membership_card_cleanup.delay(scheme_acc_and_user_ids, bundle.bundle_id)
+            bulk_deleted_membership_card_cleanup.delay(bundle.bundle_id, bundle.id, scheme.id)
 
         return
 

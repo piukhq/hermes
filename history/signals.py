@@ -59,13 +59,17 @@ def _get_change_type_and_details(instance, kwargs):
     return change_type, change_details
 
 
-def get_user_and_channel() -> Tuple[Optional[int], str]:
+def get_user_and_channel(model_instance=None) -> Tuple[Optional[int], str]:
     request = getattr(HISTORY_CONTEXT, "request", None)
     if hasattr(HISTORY_CONTEXT, "user_info"):
         user_id, channel = HISTORY_CONTEXT.user_info
 
     elif hasattr(request, "user") and str(request.user) != "AnonymousUser":
-        user_id = request.user.id
+        # Get user id from the model instance if it exists. This is to set accurate user id for bulk deletes.
+        if hasattr(HISTORY_CONTEXT, "table_user_id_column") and model_instance:
+            user_id = getattr(model_instance, HISTORY_CONTEXT.table_user_id_column)
+        else:
+            user_id = request.user.id
         channel = "django_admin"
 
     else:
@@ -85,7 +89,7 @@ def signal_record_history(sender, instance, **kwargs) -> None:
         instance_id = instance.id
         model_name = sender.__name__
 
-        user_id, channel = get_user_and_channel()
+        user_id, channel = get_user_and_channel(instance)
         required_extra_fields = get_required_extra_fields(model_name)
         extra = {"user_id": user_id, "channel": channel}
 
