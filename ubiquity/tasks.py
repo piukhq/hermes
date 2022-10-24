@@ -1,9 +1,9 @@
 import logging
+import math
 import typing as t
 from enum import Enum
 
 import arrow
-import math
 import requests
 import sentry_sdk
 from celery import shared_task
