@@ -65,16 +65,20 @@ def get_user_and_channel(model_instance=None) -> Tuple[Optional[int], str]:
         user_id, channel = HISTORY_CONTEXT.user_info
 
     elif hasattr(request, "user") and str(request.user) != "AnonymousUser":
-        # Get user id from the model instance if it exists. This is to set accurate user id for bulk deletes.
-        if hasattr(HISTORY_CONTEXT, "table_user_id_column") and model_instance:
-            user_id = getattr(model_instance, HISTORY_CONTEXT.table_user_id_column)
-        else:
-            user_id = request.user.id
+        user_id = request.user.id
         channel = "django_admin"
 
     else:
         user_id = None
         channel = "internal_service"
+
+    # Get user id from the model instance if provided. This is to set accurate user id for bulk deletes.
+    if (
+        model_instance
+        and hasattr(HISTORY_CONTEXT, "table_user_id_column")
+        and hasattr(model_instance, HISTORY_CONTEXT.table_user_id_column)
+    ):
+        user_id = getattr(model_instance, HISTORY_CONTEXT.table_user_id_column)
 
     return user_id, channel
 
