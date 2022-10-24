@@ -1,10 +1,12 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from rangefilter.filters import DateTimeRangeFilter
+
+from common.admin import InputFilter
 from payment_card.admin import titled_filter
 from scheme.admin import CacheResetAdmin
 from ubiquity.models import MembershipPlanDocument, PaymentCardSchemeEntry, PllUserAssociation, VopActivation
-from common.admin import InputFilter
+
 
 @admin.register(PaymentCardSchemeEntry)
 class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
