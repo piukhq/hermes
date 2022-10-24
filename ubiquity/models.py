@@ -804,6 +804,8 @@ class PllUserAssociation(models.Model):
         "PaymentCardSchemeEntry", default=None, on_delete=models.CASCADE, verbose_name="Associated PLL"
     )
     user = models.ForeignKey("user.CustomUser", on_delete=models.CASCADE, verbose_name="Associated User")
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ("pll", "user")
