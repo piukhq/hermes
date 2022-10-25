@@ -16,7 +16,7 @@ from history.utils import clean_history_kwargs, history_bulk_create, history_bul
 from payment_card import metis
 from payment_card.models import PaymentCard, PaymentCardAccount
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
-from scheme.models import SchemeAccount
+from scheme.models import SchemeAccount, Scheme
 from scheme.serializers import LinkSchemeSerializer
 from ubiquity.models import (
     AccountLinkStatus,
@@ -548,7 +548,7 @@ def auto_link_membership_to_payments(
     clean_history_kwargs(history_kwargs)
 """
 
-
+"""
 def _get_instances_to_bulk_create(
     payment_card_account: PaymentCardAccount, wallet_scheme_account_entries: list, just_created: bool
 ) -> dict:
@@ -586,12 +586,14 @@ def _get_instances_to_bulk_create(
                 instances_to_bulk_create[scheme_id] = link.set_active_link_status(scheme_account_status)
 
     return instances_to_bulk_create
+"""
 
 
 @shared_task
 def auto_link_payment_to_memberships(
-    wallet_scheme_account_entries: list,
+    # wallet_scheme_account_entries: list,
     payment_card_account: t.Union[PaymentCardAccount, int],
+    user_id:  int,
     just_created: bool,
     history_kwargs: dict = None,
 ) -> None:
@@ -599,6 +601,15 @@ def auto_link_payment_to_memberships(
 
     if isinstance(payment_card_account, int):
         payment_card_account = PaymentCardAccount.objects.select_related("payment_card").get(pk=payment_card_account)
+
+    if just_created:
+        scheme_account_entries = SchemeAccountEntry.objects.filter(user=user_id).all()
+        PllUserAssociation.link_users_scheme_accounts(payment_card_account, scheme_account_entries)
+
+    else:
+        PllUserAssociation.update_user_pll_by_pay_account(payment_card_account)
+
+    """
 
     if isinstance(wallet_scheme_account_entries[0], int):
         wallet_scheme_account_entries = SchemeAccountEntry.objects.filter(id__in=wallet_scheme_account_entries).all()
@@ -624,5 +635,5 @@ def auto_link_payment_to_memberships(
             [link for link in created_links if link.scheme_account_id in pll_activated_membership_cards],
             prechecked=True,
         )
-
+    """
     clean_history_kwargs(history_kwargs)

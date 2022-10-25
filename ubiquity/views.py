@@ -159,6 +159,8 @@ class AutoLinkOnCreationMixin:
     def auto_link_to_membership_cards(
         user: CustomUser, payment_card_account: PaymentCardAccount, bundle_id: str, just_created: bool = False
     ) -> None:
+        """
+
 
         # Ensure that we only consider membership cards in a user's wallet which can be PLL linked and ensure
         # we get the user link_status for the scheme account
@@ -178,7 +180,14 @@ class AutoLinkOnCreationMixin:
                     just_created,
                     history_kwargs={"user_info": user_info(user_id=user.id, channel=bundle_id)},
                 )
+        """
 
+        auto_link_payment_to_memberships.delay(
+            payment_card_account=payment_card_account.id,
+            user_id=user.id,
+            just_created=just_created,
+            history_kwargs={"user_info": user_info(user_id=user.id, channel=bundle_id)}
+        )
 
 class PaymentCardCreationMixin:
     @staticmethod
@@ -463,7 +472,7 @@ class ListPaymentCardView(
             bundle_id=request.channels_permit.bundle_id,
         )
 
-        just_created = False
+        # just_created = False
         pcard, route, status_code = self.payment_card_already_exists(pcard_data, request.user)
 
         if route == PaymentCardRoutes.EXISTS_IN_OTHER_WALLET:
@@ -474,7 +483,7 @@ class ListPaymentCardView(
         elif route in [PaymentCardRoutes.NEW_CARD, PaymentCardRoutes.DELETED_CARD]:
             pcard = self.create_payment_card_account(pcard_data, request.user, pcard)
             self._create_payment_card_consent(consent, pcard)
-            just_created = True
+            # just_created = True
 
             if route == PaymentCardRoutes.DELETED_CARD:
                 metrics_route = PaymentCardAddRoute.RETURNING
@@ -483,6 +492,9 @@ class ListPaymentCardView(
 
         # auto link to mcards if auto_link is True or None
         if auto_link(request) is not False:
+            # just_created must be true to create new links and is not conditional on payment card account already
+            # existing
+            just_created = True
             self.auto_link_to_membership_cards(request.user, pcard, request.channels_permit.bundle_id, just_created)
 
         if metrics_route:

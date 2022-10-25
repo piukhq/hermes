@@ -33,6 +33,7 @@ from ubiquity.tasks import (  # auto_link_membership_to_payments,
     async_all_balance,
     async_join,
     async_link,
+    auto_link_payment_to_memberships,
     deleted_membership_card_cleanup,
     deleted_payment_card_cleanup,
     deleted_service_cleanup,
@@ -120,9 +121,16 @@ def post_payment_account(message: dict) -> None:
             # @todo - Do we must use PllUserAssociation for API 2.0
             # Linking before enrolment is ok because it ensures the pending states are set up with
             # a good chance of being ready when the new card goes active.
-            AutoLinkOnCreationMixin.auto_link_to_membership_cards(
-                user, payment_card_account, ac.channel_slug, just_created=True
+            # AutoLinkOnCreationMixin.auto_link_to_membership_cards(
+            # user, payment_card_account, ac.channel_slug, just_created=True
+            # )
+            auto_link_payment_to_memberships(
+                payment_card_account=payment_card_account,
+                user_id=user.id,
+                just_created=True,
+                history_kwargs={"user_info": user_info(user_id=user.id, channel=bundle_id)}
             )
+
         if message.get("created"):
             metis.enrol_new_payment_card(payment_card_account, run_async=False)
 

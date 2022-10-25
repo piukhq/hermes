@@ -512,6 +512,7 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         cls.scheme_account_entry_c2_p5_u4 = SchemeAccountEntryFactory(
             scheme_account=cls.scheme_account_c2_p5_u4, user=cls.user4
         )
+        # user 5 has  2 scheme accounts with the same scheme (no. 5) linked to a payment card no. 5
         cls.scheme_account_c3_p5_u5 = SchemeAccountFactory(scheme=cls.scheme5)
         cls.scheme_account_entry_c3_p5_u5 = SchemeAccountEntryFactory(
             scheme_account=cls.scheme_account_c3_p5_u5, user=cls.user5
@@ -636,29 +637,64 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         resp, linked = self.auto_link_post(self.payload2, self.user5)
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(len(resp.data["membership_cards"]), 0)
-        # Test only card linked to payment card has lowest id in users wallet
-        self.assertEqual(len(linked), 1)
+        # Test two cards linked to payment card but the lowest id is pending highest is Ubiquity collided and inactive
+        self.assertEqual(len(linked), 2)
+        user_pll_0_p2 = PllUserAssociation.objects.get(pll=linked[0], user=self.user5)
+        user_pll_1_p2 = PllUserAssociation.objects.get(pll=linked[1], user=self.user5)
+        self.assertEqual(user_pll_0_p2 .state, WalletPLLStatus.PENDING)
+        self.assertEqual(user_pll_0_p2 .slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
+        self.assertEqual(user_pll_1_p2 .state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_pll_1_p2 .slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
+        self.assertFalse(linked[0].active_link)
+        self.assertFalse(linked[1].active_link)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
-
+        self.assertEqual(linked[0].payment_card_account.fingerprint, self.payload2["card"]["fingerprint"])
+        self.assertEqual(linked[1].payment_card_account.fingerprint, self.payload2["card"]["fingerprint"])
         # now with user 5 instead of 4 auto link as previous test same result as before the auto linking of
         # another payment card should have no effect.
 
-        resp, linked = self.auto_link_post(self.payload, self.user5)
-        self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data["membership_cards"]), 0)
+        resp2, linked2 = self.auto_link_post(self.payload, self.user5)
+        self.assertEqual(resp2.status_code, 201)
+        self.assertEqual(len(resp2.data["membership_cards"]), 0)
         # Test only card linked to payment card has lowest id in users wallet
-        self.assertEqual(len(linked), 1)
-        self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
+        self.assertEqual(len(linked2), 2)
+        user_pll_0_p1 = PllUserAssociation.objects.get(pll=linked2[0], user=self.user5)
+        user_pll_1_p1 = PllUserAssociation.objects.get(pll=linked2[1], user=self.user5)
+        self.assertEqual(user_pll_0_p1.state, WalletPLLStatus.PENDING)
+        self.assertEqual(user_pll_0_p1.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
+        self.assertEqual(user_pll_1_p1.state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_pll_1_p1.slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
+        self.assertFalse(linked2[0].active_link)
+        self.assertFalse(linked2[1].active_link)
+        self.assertEqual(linked2[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
+        self.assertEqual(linked2[0].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
+        self.assertEqual(linked2[1].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
 
-        # now repeat user 4 auto link
-        resp, linked = self.auto_link_post(self.payload, self.user4)
-        self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data["membership_cards"]), 0)
+        # now repeat user 4 auto link with payload card which will then have 4 links
+        resp3, linked3 = self.auto_link_post(self.payload, self.user4)
+        self.assertEqual(resp3.status_code, 201)
+        self.assertEqual(len(resp3.data["membership_cards"]), 0)
 
         # Now the list should have the card linked in plan above (the other users plan) even though not the oldest
-        # Test only card linked to payment card is the card already linked
-        self.assertEqual(len(linked), 1)
-        self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
+        # Test uncollided card linked to payment card is the card already linked
+        self.assertEqual(len(linked3), 4)
+        self.assertFalse(linked3[0].active_link)
+        self.assertFalse(linked3[1].active_link)
+        self.assertFalse(linked3[2].active_link)
+        self.assertFalse(linked3[3].active_link)
+        self.assertEqual(linked3[0].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
+        self.assertEqual(linked3[1].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
+        self.assertEqual(linked3[2].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
+        self.assertEqual(linked3[3].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
+
+        # user 4 should have 2 new user links but as payment card was linked before all should be Ubiquity collision
+
+        user_plls = PllUserAssociation.objects.filter(user=self.user4).all()
+        self.assertEqual(len(user_plls), 2)
+        self.assertEqual(user_plls[0].state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_plls[0].slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
+        self.assertEqual(user_plls[1].state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_plls[1].slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("payment_card.metis.enrol_new_payment_card")
