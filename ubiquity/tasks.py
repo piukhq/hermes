@@ -399,7 +399,7 @@ def bulk_deleted_membership_card_cleanup(
             arrow.utcnow().format(),
             user_id,
             history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
-            )
+        )
 
     logger.debug(
         "Scheme account deletion cleanup process executed - "
