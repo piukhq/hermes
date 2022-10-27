@@ -61,6 +61,7 @@ from ubiquity.models import (
     AccountLinkStatus,
     PaymentCardAccountEntry,
     PaymentCardSchemeEntry,
+    PllUserAssociation,
     SchemeAccountEntry,
     ServiceConsent,
     VopActivation,
@@ -186,8 +187,9 @@ class AutoLinkOnCreationMixin:
             payment_card_account=payment_card_account.id,
             user_id=user.id,
             just_created=just_created,
-            history_kwargs={"user_info": user_info(user_id=user.id, channel=bundle_id)}
+            history_kwargs={"user_info": user_info(user_id=user.id, channel=bundle_id)},
         )
+
 
 class PaymentCardCreationMixin:
     @staticmethod
@@ -1519,7 +1521,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         PaymentCardSchemeEntry.deactivate_activations(activations)
         return pcard, mcard, error
 
-    # @todo PLL stuff
+    # @todo PLL stuff - this looks wrong!
     def _update_link(self, user: CustomUser, pcard_id: int, mcard_id: int) -> t.Tuple[PaymentCardSchemeEntry, int]:
         pcard, mcard = self._collect_cards(pcard_id, mcard_id, user)
         status_code = status.HTTP_200_OK
@@ -1548,12 +1550,11 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
             # link = PaymentCardSchemeEntry(
             #    scheme_account=mcard, payment_card_account=pcard
             # ).get_instance_with_active_status()
-            scheme_account_entry = SchemeAccountEntry.objects.get(user=user, scheme_account=mcard)
-            link = PaymentCardSchemeEntry(scheme_account=mcard, payment_card_account=pcard).set_active_link_status(
-                scheme_account_entry.link_status
-            )
-            link.save()
-            link.vop_activate_check()
+
+            user_pll_assoc = PllUserAssociation.link_users_scheme_account_to_payment(mcard, pcard, user)
+            link = user_pll_assoc.pll
+            # link.save()  - done in above call
+            # link.vop_activate_check()
             status_code = status.HTTP_201_CREATED
             audit.write_to_db(link)
 

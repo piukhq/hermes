@@ -12,11 +12,11 @@ from rest_framework import serializers
 from hermes.vop_tasks import activate, deactivate
 from history.data_warehouse import remove_loyalty_card_event, to_data_warehouse
 from history.tasks import auth_outcome_task
-from history.utils import clean_history_kwargs, history_bulk_create, history_bulk_update, set_history_kwargs
+from history.utils import clean_history_kwargs, history_bulk_update, set_history_kwargs
 from payment_card import metis
-from payment_card.models import PaymentCard, PaymentCardAccount
+from payment_card.models import PaymentCardAccount
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
-from scheme.models import SchemeAccount, Scheme
+from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
 from ubiquity.models import (
     AccountLinkStatus,
@@ -593,7 +593,7 @@ def _get_instances_to_bulk_create(
 def auto_link_payment_to_memberships(
     # wallet_scheme_account_entries: list,
     payment_card_account: t.Union[PaymentCardAccount, int],
-    user_id:  int,
+    user_id: int,
     just_created: bool,
     history_kwargs: dict = None,
 ) -> None:

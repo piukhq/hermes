@@ -38,7 +38,7 @@ from ubiquity.tasks import (  # auto_link_membership_to_payments,
     deleted_payment_card_cleanup,
     deleted_service_cleanup,
 )
-from ubiquity.views import AutoLinkOnCreationMixin, MembershipCardView
+from ubiquity.views import MembershipCardView
 from user.models import CustomUser
 from user.serializers import HistoryUserSerializer
 
@@ -128,7 +128,7 @@ def post_payment_account(message: dict) -> None:
                 payment_card_account=payment_card_account,
                 user_id=user.id,
                 just_created=True,
-                history_kwargs={"user_info": user_info(user_id=user.id, channel=bundle_id)}
+                history_kwargs={"user_info": user_info(user_id=user.id, channel=ac.channel_slug)},
             )
 
         if message.get("created"):

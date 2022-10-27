@@ -388,6 +388,14 @@ class SchemeAccountEntry(models.Model):
                     pass
 
     def set_link_status(self, new_status: int, commit_change=True):
+        """
+        Note A signal tiggered by link_status update on class save ensures that PLL linking is updated
+        after set_link_status is set.
+
+        Do not confuse the status of the scheme account set on the user association (link) and hence called
+        link_status with form of pll linking status
+
+        """
         if self.auth_provided is True:
             status_to_set = new_status
         else:
@@ -876,7 +884,7 @@ class PllUserAssociation(models.Model):
         cls, payment_card_account: "PaymentCardAccount", scheme_account_entries: list["SchemeAccountEntry"]
     ):
         for scheme_account_entry in scheme_account_entries:
-            cls.link_users_scheme_account_to_payment(scheme_account_entry, payment_card_account)
+            cls.link_users_scheme_account_entry_to_payment(scheme_account_entry, payment_card_account)
 
     @classmethod
     def link_user_scheme_account_to_payment_cards(
@@ -892,12 +900,21 @@ class PllUserAssociation(models.Model):
         cls, scheme_account_entry: SchemeAccountEntry, payment_card_accounts: list["PaymentCardAccount"]
     ):
         for payment_card_account in payment_card_accounts:
-            cls.link_users_scheme_account_to_payment(scheme_account_entry, payment_card_account)
+            cls.link_users_scheme_account_entry_to_payment(scheme_account_entry, payment_card_account)
 
     @classmethod
     def link_users_scheme_account_to_payment(
+        cls, scheme_account: "SchemeAccount", payment_card_account: "PaymentCardAccount", user: "CustomUser"
+    ) -> "PllUserAssociation":
+        scheme_user_entry = SchemeAccountEntry.objects.select_related("scheme_account").get(
+            user=user, scheme_account=scheme_account, scheme_account__is_deleted=False
+        )
+        return cls.link_users_scheme_account_entry_to_payment(scheme_user_entry, payment_card_account)
+
+    @classmethod
+    def link_users_scheme_account_entry_to_payment(
         cls, scheme_account_entry: SchemeAccountEntry, payment_card_account: "PaymentCardAccount"
-    ):
+    ) -> "PllUserAssociation":
         """
         This is called after a new scheme account entry or payment card is created and a user PLL
         link and base link must be created.
@@ -951,6 +968,8 @@ class PllUserAssociation(models.Model):
             user_link.status = status
             user_link.slug = slug
             user_link.save()
+
+        return user_link
 
 
 class PaymentCardSchemeEntry(models.Model):
@@ -1038,7 +1057,7 @@ class PaymentCardSchemeEntry(models.Model):
         """
         Re=added as needed by API 1.x
         Returns the instance of its self after having first set the corrected active_link status
-        Allows request to be chained or returned
+        Allows request to be chained as self is returned
         :return: self
         """
         if (
