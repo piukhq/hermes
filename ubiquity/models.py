@@ -1058,12 +1058,9 @@ class PaymentCardSchemeEntry(models.Model):
 
 """
     def set_active_link_status(self, scheme_account_status: bool = False) -> object:
-        
-        Re=added as needed by API 1.x
         Returns the instance of its self after having first set the corrected active_link status
         Allows request to be chained as self is returned
         :return: self
-       
         if (
             not self.payment_card_account.is_deleted
             and not self.scheme_account.is_deleted
