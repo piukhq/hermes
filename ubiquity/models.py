@@ -388,6 +388,14 @@ class SchemeAccountEntry(models.Model):
                     pass
 
     def set_link_status(self, new_status: int, commit_change=True):
+        """
+        Note A signal tiggered by link_status update on class save ensures that PLL linking is updated
+        after set_link_status is set.
+
+        Do not confuse the status of the scheme account set on the user association (link) and hence called
+        link_status with form of pll linking status
+
+        """
         if self.auth_provided is True:
             status_to_set = new_status
         else:
@@ -872,10 +880,17 @@ class PllUserAssociation(models.Model):
             cls.update_link(link)
 
     @classmethod
+    def link_users_scheme_accounts(
+        cls, payment_card_account: "PaymentCardAccount", scheme_account_entries: list["SchemeAccountEntry"]
+    ):
+        for scheme_account_entry in scheme_account_entries:
+            cls.link_users_scheme_account_entry_to_payment(scheme_account_entry, payment_card_account)
+
+    @classmethod
     def link_user_scheme_account_to_payment_cards(
         cls, scheme_account: "SchemeAccount", payment_card_accounts: list["PaymentCardAccount"], user: "CustomUser"
     ):
-        scheme_user_entry = SchemeAccountEntry.objects.get(
+        scheme_user_entry = SchemeAccountEntry.objects.select_related("scheme_account").get(
             user=user, scheme_account=scheme_account, scheme_account__is_deleted=False
         )
         cls.link_users_payment_cards(scheme_user_entry, payment_card_accounts)
@@ -885,12 +900,31 @@ class PllUserAssociation(models.Model):
         cls, scheme_account_entry: SchemeAccountEntry, payment_card_accounts: list["PaymentCardAccount"]
     ):
         for payment_card_account in payment_card_accounts:
-            cls.link_users_scheme_account_to_payment(scheme_account_entry, payment_card_account)
+            cls.link_users_scheme_account_entry_to_payment(scheme_account_entry, payment_card_account)
 
     @classmethod
     def link_users_scheme_account_to_payment(
+        cls, scheme_account: "SchemeAccount", payment_card_account: "PaymentCardAccount", user: "CustomUser"
+    ) -> "PllUserAssociation":
+        scheme_user_entry = SchemeAccountEntry.objects.select_related("scheme_account").get(
+            user=user, scheme_account=scheme_account, scheme_account__is_deleted=False
+        )
+        return cls.link_users_scheme_account_entry_to_payment(scheme_user_entry, payment_card_account)
+
+    @classmethod
+    def link_users_scheme_account_entry_to_payment(
         cls, scheme_account_entry: SchemeAccountEntry, payment_card_account: "PaymentCardAccount"
-    ):
+    ) -> "PllUserAssociation":
+        """
+        This is called after a new scheme account entry or payment card is created and a user PLL
+        link and base link must be created.
+
+        Ubiquity collision will be set if payment card is base linked to scheme account who's scheme
+        has been used elsewhere.
+
+        Unlike the update methods this does not need to unset Ubiquity collision as it is for new PLL relationships
+
+        """
         scheme_account = scheme_account_entry.scheme_account
         user = scheme_account_entry.user
         status, slug = cls.get_state_and_slug(payment_card_account, scheme_account_entry.link_status)
@@ -934,6 +968,8 @@ class PllUserAssociation(models.Model):
             user_link.status = status
             user_link.slug = slug
             user_link.save()
+
+        return user_link
 
 
 class PaymentCardSchemeEntry(models.Model):
@@ -1017,13 +1053,17 @@ class PaymentCardSchemeEntry(models.Model):
 
                 send_deactivation.delay(activation, history_kwargs)
 
+    # @todo pll stuff remove methods below this line -----------------------------------
+
+
+"""
     def set_active_link_status(self, scheme_account_status: bool = False) -> object:
-        """
+        
         Re=added as needed by API 1.x
         Returns the instance of its self after having first set the corrected active_link status
-        Allows request to be chained or returned
+        Allows request to be chained as self is returned
         :return: self
-        """
+       
         if (
             not self.payment_card_account.is_deleted
             and not self.scheme_account.is_deleted
@@ -1034,10 +1074,7 @@ class PaymentCardSchemeEntry(models.Model):
         else:
             self.active_link = False
         return self
-
-    # @todo pll stuff remove methods below this line -----------------------------------
-
-
+"""
 """
     @property
     def computed_active_link(self) -> bool:
