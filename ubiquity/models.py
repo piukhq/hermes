@@ -1054,6 +1054,8 @@ class PaymentCardSchemeEntry(models.Model):
                 send_deactivation.delay(activation, history_kwargs)
 
     # @todo pll stuff remove methods below this line -----------------------------------
+
+
 """
     def set_active_link_status(self, scheme_account_status: bool = False) -> object:
         
