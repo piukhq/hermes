@@ -61,6 +61,7 @@ from ubiquity.models import (
     AccountLinkStatus,
     PaymentCardAccountEntry,
     PaymentCardSchemeEntry,
+    PllUserAssociation,
     SchemeAccountEntry,
     ServiceConsent,
     VopActivation,
@@ -159,20 +160,35 @@ class AutoLinkOnCreationMixin:
     def auto_link_to_membership_cards(
         user: CustomUser, payment_card_account: PaymentCardAccount, bundle_id: str, just_created: bool = False
     ) -> None:
+        """
 
-        # Ensure that we only consider membership cards in a user's wallet which can be PLL linked
-        wallet_scheme_accounts = SchemeAccount.objects.filter(user_set=user, scheme__tier=Scheme.PLL).all()
 
-        if wallet_scheme_accounts:
+        # Ensure that we only consider membership cards in a user's wallet which can be PLL linked and ensure
+        # we get the user link_status for the scheme account
+        wallet_scheme_account_entries = SchemeAccountEntry.objects.filter(
+            user=user, scheme_account__scheme__tier=Scheme.PLL
+        ).all()
+
+        # wallet_scheme_accounts = SchemeAccount.objects.filter(user_set=user, scheme__tier=Scheme.PLL).all()
+
+        if wallet_scheme_account_entries:
             if payment_card_account.status == PaymentCardAccount.ACTIVE:
-                auto_link_payment_to_memberships(wallet_scheme_accounts, payment_card_account, just_created)
+                auto_link_payment_to_memberships(wallet_scheme_account_entries, payment_card_account, just_created)
             else:
                 auto_link_payment_to_memberships.delay(
-                    [sa.id for sa in wallet_scheme_accounts],
+                    [sa.id for sa in wallet_scheme_account_entries],
                     payment_card_account.id,
                     just_created,
                     history_kwargs={"user_info": user_info(user_id=user.id, channel=bundle_id)},
                 )
+        """
+
+        auto_link_payment_to_memberships.delay(
+            payment_card_account=payment_card_account.id,
+            user_id=user.id,
+            just_created=just_created,
+            history_kwargs={"user_info": user_info(user_id=user.id, channel=bundle_id)},
+        )
 
 
 class PaymentCardCreationMixin:
@@ -458,7 +474,7 @@ class ListPaymentCardView(
             bundle_id=request.channels_permit.bundle_id,
         )
 
-        just_created = False
+        # just_created = False
         pcard, route, status_code = self.payment_card_already_exists(pcard_data, request.user)
 
         if route == PaymentCardRoutes.EXISTS_IN_OTHER_WALLET:
@@ -469,7 +485,7 @@ class ListPaymentCardView(
         elif route in [PaymentCardRoutes.NEW_CARD, PaymentCardRoutes.DELETED_CARD]:
             pcard = self.create_payment_card_account(pcard_data, request.user, pcard)
             self._create_payment_card_consent(consent, pcard)
-            just_created = True
+            # just_created = True
 
             if route == PaymentCardRoutes.DELETED_CARD:
                 metrics_route = PaymentCardAddRoute.RETURNING
@@ -478,6 +494,9 @@ class ListPaymentCardView(
 
         # auto link to mcards if auto_link is True or None
         if auto_link(request) is not False:
+            # just_created must be true to create new links and is not conditional on payment card account already
+            # existing
+            just_created = True
             self.auto_link_to_membership_cards(request.user, pcard, request.channels_permit.bundle_id, just_created)
 
         if metrics_route:
@@ -1502,7 +1521,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         PaymentCardSchemeEntry.deactivate_activations(activations)
         return pcard, mcard, error
 
-    # @todo PLL stuff
+    # @todo PLL stuff - this looks wrong!
     def _update_link(self, user: CustomUser, pcard_id: int, mcard_id: int) -> t.Tuple[PaymentCardSchemeEntry, int]:
         pcard, mcard = self._collect_cards(pcard_id, mcard_id, user)
         status_code = status.HTTP_200_OK
@@ -1528,11 +1547,14 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
             )
         except PaymentCardSchemeEntry.DoesNotExist:
             # todo: PLL stuff
-            link = PaymentCardSchemeEntry(
-                scheme_account=mcard, payment_card_account=pcard
-            ).get_instance_with_active_status()
-            link.save()
-            link.vop_activate_check()
+            # link = PaymentCardSchemeEntry(
+            #    scheme_account=mcard, payment_card_account=pcard
+            # ).get_instance_with_active_status()
+
+            user_pll_assoc = PllUserAssociation.link_users_scheme_account_to_payment(mcard, pcard, user)
+            link = user_pll_assoc.pll
+            # link.save()  - done in above call
+            # link.vop_activate_check()
             status_code = status.HTTP_201_CREATED
             audit.write_to_db(link)
 

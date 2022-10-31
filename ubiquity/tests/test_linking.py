@@ -1,16 +1,26 @@
 import json
+import uuid
+from copy import deepcopy
 from unittest.mock import patch
 
 from django.conf import settings
-from django.test import override_settings
+from django.test import override_settings, testcases
+from factory.fuzzy import FuzzyAttribute
 from rest_framework.reverse import reverse
 
 from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
-from payment_card.tests.factories import IssuerFactory, PaymentCardFactory
+from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory, fake
 from scheme.models import SchemeAccount, SchemeBundleAssociation
 from scheme.tests.factories import SchemeAccountFactory, SchemeBundleAssociationFactory, SchemeFactory
-from ubiquity.models import PaymentCardSchemeEntry
+from ubiquity.models import (  # WalletPLLData,
+    AccountLinkStatus,
+    PaymentCardAccountEntry,
+    PaymentCardSchemeEntry,
+    PllUserAssociation,
+    WalletPLLSlug,
+    WalletPLLStatus,
+)
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.tests.factories import (
@@ -56,7 +66,12 @@ class LinkAnalyst:
         self.count_soft_links = len(self.soft_links)
 
 
-def set_up_payment_card():
+def set_up_payment_card(
+    name_on_card="test user 2",
+    last_four=5234,
+    token="H7FdKWKPOPhepzxS4MfUuvTDHxr",
+    fingerprint="b5fe350d5135ab64a8f3c1097fadefd9effb",
+):
     organisation = OrganisationFactory(name="test_organisation")
     client_app = ClientApplicationFactory(
         organisation=organisation,
@@ -72,12 +87,12 @@ def set_up_payment_card():
 
     payload = {
         "card": {
-            "last_four_digits": 5234,
+            "last_four_digits": last_four,
             "currency_code": "GBP",
             "first_six_digits": 423456,
-            "name_on_card": "test user 2",
-            "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
-            "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
+            "name_on_card": name_on_card,
+            "token": token,
+            "fingerprint": fingerprint,
             "year": 22,
             "month": 3,
             "order": 1,
@@ -95,10 +110,185 @@ def set_up_scheme(bundle):
     return scheme, scheme_bundle_association
 
 
-def set_up_membership_card(user, scheme):
+def set_up_membership_card(user, scheme, link_status=1):
     scheme_account = SchemeAccountFactory(scheme=scheme)
-    SchemeAccountEntryFactory(scheme_account=scheme_account, user=user)
-    return scheme_account
+    scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=user, link_status=link_status)
+    return scheme_account, scheme_account_entry
+
+
+def set_up_payment_card_account(payment_card, issuer, payload, status=PaymentCardAccount.ACTIVE):
+    card = payload["card"]
+    fingerprint = card.get("fingerprint", FuzzyAttribute(uuid.uuid4))
+    name_on_card = card.get("name_on_card", fake.name())
+    pan_end = card.get("last_four_digits", 5234)
+    pan_start = card.get("first_six_digits", 423456)
+    token = card.get("token", FuzzyAttribute(uuid.uuid4))
+    currency_code = card.get("currency_code", "GBP")
+    year = card.get("year", 22)
+    month = card.get("month", 3)
+    order = card.get("order", 1)
+    return PaymentCardAccountFactory(
+        payment_card=payment_card,
+        fingerprint=fingerprint,
+        issuer=issuer,
+        name_on_card=name_on_card,
+        pan_start=pan_start,
+        pan_end=pan_end,
+        token=token,
+        status=status,
+        start_year=year,
+        start_month=month,
+        expiry_year=year + 3,
+        expiry_month=12,
+        order=order,
+        currency_code=currency_code,
+    )
+
+
+def add_payment_card_account_to_wallet(payment_card_account, user):
+    return PaymentCardAccountEntry.objects.get_or_create(payment_card_account=payment_card_account, user=user)
+
+
+class TestUserPLL(testcases.TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        (
+            cls.client_app,
+            cls.bundle,
+            cls.issuer,
+            cls.payment_card,
+            cls.version_header,
+            cls.payload_1,
+        ) = set_up_payment_card(name_on_card="Card 1")
+
+        # senario 1 mcards 1 cards 1 mplan
+
+        external_id1 = "test1@user.com"
+        cls.user_wallet_1 = UserFactory(external_id=external_id1, client=cls.client_app, email=external_id1)
+        external_id2 = "test2@user.com"
+        cls.user_wallet_2 = UserFactory(external_id=external_id2, client=cls.client_app, email=external_id2)
+
+        cls.scheme1, cls.scheme_bundle_association1 = set_up_scheme(cls.bundle)
+        cls.scheme2, cls.scheme_bundle_association1 = set_up_scheme(cls.bundle)
+        cls.payment_card_account_1 = set_up_payment_card_account(
+            cls.payment_card, issuer=cls.issuer, payload=cls.payload_1
+        )
+        cls.payload_2 = deepcopy(cls.payload_1)
+        cls.payload_2["card"]["token"] = "ABCdKWKPOPhepzxS4MfUuvTDHxr"
+        cls.payload_2["card"]["name_on_card"] = "Card 2"
+        cls.payload_2["card"]["fingerprint"] = "abce350d5135ab64a8f3c1097fadefd9effb"
+        cls.payload_2["card"]["last_four_digits"] = 9876
+        cls.payment_card_account_2 = set_up_payment_card_account(
+            cls.payment_card, issuer=cls.issuer, payload=cls.payload_2
+        )
+
+    @staticmethod
+    def get_user_and_base_pll(payment_card_account, scheme_account, user):
+        base_pll = PaymentCardSchemeEntry.objects.get(
+            payment_card_account=payment_card_account, scheme_account=scheme_account
+        )
+        user_pll = PllUserAssociation.objects.get(pll=base_pll, user=user)
+        return user_pll, base_pll
+
+    @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
+    def test_link_accounts_active_pay_to_active_scheme(self, activate_check):
+        scheme_account, _ = set_up_membership_card(self.user_wallet_1, self.scheme1)
+        add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account, [self.payment_card_account_1], self.user_wallet_1
+        )
+        user_pll, base_pll = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
+        )
+        self.assertTrue(base_pll.active_link)
+        self.assertEqual(user_pll.state, WalletPLLStatus.ACTIVE)
+        self.assertEqual(user_pll.slug, "")
+        self.assertEqual(activate_check.call_count, 1)
+
+    @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
+    def test_link_accounts_active_pay_to_pending_scheme(self, activate_check):
+        scheme_account, _ = set_up_membership_card(
+            self.user_wallet_1, self.scheme1, link_status=AccountLinkStatus.PENDING
+        )
+        add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account, [self.payment_card_account_1], self.user_wallet_1
+        )
+        user_pll, base_pll = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
+        )
+        self.assertFalse(base_pll.active_link)
+        self.assertEqual(user_pll.state, WalletPLLStatus.PENDING)
+        self.assertEqual(user_pll.slug, WalletPLLSlug.LOYALTY_CARD_PENDING.value)
+        self.assertEqual(activate_check.call_count, 0)
+
+    @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
+    def test_link_accounts_ubiquity_collision(self, activate_check):
+        scheme_account_1, _ = set_up_membership_card(
+            self.user_wallet_1, self.scheme1, link_status=AccountLinkStatus.ACTIVE
+        )
+        scheme_account_2, _ = set_up_membership_card(
+            self.user_wallet_2, self.scheme1, link_status=AccountLinkStatus.ACTIVE
+        )
+        add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
+        add_payment_card_account_to_wallet(self.payment_card_account_2, self.user_wallet_2)
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account_1, [self.payment_card_account_1], self.user_wallet_1
+        )
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account_2, [self.payment_card_account_1], self.user_wallet_2
+        )
+        user_pll_1, base_pll_1 = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account_1, user=self.user_wallet_1
+        )
+        user_pll_2, base_pll_2 = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account_2, user=self.user_wallet_2
+        )
+
+        self.assertTrue(base_pll_1.active_link, "1st PLL before Collision must be True")
+        self.assertFalse(base_pll_2.active_link, "PLL for Collided object must be False")
+        self.assertEqual(user_pll_1.state, WalletPLLStatus.ACTIVE)
+        self.assertEqual(user_pll_1.slug, "")
+        self.assertEqual(user_pll_2.state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_pll_2.slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
+        self.assertEqual(activate_check.call_count, 1, "Only one account should have been activated")
+
+    @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
+    def test_update_user_pll_by_scheme_account(self, activate_check):
+        """
+        1. Add a PllUserAssociation for a Pending Scheme account and active payment cards
+        2. Check status then set Scheme account Active
+        3. Check PllUserAssociation.update_user_pll_by_scheme_account() updates both user and base pll links are active
+           and card activation is called
+        """
+        scheme_account, scheme_account_entry = set_up_membership_card(
+            self.user_wallet_1, self.scheme1, link_status=AccountLinkStatus.PENDING
+        )
+        add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
+        # Link the cards
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account, [self.payment_card_account_1], self.user_wallet_1
+        )
+        self.assertEqual(activate_check.call_count, 0, "No PLL should be activated")
+        user_pll_1, base_pll_1 = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
+        )
+
+        self.assertEqual(user_pll_1.state, WalletPLLStatus.PENDING)
+        self.assertEqual(user_pll_1.slug, WalletPLLSlug.LOYALTY_CARD_PENDING.value)
+        self.assertFalse(base_pll_1.active_link)
+        # Now test update_user_pll_by_scheme_account if the scheme account goes active
+        scheme_account_entry.link_status = AccountLinkStatus.ACTIVE
+        scheme_account_entry.save()
+        PllUserAssociation.update_user_pll_by_scheme_account(scheme_account)
+        user_pll_1, base_pll_1 = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
+        )
+        self.assertEqual(user_pll_1.state, WalletPLLStatus.ACTIVE)
+        self.assertEqual(user_pll_1.slug, "")
+        self.assertTrue(base_pll_1.active_link)
+
+        self.assertEqual(activate_check.call_count, 1, "PLL should be activated")
 
 
 class TestSoftLinking(GlobalMockAPITestCase):
@@ -156,13 +346,13 @@ class TestSoftLinking(GlobalMockAPITestCase):
         external_id = "test@user.com"
         cls.user = UserFactory(external_id=external_id, client=cls.client_app, email=external_id)
         cls.scheme1, cls.scheme_bundle_association1 = set_up_scheme(cls.bundle)
-        cls.scheme_account_c1_s1 = set_up_membership_card(cls.user, cls.scheme1)
+        cls.scheme_account_c1_s1, _ = set_up_membership_card(cls.user, cls.scheme1)
 
         cls.scheme2, cls.scheme_bundle_association2 = set_up_scheme(cls.bundle)
-        cls.scheme_account_c2_s2 = set_up_membership_card(cls.user, cls.scheme2)
+        cls.scheme_account_c2_s2, _ = set_up_membership_card(cls.user, cls.scheme2)
 
         cls.scheme3, cls.scheme_bundle_association3 = set_up_scheme(cls.bundle)
-        cls.scheme_account_c3_s3 = set_up_membership_card(cls.user, cls.scheme3)
+        cls.scheme_account_c3_s3, _ = set_up_membership_card(cls.user, cls.scheme3)
 
     """
     This test needs refactor to new VOP spec
@@ -322,6 +512,7 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         cls.scheme_account_entry_c2_p5_u4 = SchemeAccountEntryFactory(
             scheme_account=cls.scheme_account_c2_p5_u4, user=cls.user4
         )
+        # user 5 has  2 scheme accounts with the same scheme (no. 5) linked to a payment card no. 5
         cls.scheme_account_c3_p5_u5 = SchemeAccountFactory(scheme=cls.scheme5)
         cls.scheme_account_entry_c3_p5_u5 = SchemeAccountEntryFactory(
             scheme_account=cls.scheme_account_c3_p5_u5, user=cls.user5
@@ -401,19 +592,43 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         resp, linked = self.auto_link_post(self.payload, self.user3)
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(len(resp.data["membership_cards"]), 0)
-        # Test only card linked to payment card has lowest id
-        self.assertEqual(len(linked), 1)
+        # The payment card with lowest id is Pending the other collided
+        self.assertEqual(len(linked), 4)
+        user_pll_0 = PllUserAssociation.objects.get(pll=linked[0], user=self.user3)
+        user_pll_1 = PllUserAssociation.objects.get(pll=linked[1], user=self.user3)
+        user_pll_2 = PllUserAssociation.objects.get(pll=linked[2], user=self.user3)
+        user_pll_3 = PllUserAssociation.objects.get(pll=linked[3], user=self.user3)
+        self.assertEqual(user_pll_0.state, WalletPLLStatus.PENDING)
+        self.assertEqual(user_pll_0.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
+        self.assertEqual(user_pll_1.state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_pll_1.slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
+        self.assertEqual(user_pll_2.state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_pll_2.slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
+        self.assertEqual(user_pll_3.state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_pll_3.slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
+        self.assertFalse(linked[0].active_link)
+        self.assertFalse(linked[1].active_link)
+        self.assertFalse(linked[1].active_link)
+        self.assertFalse(linked[1].active_link)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c1_p4.id)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("payment_card.metis.enrol_new_payment_card")
-    def test_payment_card_auto_link_4cards_2users_same_plan(self, *_):
+    def test_payment_card_auto_link_2cards_1users_same_plan(self, *_):
         # senario 4 4 membership cards 1 plans - user 4
         resp, linked = self.auto_link_post(self.payload, self.user4)
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(len(resp.data["membership_cards"]), 0)
-        # Test only card linked to payment card has lowest id
-        self.assertEqual(len(linked), 1)
+        # The payment card with lowest id is Pending the other collided
+        self.assertEqual(len(linked), 2)
+        self.assertFalse(linked[0].active_link)
+        self.assertFalse(linked[1].active_link)
+        user_pll_0 = PllUserAssociation.objects.get(pll=linked[0], user=self.user4)
+        user_pll_1 = PllUserAssociation.objects.get(pll=linked[1], user=self.user4)
+        self.assertEqual(user_pll_0.state, WalletPLLStatus.PENDING)
+        self.assertEqual(user_pll_0.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
+        self.assertEqual(user_pll_1.state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_pll_1.slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c1_p5_u4.id)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
@@ -425,7 +640,7 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(len(resp.data["membership_cards"]), 0)
         # Test only card linked to payment card has lowest id in users wallet
-        self.assertEqual(len(linked), 1)
+        self.assertEqual(len(linked), 2)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
 
         # now repeat user 4 auto link
@@ -433,10 +648,29 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(len(resp.data["membership_cards"]), 0)
 
-        # Now the list should have the card linked in plan above (the other users plan) even though not the oldest
-        # Test only card linked to payment card is the card already linked
-        self.assertEqual(len(linked), 1)
+        # Only first should be pending even though not the oldest, the rest are collision and inactive
+        self.assertEqual(len(linked), 4)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
+        self.assertFalse(linked[0].active_link)
+        self.assertFalse(linked[1].active_link)
+        self.assertFalse(linked[2].active_link)
+        self.assertFalse(linked[3].active_link)
+        self.assertEqual(linked[0].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
+        self.assertEqual(linked[1].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
+        self.assertEqual(linked[2].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
+        self.assertEqual(linked[3].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
+        user_plls_u5_0 = PllUserAssociation.objects.get(pll=linked[0], user=self.user5)
+        user_plls_u5_1 = PllUserAssociation.objects.get(pll=linked[1], user=self.user5)
+        user_plls_u4 = PllUserAssociation.objects.filter(user=self.user4).all()
+        self.assertEqual(len(user_plls_u4), 2)
+        self.assertEqual(user_plls_u5_0.state, WalletPLLStatus.PENDING)
+        self.assertEqual(user_plls_u5_0.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
+        self.assertEqual(user_plls_u5_1.state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_plls_u5_1.slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
+        self.assertEqual(user_plls_u4[0].state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_plls_u4[0].slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
+        self.assertEqual(user_plls_u4[1].state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_plls_u4[1].slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("payment_card.metis.enrol_new_payment_card")
@@ -446,29 +680,64 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         resp, linked = self.auto_link_post(self.payload2, self.user5)
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(len(resp.data["membership_cards"]), 0)
-        # Test only card linked to payment card has lowest id in users wallet
-        self.assertEqual(len(linked), 1)
+        # Test two cards linked to payment card but the lowest id is pending highest is Ubiquity collided and inactive
+        self.assertEqual(len(linked), 2)
+        user_pll_0_p2 = PllUserAssociation.objects.get(pll=linked[0], user=self.user5)
+        user_pll_1_p2 = PllUserAssociation.objects.get(pll=linked[1], user=self.user5)
+        self.assertEqual(user_pll_0_p2.state, WalletPLLStatus.PENDING)
+        self.assertEqual(user_pll_0_p2.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
+        self.assertEqual(user_pll_1_p2.state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_pll_1_p2.slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
+        self.assertFalse(linked[0].active_link)
+        self.assertFalse(linked[1].active_link)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
-
+        self.assertEqual(linked[0].payment_card_account.fingerprint, self.payload2["card"]["fingerprint"])
+        self.assertEqual(linked[1].payment_card_account.fingerprint, self.payload2["card"]["fingerprint"])
         # now with user 5 instead of 4 auto link as previous test same result as before the auto linking of
         # another payment card should have no effect.
 
-        resp, linked = self.auto_link_post(self.payload, self.user5)
-        self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data["membership_cards"]), 0)
+        resp2, linked2 = self.auto_link_post(self.payload, self.user5)
+        self.assertEqual(resp2.status_code, 201)
+        self.assertEqual(len(resp2.data["membership_cards"]), 0)
         # Test only card linked to payment card has lowest id in users wallet
-        self.assertEqual(len(linked), 1)
-        self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
+        self.assertEqual(len(linked2), 2)
+        user_pll_0_p1 = PllUserAssociation.objects.get(pll=linked2[0], user=self.user5)
+        user_pll_1_p1 = PllUserAssociation.objects.get(pll=linked2[1], user=self.user5)
+        self.assertEqual(user_pll_0_p1.state, WalletPLLStatus.PENDING)
+        self.assertEqual(user_pll_0_p1.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
+        self.assertEqual(user_pll_1_p1.state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_pll_1_p1.slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
+        self.assertFalse(linked2[0].active_link)
+        self.assertFalse(linked2[1].active_link)
+        self.assertEqual(linked2[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
+        self.assertEqual(linked2[0].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
+        self.assertEqual(linked2[1].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
 
-        # now repeat user 4 auto link
-        resp, linked = self.auto_link_post(self.payload, self.user4)
-        self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data["membership_cards"]), 0)
+        # now repeat user 4 auto link with payload card which will then have 4 links
+        resp3, linked3 = self.auto_link_post(self.payload, self.user4)
+        self.assertEqual(resp3.status_code, 201)
+        self.assertEqual(len(resp3.data["membership_cards"]), 0)
 
         # Now the list should have the card linked in plan above (the other users plan) even though not the oldest
-        # Test only card linked to payment card is the card already linked
-        self.assertEqual(len(linked), 1)
-        self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
+        # Test uncollided card linked to payment card is the card already linked
+        self.assertEqual(len(linked3), 4)
+        self.assertFalse(linked3[0].active_link)
+        self.assertFalse(linked3[1].active_link)
+        self.assertFalse(linked3[2].active_link)
+        self.assertFalse(linked3[3].active_link)
+        self.assertEqual(linked3[0].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
+        self.assertEqual(linked3[1].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
+        self.assertEqual(linked3[2].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
+        self.assertEqual(linked3[3].payment_card_account.fingerprint, self.payload["card"]["fingerprint"])
+
+        # user 4 should have 2 new user links but as payment card was linked before all should be Ubiquity collision
+
+        user_plls = PllUserAssociation.objects.filter(user=self.user4).all()
+        self.assertEqual(len(user_plls), 2)
+        self.assertEqual(user_plls[0].state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_plls[0].slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
+        self.assertEqual(user_plls[1].state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_plls[1].slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("payment_card.metis.enrol_new_payment_card")

@@ -33,11 +33,12 @@ from ubiquity.tasks import (  # auto_link_membership_to_payments,
     async_all_balance,
     async_join,
     async_link,
+    auto_link_payment_to_memberships,
     deleted_membership_card_cleanup,
     deleted_payment_card_cleanup,
     deleted_service_cleanup,
 )
-from ubiquity.views import AutoLinkOnCreationMixin, MembershipCardView
+from ubiquity.views import MembershipCardView
 from user.models import CustomUser
 from user.serializers import HistoryUserSerializer
 
@@ -109,6 +110,7 @@ def set_auth_provided(scheme_account: SchemeAccount, user_id: int, new_value: bo
     link.save(update_fields=["auth_provided"])
 
 
+# @todo we must use API method of linking here:
 def post_payment_account(message: dict) -> None:
     # Calls Metis to enrol payment card if account was just created.
     logger.info("Handling onward POST/payment_account journey from Angelia. ")
@@ -116,13 +118,24 @@ def post_payment_account(message: dict) -> None:
         payment_card_account = PaymentCardAccount.objects.get(pk=message.get("payment_account_id"))
         user = CustomUser.objects.get(pk=ac.user_id)
         if message.get("auto_link"):
-            AutoLinkOnCreationMixin.auto_link_to_membership_cards(
-                user, payment_card_account, ac.channel_slug, just_created=True
+            # @todo - Do we must use PllUserAssociation for API 2.0
+            # Linking before enrolment is ok because it ensures the pending states are set up with
+            # a good chance of being ready when the new card goes active.
+            # AutoLinkOnCreationMixin.auto_link_to_membership_cards(
+            # user, payment_card_account, ac.channel_slug, just_created=True
+            # )
+            auto_link_payment_to_memberships(
+                payment_card_account=payment_card_account,
+                user_id=user.id,
+                just_created=True,
+                history_kwargs={"user_info": user_info(user_id=user.id, channel=ac.channel_slug)},
             )
+
         if message.get("created"):
             metis.enrol_new_payment_card(payment_card_account, run_async=False)
 
 
+# @todo we must use API method of linking here:
 def delete_payment_account(message: dict) -> None:
     logger.info("Handling DELETE/payment_account journey from Angelia.")
     with AngeliaContext(message) as ac:

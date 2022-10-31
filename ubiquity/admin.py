@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from rangefilter.filters import DateTimeRangeFilter
 
+from common.admin import InputFilter
 from payment_card.admin import titled_filter
 from scheme.admin import CacheResetAdmin
 from ubiquity.models import MembershipPlanDocument, PaymentCardSchemeEntry, PllUserAssociation, VopActivation
@@ -72,21 +74,49 @@ class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
     mcard_deleted.boolean = True
 
 
+class PllFilter(InputFilter):
+    parameter_name = "pll_id"
+    title = "Pll User Association ID:"
+
+    def queryset(self, request, queryset):
+        term = self.value()
+        if term is None:
+            return
+        query = {"pll_id": term}
+        return queryset.filter(**query)
+
+
+class UserFilter(InputFilter):
+    parameter_name = "user_id"
+    title = "User ID:"
+
+    def queryset(self, request, queryset):
+        term = self.value()
+        if term is None:
+            return
+        query = {"user_id": term}
+        return queryset.filter(**query)
+
+
 @admin.register(PllUserAssociation)
 class PllUserAssociationAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "pll", "state", "slug")
+    list_display = ("id", "user", "pll", "state", "slug", "created", "updated")
     search_fields = (
         "id",
-        "user" "pll__payment_card_account_id",
-        "pll__scheme_account_id",
+        "pll__payment_card_account__id",
+        "pll__scheme_account__id",
     )
 
     list_filter = (
         "pll__active_link",
         "state",
         "slug",
+        UserFilter,
+        PllFilter,
+        ("created", DateTimeRangeFilter),
+        ("updated", DateTimeRangeFilter),
         ("pll__payment_card_account__issuer__name", titled_filter("payment card issuer")),
-        ("pll__payment_card_account__is_deleted", titled_filter("payment card is deleted")),
+        ("pll__payment_card_account__is_deleted", titled_filter("payment card account is deleted")),
         ("pll__scheme_account__is_deleted", titled_filter("membership card is deleted")),
         ("pll__payment_card_account__status", titled_filter("payment card status")),
         ("pll__payment_card_account__payment_card__name", titled_filter("payment card")),
