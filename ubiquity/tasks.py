@@ -316,18 +316,28 @@ def deleted_membership_card_cleanup(
         scheme_account=scheme_account_entry.scheme_account
     ).exclude(id=scheme_account_entry.id)
 
+    # There can only be scheme account cannot be in a users wallet more than once:
+    this_users_pll = PllUserAssociation.objects.prefetch_related("pll__payment_card_account").get(
+        pll__scheme_account=scheme_account_entry.scheme_account, user=scheme_account_entry.user
+    )
+    payment_card_account = this_users_pll.pll.payment_card_account
+
     if other_scheme_account_entries.count() <= 0:
         # Last man standing
         scheme_account_entry.scheme_account.is_deleted = True
         scheme_account_entry.scheme_account.save(update_fields=["is_deleted"])
 
     else:
-        # todo: Some PLL link nonsense to look at here for Phase 3.
+        # todo: Some PLL link nonsense to look at here for Phase 3 - This should work ok
         m_card_users = other_scheme_account_entries.values_list("user_id", flat=True)
         pll_links = pll_links.exclude(payment_card_account__user_set__in=m_card_users)
 
-    # Delete this user's scheme account entry (and credentials by cascade)
+    # Delete this user's scheme account entry (credentials and PLLUserAssociations by cascade)
+    this_users_pll.delete()
     scheme_account_entry.delete()
+
+    # Update Pll for associated payment card so that status is correct
+    PllUserAssociation.update_user_pll_by_pay_account(payment_card_account)
 
     activations = VopActivation.find_activations_matching_links(pll_links)
 
