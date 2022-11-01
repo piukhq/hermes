@@ -28,6 +28,8 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("ubiquity", "0014_update_active_link_slugs"),
+        ("scheme", "0109_alter_schemeaccountcredentialanswer_unique_together_and_more"),
+
     ]
 
     operations = [
