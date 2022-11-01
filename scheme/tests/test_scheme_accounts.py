@@ -191,7 +191,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertNotIn("is_deleted", response.data)
         self.assertEqual(response.data["scheme"]["id"], self.scheme.id)
         self.assertNotIn("card_number_prefix", response.data["scheme"])
-        self.assertEqual(response.data["display_status"], AccountLinkStatus.PENDING)
+        self.assertEqual(response.data["display_status"], AccountLinkStatus.ACTIVE)
 
         self.scheme_bundle_association.test_scheme = True
         self.scheme_bundle_association.save()
