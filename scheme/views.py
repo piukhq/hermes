@@ -132,6 +132,7 @@ class ServiceDeleteAccount(APIView):
     def delete(self, request, *args, **kwargs):
         scheme_account = get_object_or_404(SchemeAccount, id=kwargs["pk"])
 
+        SchemeAccountEntry.objects.filter(scheme_account=scheme_account).delete()
         PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account).delete()
         scheme_account.is_deleted = True
         scheme_account.save()
