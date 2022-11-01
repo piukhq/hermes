@@ -21,18 +21,24 @@ from history.utils import clean_history_kwargs, set_history_kwargs, user_info
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from scheme.mixins import SchemeAccountJoinMixin
-from scheme.models import Scheme, SchemeAccount
-from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent
-from ubiquity.tasks import (
+from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
+from ubiquity.models import (
+    AccountLinkStatus,
+    PaymentCardAccountEntry,
+    PllUserAssociation,
+    SchemeAccountEntry,
+    ServiceConsent,
+)
+from ubiquity.tasks import (  # auto_link_membership_to_payments,
     async_all_balance,
     async_join,
     async_link,
-    auto_link_membership_to_payments,
+    auto_link_payment_to_memberships,
     deleted_membership_card_cleanup,
     deleted_payment_card_cleanup,
     deleted_service_cleanup,
 )
-from ubiquity.views import AutoLinkOnCreationMixin, MembershipCardView
+from ubiquity.views import MembershipCardView
 from user.models import CustomUser
 from user.serializers import HistoryUserSerializer
 
@@ -61,6 +67,8 @@ class AngeliaContext:
     def __init__(self, message: dict, journey: str = None):
         self.user_id = message.get("user_id")
         self.channel_slug = message.get("channel_slug")
+        self.entry_id = message.get("entry_id")
+        self.add_fields = message.get("add_fields")
         if not self.user_id:
             err = "An Angelia Background message exception user_id was not sent"
             logger.error(err)
@@ -102,6 +110,7 @@ def set_auth_provided(scheme_account: SchemeAccount, user_id: int, new_value: bo
     link.save(update_fields=["auth_provided"])
 
 
+# @todo we must use API method of linking here:
 def post_payment_account(message: dict) -> None:
     # Calls Metis to enrol payment card if account was just created.
     logger.info("Handling onward POST/payment_account journey from Angelia. ")
@@ -109,13 +118,24 @@ def post_payment_account(message: dict) -> None:
         payment_card_account = PaymentCardAccount.objects.get(pk=message.get("payment_account_id"))
         user = CustomUser.objects.get(pk=ac.user_id)
         if message.get("auto_link"):
-            AutoLinkOnCreationMixin.auto_link_to_membership_cards(
-                user, payment_card_account, ac.channel_slug, just_created=True
+            # @todo - Do we must use PllUserAssociation for API 2.0
+            # Linking before enrolment is ok because it ensures the pending states are set up with
+            # a good chance of being ready when the new card goes active.
+            # AutoLinkOnCreationMixin.auto_link_to_membership_cards(
+            # user, payment_card_account, ac.channel_slug, just_created=True
+            # )
+            auto_link_payment_to_memberships(
+                payment_card_account=payment_card_account,
+                user_id=user.id,
+                just_created=True,
+                history_kwargs={"user_info": user_info(user_id=user.id, channel=ac.channel_slug)},
             )
+
         if message.get("created"):
             metis.enrol_new_payment_card(payment_card_account, run_async=False)
 
 
+# @todo we must use API method of linking here:
 def delete_payment_account(message: dict) -> None:
     logger.info("Handling DELETE/payment_account journey from Angelia.")
     with AngeliaContext(message) as ac:
@@ -134,7 +154,7 @@ def loyalty_card_add_and_register(message: dict) -> None:
     _loyalty_card_register(message, path=LoyaltyCardPath.ADD_AND_REGISTER)
 
 
-def _loyalty_card_register(message: dict, path: str) -> None:
+def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
     with AngeliaContext(message, SchemeAccountJourney.REGISTER.value) as ac:
         all_credentials_and_consents = {}
         all_credentials_and_consents.update(credentials_to_key_pairs(message.get("register_fields")))
@@ -145,28 +165,38 @@ def _loyalty_card_register(message: dict, path: str) -> None:
         user = CustomUser.objects.get(pk=ac.user_id)
         permit = Permit(bundle_id=ac.channel_slug, user=user)
         account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
-        sch_acc_entry = account.schemeaccountentry_set.get(user=user)
         scheme = account.scheme
         questions = scheme.questions.all()
 
+        scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
+        create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
+
         if path == LoyaltyCardPath.REGISTER:
-            register_lc_event(user, account, ac.channel_slug)
+            register_lc_event(scheme_account_entry, ac.channel_slug)
 
         if message.get("auto_link"):
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=user.id).values_list(
                 "payment_card_account_id", flat=True
             )
             if payment_cards_to_link:
-                auto_link_membership_to_payments(payment_cards_to_link=payment_cards_to_link, membership_card=account)
-        MembershipCardView._handle_registration_route(
+                PllUserAssociation.link_users_payment_cards(scheme_account_entry, payment_cards_to_link)
+                # auto_link_membership_to_payments(payment_cards_to_link=payment_cards_to_link, membership_card=account)
+
+        MembershipCardView.handle_registration_route(
             user=user,
             permit=permit,
-            scheme_acc_entry=sch_acc_entry,
+            scheme_acc_entry=scheme_account_entry,
             scheme_questions=questions,
             registration_fields=all_credentials_and_consents,
             scheme=scheme,
-            account=account,
         )
+
+
+def loyalty_card_add(message: dict) -> None:
+    with AngeliaContext(message) as ac:
+        scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
+
+        create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
 
 
 def loyalty_card_add_authorise(message: dict) -> None:
@@ -190,25 +220,20 @@ def loyalty_card_add_authorise(message: dict) -> None:
 
         set_auth_provided(account, ac.user_id, True)
 
-        if message.get("primary_auth"):
-            # primary_auth is used to indicate that this user has demonstrated the authority to authorise and
-            # set the status of this card (i.e. they are not secondary to an authorised user of this card.)
-            if journey == "ADD_AND_AUTH":
-                account.set_add_auth_pending()
-            elif journey == "AUTH":
-                account.set_auth_pending()
+        scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
 
-            async_link(
-                auth_fields=all_credentials_and_consents,
-                scheme_account_id=account.id,
-                user_id=ac.user_id,
-                payment_cards_to_link=payment_cards_to_link,
-            )
+        if journey == "ADD_AND_AUTH":
+            create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
+            scheme_account_entry.set_link_status(AccountLinkStatus.ADD_AUTH_PENDING)
+        elif journey == "AUTH":
+            scheme_account_entry.set_link_status(AccountLinkStatus.AUTH_PENDING)
 
-        if payment_cards_to_link:
-            # if the request does not come from a primary_auth, then we will just auto-link this user's
-            # cards without affecting the state of the loyalty card.
-            auto_link_membership_to_payments(payment_cards_to_link=payment_cards_to_link, membership_card=account)
+        async_link(
+            auth_fields=all_credentials_and_consents,
+            scheme_account_id=account.id,
+            user_id=ac.user_id,
+            payment_cards_to_link=payment_cards_to_link,
+        )
 
 
 def loyalty_card_join(message: dict) -> None:
@@ -228,6 +253,7 @@ def loyalty_card_join(message: dict) -> None:
 
         user = CustomUser.objects.get(pk=ac.user_id)
         account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
+        entry = SchemeAccountEntry.objects.get(scheme_account=account, user=user)
         scheme = Scheme.objects.get(pk=message.get("loyalty_plan_id"))
         permit = Permit(bundle_id=ac.channel_slug, user=user)
 
@@ -240,7 +266,7 @@ def loyalty_card_join(message: dict) -> None:
         )
 
         # send event to data warehouse
-        join_request_lc_event(user, account, ac.channel_slug)
+        join_request_lc_event(entry, ac.channel_slug)
 
         async_join(
             scheme_account_id=account.id,
@@ -255,10 +281,10 @@ def loyalty_card_join(message: dict) -> None:
 
 def delete_loyalty_card(message: dict) -> None:
     with AngeliaContext(message) as ac:
-        user = CustomUser.objects.get(pk=ac.user_id)
-        account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
-        SchemeAccountEntry.objects.filter(scheme_account=account, user=user).delete()
-        deleted_membership_card_cleanup(account.id, arrow.utcnow().format(), user.id)
+        scheme_account_entry = SchemeAccountEntry.objects.get(
+            scheme_account_id=message.get("loyalty_card_id"), user_id=ac.user_id
+        )
+        deleted_membership_card_cleanup(scheme_account_entry, arrow.utcnow().format())
 
 
 def delete_user(message: dict) -> None:
@@ -385,16 +411,13 @@ def mapper_history(message: dict) -> None:
 
 def add_auth_outcome_event(message: dict) -> None:
     success = message.get("success")
-    user_id = message.get("user_id")
     journey = message.get("journey")
-    loyalty_card_id = message.get("loyalty_card_id")
-    user = CustomUser.objects.get(id=user_id)
-    scheme_account = SchemeAccount.objects.get(pk=loyalty_card_id)
+    scheme_account_entry = SchemeAccountEntry.objects.get(pk=message.get("entry_id"))
 
     if journey == "ADD_AND_AUTH":
-        add_auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
+        add_auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry)
     elif journey == "AUTH":
-        auth_outcome_task(success=success, user=user, scheme_account=scheme_account)
+        auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry)
 
 
 def add_auth_request_event(message: dict) -> None:
@@ -435,3 +458,14 @@ def sql_history(message: dict) -> None:
                 external_id=user.external_id,
                 body=serializer.data,
             )
+
+
+def create_key_credential_from_add_fields(scheme_account_entry: SchemeAccountEntry, add_fields):
+    cred_type = add_fields[0]["credential_slug"]
+    answer = add_fields[0]["value"]
+
+    question = scheme_account_entry.scheme_account.scheme.questions.get(type=cred_type)
+
+    SchemeAccountCredentialAnswer.objects.create(
+        scheme_account_entry=scheme_account_entry, question=question, answer=answer
+    )

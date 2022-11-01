@@ -25,7 +25,13 @@ from periodic_retry.models import PeriodicRetryStatus, RetryTaskList
 from periodic_retry.tasks import PeriodicRetryHandler
 from prometheus.metrics import payment_card_processing_seconds_histogram, payment_card_status_change_counter
 from scheme.models import Scheme
-from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, VopActivation
+from ubiquity.models import (
+    PaymentCardAccountEntry,
+    PaymentCardSchemeEntry,
+    PllUserAssociation,
+    SchemeAccountEntry,
+    VopActivation,
+)
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import ClientApplication, Organisation
 
@@ -222,7 +228,7 @@ class RetrieveLoyaltyID(APIView):
                     scheme_account = scheme_account_entry.scheme_account
                     response_data.append(
                         {
-                            payment_card.token: scheme_account.third_party_identifier,
+                            payment_card.token: scheme_account_entry.third_party_identifier,
                             "scheme_account_id": scheme_account.id,
                         }
                     )
@@ -261,11 +267,13 @@ class RetrievePaymentCardUserInfo(APIView):
                 scheme_account = active_links.order_by("scheme_account__created").first().scheme_account
                 user_id = scheme_account.get_transaction_matching_user_id()
 
+                scheme_account_entry = SchemeAccountEntry.objects.get(user=user_id, scheme_account=scheme_account)
+
                 response_data[payment_card_token] = {
-                    "loyalty_id": scheme_account.third_party_identifier,
+                    "loyalty_id": scheme_account_entry.third_party_identifier,
                     "scheme_account_id": scheme_account.id,
                     "user_id": user_id,
-                    "credentials": scheme_account.credentials(),
+                    "credentials": scheme_account_entry.credentials(),
                 }
             else:
                 # the user was matched but is not registered in that scheme
@@ -453,7 +461,8 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             # Update soft link status
             if new_status_code == payment_card_account.ACTIVE:
                 # make any soft links active for payment_card_account
-                PaymentCardSchemeEntry.update_soft_links({"payment_card_account": payment_card_account})
+                PllUserAssociation.update_user_pll_by_pay_account(payment_card_account)
+                # PaymentCardSchemeEntry.update_soft_links({"payment_card_account": payment_card_account})
 
             # Now report state change events for all owners of the payment card
             wallets = PaymentCardAccountEntry.objects.filter(payment_card_account=payment_card_account)

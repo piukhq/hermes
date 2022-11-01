@@ -1,9 +1,14 @@
+import typing
+
 from celery import shared_task
 
 from history.data_warehouse import add_auth_outcome, auth_outcome, history_event, join_outcome, register_outcome
 from history.enums import HistoryModel
 from history.models import HistoricalBase, HistoricalCustomUser, get_historical_model
 from history.serializers import get_historical_serializer
+
+if typing.TYPE_CHECKING:
+    from ubiquity.models import SchemeAccountEntry
 
 
 @shared_task
@@ -22,31 +27,25 @@ def record_history(model_name: str, **kwargs) -> None:
 
 
 @shared_task
-def join_outcome_event(success: bool, scheme_account: object) -> None:
-    from ubiquity.models import SchemeAccountEntry
+def join_outcome_event(success: bool, scheme_account_entry: "SchemeAccountEntry") -> None:
 
-    wallets = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
-    for wallet in wallets:
-        join_outcome(success, wallet.user, scheme_account)
+    join_outcome(success, scheme_account_entry)
 
 
 @shared_task
-def add_auth_outcome_task(success: bool, user: object, scheme_account: object) -> None:
-    add_auth_outcome(success, user, scheme_account)
+def add_auth_outcome_task(success: bool, scheme_account_entry: "SchemeAccountEntry") -> None:
+    add_auth_outcome(success, scheme_account_entry)
 
 
 @shared_task
-def auth_outcome_task(success: bool, user: object, scheme_account: object) -> None:
-    auth_outcome(success, user, scheme_account)
+def auth_outcome_task(success: bool, scheme_account_entry: "SchemeAccountEntry") -> None:
+    auth_outcome(success, scheme_account_entry)
 
 
 @shared_task
-def register_outcome_event(success: bool, scheme_account: object) -> None:
-    from ubiquity.models import SchemeAccountEntry
+def register_outcome_event(success: bool, scheme_account_entry: "SchemeAccountEntry") -> None:
 
-    wallets = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
-    for wallet in wallets:
-        register_outcome(success, wallet.user, scheme_account)
+    register_outcome(success, scheme_account_entry)
 
 
 @shared_task

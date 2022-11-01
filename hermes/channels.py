@@ -149,6 +149,11 @@ class Permit:
             query = self._user_filter(query, user_id)
         return self.related_model_query(query, "scheme__", allow)
 
+    def scheme_account_entry_query(self, query, allow=None, user_id=None, user_filter=True):
+        if user_filter and not self.service_allow_all:
+            query = query.filter(user_id=user_id)
+        return self.related_model_query(query, "scheme_account__scheme__", allow)
+
     def _user_filter(self, query, user_id):
         if not user_id:
             if self.user:

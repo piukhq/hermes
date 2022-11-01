@@ -88,20 +88,24 @@ class TestVOP(GlobalMockAPITestCase):
             options=SchemeCredentialQuestion.OPTIONAL_JOIN,
         )
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
+
+        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
+
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=cls.scheme.manual_question, scheme_account=cls.scheme_account
+            question=cls.scheme.manual_question,
+            scheme_account_entry=cls.scheme_account_entry,
         )
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=cls.secondary_question, scheme_account=cls.scheme_account
+            question=cls.secondary_question,
+            scheme_account_entry=cls.scheme_account_entry,
         )
-        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
 
         # Need to add an active association since it was assumed no setting was enabled
         cls.scheme_bundle_association = SchemeBundleAssociationFactory(
             scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
         )
 
-        cls.scheme_account.update_barcode_and_card_number()
+        cls.scheme_account_entry.update_scheme_account_key_credential_fields()
 
         cls.issuer = IssuerFactory(name="Barclays")
         cls.payment_card = PaymentCardFactory(slug="visa", system="visa")
@@ -271,8 +275,6 @@ class TestVOP(GlobalMockAPITestCase):
             payment_card_account=self.payment_card_account,
             scheme_account=mcard_2,
             active_link=False,
-            state=PaymentCardSchemeEntry.INACTIVE,
-            slug=PaymentCardSchemeEntry.UBIQUITY_COLLISION,
         )
 
         entry1.vop_activate_check()

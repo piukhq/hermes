@@ -235,12 +235,14 @@ class SchemeImageAdmin(CacheResetAdmin):
 class SchemeAccountCredentialAnswerInline(admin.TabularInline):
     model = SchemeAccountCredentialAnswer
     extra = 0
+    fields = ("question", "answer")
+    raw_id_fields = ["scheme_account_entry"]
 
     def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
         if db_field.name == "question":
             try:
                 pk = int(request.path.split("/")[-3])
-                scheme_account = SchemeAccount.all_objects.get(id=pk)
+                scheme_account = SchemeAccountEntry.objects.get(id=pk).scheme_account
                 kwargs["queryset"] = SchemeCredentialQuestion.objects.filter(scheme_id=scheme_account.scheme.id)
             except ValueError:
                 kwargs["queryset"] = SchemeCredentialQuestion.objects.none()
@@ -317,26 +319,23 @@ class SchemeAccountEntryInline(admin.TabularInline):
 
 @admin.register(SchemeAccount)
 class SchemeAccountAdmin(HistoryAdmin):
-    inlines = (
-        SchemeAccountEntryInline,
-        SchemeAccountCredentialAnswerInline,
-    )
+    inlines = (SchemeAccountEntryInline,)
     list_filter = (
         BarcodeFilter,
         CardNumberFilter,
         UserEmailFilter,
         CredentialEmailFilter,
         "is_deleted",
-        "status",
         "scheme",
     )
-    list_display = ("scheme", "user_email", "status", "is_deleted", "created", "updated")
+    list_display = ("scheme", "user_email", "is_deleted", "created", "updated")
     list_per_page = 25
     actions = ["refresh_scheme_account_information"]
     readonly_fields = ("originating_journey",)
     ordering = ["-updated"]
 
     def refresh_scheme_account_information(self, request, queryset):
+        # todo: this is problematic - how we do handle an action like this from the admin panel with no related user?
         # Forces a refresh of balance, voucher and transaction information. Requests an update of balance information
         # directly from Midas, which will also push transactions from Midas (via Hades), to Hermes.
         for scheme_account in queryset:
@@ -351,7 +350,7 @@ class SchemeAccountAdmin(HistoryAdmin):
 
     def credential_email(self, obj):
         credential_emails = SchemeAccountCredentialAnswer.objects.filter(
-            scheme_account=obj.id, question__type__exact="email"
+            scheme_account_entry__scheme_account=obj.id, question__type__exact="email"
         )
         user_list = [x.answer for x in credential_emails]
         return format_html("</br>".join(user_list))
@@ -427,12 +426,13 @@ class AssocUserEmailFilter(InputFilter):
 
 @admin.register(SchemeUserAssociation)
 class SchemeUserAssociationAdmin(HistoryAdmin):
+    inlines = (SchemeAccountCredentialAnswerInline,)
     list_display = (
         "scheme_account",
         "user",
+        "link_status",
         "scheme_account_link",
         "user_link",
-        "scheme_status",
         "scheme_is_deleted",
         "scheme_created",
     )
@@ -445,7 +445,7 @@ class SchemeUserAssociationAdmin(HistoryAdmin):
         AssocCardNumberFilter,
         AssocUserEmailFilter,
         "scheme_account__is_deleted",
-        "scheme_account__status",
+        "link_status",
         "scheme_account__scheme",
     )
     raw_id_fields = (
@@ -453,8 +453,21 @@ class SchemeUserAssociationAdmin(HistoryAdmin):
         "user",
     )
 
+    actions = ["refresh_scheme_account_information"]
+
+    def refresh_scheme_account_balance(self, request, queryset):
+        # todo: moved this to the Scheme
+        # Forces a refresh of balance, voucher and transaction information. Requests an update of balance information
+        # directly from Midas, which will also push transactions from Midas (via Hades), to Hermes.
+        for scheme_account_entry in queryset:
+            scheme_account_entry.scheme_account.delete_cached_balance()
+            scheme_account_entry.scheme_account.get_cached_balance(scheme_account_entry=scheme_account_entry)
+        messages.add_message(request, messages.INFO, "Refreshed balance, vouchers and transactions information.")
+
     def scheme_account_link(self, obj):
-        return format_html('<a href="/admin/scheme/schemeaccount/{0}/change/">scheme id{0}</a>', obj.scheme_account.id)
+        return format_html(
+            '<a href="/admin/scheme/schemeaccount/{0}/change/">scheme_account {0}</a>', obj.scheme_account.id
+        )
 
     def user_link(self, obj):
         user_name = obj.user.external_id
@@ -466,9 +479,6 @@ class SchemeUserAssociationAdmin(HistoryAdmin):
 
     def scheme_account_card_number(self, obj):
         return obj.scheme_account.card_number
-
-    def scheme_status(self, obj):
-        return obj.scheme_account.status_name
 
     def scheme_created(self, obj):
         return obj.scheme_account.created

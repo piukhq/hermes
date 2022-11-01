@@ -17,9 +17,8 @@ from rest_framework.utils.serializer_helpers import ReturnList
 from hermes import settings
 from history.utils import GlobalMockAPITestCase
 from scheme.credentials import EMAIL
-from scheme.models import SchemeAccount
 from scheme.tests.factories import SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory
-from ubiquity.models import SchemeAccountEntry
+from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.models import (
@@ -486,7 +485,9 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         scheme_account_entry = SchemeAccountEntryFactory(user=user, scheme_account__scheme=scheme)
 
         SchemeCredentialAnswerFactory(
-            scheme_account=scheme_account_entry.scheme_account, question=question, answer=email
+            question=question,
+            answer=email,
+            scheme_account_entry=scheme_account_entry,
         )
 
         client = ClientApplicationFactory()
@@ -529,11 +530,13 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         scheme = SchemeFactory(company="Wasabi", slug="wasabi-club")
         question = SchemeCredentialQuestionFactory(scheme=scheme, type=EMAIL, auth_field=True)
         scheme_account_entry = SchemeAccountEntryFactory(
-            user=user, scheme_account__scheme=scheme, scheme_account__status=SchemeAccount.REGISTRATION_FAILED
+            user=user, scheme_account__scheme=scheme, link_status=AccountLinkStatus.REGISTRATION_FAILED
         )
 
         SchemeCredentialAnswerFactory(
-            scheme_account=scheme_account_entry.scheme_account, question=question, answer=email
+            question=question,
+            answer=email,
+            scheme_account_entry=scheme_account_entry,
         )
 
         client = ClientApplicationFactory()
@@ -572,13 +575,13 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         scheme = SchemeFactory(company="Wasabi", slug="wasabi-club")
         question = SchemeCredentialQuestionFactory(scheme=scheme, type=EMAIL, auth_field=True)
         scheme_account_entry = SchemeAccountEntryFactory(
-            user=user, scheme_account__scheme=scheme, scheme_account__status=SchemeAccount.ACTIVE
+            user=user, scheme_account__scheme=scheme, link_status=AccountLinkStatus.ACTIVE
         )
 
         SchemeCredentialAnswerFactory(
-            scheme_account=scheme_account_entry.scheme_account,
             question=question,
             answer="test_different_email@bink.com",
+            scheme_account_entry=scheme_account_entry,
         )
 
         client = ClientApplicationFactory()
@@ -1428,9 +1431,7 @@ class TestUserSettings(GlobalMockAPITestCase):
         self.assertEqual(data[0]["value"], "1")
         self.assertEqual(data[0]["value_type"], setting.value_type_name)
 
-    @mock.patch("analytics.api._send_to_mnemosyne")
-    @mock.patch("analytics.reset_user_settings")
-    def test_delete_user_settings(self, mock_reset_user_settings, mock_send_to_mnemosyne):
+    def test_delete_user_settings(self):
         settings = [SettingFactory(slug="marketing-bink"), SettingFactory()]
         UserSettingFactory(user=self.user, value="1", setting=settings[0])
         UserSettingFactory(user=self.user, value="0", setting=settings[1])
@@ -1445,11 +1446,7 @@ class TestUserSettings(GlobalMockAPITestCase):
         user_settings = UserSetting.objects.filter(user=self.user)
         self.assertEqual(len(user_settings), 0)
 
-        self.assertEqual(mock_reset_user_settings.call_count, 1)
-        self.assertEqual(mock_send_to_mnemosyne.call_count, 0)
-
-    @mock.patch("analytics.update_attributes")
-    def test_update_analytic_user_settings(self, mock_update_attributes):
+    def test_update_analytic_user_settings(self):
         settings = [SettingFactory(slug="marketing-bink"), SettingFactory(slug="marketing-external")]
         UserSettingFactory(user=self.user, value="1", setting=settings[0])
         UserSettingFactory(user=self.user, value="0", setting=settings[1])
@@ -1474,19 +1471,7 @@ class TestUserSettings(GlobalMockAPITestCase):
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[1].slug).first()
         self.assertEqual(user_setting.value, "1")
 
-        self.assertEqual(mock_update_attributes.call_count, 2)
-        analytic_data = [mock_update_attributes.call_args_list[0][0][1], mock_update_attributes.call_args_list[1][0][1]]
-
-        # marketing-bink updated to False in analytics
-        self.assertFalse(analytic_data[0]["marketing-bink"])
-
-        # marketing-external updated to True in analytics
-        self.assertTrue(analytic_data[1]["marketing-external"])
-
-        self.assertEqual(mock_update_attributes.call_count, len(settings))
-
-    @mock.patch("analytics.update_attributes")
-    def test_update_non_analytic_user_settings(self, mock_update_attribute):
+    def test_update_non_analytic_user_settings(self):
         settings = [SettingFactory(), SettingFactory()]
         UserSettingFactory(user=self.user, value="1", setting=settings[0])
         UserSettingFactory(user=self.user, value="0", setting=settings[1])
@@ -1510,8 +1495,6 @@ class TestUserSettings(GlobalMockAPITestCase):
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[1].slug).first()
         self.assertEqual(user_setting.value, "1")
-
-        self.assertFalse(mock_update_attribute.called)
 
     def test_update_incorrect_user_settings(self):
         setting = SettingFactory()
@@ -1550,8 +1533,7 @@ class TestUserSettings(GlobalMockAPITestCase):
         self.assertIn("'kitten' is not a valid value for type boolean.", data["messages"])
         self.assertIn("'not even a number' is not a valid value for type number.", data["messages"])
 
-    @mock.patch("analytics.update_attributes")
-    def test_create_non_analytics_settings(self, mock_update_attribute):
+    def test_create_non_analytics_settings(self):
         setting = SettingFactory()
 
         data = {
@@ -1564,10 +1546,7 @@ class TestUserSettings(GlobalMockAPITestCase):
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=setting.slug).first()
         self.assertEqual(user_setting.value, "1")
 
-        self.assertFalse(mock_update_attribute.called)
-
-    @mock.patch("analytics.update_attributes")
-    def test_create_analytics_setting(self, mock_update_attribute):
+    def test_create_analytics_setting(self):
         setting = SettingFactory(slug="marketing-bink")
         UserSettingFactory(user=self.user, value="1", setting=setting)
 
@@ -1580,10 +1559,6 @@ class TestUserSettings(GlobalMockAPITestCase):
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=setting.slug).first()
         self.assertEqual(user_setting.value, "1")
-
-        self.assertEqual(mock_update_attribute.call_count, 1)
-        # marketing-bink updated to True in analytics
-        self.assertEqual(mock_update_attribute.call_args_list[0][0][1], {"marketing-bink": True})
 
 
 class TestAppKitIdentification(GlobalMockAPITestCase):

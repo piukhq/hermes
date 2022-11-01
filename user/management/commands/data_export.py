@@ -15,13 +15,10 @@ exports = {
             "scheme": {
                 "name": None,
             },
-            "status_name": None,
             "order": None,
             "card_number": None,
             "barcode": None,
-            "display_status": None,
-            "manual_answer": None,
-            "third_party_identifier": None,
+            "alt_main_answer": None,
         },
     },
     "users": {

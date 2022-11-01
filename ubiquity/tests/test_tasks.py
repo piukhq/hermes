@@ -7,10 +7,10 @@ from hermes.channels import Permit
 from history.utils import GlobalMockAPITestCase
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.credentials import CARD_NUMBER, EMAIL, PASSWORD, POSTCODE
-from scheme.models import SchemeAccount, SchemeBundleAssociation, SchemeCredentialQuestion
+from scheme.models import SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.serializers import JoinSerializer
 from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory
-from ubiquity.models import PaymentCardSchemeEntry
+from ubiquity.models import AccountLinkStatus, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import (
     async_all_balance,
     async_balance,
@@ -42,10 +42,10 @@ class TestTasks(GlobalMockAPITestCase):
         cls.client = ClientApplicationFactory(organisation=cls.org, name="Barclays-client")
         cls.bundle = ClientApplicationBundleFactory(client=cls.client)
         cls.user = UserFactory(external_id=external_id, email=external_id)
-        cls.entry = SchemeAccountEntryFactory(user=cls.user)
-        cls.entry2 = SchemeAccountEntryFactory(user=cls.user)
+        cls.entry = SchemeAccountEntryFactory(user=cls.user, link_status=AccountLinkStatus.ACTIVE)
+        cls.entry2 = SchemeAccountEntryFactory(user=cls.user, link_status=AccountLinkStatus.ACTIVE)
 
-        cls.link_entry = SchemeAccountEntryFactory(user=cls.user)
+        cls.link_entry = SchemeAccountEntryFactory(user=cls.user, link_status=AccountLinkStatus.ACTIVE)
         cls.link_scheme = cls.link_entry.scheme_account.scheme
         cls.manual_question = SchemeCredentialQuestionFactory(
             scheme=cls.link_scheme,
@@ -65,15 +65,13 @@ class TestTasks(GlobalMockAPITestCase):
             auth_field=True,
         )
 
-    @patch("scheme.models.SchemeAccount.call_analytics")
     @patch("requests.get")
-    def test_async_balance(self, mock_midas_balance, mock_analytics):
-        mock_midas_balance.return_value.status_code = SchemeAccount.TRIPPED_CAPTCHA
+    def test_async_balance(self, mock_midas_balance):
+        mock_midas_balance.return_value.status_code = AccountLinkStatus.TRIPPED_CAPTCHA
         scheme_account_id = self.entry.scheme_account.id
         scheme_slug = self.entry.scheme_account.scheme.slug
-        async_balance(scheme_account_id)
+        async_balance(self.entry)
 
-        self.assertTrue(mock_analytics.called)
         self.assertTrue(mock_midas_balance.called)
         self.assertTrue(scheme_slug in mock_midas_balance.call_args[0][0])
         self.assertTrue(scheme_account_id in mock_midas_balance.call_args[1]["params"].values())
@@ -92,9 +90,9 @@ class TestTasks(GlobalMockAPITestCase):
 
         self.assertTrue(mock_async_balance.called)
         async_balance_call_args = [call_args[0][0] for call_args in mock_async_balance.call_args_list]
-        self.assertTrue(self.entry.scheme_account.id in async_balance_call_args)
-        self.assertTrue(self.entry2.scheme_account.id in async_balance_call_args)
-        self.assertFalse(deleted_entry.scheme_account.id in async_balance_call_args)
+        self.assertTrue(self.entry in async_balance_call_args)
+        self.assertTrue(self.entry2 in async_balance_call_args)
+        self.assertFalse(deleted_entry in async_balance_call_args)
 
     @patch("ubiquity.tasks.async_balance.delay")
     def test_async_all_balance_filtering(self, mock_async_balance):
@@ -103,29 +101,30 @@ class TestTasks(GlobalMockAPITestCase):
         scheme_account_3 = SchemeAccountFactory(scheme=scheme_account_1.scheme)
         scheme_account_4 = SchemeAccountFactory(scheme=scheme_account_1.scheme)
 
-        entry_active = SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account_1)
+        entry_active = SchemeAccountEntryFactory(
+            user=self.user, scheme_account=scheme_account_1, link_status=AccountLinkStatus.ACTIVE
+        )
         user = entry_active.user
         SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=scheme_account_1.scheme)
         channels_permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
 
-        entry_pending = SchemeAccountEntryFactory(user=user, scheme_account=scheme_account_2)
-        entry_invalid_credentials = SchemeAccountEntryFactory(user=user, scheme_account=scheme_account_3)
-        entry_end_site_down = SchemeAccountEntryFactory(user=user, scheme_account=scheme_account_4)
-
-        entry_pending.scheme_account.status = SchemeAccount.PENDING
-        entry_pending.scheme_account.save()
-        entry_invalid_credentials.scheme_account.status = SchemeAccount.INVALID_CREDENTIALS
-        entry_invalid_credentials.scheme_account.save()
-        entry_end_site_down.scheme_account.status = SchemeAccount.END_SITE_DOWN
-        entry_end_site_down.scheme_account.save()
+        entry_pending = SchemeAccountEntryFactory(
+            user=user, scheme_account=scheme_account_2, link_status=AccountLinkStatus.PENDING
+        )
+        entry_invalid_credentials = SchemeAccountEntryFactory(
+            user=user, scheme_account=scheme_account_3, link_status=AccountLinkStatus.INVALID_CREDENTIALS
+        )
+        entry_end_site_down = SchemeAccountEntryFactory(
+            user=user, scheme_account=scheme_account_4, link_status=AccountLinkStatus.END_SITE_DOWN
+        )
 
         async_all_balance(user.id, channels_permit=channels_permit)
 
         refreshed_scheme_accounts = [x[0][0] for x in mock_async_balance.call_args_list]
-        self.assertIn(entry_active.scheme_account.id, refreshed_scheme_accounts)
-        self.assertIn(entry_end_site_down.scheme_account.id, refreshed_scheme_accounts)
-        self.assertNotIn(entry_invalid_credentials.scheme_account.id, refreshed_scheme_accounts)
-        self.assertNotIn(entry_pending.scheme_account.id, refreshed_scheme_accounts)
+        self.assertIn(entry_active, refreshed_scheme_accounts)
+        self.assertIn(entry_end_site_down, refreshed_scheme_accounts)
+        self.assertNotIn(entry_invalid_credentials, refreshed_scheme_accounts)
+        self.assertNotIn(entry_pending, refreshed_scheme_accounts)
 
     @patch("ubiquity.tasks.async_balance.delay")
     def test_async_all_balance_with_allowed_schemes(self, mock_async_balance):
@@ -135,27 +134,24 @@ class TestTasks(GlobalMockAPITestCase):
         async_all_balance(user_id, channels_permit=channels_permit)
         self.assertTrue(mock_async_balance.called)
         async_balance_call_args = [call_args[0][0] for call_args in mock_async_balance.call_args_list]
-        self.assertFalse(self.entry.scheme_account.id in async_balance_call_args)
-        self.assertTrue(self.entry2.scheme_account.id in async_balance_call_args)
+        self.assertFalse(self.entry in async_balance_call_args)
+        self.assertTrue(self.entry2 in async_balance_call_args)
 
-    @patch("scheme.models.SchemeAccount.call_analytics")
     @patch("requests.get")
-    def test_async_link_validation_error(self, mock_midas_balance, mock_analytics):
+    def test_async_link_validation_error(self, mock_midas_balance):
         scheme_account = self.link_entry.scheme_account
         user_id = self.link_entry.user_id
-        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.manual_question)
+        SchemeCredentialAnswerFactory(question=self.manual_question, scheme_account_entry=self.link_entry)
 
         auth_fields = {"password": "test123"}
-        self.assertEqual(scheme_account.status, scheme_account.ACTIVE)
+        self.assertEqual(self.link_entry.link_status, AccountLinkStatus.ACTIVE)
         with self.assertRaises(serializers.ValidationError):
             async_link(auth_fields, scheme_account.id, user_id, False)
 
-        scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.status, scheme_account.INVALID_CREDENTIALS)
+        self.link_entry.refresh_from_db()
+        self.assertEqual(self.link_entry.link_status, AccountLinkStatus.INVALID_CREDENTIALS)
         self.assertFalse(mock_midas_balance.called)
-        self.assertFalse(mock_analytics.called)
 
-    @patch("analytics.api.update_scheme_account_attribute")
     @patch("scheme.mixins.SchemeAccountJoinMixin.post_midas_join")
     @patch("scheme.mixins.SchemeAccountJoinMixin.save_consents")
     def test_async_register_validation_failure(self, mock_save_consents, *_):
@@ -168,7 +164,9 @@ class TestTasks(GlobalMockAPITestCase):
         )
 
         SchemeCredentialAnswerFactory(
-            scheme_account=self.link_entry.scheme_account, question=card_number, answer="1234567"
+            question=card_number,
+            answer="1234567",
+            scheme_account_entry=self.link_entry,
         )
 
         scheme_account_id = self.link_entry.scheme_account.id
@@ -176,8 +174,8 @@ class TestTasks(GlobalMockAPITestCase):
 
         async_registration(user_id, JoinSerializer, scheme_account_id, {"credentials": {}}, self.bundle.bundle_id)
 
-        self.link_entry.scheme_account.refresh_from_db()
-        self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.REGISTRATION_FAILED)
+        self.link_entry.refresh_from_db()
+        self.assertEqual(self.link_entry.link_status, AccountLinkStatus.REGISTRATION_FAILED)
 
     @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
     def test_deleted_membership_card_cleanup_ubiquity_collision(self, mock_metrics):
@@ -186,8 +184,8 @@ class TestTasks(GlobalMockAPITestCase):
         external_id_2 = "testuser2@testbink.com"
         user2 = UserFactory(external_id=external_id_2, email=external_id_2)
 
-        # The mcard is not linked to user1 since this link should be deleted before the cleanup task is called
         main_mcard = SchemeAccountFactory()
+        main_mcard_entry = SchemeAccountEntryFactory(scheme_account=main_mcard, user=user1)
 
         # Add an Active payment account and link mcard to test PLL link handling
         payment_card = PaymentCardAccountFactory()
@@ -208,7 +206,7 @@ class TestTasks(GlobalMockAPITestCase):
         )
 
         # TEST
-        deleted_membership_card_cleanup(main_mcard.id, "", user1.id)
+        deleted_membership_card_cleanup(main_mcard_entry, "")
 
         main_mcard.refresh_from_db()
         self.assertTrue(main_mcard.is_deleted)
@@ -223,10 +221,10 @@ class TestTasks(GlobalMockAPITestCase):
 
     @patch("ubiquity.tasks.remove_loyalty_card_event")
     @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
-    def test_deleted_membership_card_cleanup_wallet_only(self, mock_metrics, mock_to_warehouse):
+    def test_deleted_membership_card_cleanup_other_entries(self, mock_metrics, mock_to_warehouse):
         """
-        Tests that auth credentials are deleted when only wallet only cards are left linked to
-        a scheme account and that the status is set to WALLET_ONLY
+        Tests that auth credentials are deleted only for this user, and that scheme_account is not deleted when user is
+        not last man standing.
         """
         external_id_1 = "testuser@testbink.com"
         user2 = UserFactory(external_id=external_id_1, email=external_id_1)
@@ -234,27 +232,38 @@ class TestTasks(GlobalMockAPITestCase):
         user3 = UserFactory(external_id=external_id_2, email=external_id_2)
 
         scheme_account = SchemeAccountFactory()
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=user2, auth_provided=False)
+        scheme_account_entry_alt = SchemeAccountEntryFactory(
+            scheme_account=scheme_account, user=user3, auth_provided=False
+        )
 
-        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.manual_question)
-        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.auth_question_1)
-        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.auth_question_2)
+        SchemeCredentialAnswerFactory(question=self.manual_question, scheme_account_entry=scheme_account_entry)
+        SchemeCredentialAnswerFactory(question=self.auth_question_1, scheme_account_entry=scheme_account_entry)
+        SchemeCredentialAnswerFactory(question=self.auth_question_2, scheme_account_entry=scheme_account_entry)
 
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=user2, auth_provided=False)
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=user3, auth_provided=False)
+        SchemeCredentialAnswerFactory(question=self.manual_question, scheme_account_entry=scheme_account_entry_alt)
+        SchemeCredentialAnswerFactory(question=self.auth_question_1, scheme_account_entry=scheme_account_entry_alt)
+        SchemeCredentialAnswerFactory(question=self.auth_question_2, scheme_account_entry=scheme_account_entry_alt)
 
-        answers = scheme_account.schemeaccountcredentialanswer_set
+        answers = scheme_account_entry.schemeaccountcredentialanswer_set
+        self.assertEqual(3, answers.count())
+        answers = scheme_account_entry_alt.schemeaccountcredentialanswer_set
         self.assertEqual(3, answers.count())
 
-        deleted_membership_card_cleanup(scheme_account.id, "", self.user.id)
+        deleted_membership_card_cleanup(scheme_account_entry, "")
 
         scheme_account.refresh_from_db()
 
-        self.assertEqual(scheme_account.WALLET_ONLY, scheme_account.status)
-        self.assertEqual(1, answers.count())
-        self.assertTrue(answers.first().question.manual_question)
+        answers = scheme_account_entry_alt.schemeaccountcredentialanswer_set
+        self.assertEqual(3, answers.count())
+
+        self.assertFalse(scheme_account.is_deleted)
 
         self.assertTrue(mock_to_warehouse.called)
         self.assertEqual(mock_to_warehouse.call_count, 1)
+
+        with self.assertRaises(SchemeAccountEntry.DoesNotExist):
+            SchemeAccountEntry.objects.get(scheme_account=scheme_account, user=user2)
 
     @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
     def test_deleted_payment_card_cleanup_ubiquity_collision(self, mock_metrics):

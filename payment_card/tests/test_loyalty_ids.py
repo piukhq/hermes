@@ -29,18 +29,24 @@ class TestRetrieveLoyaltyID(GlobalMockAPITestCase):
         cls.scheme = cls.scheme_account_1.scheme
         cls.scheme_account_2 = scheme_factories.SchemeAccountFactory(scheme=cls.scheme)
 
-        ubiquity.tests.factories.SchemeAccountEntryFactory(user=cls.user_1, scheme_account=cls.scheme_account_1)
-        ubiquity.tests.factories.SchemeAccountEntryFactory(user=cls.user_2, scheme_account=cls.scheme_account_2)
+        cls.scheme_account_entry_1 = ubiquity.tests.factories.SchemeAccountEntryFactory(
+            user=cls.user_1, scheme_account=cls.scheme_account_1
+        )
+        cls.scheme_account_entry_2 = ubiquity.tests.factories.SchemeAccountEntryFactory(
+            user=cls.user_2, scheme_account=cls.scheme_account_2
+        )
 
         cls.scheme_question = scheme_factories.SchemeCredentialQuestionFactory(
             scheme=cls.scheme, third_party_identifier=True, options=SchemeCredentialQuestion.LINK
         )
 
         cls.scheme_answer_1 = scheme_factories.SchemeCredentialAnswerFactory(
-            scheme_account=cls.scheme_account_1, question=cls.scheme_question
+            question=cls.scheme_question,
+            scheme_account_entry=cls.scheme_account_entry_1,
         )
         cls.scheme_answer_2 = scheme_factories.SchemeCredentialAnswerFactory(
-            scheme_account=cls.scheme_account_2, question=cls.scheme_question
+            question=cls.scheme_question,
+            scheme_account_entry=cls.scheme_account_entry_2,
         )
 
         cls.auth_headers = {"HTTP_AUTHORIZATION": "Token " + settings.SERVICE_API_KEY}
