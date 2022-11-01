@@ -953,17 +953,10 @@ class SchemeAccount(models.Model):
         return self.barcode
 
     def get_transaction_matching_user_id(self):
-        bink_user = self.user_set.filter(
-            client_id=settings.BINK_CLIENT_ID, schemeaccountentry__link_status=AccountLinkStatus.ACTIVE
-        ).values("id").order_by("date_joined")
-        if bink_user.exists():
-            user_id = bink_user.first().get("id")
-        else:
-            user_id = self.user_set.filter(
-                schemeaccountentry__link_status=AccountLinkStatus.ACTIVE
-            ).order_by("date_joined").values("id").first().get("id")
-
-        return user_id
+        # todo: Awaiting confirmation of whether this should be sent as a list or is even needed by harmonia.
+        return self.user_set.filter(
+            schemeaccountentry__link_status=AccountLinkStatus.ACTIVE
+        ).order_by("date_joined").values("id").first().get("id")
 
     def save(self, *args, **kwargs):
         # Only when we update, we update the updated date time.
