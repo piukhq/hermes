@@ -771,7 +771,7 @@ class WalletPLLData:
         if sas:
             sa = sas.get(link.user.id, None)
             return sa
-        return None
+        return {"status": None, "link": None, "scheme_count": 0}
 
     def scheme_account_status(self, link: "PllUserAssociation"):
         data = self.get_link_data(link)
@@ -780,7 +780,7 @@ class WalletPLLData:
     def collision(self, link: "PllUserAssociation"):
         data = self.get_link_data(link)
         scheme_more_than_once = data.get("scheme_count", 0) > 1
-        if data.get("link"):
+        if not data.get("link"):
             return False
         # if the link slug is not marked as collision it must be the link before the collision occurred so false
         if data["link"].slug != WalletPLLSlug.UBIQUITY_COLLISION.value and scheme_more_than_once:
@@ -844,11 +844,12 @@ class PllUserAssociation(models.Model):
 
     @staticmethod
     def update_link(link: "PllUserAssociation"):
-        link.save()
-        if link.state == WalletPLLStatus.ACTIVE:
-            # Set the generic pll link to active if not already set
-            if not link.pll.active_link:
-                link.pll.activate()
+        if link.state:
+            link.save()
+            if link.state == WalletPLLStatus.ACTIVE:
+                # Set the generic pll link to active if not already set
+                if not link.pll.active_link:
+                    link.pll.activate()
 
     @classmethod
     def update_user_pll_by_both(cls, payment_card_account: "PaymentCardAccount", scheme_account: "SchemeAccount"):
