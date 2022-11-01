@@ -19,6 +19,7 @@ from scheme.tests.factories import (
     SchemeFactory,
 )
 from ubiquity.models import (
+    AccountLinkStatus,
     PaymentCardAccountEntry,
     PaymentCardSchemeEntry,
     PllUserAssociation,
@@ -194,13 +195,18 @@ class TestVOP(GlobalMockAPITestCase):
             }
         )
 
-        entry = PaymentCardSchemeEntry.objects.create(
-            payment_card_account=self.payment_card_account, scheme_account=self.scheme_account
+        upa1 = PllUserAssociation.link_users_scheme_account_to_payment(
+            self.scheme_account, self.payment_card_account, self.user
         )
+        pll_entry_1_id = upa1.pll.id
 
-        entry.active_link = True
-        entry.save()
-        entry.vop_activate_check()
+        #entry = PaymentCardSchemeEntry.objects.create(
+        #    payment_card_account=self.payment_card_account, scheme_account=self.scheme_account
+        # )
+
+        # entry.active_link = True
+        #entry.save()
+        # entry.vop_activate_check()
         self.assertTrue(mock_activate.called)
 
         # By pass celery delay to send activations by mocking delay getting parameters and calling without delay
@@ -235,9 +241,11 @@ class TestVOP(GlobalMockAPITestCase):
         self.assertEqual(activation_id, activate.activation_id)
 
         self.assertEqual(resp.status_code, 200)
-        link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
+        link = PaymentCardSchemeEntry.objects.filter(id=pll_entry_1_id)
         self.assertEqual(len(link), 0)
         self.assertEqual(mock_to_warehouse.call_count, 1)
+        user_link = PllUserAssociation.objects.filter(id=upa1.id)
+        self.assertEqual(len(user_link), 0)
 
     @patch("history.data_warehouse.to_data_warehouse", autospec=True)
     @patch("ubiquity.models.send_deactivation.delay", autospec=True)
@@ -450,16 +458,31 @@ class TestVOP(GlobalMockAPITestCase):
         PaymentCardAccountEntry.objects.create(user_id=user.id, payment_card_account_id=pcard_1.id)
         PaymentCardAccountEntry.objects.create(user_id=user.id, payment_card_account_id=pcard_2.id)
 
-        SchemeAccountEntry.objects.create(user_id=user.id, scheme_account_id=mcard_1.id)
-        SchemeAccountEntry.objects.create(user_id=user.id, scheme_account_id=mcard_2.id)
+        SchemeAccountEntry.objects.create(
+            user_id=user.id, scheme_account_id=mcard_1.id, link_status=AccountLinkStatus.ACTIVE
+        )
+        SchemeAccountEntry.objects.create(
+            user_id=user.id, scheme_account_id=mcard_2.id, link_status=AccountLinkStatus.ACTIVE
+        )
 
-        entry1 = PaymentCardSchemeEntry.objects.create(
+        upa1 = PllUserAssociation.link_users_scheme_account_to_payment(
+            mcard_1, pcard_1, user
+        )
+        entry1 = upa1.pll
+
+        upa2 = PllUserAssociation.link_users_scheme_account_to_payment(
+            mcard_2, pcard_2, user
+        )
+        entry2 = upa2.pll
+
+        """ entry1 = PaymentCardSchemeEntry.objects.create(
             payment_card_account=pcard_1, scheme_account=mcard_1, active_link=True
         )
 
         entry2 = PaymentCardSchemeEntry.objects.create(
             payment_card_account=pcard_2, scheme_account=mcard_2, active_link=True
         )
+        """
 
         activation_ids = {}
         # Run activations code for each entry
@@ -483,7 +506,7 @@ class TestVOP(GlobalMockAPITestCase):
 
         activations = VopActivation.objects.all()
         for activation in activations:
-            self.assertEqual(VopActivation.ACTIVATED, activation.status)
+            self.assertEqual(VopActivation.ACTIVATING, activation.status)
             self.assertEqual(activation_ids[activation.payment_card_account.id], activation.activation_id)
 
         auth_headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(user))}
