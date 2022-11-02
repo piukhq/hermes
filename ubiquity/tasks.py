@@ -288,9 +288,11 @@ def deleted_payment_card_cleanup(
         pll_links = pll_links.exclude(scheme_account__user_set__id__in=p_card_users)
 
     # deleted_link_ids = [link.id for link in pll_links]
+    # Pll links delete triggers the delete signal on the base link which also removes PllUserAssociations and
+    # recomputes the user link status and slug. Could be made more efficient as this is done on every link
     pll_links.delete()
 
-    # @todo pll stuff removed this if ok - pll_links.delete() handles this now
+    # @todo pll stuff removed this if ok - pll_links
     # Updates any ubiquity collisions linked to this payment card
     # for entry in payment_card_account.paymentcardschemeentry_set.exclude(id__in=deleted_link_ids).all():
     #    entry.update_soft_links({"payment_card_account": payment_card_account})
@@ -316,12 +318,6 @@ def deleted_membership_card_cleanup(
         scheme_account=scheme_account_entry.scheme_account
     ).exclude(id=scheme_account_entry.id)
 
-    # There can only be scheme account cannot be in a users wallet more than once:
-    this_users_pll = PllUserAssociation.objects.prefetch_related("pll__payment_card_account").get(
-        pll__scheme_account=scheme_account_entry.scheme_account, user=scheme_account_entry.user
-    )
-    payment_card_account = this_users_pll.pll.payment_card_account
-
     if other_scheme_account_entries.count() <= 0:
         # Last man standing
         scheme_account_entry.scheme_account.is_deleted = True
@@ -333,16 +329,15 @@ def deleted_membership_card_cleanup(
         pll_links = pll_links.exclude(payment_card_account__user_set__in=m_card_users)
 
     # Delete this user's scheme account entry (credentials and PLLUserAssociations by cascade)
-    this_users_pll.delete()
     scheme_account_entry.delete()
-
-    # Update Pll for associated payment card so that status is correct
-    PllUserAssociation.update_user_pll_by_pay_account(payment_card_account)
 
     activations = VopActivation.find_activations_matching_links(pll_links)
 
     # related_pcards = {link.payment_card_account for link in pll_links}
     # deleted_pll_link_ids = {link.id for link in pll_links}
+
+    # Pll links delete triggers the delete signal on the base link which also removes PllUserAssociations and
+    # recomputes the user link status and slug. Could be made more efficient as this is done on every link
     pll_links.delete()
 
     # @todo pll stuff removed this if ok - pll_links.delete() handles this now

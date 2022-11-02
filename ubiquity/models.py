@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Iterable, Type, Union
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, models, transaction
-from django.db.models import F, signals
+from django.db.models import F, Q, signals
 from django.dispatch import receiver
 from django.utils.functional import cached_property
 
@@ -686,9 +686,12 @@ class WalletPLLData:
         self.to_query = True
         self.pll_user_associations = []
         if payment_card_account is not None and scheme_account is not None:
+            # Finds all associations which refer to either the payment card account or scheme account for any user
+            # Typical use is when a link is removed the status of any link using either the payment account or
+            # scheme account might cause a change status or explanation for other links
             self.pll_user_associations = PllUserAssociation.objects.select_related(
                 "pll__scheme_account", "pll__payment_card_account"
-            ).filter(payment_card_account, pll__scheme_account=scheme_account)
+            ).filter(Q(pll__payment_card_account=payment_card_account) | Q(pll__scheme_account=scheme_account))
         elif payment_card_account is not None:
             self.pll_user_associations = PllUserAssociation.objects.select_related(
                 "pll__scheme_account", "pll__payment_card_account"
@@ -994,12 +997,6 @@ class PaymentCardSchemeEntry(models.Model):
             f"SchemeAccount id: {self.scheme_account.id}"
         )
 
-    def delete(self, *kwargs):
-        # It might make sense to put the VOP deactivations logic here
-        PllUserAssociation.objects.filter(pll=self).delete()
-        PllUserAssociation.update_user_pll_by_both(self.payment_card_account, self.scheme_account)
-        self.delete(kwargs)
-
     def activate(self, save: bool = True):
         """
         This activates a link - we should be always call this to activate a link for PLL
@@ -1263,6 +1260,8 @@ def update_pll_links_on_save(instance: PaymentCardSchemeEntry, created: bool, **
 
 @receiver(signals.post_delete, sender=PaymentCardSchemeEntry)
 def update_pll_links_on_delete(instance: PaymentCardSchemeEntry, **kwargs) -> None:
+    PllUserAssociation.objects.filter(pll=instance).delete()
+    PllUserAssociation.update_user_pll_by_both(instance.payment_card_account, instance.scheme_account)
     _remove_pll_link(instance)
 
 

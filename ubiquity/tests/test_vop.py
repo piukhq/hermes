@@ -200,12 +200,12 @@ class TestVOP(GlobalMockAPITestCase):
         )
         pll_entry_1_id = upa1.pll.id
 
-        #entry = PaymentCardSchemeEntry.objects.create(
+        # entry = PaymentCardSchemeEntry.objects.create(
         #    payment_card_account=self.payment_card_account, scheme_account=self.scheme_account
         # )
 
         # entry.active_link = True
-        #entry.save()
+        # entry.save()
         # entry.vop_activate_check()
         self.assertTrue(mock_activate.called)
 
@@ -465,14 +465,10 @@ class TestVOP(GlobalMockAPITestCase):
             user_id=user.id, scheme_account_id=mcard_2.id, link_status=AccountLinkStatus.ACTIVE
         )
 
-        upa1 = PllUserAssociation.link_users_scheme_account_to_payment(
-            mcard_1, pcard_1, user
-        )
+        upa1 = PllUserAssociation.link_users_scheme_account_to_payment(mcard_1, pcard_1, user)
         entry1 = upa1.pll
 
-        upa2 = PllUserAssociation.link_users_scheme_account_to_payment(
-            mcard_2, pcard_2, user
-        )
+        upa2 = PllUserAssociation.link_users_scheme_account_to_payment(mcard_2, pcard_2, user)
         entry2 = upa2.pll
 
         """ entry1 = PaymentCardSchemeEntry.objects.create(
