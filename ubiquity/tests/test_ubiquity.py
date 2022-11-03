@@ -48,7 +48,15 @@ from scheme.tests.factories import (
 )
 from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.channel_vault import AESKeyNames
-from ubiquity.models import AccountLinkStatus, PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
+from ubiquity.models import (
+    AccountLinkStatus,
+    PaymentCardAccountEntry,
+    PaymentCardSchemeEntry,
+    SchemeAccountEntry,
+    PllUserAssociation,
+    WalletPLLStatus,
+    WalletPLLSlug,
+)
 from ubiquity.reason_codes import CURRENT_STATUS_CODES
 from ubiquity.tasks import deleted_membership_card_cleanup
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
@@ -2571,6 +2579,7 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertEqual(success_resp.status_code, 201)
         query["scheme_account_id"] = success_resp.json()["id"]
+
         self.assertTrue(PaymentCardSchemeEntry.objects.filter(**query).exists())
 
         # linking a second loyalty card of the same plan to the same payment account. UBIQUITY_COLLISION scenario.
@@ -2597,7 +2606,10 @@ class TestResources(GlobalMockAPITestCase):
             .all()
         )
         self.assertEqual(len(entries), 2)
-        self.assertEqual(PaymentCardSchemeEntry.UBIQUITY_COLLISION, entries[1].slug)
+        ulinks = PllUserAssociation.objects.get(pll=entries[1], user=user)
+        self.assertEqual(ulinks.slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
+        self.assertEqual(ulinks.state, WalletPLLStatus.INACTIVE.value)
+        self.assertFalse(entries[1].active_link)
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_join", autospec=True)
