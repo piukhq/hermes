@@ -904,6 +904,10 @@ class PllUserAssociation(models.Model):
         cls, scheme_account_entry: SchemeAccountEntry, payment_card_accounts: list["PaymentCardAccount"]
     ):
         for payment_card_account in payment_card_accounts:
+            if isinstance(payment_card_account, int):  # In background tasks a list of ids is sent rather than objects
+                from payment_card.models import PaymentCardAccount  # need to avoid circular import
+
+                payment_card_account = PaymentCardAccount.objects.get(id=payment_card_account)
             cls.link_users_scheme_account_entry_to_payment(scheme_account_entry, payment_card_account)
 
     @classmethod
