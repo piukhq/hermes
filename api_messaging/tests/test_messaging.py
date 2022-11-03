@@ -6,10 +6,10 @@ from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.tests.factories import SchemeAccountFactory
+from ubiquity.models import PaymentCardSchemeEntry, PllUserAssociation, WalletPLLSlug, WalletPLLStatus
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from user.models import CustomUser
 from user.tests.factories import UserFactory
-from ubiquity.models import PllUserAssociation, PaymentCardSchemeEntry, WalletPLLStatus, WalletPLLSlug
 
 
 class TestPaymentAccountMessaging(GlobalMockAPITestCase):
@@ -70,7 +70,7 @@ class TestPaymentAccountMessaging(GlobalMockAPITestCase):
         self.assertFalse(mock_metis_enrol.called)
         links = PaymentCardSchemeEntry.objects.filter(
             scheme_account=self.scheme_account,
-            payment_card_account=self.payment_card_account_entry.payment_card_account
+            payment_card_account=self.payment_card_account_entry.payment_card_account,
         ).all()
         self.assertEqual(len(links), 1)
         user_pll = PllUserAssociation.objects.filter(pll=links[0], user=self.payment_card_account_entry.user)
@@ -78,7 +78,6 @@ class TestPaymentAccountMessaging(GlobalMockAPITestCase):
         self.assertEqual(user_pll[0].slug, WalletPLLSlug.LOYALTY_CARD_PENDING.value)
         self.assertEqual(user_pll[0].state, WalletPLLStatus.PENDING)
         self.assertEqual(links[0].active_link, False)
-
 
     @patch("payment_card.metis.delete_payment_card")
     def test_process_delete_payment_account_deleted(self, metis_delete_payment_card):
@@ -201,7 +200,6 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         to_link = params.get("payment_cards_to_link", [])
         self.assertEqual(len(to_link), 1)
 
-
     @patch("api_messaging.angelia_background.async_link")
     def test_loyalty_card_authorise_no_autolink(self, mock_async_link):
         """Tests AUTH routing for an existing loyalty card without auto-linking"""
@@ -211,7 +209,6 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         params = mock_async_link.call_args.kwargs
         to_link = params.get("payment_cards_to_link", [])
         self.assertEqual(len(to_link), 0)
-
 
     @patch("api_messaging.angelia_background.MembershipCardView.handle_registration_route")
     def test_loyalty_card_register_journey(self, mock_handle_registration):

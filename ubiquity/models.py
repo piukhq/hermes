@@ -13,7 +13,6 @@ from django.dispatch import receiver
 from django.utils.functional import cached_property
 
 from hermes import settings
-
 from hermes.vop_tasks import send_deactivation, vop_activate_request
 from history.signals import HISTORY_CONTEXT
 from scheme.credentials import BARCODE, CARD_NUMBER, ENCRYPTED_CREDENTIALS, PASSWORD, PASSWORD_2
@@ -21,7 +20,7 @@ from scheme.encryption import AESCipher
 from ubiquity.channel_vault import AESKeyNames
 
 if TYPE_CHECKING:
-    from payment_card.models import PaymentCardAccount # noqa
+    from payment_card.models import PaymentCardAccount  # noqa
     from scheme.models import SchemeAccount  # noqa
     from scheme.models import SchemeAccountCredentialAnswer
     from user.models import CustomUser
@@ -905,8 +904,9 @@ class PllUserAssociation(models.Model):
         cls, scheme_account_entry: SchemeAccountEntry, payment_card_accounts: list["PaymentCardAccount"]
     ):
         for payment_card_account in payment_card_accounts:
-            if isinstance(payment_card_account, int):   # In background tasks a list of ids is sent rather than objects
-                from payment_card.models import PaymentCardAccount   # need to avoid circular import
+            if isinstance(payment_card_account, int):  # In background tasks a list of ids is sent rather than objects
+                from payment_card.models import PaymentCardAccount  # need to avoid circular import
+
                 payment_card_account = PaymentCardAccount.objects.get(id=payment_card_account)
             cls.link_users_scheme_account_entry_to_payment(scheme_account_entry, payment_card_account)
 
