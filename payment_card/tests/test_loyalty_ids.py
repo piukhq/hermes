@@ -15,8 +15,18 @@ class TestRetrieveLoyaltyID(GlobalMockAPITestCase):
         cls.user_1 = user_factories.UserFactory()
         cls.user_2 = user_factories.UserFactory()
 
-        cls.payment_card_account_1 = payment_card_factories.PaymentCardAccountFactory(psp_token="1122**33")
-        cls.payment_card_account_2 = payment_card_factories.PaymentCardAccountFactory(psp_token="3322**11")
+        cls.psp_token_1 = "1144**33"
+        cls.psp_token_2 = "3344**11"
+
+        cls.payment_card_account_1 = payment_card_factories.PaymentCardAccountFactory(
+            psp_token=cls.psp_token_1, token=cls.psp_token_1
+        )
+        cls.payment_card_account_2 = payment_card_factories.PaymentCardAccountFactory(
+            psp_token=cls.psp_token_2, token=cls.psp_token_2
+        )
+
+        # cls.payment_card_account_1 = payment_card_factories.PaymentCardAccountFactory(psp_token="1122**33")
+        # cls.payment_card_account_2 = payment_card_factories.PaymentCardAccountFactory(psp_token="3322**11")
 
         ubiquity.tests.factories.PaymentCardAccountEntryFactory(
             payment_card_account=cls.payment_card_account_1, user=cls.user_1

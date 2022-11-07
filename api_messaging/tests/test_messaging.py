@@ -5,11 +5,12 @@ from api_messaging.exceptions import InvalidMessagePath
 from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import PaymentCardAccountFactory
-from scheme.tests.factories import SchemeAccountFactory
+from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialQuestionFactory
 from ubiquity.models import PaymentCardSchemeEntry, PllUserAssociation, WalletPLLSlug, WalletPLLStatus
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from user.models import CustomUser
 from user.tests.factories import UserFactory
+from scheme.credentials import CARD_NUMBER
 
 
 class TestPaymentAccountMessaging(GlobalMockAPITestCase):
@@ -104,6 +105,8 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             payment_card_account__psp_token="test_token",
             payment_card_account__status=PaymentCardAccount.ACTIVE,
         )
+
+        SchemeCredentialQuestionFactory(scheme=cls.scheme_account.scheme, type=CARD_NUMBER)
         cls.auth_fields = [
             {"credential_slug": "last_name", "value": "Jones"},
             {"credential_slug": "postcode", "value": "RGB 114"},

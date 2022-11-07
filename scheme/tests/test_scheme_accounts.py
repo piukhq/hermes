@@ -1060,7 +1060,9 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         test_status = AccountLinkStatus.JOIN_ERROR
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory()
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, link_status=AccountLinkStatus.PENDING)
+        scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=scheme_account, link_status=AccountLinkStatus.PENDING
+        )
 
         points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, scheme_account_entry)
 
