@@ -52,8 +52,8 @@ class PaymentCardAccountFactory(factory.django.DjangoModelFactory):
     pan_end = "2222"
     order = 0
     issuer = factory.SubFactory(IssuerFactory)
-    fingerprint = str(uuid.uuid4)
-    psp_token = str(uuid.uuid4)
+    fingerprint = str(uuid.uuid4().hex)
+    psp_token = str(uuid.uuid4().hex)
     token = psp_token
     issuer_name = fake.word()
 

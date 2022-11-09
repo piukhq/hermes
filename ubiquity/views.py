@@ -835,11 +835,15 @@ class MembershipCardView(
                 route=metrics_route.value,
             ).inc()
 
-        auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, entry.scheme_account)
+        # auth_provided_mapping =
+        # MembershipCardSerializer.get_mcard_user_auth_provided_map(request, entry.scheme_account)
         return Response(
             self.get_serializer_by_request(
                 entry.scheme_account,
-                context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": self.request.user.id},
+                context={
+                    # "mcard_user_auth_provided_map": auth_provided_mapping,
+                    "user_id": self.request.user.id
+                },
             ).data,
             status=status.HTTP_200_OK,
         )
@@ -1070,14 +1074,25 @@ class MembershipCardView(
         serializer.is_valid(raise_exception=True)
 
         # Create or retrieve scheme_account
-        scheme_account, _, account_created, answer_type, main_answer = self.create_account_with_valid_data(
-            serializer, user, scheme
-        )
+        (
+            scheme_account,
+            _,
+            account_created,
+            answer_type,
+            main_answer,
+            sch_acc_entry,
+            sch_acc_entry_created,
+        ) = self.create_account_with_valid_data(serializer, user, scheme)
 
         # Create or retrieve scheme_account_entry and create main answer creds for this entry if necessary
-        sch_acc_entry, sch_acc_entry_created = SchemeAccountEntry.create_or_retrieve_link(
-            user=user, scheme_account=scheme_account, auth_provided=True
-        )
+
+        # Seems not to do anything now:
+        # if not sch_acc_entry:
+        #    sch_acc_entry, sch_acc_entry_created = SchemeAccountEntry.create_or_retrieve_link(
+        #        user=user, scheme_account=scheme_account
+        #    )
+        # else:
+        #    sch_acc_entry_created = True
 
         if sch_acc_entry_created:
             self.create_main_answer_credential(
@@ -1176,9 +1191,7 @@ class MembershipCardView(
 
             if other_scheme_links.exists():
                 scheme_account = other_scheme_links.first().scheme_account
-                sch_acc_entry, _ = SchemeAccountEntry.create_or_retrieve_link(
-                    user=user, scheme_account=scheme_account, auth_provided=True
-                )
+                sch_acc_entry, _ = SchemeAccountEntry.create_or_retrieve_link(user=user, scheme_account=scheme_account)
                 return scheme_account, sch_acc_entry, status.HTTP_201_CREATED
 
         creation_args = {
@@ -1444,7 +1457,6 @@ class ListMembershipCardView(MembershipCardView):
                 account,
                 context={
                     "request": request,
-                    "mcard_user_auth_provided_map": {sch_acc_entry.scheme_account_id: sch_acc_entry.auth_provided},
                     "user_id": self.request.user.id,
                 },
             ).data,

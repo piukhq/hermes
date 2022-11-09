@@ -5,12 +5,12 @@ from api_messaging.exceptions import InvalidMessagePath
 from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import PaymentCardAccountFactory
+from scheme.credentials import CARD_NUMBER
 from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialQuestionFactory
 from ubiquity.models import PaymentCardSchemeEntry, PllUserAssociation, WalletPLLSlug, WalletPLLStatus
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from user.models import CustomUser
 from user.tests.factories import UserFactory
-from scheme.credentials import CARD_NUMBER
 
 
 class TestPaymentAccountMessaging(GlobalMockAPITestCase):

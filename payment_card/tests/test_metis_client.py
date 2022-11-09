@@ -10,8 +10,9 @@ from payment_card.tests.factories import PaymentCardAccountFactory
 class TestMetisClient(GlobalMockAPITestCase):
     @httpretty.activate
     def test_enrol_existing_payment_card(self):
+        #  .../payment_card/update is for Master Card
         httpretty.register_uri(httpretty.POST, settings.METIS_URL + "/payment_service/payment_card/update", status=204)
         account = PaymentCardAccountFactory()
-        account.payment_card.name = PaymentCard.MASTERCARD
+        account.payment_card.system = PaymentCard.MASTERCARD
         enrol_existing_payment_card(account, run_async=False)
         self.assertTrue(httpretty.has_request())

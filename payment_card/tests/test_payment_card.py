@@ -194,7 +194,7 @@ class TestPaymentCard(GlobalMockAPITestCase):
         token = "test_token_123"
         user = UserFactory()
         sae = SchemeAccountEntryFactory(user=user)
-        pca = factories.PaymentCardAccountFactory(psp_token=token, payment_card=self.payment_card)
+        pca = factories.PaymentCardAccountFactory(psp_token=token, token=token, payment_card=self.payment_card)
         ubiquity.tests.factories.PaymentCardAccountEntryFactory(user=user, payment_card_account=pca)
         PaymentCardSchemeEntryFactory(payment_card_account=pca, scheme_account=sae.scheme_account)
 
@@ -211,7 +211,9 @@ class TestAuthTransactions(GlobalMockAPITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.auth_service_headers = {"HTTP_AUTHORIZATION": "Token " + settings.SERVICE_API_KEY}
-        cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token="234rghjcewerg4gf3ef23v")
+        cls.payment_card_account = factories.PaymentCardAccountFactory(
+            psp_token="234rghjcewerg4gf3ef23v", token="234rghjcewerg4gf3ef23v"
+        )
 
     def test_create_auth_transaction_endpoint(self):
         payload = {
