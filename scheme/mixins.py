@@ -162,7 +162,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
     def create_account_with_valid_data(
         self, serializer: "Serializer", user: "CustomUser", scheme: Scheme
-    ) -> t.Tuple[SchemeAccount, dict, bool, str, str]:
+    ) -> t.Tuple[SchemeAccount, dict, bool, str, str, SchemeAccountEntry, bool]:
         data = serializer.validated_data
         answer_type = serializer.context["answer_type"]
         account_created = False
@@ -176,12 +176,13 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         except SchemeAccount.DoesNotExist:
             account_created = True
             scheme_account = self._create_new_account(user, scheme, data, answer_type)
-            SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
-            resp = (scheme_account, data, account_created, answer_type, data[answer_type])
+            sae = SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
+            resp = (scheme_account, data, account_created, answer_type, data[answer_type], sae, True)
         else:
-            # handle_existing_scheme_account is called after this function
-            # to check if auth_fields match and link to user if not linked already
-            resp = (scheme_account, data, account_created, answer_type, data[answer_type])
+            # removed handle_existing_scheme_account is called after this function as it just seemed
+            # to set auth provided flag no longer used. Get or create is probably overkill as it should already be set
+            sae, sae_created = SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
+            resp = (scheme_account, data, account_created, answer_type, data[answer_type], sae, sae_created)
 
         data["id"] = scheme_account.id
         return resp

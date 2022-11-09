@@ -625,10 +625,9 @@ class TestResources(GlobalMockAPITestCase):
     def test_membership_card_status_mapping_active(self, *_):
         self.scheme_account_entry.link_status = AccountLinkStatus.ACTIVE
         self.scheme_account_entry.save()
-        mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer(
             self.scheme_account,
-            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual(data["status"]["state"], "authorised")
         self.assertEqual(data["status"]["reason_codes"], ["X300"])
@@ -641,11 +640,11 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account_entry.link_status = user_error
         self.scheme_account.balances = {}
         self.scheme_account.save()
+        self.scheme_account_entry.save()
 
-        mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer(
             self.scheme_account,
-            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual(data["status"]["state"], "failed")
         self.assertEqual(data["status"]["reason_codes"], ["X303"])
@@ -655,7 +654,7 @@ class TestResources(GlobalMockAPITestCase):
 
         data = MembershipCardSerializer(
             self.scheme_account,
-            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual(data["status"]["state"], "failed")
         self.assertEqual(data["status"]["reason_codes"], ["X303"])
@@ -671,10 +670,9 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.balances = {}
         self.scheme_account.save()
 
-        mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer(
             self.scheme_account,
-            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual("pending", data["status"]["state"])
         self.assertEqual(["X100"], data["status"]["reason_codes"])
@@ -684,7 +682,7 @@ class TestResources(GlobalMockAPITestCase):
 
         data = MembershipCardSerializer(
             self.scheme_account,
-            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual("authorised", data["status"]["state"])
         self.assertEqual(["X300"], data["status"]["reason_codes"])
@@ -693,10 +691,9 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account_entry.link_status = AccountLinkStatus.ACCOUNT_ALREADY_EXISTS
         self.scheme_account_entry.save()
         error_messages = dict((code, message) for code, message in CURRENT_STATUS_CODES)
-        mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer_V1_3(
             self.scheme_account,
-            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual(error_messages[445], data["status"]["error_text"])
 
@@ -711,10 +708,10 @@ class TestResources(GlobalMockAPITestCase):
             message="Custom error message",
         )
         error.save()
-        mcard_user_auth_provided_map = {self.scheme_account.id: True}
+
         data = MembershipCardSerializer_V1_3(
             self.scheme_account,
-            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual("Custom error message", data["status"]["error_text"])
 
@@ -734,19 +731,17 @@ class TestResources(GlobalMockAPITestCase):
     def test_membership_card_serializer_base_V1_2_contains_no_error_message(self):
         self.scheme_account_entry.link_status = AccountLinkStatus.ACCOUNT_ALREADY_EXISTS
         self.scheme_account_entry.save()
-        mcard_user_auth_provided_map = {self.scheme_account.id: True}
 
         data = MembershipCardSerializer_base(
             self.scheme_account,
-            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
+            context={"user_id": self.user.id},
         ).data
         status = {"state": "failed", "reason_codes": ["X202"]}
         self.assertEqual(status, data["status"])
 
-        mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer(
             self.scheme_account,
-            context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map, "user_id": self.user.id},
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual(status, data["status"])
 
@@ -2654,6 +2649,7 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.scheme_account.refresh_from_db()
+        self.scheme_account_entry.refresh_from_db()
         self.assertEqual(self.scheme_account_entry.link_status, AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS)
         self.assertIn(self.scheme_account_entry.link_status, AccountLinkStatus.join_pending())
         self.assertTrue(not self.scheme_account_entry.schemeaccountcredentialanswer_set.all())

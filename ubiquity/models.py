@@ -262,9 +262,9 @@ class SchemeAccountEntry(models.Model):
 
     @staticmethod
     def create_or_retrieve_link(
-        user: "CustomUser", scheme_account: "SchemeAccount", auth_provided: bool
+        user: "CustomUser", scheme_account: "SchemeAccount"
     ) -> tuple["SchemeAccountEntry", bool]:
-        entry = SchemeAccountEntry(user=user, scheme_account=scheme_account, auth_provided=auth_provided)
+        entry = SchemeAccountEntry(user=user, scheme_account=scheme_account)
         created = True
         try:
             # required to rollback transactions when running into an expected IntegrityError
@@ -276,8 +276,6 @@ class SchemeAccountEntry(models.Model):
             # An update is done here instead of initially using an update_or_create to avoid the db call
             # to check if a record exists, since this is an edge case.
             entry = SchemeAccountEntry.objects.get(user=user, scheme_account=scheme_account)
-            entry.auth_provided = auth_provided
-            entry.save(update_fields=["auth_provided"])
             created = False
 
         return entry, created
