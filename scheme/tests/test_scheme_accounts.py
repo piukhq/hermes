@@ -240,7 +240,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         data = {
             "status": AccountLinkStatus.MIDAS_UNREACHABLE,
             "journey": "join",
-            "user_info": {"user_set": user_set},
+            "user_info": {"bink_user_id": user_set},
         }
         response = self.client.post(
             "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
@@ -361,6 +361,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(response.data["status"], AccountLinkStatus.ENROL_FAILED)
 
         scheme_account_entry.refresh_from_db()
+        scheme_account.refresh_from_db()
         self.assertEqual(scheme_account.alt_main_answer, "")
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.ENROL_FAILED)
 

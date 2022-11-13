@@ -541,11 +541,10 @@ class MembershipCardView(
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
         entry = get_object_or_404(self.get_queryset(), scheme_account=self.kwargs["pk"])
-        auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, entry.scheme_account)
         return Response(
             self.get_serializer_by_request(
                 entry.scheme_account,
-                context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": self.request.user.id},
+                context={"user_id": self.request.user.id},
             ).data
         )
 
@@ -562,11 +561,10 @@ class MembershipCardView(
 
     @censor_and_decorate
     def update(self, request, *args, **kwargs):
-        entry = get_object_or_404(self.get_queryset(), scheme_account=self.kwargs["pk"])
-        self.log_update(entry.scheme_account.pk)
-        scheme = entry.scheme_account.scheme
+        sch_acc_entry = get_object_or_404(self.get_queryset(), scheme_account=self.kwargs["pk"])
+        self.log_update(sch_acc_entry.scheme_account.pk)
+        scheme = sch_acc_entry.scheme_account.scheme
         scheme_questions = scheme.questions.all()
-        sch_acc_entry = entry.scheme_account.schemeaccountentry_set.get(user=request.user)
         update_fields, registration_fields = self._collect_updated_answers(scheme, scheme_questions)
 
         if auto_link(request):
@@ -589,9 +587,9 @@ class MembershipCardView(
             metrics_route = MembershipCardAddRoute.REGISTER
 
             # send this event to data_warehouse
-            register_lc_event(entry, request.channels_permit.bundle_id)
+            register_lc_event(sch_acc_entry, request.channels_permit.bundle_id)
         else:
-            if not sch_acc_entry.auth_provided:
+            if sch_acc_entry.link_status != AccountLinkStatus.ACTIVE:
                 raise CardAuthError(
                     "Cannot update authorise fields for Store type card. Card must be authorised "
                     "via POST /membership_cards endpoint first."
@@ -604,7 +602,7 @@ class MembershipCardView(
             except (KeyError, TypeError):
                 auth_fields = None
             if auth_fields:
-                auth_request_lc_event(request.user, entry.scheme_account, request.channels_permit.bundle_id)
+                auth_request_lc_event(request.user, sch_acc_entry.scheme_account, request.channels_permit.bundle_id)
 
             if update_fields:
                 update_fields = detect_and_handle_escaped_unicode(update_fields)
@@ -623,7 +621,6 @@ class MembershipCardView(
             self.get_serializer_by_request(
                 updated_account,
                 context={
-                    "mcard_user_auth_provided_map": {sch_acc_entry.scheme_account_id: sch_acc_entry.auth_provided},
                     "user_id": self.request.user.id,
                 },
             ).data,
@@ -759,9 +756,8 @@ class MembershipCardView(
             data=registration_data, scheme_account=account, user=user, permit=permit, join_scheme=scheme
         )
 
-        scheme_acc_entry.auth_provided = True
         scheme_acc_entry.link_status = AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS
-        scheme_acc_entry.save(update_fields=["auth_provided"])
+        scheme_acc_entry.save(update_fields=["link_status"])
 
         async_registration.delay(
             user.id,
@@ -835,6 +831,7 @@ class MembershipCardView(
                 route=metrics_route.value,
             ).inc()
 
+        entry.save()
         # auth_provided_mapping =
         # MembershipCardSerializer.get_mcard_user_auth_provided_map(request, entry.scheme_account)
         return Response(
@@ -876,9 +873,8 @@ class MembershipCardView(
                 raise ParseError("Only one type of main answer should be provided")
             account.alt_main_answer = validated_data[answer_types.pop()]
 
-        scheme_acc_entry.auth_provided = True
         scheme_acc_entry.link_status = AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS
-        scheme_acc_entry.save(update_fields=["auth_provided"])
+        scheme_acc_entry.save(update_fields=["link_status"])
 
         scheme_acc_entry.schemeaccountcredentialanswer_set.all().delete()
         account.save(update_fields=["alt_main_answer"])
