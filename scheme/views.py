@@ -417,14 +417,12 @@ class SystemActionSchemeAccounts(ListAPIView):
     authentication_classes = (ServiceAuthentication,)
 
     def get_queryset(self):
-        return set(
-            [
-                sae.scheme_account
-                for sae in SchemeAccountEntry.objects.filter(
-                    link_status__in=AccountLinkStatus.system_action_required()
-                ).all()
-            ]
-        )
+        return [
+            sae.scheme_account
+            for sae in SchemeAccountEntry.objects.filter(
+                link_status__in=AccountLinkStatus.system_action_required()
+            ).all()
+        ]
 
     serializer_class = SchemeAccountIdsSerializer
     pagination_class = Pagination

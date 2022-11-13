@@ -893,8 +893,13 @@ class TestResources(GlobalMockAPITestCase):
         card_id = resp_json["id"]
 
         self.assertEqual(resp.status_code, 200)
+
         self.assertEqual(
-            resp_json["status"], {"state": "unauthorised", "reason_codes": ["X103"], "error_text": "Wallet only card"}
+            # was
+            # resp_json["status"], {"state": "unauthorised", "reason_codes": ["X103"], "error_text": "Wallet only card"}
+            # now 2nd user is pending until response from Midas responds (ie background tasks mocked out run)
+            resp_json["status"],
+            {"state": "pending", "reason_codes": ["X100"], "error_text": "Pending"},
         )
 
         user_links = SchemeAccountEntry.objects.filter(scheme_account=existing_scheme_account)
@@ -902,7 +907,6 @@ class TestResources(GlobalMockAPITestCase):
         linked_users = [link.user_id for link in user_links]
         self.assertIn(self.user.id, linked_users)
         self.assertIn(new_user.id, linked_users)
-        self.assertTrue(all([link.auth_provided for link in user_links]))
 
         # check card is in get membership_cards response
         resp = self.client.get(reverse("membership-cards"), content_type="application/json", **headers)
@@ -1336,6 +1340,11 @@ class TestResources(GlobalMockAPITestCase):
 
         self.user.is_tester = True
         self.user.save()
+
+        # Must set active in order for re-patch to work and show result of test user
+        self.scheme_account_entry.link_status = AccountLinkStatus.ACTIVE
+        self.scheme_account_entry.save()
+
         response = self.client.patch(
             reverse("membership-card", args=[self.scheme_account.id]),
             content_type="application/json",
@@ -1999,7 +2008,9 @@ class TestResources(GlobalMockAPITestCase):
         user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
         auth_headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(user))}
         sa = SchemeAccountFactory(scheme=self.scheme, card_number="12345", originating_journey=JourneyTypes.ADD)
-        scheme_account_entry = SchemeAccountEntryFactory(user=user, scheme_account=sa)
+        scheme_account_entry = SchemeAccountEntryFactory(
+            user=user, scheme_account=sa, link_status=AccountLinkStatus.ACTIVE
+        )
         SchemeCredentialAnswerFactory(
             question=self.scheme.manual_question,
             answer="12345",
@@ -2019,9 +2030,12 @@ class TestResources(GlobalMockAPITestCase):
             **auth_headers,
         )
         self.assertEqual(resp_update.status_code, 200)
+        scheme_account_entry.refresh_from_db()
         scheme_account_entry.link_status = AccountLinkStatus.PRE_REGISTERED_CARD
+        scheme_account_entry.save()
         sa.save()
         sa.refresh_from_db()
+
         self.assertEqual(expected_value["last_name"], scheme_account_entry._collect_credential_answers()["last_name"])
 
         payload_register = {"account": {"registration_fields": [{"column": "last_name", "value": "new changed name"}]}}
@@ -2033,6 +2047,7 @@ class TestResources(GlobalMockAPITestCase):
         )
         self.assertEqual(resp_register.status_code, 200)
         sa.refresh_from_db()
+        scheme_account_entry.refresh_from_db()
         self.assertIn(scheme_account_entry.link_status, AccountLinkStatus.register_pending())
         self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
 
@@ -2704,6 +2719,7 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.scheme_account.refresh_from_db()
+        self.scheme_account_entry.refresh_from_db()
         self.assertEqual(self.scheme_account.alt_main_answer, main_answer)
         self.assertEqual(self.scheme_account_entry.link_status, AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS)
         self.assertTrue(not self.scheme_account_entry.schemeaccountcredentialanswer_set.all())

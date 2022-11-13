@@ -7,6 +7,7 @@ from rest_framework.reverse import reverse
 
 from hermes.vop_tasks import send_activation, send_deactivation
 from history.utils import GlobalMockAPITestCase
+from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import BARCODE, CARD_NUMBER, LAST_NAME, PASSWORD, PAYMENT_CARD_HASH
 from scheme.models import SchemeBundleAssociation, SchemeCredentialQuestion
@@ -437,8 +438,9 @@ class TestVOP(GlobalMockAPITestCase):
     @patch("ubiquity.tasks.remove_loyalty_card_event")
     @patch("hermes.vop_tasks.send_activation.delay", autospec=True)
     @patch("ubiquity.views.deleted_service_cleanup.delay", autospec=True)
+    @patch("ubiquity.tasks.to_data_warehouse", autospec=True)
     @httpretty.activate
-    def test_unenrol_and_deactivate_on_service_delete(self, mock_delete, mock_activate, mock_to_warehouse):
+    def test_unenrol_and_deactivate_on_service_delete(self, mock_to_warehouse, mock_delete, mock_activate, _):
         """
         :param mock_delete: Only the delay is mocked out allows call deleted_payment_card_cleanup with correct args
         :param mock_activate: Only the delay is mocked out allows call send_activation with correct args
@@ -450,26 +452,43 @@ class TestVOP(GlobalMockAPITestCase):
         user = UserFactory(external_id="test@delete.user", client=self.client_app, email="test@delete.user")
         ServiceConsentFactory(user=user)
         payment_card = PaymentCardFactory(slug="visa")
-        pcard_1 = PaymentCardAccountFactory(payment_card=payment_card)
-        pcard_2 = PaymentCardAccountFactory(payment_card=payment_card)
-        mcard_1 = SchemeAccountFactory()
-        mcard_2 = SchemeAccountFactory()
+        pll_entry_1 = {
+            "pcard": PaymentCardAccountFactory(payment_card=payment_card, status=PaymentCardAccount.ACTIVE),
+            "mcard": SchemeAccountFactory(),
+        }
+        pll_entry_2 = {
+            "pcard": PaymentCardAccountFactory(payment_card=payment_card, status=PaymentCardAccount.ACTIVE),
+            "mcard": SchemeAccountFactory(),
+        }
 
-        PaymentCardAccountEntry.objects.create(user_id=user.id, payment_card_account_id=pcard_1.id)
-        PaymentCardAccountEntry.objects.create(user_id=user.id, payment_card_account_id=pcard_2.id)
+        PaymentCardAccountEntry.objects.create(user_id=user.id, payment_card_account_id=pll_entry_1["pcard"].id)
+        PaymentCardAccountEntry.objects.create(user_id=user.id, payment_card_account_id=pll_entry_2["pcard"].id)
 
         SchemeAccountEntry.objects.create(
-            user_id=user.id, scheme_account_id=mcard_1.id, link_status=AccountLinkStatus.ACTIVE
+            user_id=user.id, scheme_account_id=pll_entry_1["mcard"].id, link_status=AccountLinkStatus.ACTIVE
         )
         SchemeAccountEntry.objects.create(
-            user_id=user.id, scheme_account_id=mcard_2.id, link_status=AccountLinkStatus.ACTIVE
+            user_id=user.id, scheme_account_id=pll_entry_2["mcard"].id, link_status=AccountLinkStatus.ACTIVE
         )
 
-        upa1 = PllUserAssociation.link_users_scheme_account_to_payment(mcard_1, pcard_1, user)
-        entry1 = upa1.pll
+        activation_ids = {}
 
-        upa2 = PllUserAssociation.link_users_scheme_account_to_payment(mcard_2, pcard_2, user)
-        entry2 = upa2.pll
+        # Link cards using PllAssociation and check activation occurs as expected
+        for entry in [pll_entry_1, pll_entry_2]:
+            PllUserAssociation.link_users_scheme_account_to_payment(entry["mcard"], entry["pcard"], user)
+            activation_ids[entry["pcard"].id] = f"activation_id_{entry['pcard'].id}"
+            self.assertTrue(mock_activate.called)
+            # By pass celery delay to send activations by mocking delay getting parameters and calling without delay
+            self.register_activation_request(
+                {
+                    "response_status": "Success",
+                    "agent_response_code": "Activate:SUCCESS",
+                    "agent_response_message": "Success message;",
+                    "activation_id": activation_ids[entry["pcard"].id],
+                }
+            )
+            args = mock_activate.call_args
+            send_activation(*args[0], **args[1])
 
         """ entry1 = PaymentCardSchemeEntry.objects.create(
             payment_card_account=pcard_1, scheme_account=mcard_1, active_link=True
@@ -479,7 +498,7 @@ class TestVOP(GlobalMockAPITestCase):
             payment_card_account=pcard_2, scheme_account=mcard_2, active_link=True
         )
         """
-
+        """
         activation_ids = {}
         # Run activations code for each entry
         for entry in [entry1, entry2]:
@@ -499,10 +518,11 @@ class TestVOP(GlobalMockAPITestCase):
             # By pass celery delay to send activations by mocking delay getting parameters and calling without delay
             args = mock_activate.call_args
             send_activation(*args[0], **args[1])
+        """
 
         activations = VopActivation.objects.all()
         for activation in activations:
-            self.assertEqual(VopActivation.ACTIVATING, activation.status)
+            self.assertEqual(VopActivation.ACTIVATED, activation.status)
             self.assertEqual(activation_ids[activation.payment_card_account.id], activation.activation_id)
 
         auth_headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(user))}

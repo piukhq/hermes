@@ -349,6 +349,13 @@ class TestPermitSharedScheme(GlobalMockAPITestCase):
 
 
 class TestInternalService(GlobalMockAPITestCase):
+    """
+    It thought that Internal Service on these end points was part of Daedalus and should be removed as a feature
+    It cannot work with the updated models since these end points are user related.  Membership account by id can only
+    return a response for a known user.  If accessed by an unknow/admin user it would have to return account status per
+    user.  The endpoint will fail for multiple users sharing and account
+    """
+
     @classmethod
     def setUpTestData(cls):
         cls.bink_org = Organisation.objects.get(name="Loyalty Angels")
@@ -398,7 +405,15 @@ class TestInternalService(GlobalMockAPITestCase):
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     def test_get_single_membership_card(self, mock_get_midas_balance):
+        """
+        Membership account by id can only return a response for a known user.  If accessed by an unknow/admin user
+        via an internal service auth header it would have to return account status per user.  The endpoint will fail for
+        multiple users sharing and account if internal service header is used or may return incorrect data as the user
+        id is not properly set.  The test using self.internal_service_auth_headers have been removed as the code
+        no longer supports it.
+        """
         mock_get_midas_balance.return_value = self.scheme_account_1.balances
+        """
         resp = self.client.get(
             reverse("membership-card", args=[self.scheme_account_1.id]), **self.internal_service_auth_headers
         )
@@ -411,6 +426,7 @@ class TestInternalService(GlobalMockAPITestCase):
             reverse("membership-card", args=[self.scheme_account_2.id]), **self.internal_service_auth_headers
         )
         self.assertEqual(resp.status_code, 200)
+        """
 
         resp = self.client.get(reverse("membership-card", args=[self.scheme_account_1.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 404)
