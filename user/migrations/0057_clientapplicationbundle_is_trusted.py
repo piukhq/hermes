@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0056_customuser_last_accessed'),
+        ("user", "0056_customuser_last_accessed"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='clientapplicationbundle',
-            name='is_trusted',
+            model_name="clientapplicationbundle",
+            name="is_trusted",
             field=models.BooleanField(default=False),
         ),
     ]
