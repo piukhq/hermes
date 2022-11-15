@@ -142,16 +142,9 @@ def async_balance_with_updated_credentials(
         scheme_account_entry.auth_provided = False
         scheme_account_entry.save()
         """
-        """
-        sae = PaymentCardSchemeEntry.objects.filter(
-            scheme_account=scheme_account, payment_card_account__user_set=user_id
-        )
-
-        user_links = PllUserAssociation.objects.filter(pll=sae, user_id=user_id)
-        for user_pll in user_links:
-        """
-
-        user_pll.update_user_pll_by_scheme_account(scheme_account=scheme_account)
+        scheme_account_entry.link_status = AccountLinkStatus.INVALID_CREDENTIALS
+        scheme_account_entry.save()
+        PllUserAssociation.update_user_pll_by_scheme_account(scheme_account=scheme_account)
 
         """
         # todo: changed from - if all saes linked to sa are ap=false then delete all non-manual creds. This logic will
@@ -166,6 +159,7 @@ def async_balance_with_updated_credentials(
             # Call balance to correctly reset the scheme account balance using the stored credentials
             scheme_account.get_cached_balance(scheme_account_entry=scheme_account_entry)
         """
+
 
 @shared_task
 def async_all_balance(user_id: int, channels_permit) -> None:

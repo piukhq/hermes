@@ -1486,7 +1486,8 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
             link.scheme_account,
             context={
                 # "mcard_user_auth_provided_map": auth_provided_mapping,
-                "user_id": request.user.id},
+                "user_id": request.user.id
+            },
         )
 
         return Response(serializer.data, status_code)

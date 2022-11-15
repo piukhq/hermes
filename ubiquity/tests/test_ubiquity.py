@@ -226,9 +226,7 @@ class TestResources(GlobalMockAPITestCase):
 
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
 
-        self.scheme_account_entry = SchemeAccountEntryFactory.create(
-            scheme_account=self.scheme_account, user=self.user
-        )
+        self.scheme_account_entry = SchemeAccountEntryFactory.create(scheme_account=self.scheme_account, user=self.user)
 
         self.scheme_account_answer = SchemeCredentialAnswerFactory(
             question=self.scheme.manual_question,

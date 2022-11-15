@@ -51,7 +51,6 @@ from user.serializers import UbiquityRegisterSerializer
 
 if t.TYPE_CHECKING:
     from requests import Response
-    from rest_framework.request import Request
 
 logger = logging.getLogger(__name__)
 
@@ -721,7 +720,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
     @staticmethod
     def _strip_reward_tier(balances):
         return [{k: v for k, v in balance.items() if k != "reward_tier"} for balance in balances]
-
 
     """
     @staticmethod
