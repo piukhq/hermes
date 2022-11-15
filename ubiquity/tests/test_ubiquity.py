@@ -227,7 +227,7 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
 
         self.scheme_account_entry = SchemeAccountEntryFactory.create(
-            scheme_account=self.scheme_account, user=self.user, auth_provided=True
+            scheme_account=self.scheme_account, user=self.user
         )
 
         self.scheme_account_answer = SchemeCredentialAnswerFactory(
@@ -920,7 +920,6 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account_entry = SchemeAccountEntryFactory(
             scheme_account=existing_scheme_account,
             user=self.user,
-            auth_provided=True,
             link_status=AccountLinkStatus.WALLET_ONLY,
         )
         SchemeCredentialAnswerFactory(
@@ -945,7 +944,7 @@ class TestResources(GlobalMockAPITestCase):
 
         linked_users = [link.user_id for link in user_links]
         self.assertIn(self.user.id, linked_users)
-        self.assertTrue(all([link.auth_provided for link in user_links]))
+        # self.assertTrue(all([link.auth_provided for link in user_links]))
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("ubiquity.influx_audit.InfluxDBClient")
@@ -977,7 +976,6 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account_entry = SchemeAccountEntryFactory(
             scheme_account=existing_scheme_account,
             user=self.user,
-            auth_provided=False,
             link_status=AccountLinkStatus.WALLET_ONLY,
         )
         SchemeCredentialAnswerFactory(
@@ -1009,7 +1007,6 @@ class TestResources(GlobalMockAPITestCase):
         entry = SchemeAccountEntryFactory(
             scheme_account=existing_scheme_account,
             user=self.user,
-            auth_provided=False,
             link_status=AccountLinkStatus.WALLET_ONLY,
         )
         SchemeCredentialAnswerFactory(
@@ -1031,7 +1028,6 @@ class TestResources(GlobalMockAPITestCase):
         )
 
         self.assertEqual(400, resp.status_code)
-        self.assertFalse(entry.auth_provided)
         self.assertEqual(
             "Cannot update authorise fields for Store type card. Card must be authorised "
             "via POST /membership_cards endpoint first.",
@@ -1053,13 +1049,11 @@ class TestResources(GlobalMockAPITestCase):
         entry1 = SchemeAccountEntryFactory(
             scheme_account=existing_scheme_account,
             user=self.user,
-            auth_provided=True,
             link_status=AccountLinkStatus.ACTIVE,
         )
         entry2 = SchemeAccountEntryFactory(
             scheme_account=existing_scheme_account,
             user=user2,
-            auth_provided=False,
             link_status=AccountLinkStatus.WALLET_ONLY,
         )
 

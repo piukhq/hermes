@@ -116,7 +116,7 @@ def async_balance_with_updated_credentials(
     )
 
     # data warehouse event could be success or failed (depends on midas response etc.)
-    # since we're in this function is always AUTH_PENDING
+
     if dw_event:
         success, _ = dw_event
         auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry)
@@ -138,13 +138,22 @@ def async_balance_with_updated_credentials(
             " Unauthorising user."
         )
 
+        """
         scheme_account_entry.auth_provided = False
         scheme_account_entry.save()
-
-        PaymentCardSchemeEntry.objects.filter(
+        """
+        """
+        sae = PaymentCardSchemeEntry.objects.filter(
             scheme_account=scheme_account, payment_card_account__user_set=user_id
-        ).delete()
+        )
 
+        user_links = PllUserAssociation.objects.filter(pll=sae, user_id=user_id)
+        for user_pll in user_links:
+        """
+
+        user_pll.update_user_pll_by_scheme_account(scheme_account=scheme_account)
+
+        """
         # todo: changed from - if all saes linked to sa are ap=false then delete all non-manual creds. This logic will
         #  change, but we need to decide upon how/why based on status, perhaps. This is more P2/P3 so will leave for
         #  now.
@@ -156,7 +165,7 @@ def async_balance_with_updated_credentials(
         else:
             # Call balance to correctly reset the scheme account balance using the stored credentials
             scheme_account.get_cached_balance(scheme_account_entry=scheme_account_entry)
-
+        """
 
 @shared_task
 def async_all_balance(user_id: int, channels_permit) -> None:

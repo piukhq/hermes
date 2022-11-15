@@ -722,17 +722,19 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
     def _strip_reward_tier(balances):
         return [{k: v for k, v in balance.items() if k != "reward_tier"} for balance in balances]
 
+
+    """
     @staticmethod
     def get_mcard_user_auth_provided_map(
         request: "Request", accounts: t.Union[SchemeAccount, t.List[SchemeAccount]]
     ) -> dict:
-        """
+        /"/"/"
         Used by .retrieve() and .list() endpoints to generate a mapping of scheme account ids to
         scheme account entry auth_provided flags. This function chooses the least expensive query
         based on if a singular scheme account or a list of all the user's scheme accounts is provided.
 
         For internal service users, the auth_provided values are all returned as True.
-        """
+        /"/"/"
 
         def get_singular_card_mapping(account):
             if request.channels_permit.service_allow_all:
@@ -757,6 +759,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 mcard_user_auth_provided_map = {entry.scheme_account_id: entry.auth_provided for entry in entries}
 
         return mcard_user_auth_provided_map
+    """
 
     def to_representation(self, instance: "SchemeAccount") -> dict:
 

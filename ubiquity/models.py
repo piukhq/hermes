@@ -387,19 +387,19 @@ class SchemeAccountEntry(models.Model):
 
     def set_link_status(self, new_status: int, commit_change=True):
         """
-        Note A signal tiggered by link_status update on class save ensures that PLL linking is updated
-        after set_link_status is set.
-
         Do not confuse the status of the scheme account set on the user association (link) and hence called
-        link_status with form of pll linking status
+        link_status with pll linking status on  either PaymentCardSchemeEntry or  PllUserAssociation
 
         """
+        """
+        We should not force WALLET_ONLY STATUS now that credentials are by user
+        Wallet only should be reserved for cards where the user has not entered credentials
         if self.auth_provided is True:
             status_to_set = new_status
         else:
             status_to_set = AccountLinkStatus.WALLET_ONLY
-
-        self.link_status = status_to_set
+        """
+        self.link_status = new_status
         if commit_change:
             self.save(update_fields=["link_status"])
 

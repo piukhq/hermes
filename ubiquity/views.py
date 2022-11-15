@@ -1214,7 +1214,6 @@ class MembershipCardView(
             user=user,
             scheme_account=scheme_account,
             link_status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS,
-            auth_provided=True,
         )
 
         # send this event to data_warehouse
@@ -1356,12 +1355,12 @@ class MembershipCardView(
             scheme_account_entry.link_status = AccountLinkStatus.WALLET_ONLY
 
             # todo: this is just until we remove the auth_provided flag
-            scheme_account_entry.auth_provided = False
+            # scheme_account_entry.auth_provided = False
 
             scheme_account_entry.scheme_account.status = AccountLinkStatus.WALLET_ONLY
             scheme_account_entry.scheme_account.save()
 
-            scheme_account_entry.save(update_fields=["link_status", "auth_provided"])
+            scheme_account_entry.save(update_fields=["link_status"])
             logger.info(
                 f"Set SchemeAccount (id={scheme_account_entry.scheme_account_id}) for "
                 f"User (id={scheme_account_entry.user_id}) to Wallet Only status"
@@ -1401,11 +1400,14 @@ class ListMembershipCardView(MembershipCardView):
 
         accounts = [sae.scheme_account for sae in entries.all()]
 
-        auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, accounts)
+        # auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, accounts)
         response = self.get_serializer_by_request(
             accounts,
             many=True,
-            context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": self.request.user.id},
+            context={
+                # "mcard_user_auth_provided_map": auth_provided_mapping,
+                "user_id": self.request.user.id
+            },
         ).data
 
         return Response(response, status=200)
@@ -1478,10 +1480,13 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         link, status_code = self._update_link(request.user, kwargs["pcard_id"], kwargs["mcard_id"])
         link.scheme_account.refresh_from_db(fields=["pll_links"])
 
-        auth_provided_mapping = MembershipCardSerializer.get_mcard_user_auth_provided_map(request, link.scheme_account)
+        # auth_provided_mapping =
+        # MembershipCardSerializer.get_mcard_user_auth_provided_map(request, link.scheme_account)
         serializer = self.get_serializer_by_request(
             link.scheme_account,
-            context={"mcard_user_auth_provided_map": auth_provided_mapping, "user_id": request.user.id},
+            context={
+                # "mcard_user_auth_provided_map": auth_provided_mapping,
+                "user_id": request.user.id},
         )
 
         return Response(serializer.data, status_code)
@@ -1576,7 +1581,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
             filters = {"is_deleted": False}
             payment_card = user.payment_card_account_set.get(pk=payment_card_id, **filters)
             membership_card = user.scheme_account_set.get(
-                pk=membership_card_id, schemeaccountentry__auth_provided=True, **filters
+                pk=membership_card_id, schemeaccountentry__link_status=AccountLinkStatus.ACTIVE, **filters
             )
 
         except PaymentCardAccount.DoesNotExist:

@@ -248,12 +248,16 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         return Response({"id": scheme_account.id, "status": new_status_code})
 
+    """
+    removed because not called anymore, was called from scheme views def process_new_status
     @staticmethod
     def set_user_authorisations_and_status(
         new_status_code: int, scheme_account: SchemeAccount, scheme_account_entry: SchemeAccountEntry
     ) -> None:
         mcard_entries = scheme_account.schemeaccountentry_set.all()
 
+        ---- removed:
+        we no longer need to consider auth provided
         # Todo: LOY-1953 - will need rework when implementing multi-wallet add_and_register to update single user.
         #  Might need Midas to differentiate join and register journeys?
         if new_status_code in AccountLinkStatus.join_action_required():
@@ -262,7 +266,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
                 f"Scheme Account (id={scheme_account.id})"
             )
             mcard_entries.update(auth_provided=False)
-
+        ---- remove end ---
         if (
             all(entry.auth_provided is False for entry in mcard_entries)
             and new_status_code not in AccountLinkStatus.join_action_required()
@@ -282,6 +286,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
                 scheme_account_entry.set_link_status(AccountLinkStatus.WALLET_ONLY)
         else:
             scheme_account_entry.set_link_status(new_status_code)
+    """
 
     @staticmethod
     def process_new_status(new_status_code, previous_status, scheme_account_entry):
@@ -302,11 +307,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         )
 
         scheme_account = scheme_account_entry.scheme_account
-
-        # todo: PLL stuff - is this more easily called through autolink functions/methods? rmove next line if happy
-        #  PaymentCardSchemeEntry.update_active_link_status({"scheme_account": scheme_account})
-        #  there may be some optimisation here because we have the scheme_account_entry already
-        PllUserAssociation.update_user_pll_by_scheme_account(scheme_account=scheme_account)
 
         # delete main answer credential if an async join failed
         # todo: do we want to delete the main answer credential if the join fails? Why?
@@ -334,12 +334,19 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         elif new_status_code not in pending_statuses:
             Payment.process_payment_void(scheme_account)
 
-        UpdateSchemeAccountStatus.set_user_authorisations_and_status(
+        scheme_account_entry.link_status = new_status_code
+        scheme_account_entry.save(update_fields=["link_status"])
+
+        """
+        I don't think this is required anymore because we set link status by user and do not need to set
+        wallet only status ie it can remain pending until user enters correct details
+            UpdateSchemeAccountStatus.set_user_authorisations_and_status(
             new_status_code, scheme_account, scheme_account_entry
         )
-
+        """
         if update_fields:
             scheme_account.save(update_fields=update_fields)
+        PllUserAssociation.update_user_pll_by_scheme_account(scheme_account=scheme_account)
 
     def process_active_accounts(self, scheme_account, journey, new_status_code):
         if journey in ["join", "join-with-balance"] and new_status_code == AccountLinkStatus.ACTIVE:

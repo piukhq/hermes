@@ -247,9 +247,9 @@ class TestTasks(GlobalMockAPITestCase):
         user3 = UserFactory(external_id=external_id_2, email=external_id_2)
 
         scheme_account = SchemeAccountFactory()
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=user2, auth_provided=False)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=user2)
         scheme_account_entry_alt = SchemeAccountEntryFactory(
-            scheme_account=scheme_account, user=user3, auth_provided=False
+            scheme_account=scheme_account, user=user3
         )
 
         SchemeCredentialAnswerFactory(question=self.manual_question, scheme_account_entry=scheme_account_entry)
