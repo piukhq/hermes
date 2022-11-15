@@ -1,12 +1,9 @@
 import base64
 import json
-import time
 from unittest import mock
 
-import arrow
 import httpretty as httpretty
 import jwt
-from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.test import Client
@@ -1021,71 +1018,6 @@ class TestAuthenticationViews(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 401)
         content = json.loads(response.content.decode())
         self.assertEqual(content["detail"], "Authentication credentials were not provided.")
-
-    def test_change_password(self):
-        auth_headers = {"HTTP_AUTHORIZATION": "Token " + self.user.create_token()}
-        response = self.client.put("/users/me/password", {"password": "Test1234"}, **auth_headers)
-        user = CustomUser.objects.get(id=self.user.id)
-
-        self.assertEqual(response.status_code, 200)
-        user = authenticate(username=user.email, password="Test1234")
-        self.assertTrue(user.password)
-
-    def test_change_password_once(self):
-        auth_headers = {"HTTP_AUTHORIZATION": "Token " + self.user.create_token()}
-        response = self.client.put("/users/me/password", {"password": "Test1234"}, **auth_headers)
-        user = CustomUser.objects.get(id=self.user.id)
-
-        self.assertEqual(response.status_code, 200)
-        user = authenticate(username=user.email, password="Test1234")
-        self.assertTrue(user.password)
-
-        token = user.generate_reset_token()
-
-        response = self.client.post(
-            "/users/reset_password", {"password": "1stPassword", "token": token}, **self.auth_service_headers
-        )
-        user = CustomUser.objects.get(id=self.user.id)
-
-        self.assertEqual(response.status_code, 200)
-        user = authenticate(username=user.email, password="1stPassword")
-
-        self.assertTrue(user.password)
-
-        # Now try again to ensure we can't do it twice
-        response = self.client.post(
-            "/users/reset_password", {"password": "2ndPassword", "token": token}, **self.auth_service_headers
-        )
-        user = CustomUser.objects.get(id=self.user.id)
-
-        self.assertGreaterEqual(response.status_code, 400)
-        user = authenticate(username=user.email, password="2ndPassword")
-        self.assertFalse(user)
-
-    @mock.patch("user.models.CustomUser.get_expiry_date")
-    def test_change_password_once_timeout(self, mock_get_expiry_date):
-        mock_get_expiry_date.return_value = arrow.utcnow().shift(seconds=+2)
-
-        auth_headers = {"HTTP_AUTHORIZATION": "Token " + self.user.create_token()}
-        response = self.client.put("/users/me/password", {"password": "Test1234"}, **auth_headers)
-        user = CustomUser.objects.get(id=self.user.id)
-
-        self.assertEqual(response.status_code, 200)
-        user = authenticate(username=user.email, password="Test1234")
-        self.assertTrue(user.password)
-
-        token = user.generate_reset_token()
-
-        time.sleep(3)
-
-        response = self.client.post(
-            "/users/reset_password", {"password": "1stPassword", "token": token}, **self.auth_service_headers
-        )
-        user = CustomUser.objects.get(id=self.user.id)
-
-        self.assertGreaterEqual(response.status_code, 400)
-        user = authenticate(username=user.email, password="1stPassword")
-        self.assertFalse(user)
 
 
 class TestTwitterLogin(GlobalMockAPITestCase):

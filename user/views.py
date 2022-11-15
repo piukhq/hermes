@@ -11,14 +11,12 @@ from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.core.cache import cache
 from django.core.exceptions import MultipleObjectsReturned, ValidationError
-from django.http import Http404
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
-from rest_framework import exceptions, mixins
+from rest_framework import exceptions
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.generics import (
@@ -29,7 +27,6 @@ from rest_framework.generics import (
     RetrieveUpdateAPIView,
     get_object_or_404,
 )
-from rest_framework.mixins import UpdateModelMixin
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
@@ -54,15 +51,7 @@ from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
 from ubiquity.versioning.base.serializers import ServiceSerializer
 from user.authentication import JwtAuthentication
 from user.exceptions import MagicLinkExpiredTokenError, MagicLinkValidationError
-from user.models import (
-    BINK_APP_ID,
-    ClientApplication,
-    ClientApplicationKit,
-    CustomUser,
-    Setting,
-    UserSetting,
-    valid_reset_code,
-)
+from user.models import BINK_APP_ID, ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting
 from user.serializers import (
     AppleRegisterSerializer,
     ApplicationKitSerializer,
@@ -73,11 +62,8 @@ from user.serializers import (
     NewLoginSerializer,
     NewRegisterSerializer,
     RegisterSerializer,
-    ResetPasswordSerializer,
-    ResetTokenSerializer,
     ResponseAuthSerializer,
     SettingSerializer,
-    TokenResetPasswordSerializer,
     TwitterRegisterSerializer,
     UserSerializer,
     UserSettingSerializer,
@@ -99,7 +85,6 @@ class OpenAuthentication(SessionAuthentication):
 
 class CustomRegisterMixin(object):
     def register_user(self, request, serializer_class):
-
         serializer = serializer_class(data=request.data)
         if serializer.is_valid():
             channel = serializer.validated_data["bundle_id"]
@@ -156,65 +141,6 @@ class ApplyPromoCode(CreateAPIView):
         data = serializer.validated_data
         request.user.apply_promo_code(data["promo_code"])
         return Response({"valid": True}, status=HTTP_200_OK)
-
-
-class ValidateResetToken(CreateAPIView):
-    """
-    DO NOT USE - NOT FOR APP ACCESS
-    Validate a password reset token. Used internally by the password reset/password change functionality.
-    """
-
-    authentication_classes = (OpenAuthentication,)
-    permission_classes = (AllowAny,)
-    serializer_class = ResetTokenSerializer
-
-    def post(self, request, *args, **kwargs):
-        reset_token = request.data["token"]
-        if not valid_reset_code(reset_token):
-            return Response(status=404)
-        out_serializer = ResetTokenSerializer({"valid": True})
-        return Response(out_serializer.data)
-
-
-class ResetPassword(mixins.UpdateModelMixin, GenericAPIView):
-    """
-    Reset a user's password
-    """
-
-    serializer_class = ResetPasswordSerializer
-
-    def get_object(self):
-        obj = get_object_or_404(CustomUser, id=self.request.user.id)
-        self.check_object_permissions(self.request, obj)
-        return obj
-
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-
-
-class ForgotPassword(APIView):
-    authentication_classes = (OpenAuthentication,)
-    permission_classes = (AllowAny,)
-
-    def post(self, request):
-        """
-        Sends email with reset token to user.
-        Responds: 'An email has been sent with details of how to reset your password.'
-        """
-        # TODO: Remove default Bink client_id when migrating to SDK app versions only (deprecation path).
-        client_id = request.data.get("client_id", ClientApplication.get_bink_app().client_id)
-        user = CustomUser.objects.filter(client_id=client_id, email__iexact=request.data["email"]).first()
-        if user:
-            user.generate_reset_token()
-            send_mail(
-                "email.tpl",
-                {"link": "{}/{}".format(settings.LETHE_URL, user.reset_token), "hermes_url": settings.MEDIA_URL},
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email],
-                fail_silently=False,
-            )
-
-        return Response("An email has been sent with details of how to reset your password.", 200)
 
 
 class Users(RetrieveUpdateAPIView):
@@ -295,12 +221,17 @@ class Login(GenericAPIView):
             return error_response(INCORRECT_CREDENTIALS)
 
         HISTORY_CONTEXT.user_info = user_info(
-            user_id=user.id, channel=serializer.validated_data.get("bundle_id", "internal_service")
+            user_id=user.id,
+            channel=serializer.validated_data.get("bundle_id", "internal_service"),
         )
 
         login(request, user)
         out_serializer = ResponseAuthSerializer(
-            {"email": user.email, "api_key": user.create_token(bundle_id), "uid": user.uid}
+            {
+                "email": user.email,
+                "api_key": user.create_token(bundle_id),
+                "uid": user.uid,
+            }
         )
         return Response(out_serializer.data)
 
@@ -423,32 +354,7 @@ class Logout(APIView):
         return Response({"logged_out": True})
 
 
-class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
-    authentication_classes = (OpenAuthentication,)
-    permission_classes = (AllowAny,)
-    serializer_class = TokenResetPasswordSerializer
-
-    def post(self, request, *args, **kwargs):
-        """
-        DO NOT USE - NOT FOR APP ACCESS.\n
-        Reset a user's password using a reset token obtained via password reset email. Returns empty object.
-        ---
-        parameters:
-            - name: token
-              description: password reset token
-        """
-        return self.update(request, *args, **kwargs)
-
-    def get_object(self):
-        reset_token = self.request.data["token"]
-        obj = get_object_or_404(CustomUser, reset_token=reset_token)
-        if not valid_reset_code(reset_token):
-            raise Http404
-
-        return obj
-
-
-def facebook_login(access_token, user_email="", client_id=BINK_APP_ID):
+def facebook_login(access_token, user_email=None, client_id=BINK_APP_ID):
     params = {"access_token": access_token, "fields": "email,name,id"}
     # Retrieve information about the current user.
     r = requests.get("https://graph.facebook.com/me", params=params)
@@ -473,7 +379,11 @@ def twitter_login(access_token, access_token_secret, client_id=BINK_APP_ID):
         resource_owner_secret=access_token_secret,
     )
 
-    params = {"skip_status": "true", "include_entities": "false", "include_email": "true"}
+    params = {
+        "skip_status": "true",
+        "include_entities": "false",
+        "include_email": "true",
+    }
     request = oauth_session.get("https://api.twitter.com/1.1/account/verify_credentials.json", params=params)
 
     if not request.ok:
@@ -572,7 +482,12 @@ def social_login(social_id, email, service, client_id=BINK_APP_ID):
             # We are creating a new user
             password = get_random_string(length=32)
             user = CustomUser.objects.create_user(
-                **{"email": email, "password": password, service: social_id, "client_id": client_id}
+                **{
+                    "email": email,
+                    "password": password,
+                    service: social_id,
+                    "client_id": client_id,
+                }
             )
             status = 201
     return status, user
@@ -636,7 +551,11 @@ class UserSettings(APIView):
 
         if bad_settings:
             return Response(
-                {"error": "Some of the given settings are invalid.", "messages": bad_settings}, HTTP_400_BAD_REQUEST
+                {
+                    "error": "Some of the given settings are invalid.",
+                    "messages": bad_settings,
+                },
+                HTTP_400_BAD_REQUEST,
             )
 
         validation_errors = []
@@ -781,9 +700,11 @@ class MagicLinkAuthView(CreateAPIView):
     @staticmethod
     def _get_jwt_secret(token: str) -> str:
         try:
-            bundle_id = jwt.decode(token, options={"verify_signature": False}, algorithms=["HS512", "HS256"])[
-                "bundle_id"
-            ]
+            bundle_id = jwt.decode(
+                token,
+                options={"verify_signature": False},
+                algorithms=["HS512", "HS256"],
+            )["bundle_id"]
             jwt_secret = get_jwt_secret(bundle_id)
         except (KeyError, jwt.DecodeError, AuthenticationFailed):
             logger.debug("failed to extract bundle_id from magic link temporary token.")
