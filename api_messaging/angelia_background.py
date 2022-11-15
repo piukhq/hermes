@@ -104,10 +104,12 @@ def credentials_to_key_pairs(cred_list: list) -> dict:
     return ret
 
 
+"""
 def set_auth_provided(scheme_account: SchemeAccount, user_id: int, new_value: bool) -> None:
     link = SchemeAccountEntry.objects.get(scheme_account_id=scheme_account.id, user_id=user_id)
     link.auth_provided = new_value
     link.save(update_fields=["auth_provided"])
+"""
 
 
 # @todo we must use API method of linking here:
@@ -217,9 +219,6 @@ def loyalty_card_add_authorise(message: dict) -> None:
             all_credentials_and_consents.update({"consents": message["consents"]})
 
         account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
-
-        set_auth_provided(account, ac.user_id, True)
-
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
 
         if journey == "ADD_AND_AUTH":
