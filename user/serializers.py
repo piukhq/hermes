@@ -138,36 +138,6 @@ class OrganisationTermsAndConditionsSerializer(serializers.Serializer):
     terms_and_conditions = serializers.CharField()
 
 
-class ResetPasswordSerializer(serializers.Serializer):
-    password = serializers.CharField(write_only=True)
-
-    def validate_password(self, value):
-        validate_pass(value)
-        return value
-
-    def update(self, instance, validated_data):
-        instance.set_password(validated_data["password"])
-        instance.save()
-        return instance
-
-
-class TokenResetPasswordSerializer(serializers.Serializer):
-    password = serializers.CharField(write_only=True)
-
-    def validate_password(self, value):
-        validate_pass(value)
-        return value
-
-    def update(self, instance, validated_data):
-        if instance.reset_token is None:
-            raise ValueError
-        else:
-            instance.set_password(validated_data["password"])
-            instance.reset_token = None
-            instance.save()
-            return instance
-
-
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserDetail
@@ -268,7 +238,6 @@ class HistoryUserSerializer(serializers.ModelSerializer):
             "last_login",
             "date_joined",
             "external_id",
-            "reset_token",
             "delete_token",
             "is_superuser",
             "marketing_code",
@@ -321,16 +290,6 @@ class ResponseAuthSerializer(serializers.Serializer):
     email = serializers.CharField(max_length=600)
     api_key = serializers.CharField()
     uid = serializers.CharField(read_only=True)
-
-
-class ResetTokenSerializer(serializers.Serializer):
-    token = serializers.CharField(write_only=True)
-    password = serializers.CharField(write_only=True)
-
-    def update(self, instance, validated_data):
-        instance.set_password(validated_data["password"])
-        instance.save()
-        return instance
 
 
 class SettingSerializer(serializers.ModelSerializer):
