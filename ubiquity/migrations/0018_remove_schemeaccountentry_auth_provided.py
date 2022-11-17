@@ -6,12 +6,12 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('ubiquity', '0017_remove_paymentcardschemeentry_description_and_more'),
+        ("ubiquity", "0017_remove_paymentcardschemeentry_description_and_more"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='schemeaccountentry',
-            name='auth_provided',
+            model_name="schemeaccountentry",
+            name="auth_provided",
         ),
     ]
