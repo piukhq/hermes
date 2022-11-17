@@ -422,8 +422,8 @@ class AssocCardNumberFilter(InputFilter):
         if term is None:
             return
         card_number = Q(
-            scheme_account__schemeaccountcredentialanswer__answer__icontains=term,
-            scheme_account__schemeaccountcredentialanswer__question__type="card_number",
+            scheme_account__schemeaccountentry__schemeaccountcredentialanswer__answer__icontains=term,
+            scheme_account__schemeaccountentry__schemeaccountcredentialanswer__question__type="card_number",
         )
         return queryset.filter(card_number)
 
