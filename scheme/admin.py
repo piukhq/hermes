@@ -258,8 +258,22 @@ class CardNumberFilter(InputFilter):
         if term is None:
             return
         card_number = Q(
-            schemeaccountcredentialanswer__answer__icontains=term,
-            schemeaccountcredentialanswer__question__type="card_number",
+            Q(card_number__icontains=term),
+        )
+        return queryset.filter(card_number)
+
+
+class CredentialCardNumberFilter(InputFilter):
+    parameter_name = "credential_card_number"
+    title = "Credential Card Number Containing"
+
+    def queryset(self, request, queryset):
+        term = self.value()
+        if term is None:
+            return
+        card_number = Q(
+            schemeaccountentry__schemeaccountcredentialanswer__answer__icontains=term,
+            schemeaccountentry__schemeaccountcredentialanswer__question__type="card_number",
         )
         return queryset.filter(card_number)
 
@@ -285,7 +299,8 @@ class CredentialEmailFilter(InputFilter):
         if term is None:
             return
         any_email = Q(
-            schemeaccountcredentialanswer__answer__icontains=term, schemeaccountcredentialanswer__question__type="email"
+            schemeaccountentry__schemeaccountcredentialanswer__answer__icontains=term,
+            schemeaccountentry__schemeaccountcredentialanswer__question__type="email",
         )
         return queryset.filter(any_email)
 
@@ -323,6 +338,7 @@ class SchemeAccountAdmin(HistoryAdmin):
     list_filter = (
         BarcodeFilter,
         CardNumberFilter,
+        CredentialCardNumberFilter,
         UserEmailFilter,
         CredentialEmailFilter,
         "is_deleted",
