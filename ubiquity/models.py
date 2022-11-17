@@ -221,7 +221,6 @@ class SchemeAccountEntry(models.Model):
         "scheme.SchemeAccount", on_delete=models.CASCADE, verbose_name="Associated Scheme Account"
     )
     user = models.ForeignKey("user.CustomUser", on_delete=models.CASCADE, verbose_name="Associated User")
-    auth_provided = models.BooleanField(default=False)
     link_status = models.IntegerField(default=AccountLinkStatus.PENDING, choices=AccountLinkStatus.statuses())
 
     class Meta:
