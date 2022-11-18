@@ -750,20 +750,19 @@ class WalletPLLData:
             scheme_entries = SchemeAccountEntry.objects.filter(user_id__in=list(self.link_users.keys()))
 
             for entry in scheme_entries:
-                matched_link = None
                 for lk in self.link_users[entry.user.id]:
                     if lk.pll.scheme_account.id == entry.scheme_account.id:
                         matched_link = lk
-                if matched_link is not None:
-                    pay_id = matched_link.pll.payment_card_account_id
-                    scheme_id = matched_link.pll.scheme_account.scheme_id
-                    if not self.scheme_account_data.get(entry.scheme_account.id):
-                        self.scheme_account_data[entry.scheme_account.id] = {}
-                    self.scheme_account_data[entry.scheme_account.id][entry.user.id] = {
-                        "status": entry.link_status,
-                        "link": matched_link,
-                        "scheme_count": self.scheme_count[pay_id][scheme_id],
-                    }
+
+                        pay_id = matched_link.pll.payment_card_account_id
+                        scheme_id = matched_link.pll.scheme_account.scheme_id
+                        if not self.scheme_account_data.get(entry.scheme_account.id):
+                            self.scheme_account_data[entry.scheme_account.id] = {}
+                        self.scheme_account_data[entry.scheme_account.id][entry.user.id] = {
+                            "status": entry.link_status,
+                            "link": matched_link,
+                            "scheme_count": self.scheme_count[pay_id][scheme_id],
+                        }
 
     def get_link_data(self, link: "PllUserAssociation"):
         self.process_links()
@@ -780,8 +779,7 @@ class WalletPLLData:
     def collision(self, link: "PllUserAssociation"):
         data = self.get_link_data(link)
         scheme_more_than_once = data.get("scheme_count", 0) > 1
-        if not data.get("link"):
-            return False
+
         # if the link slug is not marked as collision it must be the link before the collision occurred so false
         if data["link"].slug != WalletPLLSlug.UBIQUITY_COLLISION.value and scheme_more_than_once:
             return False
