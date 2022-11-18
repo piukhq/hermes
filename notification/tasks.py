@@ -135,7 +135,7 @@ class NotificationProcessor:
         status = None
         state = None
         if history_obj.change_type == HistoricalBase.CREATE:
-            status = AccountLinkStatus.PENDING
+            status = AccountLinkStatus.PENDING.value
         elif history_obj.change_type == HistoricalBase.DELETE:
             status = DELETED
         else:

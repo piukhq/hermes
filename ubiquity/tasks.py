@@ -142,8 +142,8 @@ def async_balance_with_updated_credentials(
         scheme_account_entry.auth_provided = False
         scheme_account_entry.save()
         """
-        scheme_account_entry.link_status = AccountLinkStatus.INVALID_CREDENTIALS
-        scheme_account_entry.save()
+
+        scheme_account_entry.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
         PllUserAssociation.update_user_pll_by_scheme_account(scheme_account=scheme_account)
 
         """

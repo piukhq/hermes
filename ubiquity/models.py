@@ -384,7 +384,7 @@ class SchemeAccountEntry(models.Model):
                 except IndexError:
                     pass
 
-    def set_link_status(self, new_status: int, commit_change=True):
+    def set_link_status(self, new_status: [int, "AccountLinkStatus"], commit_change=True):
         """
         Do not confuse the status of the scheme account set on the user association (link) and hence called
         link_status with pll linking status on  either PaymentCardSchemeEntry or  PllUserAssociation
@@ -398,7 +398,7 @@ class SchemeAccountEntry(models.Model):
         else:
             status_to_set = AccountLinkStatus.WALLET_ONLY
         """
-        self.link_status = new_status
+        self.link_status = int(new_status)
         if commit_change:
             self.save(update_fields=["link_status"])
 

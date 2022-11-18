@@ -756,8 +756,7 @@ class MembershipCardView(
             data=registration_data, scheme_account=account, user=user, permit=permit, join_scheme=scheme
         )
 
-        scheme_acc_entry.link_status = AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS
-        scheme_acc_entry.save(update_fields=["link_status"])
+        scheme_acc_entry.set_link_status(AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS)
 
         async_registration.delay(
             user.id,
@@ -873,8 +872,7 @@ class MembershipCardView(
                 raise ParseError("Only one type of main answer should be provided")
             account.alt_main_answer = validated_data[answer_types.pop()]
 
-        scheme_acc_entry.link_status = AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS
-        scheme_acc_entry.save(update_fields=["link_status"])
+        scheme_acc_entry.set_link_status(AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS)
 
         scheme_acc_entry.schemeaccountcredentialanswer_set.all().delete()
         account.save(update_fields=["alt_main_answer"])
