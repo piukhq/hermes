@@ -903,16 +903,18 @@ class MembershipCardView(
         if auth_fields:
             auth_fields = detect_and_handle_escaped_unicode(auth_fields)
 
+        account = scheme_acc_entry.scheme_account
+
         new_answers, main_answer_type, main_answer_value = self._get_new_answers(add_fields, auth_fields)
-        main_answer_field = scheme_acc_entry.scheme_account.get_key_cred_field_from_question_type(main_answer_type)
+        main_answer_field = account.get_key_cred_field_from_question_type(main_answer_type)
 
         metrics_route = MembershipCardAddRoute.UPDATE
 
         # update credentials
         UpdateCredentialsMixin().update_credentials(
-            scheme_account=scheme_acc_entry.scheme_account,
+            scheme_account=account,
             data=new_answers,
-            questions=scheme_acc_entry.scheme_account.scheme.questions.all(),
+            questions=account.scheme.questions.all(),
             scheme_account_entry=scheme_acc_entry,
         )
 
