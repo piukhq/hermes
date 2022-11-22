@@ -351,7 +351,6 @@ class SchemeAccountAdmin(HistoryAdmin):
     ordering = ["-updated"]
 
     def refresh_scheme_account_information(self, request, queryset):
-        # todo: this is problematic - how we do handle an action like this from the admin panel with no related user?
         # Forces a refresh of balance, voucher and transaction information. Requests an update of balance information
         # directly from Midas, which will also push transactions from Midas (via Hades), to Hermes.
         for scheme_account in queryset:
