@@ -354,9 +354,9 @@ class SchemeAccountAdmin(HistoryAdmin):
         # Forces a refresh of balance, voucher and transaction information. Requests an update of balance information
         # directly from Midas, which will also push transactions from Midas (via Hades), to Hermes.
         for scheme_account in queryset:
-            # grab the first SchemeAccountEntry linked to this scheme account to refresh balance as 
+            # grab the first SchemeAccountEntry linked to this scheme account to refresh balance as
             # we do not have a user in DJango admin, if there are no users linked then this will do nothing
-            scheme_account.delete_cached_balance()    
+            scheme_account.delete_cached_balance()
             for entry in SchemeAccountEntry.objects.filter(scheme_account=scheme_account.id):
                 if entry.link_status == AccountLinkStatus.ACTIVE:
                     scheme_account.get_cached_balance(entry)
