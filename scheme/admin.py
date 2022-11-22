@@ -35,7 +35,7 @@ from scheme.models import (
     UserConsent,
     VoucherScheme,
 )
-from ubiquity.models import SchemeAccountEntry
+from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
 from user.models import ClientApplicationBundle
 
 r = Redis(connection_pool=settings.REDIS_WRITE_API_CACHE_POOL)
@@ -355,8 +355,12 @@ class SchemeAccountAdmin(HistoryAdmin):
         # Forces a refresh of balance, voucher and transaction information. Requests an update of balance information
         # directly from Midas, which will also push transactions from Midas (via Hades), to Hermes.
         for scheme_account in queryset:
-            scheme_account.delete_cached_balance()
-            scheme_account.get_cached_balance()
+            # grab the first SchemeAccountEntry linked to this scheme account to refresh balance as 
+            # we do not have a user in DJango admin, if there are no users linked then this will do nothing
+            scheme_account.delete_cached_balance()    
+            for entry in SchemeAccountEntry.objects.filter(scheme_account=scheme_account.id):
+                if entry.link_status == AccountLinkStatus.ACTIVE:
+                    scheme_account.get_cached_balance(entry)
         messages.add_message(request, messages.INFO, "Refreshed balance, vouchers and transactions information.")
 
     def get_readonly_fields(self, request, obj=None):
