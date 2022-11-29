@@ -201,6 +201,31 @@ def loyalty_card_add(message: dict) -> None:
         create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
 
 
+def loyalty_card_trusted_add(message: dict) -> None:
+    with AngeliaContext(message) as ac:
+        if message.get("auto_link"):
+            scheme_account_id = message.get("loyalty_card_id")
+            scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
+            create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
+
+            for credential in message.get("merchant_fields"):
+                cred_type = credential["credential_slug"]
+                answer = credential["value"]
+                question = scheme_account_entry.scheme_account.scheme.questions.get(type=cred_type)
+
+                SchemeAccountCredentialAnswer.objects.create(
+                    scheme_account_entry=scheme_account_entry, question=question, answer=answer
+                )
+
+            payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=ac.user_id).values_list(
+                "payment_card_account_id", flat=True
+            )
+            if payment_cards_to_link:
+                PllUserAssociation.link_user_scheme_account_to_payment_cards(
+                    scheme_account_id, payment_cards_to_link, ac.user_id
+                )
+
+
 def loyalty_card_add_authorise(message: dict) -> None:
     with AngeliaContext(message) as ac:
         journey = message.get("journey")

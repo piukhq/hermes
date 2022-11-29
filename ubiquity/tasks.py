@@ -25,7 +25,7 @@ from ubiquity.models import (
     SchemeAccountEntry,
     VopActivation,
 )
-from user.models import CustomUser
+from user.models import CustomUser, ClientApplicationBundle
 
 if t.TYPE_CHECKING:
     from rest_framework.serializers import Serializer
@@ -168,10 +168,17 @@ def async_all_balance(user_id: int, channels_permit) -> None:
     entries = channels_permit.related_model_query(
         SchemeAccountEntry.objects.filter(**query), "scheme_account__scheme__"
     )
-    entries = entries.exclude(**exclude_query)
 
-    for entry in entries.all():
-        async_balance.delay(entry)
+    # If the channel is trusted we shouldn't make calls to the merchant to refresh balance,
+    # since the user would have no stored auth credentials.
+    is_trusted_channel = ClientApplicationBundle.objects.values_list("is_trusted", flat=True).get(
+        bundle_id=channels_permit.bundle_id
+    )
+    if not is_trusted_channel:
+        entries = entries.exclude(**exclude_query)
+
+        for entry in entries.all():
+            async_balance.delay(entry)
 
 
 @shared_task

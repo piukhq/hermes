@@ -159,6 +159,7 @@ class ClientApplicationBundle(models.Model):
         validators=[MinValueValidator(2)], blank=True, null=True, default=15, verbose_name="refresh token life (mins)"
     )
     email_required = models.BooleanField(default=True)
+    is_trusted = models.BooleanField(default=False)
 
     class Meta:
         unique_together = (

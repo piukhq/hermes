@@ -242,6 +242,7 @@ class ClientApplicationBundleAdmin(CacheResetAdmin):
         SchemeInline,
     ]
     current_bundle_status = {}
+    createonly_fields = ("is_trusted",)
 
     def save_formset(self, request, form, formset, change):
         super().save_formset(request, form, formset, change)
@@ -283,6 +284,7 @@ class ClientApplicationBundleAdmin(CacheResetAdmin):
                         "client",
                         "external_name",
                         "email_required",
+                        "is_trusted",
                         (
                             "magic_link_url",
                             "magic_lifetime",
@@ -346,6 +348,14 @@ class ClientApplicationBundleAdmin(CacheResetAdmin):
                 )
 
         return return_fields
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = list(super().get_readonly_fields(request, obj))
+        createonly_fields = list(getattr(self, "createonly_fields", []))
+        if obj:
+            readonly_fields.extend(createonly_fields)
+
+        return readonly_fields
 
 
 @admin.register(Organisation)
