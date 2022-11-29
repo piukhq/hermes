@@ -213,8 +213,10 @@ def loyalty_card_trusted_add(message: dict) -> None:
                 answer = credential["value"]
                 question = scheme_account_entry.scheme_account.scheme.questions.get(type=cred_type)
 
-                SchemeAccountCredentialAnswer.objects.create(
-                    scheme_account_entry=scheme_account_entry, question=question, answer=answer
+                SchemeAccountCredentialAnswer.objects.update_or_create(
+                    scheme_account_entry=scheme_account_entry,
+                    question=question,
+                    defaults={"answer": answer},
                 )
 
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=ac.user_id).values_list(
@@ -490,6 +492,8 @@ def create_key_credential_from_add_fields(scheme_account_entry: SchemeAccountEnt
 
     question = scheme_account_entry.scheme_account.scheme.questions.get(type=cred_type)
 
-    SchemeAccountCredentialAnswer.objects.create(
-        scheme_account_entry=scheme_account_entry, question=question, answer=answer
+    SchemeAccountCredentialAnswer.objects.update_or_create(
+        scheme_account_entry=scheme_account_entry,
+        question=question,
+        defaults={"answer": answer},
     )

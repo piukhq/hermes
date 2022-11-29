@@ -25,7 +25,7 @@ from ubiquity.models import (
     SchemeAccountEntry,
     VopActivation,
 )
-from user.models import CustomUser, ClientApplicationBundle
+from user.models import ClientApplicationBundle, CustomUser
 
 if t.TYPE_CHECKING:
     from rest_framework.serializers import Serializer
