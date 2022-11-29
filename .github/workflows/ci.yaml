@@ -154,7 +154,7 @@ jobs:
   release_sandbox:
     if: github.event_name == 'release' && github.event.action == 'published'
     name: release_sandbox
-    environment: Production
+    environment: Sandbox
     needs: [release_staging]
     runs-on: ubuntu-latest
     container: ghcr.io/binkhq/tagbot:latest
