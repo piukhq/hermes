@@ -1,3 +1,6 @@
+import logging
+import typing
+
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin import SimpleListFilter, StackedInline
@@ -7,6 +10,7 @@ from django.utils.translation import gettext_lazy as _
 from scheme.admin import CacheResetAdmin, check_active_scheme
 from scheme.models import SchemeBundleAssociation
 from ubiquity.models import ServiceConsent
+from ubiquity.tasks import bulk_deleted_membership_card_cleanup
 from user.models import (
     ClientApplication,
     ClientApplicationBundle,
@@ -19,6 +23,11 @@ from user.models import (
     UserDetail,
     UserSetting,
 )
+
+if typing.TYPE_CHECKING:
+    from scheme.models import Scheme
+
+logger = logging.getLogger(__name__)
 
 
 class UserDetailInline(admin.StackedInline):
@@ -244,13 +253,37 @@ class ClientApplicationBundleAdmin(CacheResetAdmin):
     current_bundle_status = {}
     createonly_fields = ("is_trusted",)
 
+    @staticmethod
+    def _delete_scheme_bundle_cleanup(bundle: ClientApplicationBundle, scheme: "Scheme"):
+        logger.info(
+            "Performing delete SchemeBundleAssociation cleanup for "
+            f'scheme: "{scheme.name}", bundle: "{bundle.bundle_id}"...'
+        )
+
+        # Since users are shared across bundles with the same client, we shouldn't delete scheme account
+        # entries if the scheme is available in another bundle
+        shared_scheme = (
+            SchemeBundleAssociation.objects.filter(scheme=scheme, bundle__client=bundle.client)
+            .exclude(bundle=bundle)
+            .exists()
+        )
+
+        if not shared_scheme:
+            bulk_deleted_membership_card_cleanup.delay(bundle.bundle_id, bundle.id, scheme.id)
+
+        return
+
     def save_formset(self, request, form, formset, change):
         super().save_formset(request, form, formset, change)
         cleaned = formset.cleaned_data
         for clean_item in cleaned:
             scheme = clean_item.get("scheme")
             status = clean_item.get("status", SchemeBundleAssociation.INACTIVE)
-            if status == SchemeBundleAssociation.ACTIVE:
+            to_delete = clean_item.get("DELETE")
+
+            if to_delete and isinstance(clean_item["id"], SchemeBundleAssociation):
+                self._delete_scheme_bundle_cleanup(bundle=clean_item["bundle"], scheme=scheme)
+            elif status == SchemeBundleAssociation.ACTIVE:
                 error, message = check_active_scheme(scheme)
                 if error:
                     old_status = self.current_bundle_status.get(scheme.id, None)

@@ -1220,10 +1220,12 @@ def _remove_pll_link(instance: PaymentCardSchemeEntry) -> None:
         existing_pll_links = model.all_objects.values_list("pll_links", flat=True).get(pk=card_id)
         logger.debug("checking pll links for %s of id %s", model.__name__, card_id)
         card_needs_update = False
-        for i, link in enumerate(existing_pll_links):
-            if link.get("id") == linked_card_id:
-                del existing_pll_links[i]
-                card_needs_update = True
+
+        if existing_pll_links:
+            for i, link in enumerate(existing_pll_links):
+                if link.get("id") == linked_card_id:
+                    del existing_pll_links[i]
+                    card_needs_update = True
 
         if card_needs_update:
             logger.debug("deleting link to %s", linked_card_id)
