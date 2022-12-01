@@ -14,6 +14,8 @@ def populate_pll(apps, *_):
     PllUserAssociation = apps.get_model("ubiquity", "PllUserAssociation")
     SchemeAccountEntry = apps.get_model("ubiquity", "SchemeAccountEntry")
     SchemeAccount = apps.get_model("scheme", "SchemeAccount")
+    if not SchemeAccount.objects.exists():
+        return
     first_id = SchemeAccount.objects.earliest("id").id
     last_id = SchemeAccount.objects.latest("id").id
     print(f"getting scheme accounts between {first_id} and {last_id}")
