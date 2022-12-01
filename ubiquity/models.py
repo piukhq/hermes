@@ -221,7 +221,6 @@ class SchemeAccountEntry(models.Model):
         "scheme.SchemeAccount", on_delete=models.CASCADE, verbose_name="Associated Scheme Account"
     )
     user = models.ForeignKey("user.CustomUser", on_delete=models.CASCADE, verbose_name="Associated User")
-    auth_provided = models.BooleanField(default=False)
     link_status = models.IntegerField(default=AccountLinkStatus.PENDING, choices=AccountLinkStatus.statuses())
 
     class Meta:
@@ -984,17 +983,6 @@ class PaymentCardSchemeEntry(models.Model):
         "scheme.SchemeAccount", on_delete=models.CASCADE, verbose_name="Associated Membership Card Account"
     )
     active_link = models.BooleanField(default=False)
-
-    PLL_SLUG_CHOICE = tuple(status[:2] for status in WalletPLLSlug.get_descriptions())
-
-    state = models.IntegerField(default=WalletPLLStatus.PENDING.value, choices=WalletPLLStatus.get_states())
-    slug = models.SlugField(blank=True, default="", choices=PLL_SLUG_CHOICE)
-
-    description = models.TextField(
-        blank=True,
-        default="",
-        help_text="Short description of the PLL link status. This is automatically populated based on the slug.",
-    )
 
     class Meta:
         unique_together = ("payment_card_account", "scheme_account")

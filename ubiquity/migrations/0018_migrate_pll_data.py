@@ -14,10 +14,10 @@ def populate_pll(apps, *_):
     PllUserAssociation = apps.get_model("ubiquity", "PllUserAssociation")
     SchemeAccountEntry = apps.get_model("ubiquity", "SchemeAccountEntry")
     SchemeAccount = apps.get_model("scheme", "SchemeAccount")
-    first_id = SchemeAccount.objects.earliest('id').id
-    last_id = SchemeAccount.objects.latest('id').id
+    first_id = SchemeAccount.objects.earliest("id").id
+    last_id = SchemeAccount.objects.latest("id").id
     print(f"getting scheme accounts between {first_id} and {last_id}")
-    increment = 150000
+    increment = 50000
 
     for start_id in range(first_id, last_id, increment):
         end_id = start_id + increment - 1
@@ -38,7 +38,9 @@ def populate_pll(apps, *_):
         bulk_pll = []
 
         PaymentCardSchemeEntry = apps.get_model("ubiquity", "PaymentCardSchemeEntry")
-        base_links = PaymentCardSchemeEntry.objects.filter(scheme_account__id__range=(start_id, end_id))
+        base_links = PaymentCardSchemeEntry.objects.filter(
+            scheme_account__id__range=(start_id, end_id), scheme_account__is_deleted=False
+        )
         for base_link in base_links:
             scheme_account_id = base_link.scheme_account.id
             if scheme_account_index.get(scheme_account_id):
@@ -48,6 +50,8 @@ def populate_pll(apps, *_):
                             pll_id=base_link.id, user_id=plluser["user"], slug=base_link.slug, state=base_link.state
                         )
                     )
+            else:
+                print(f"Not found scheme account id {scheme_account_id}")
 
         print(f"Found {len(bulk_pll )} pll associations to add")
 
