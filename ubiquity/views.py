@@ -562,6 +562,7 @@ class MembershipCardView(
     @censor_and_decorate
     def update(self, request, *args, **kwargs):
         sch_acc_entry = get_object_or_404(self.get_queryset(), scheme_account=self.kwargs["pk"])
+        sch_acc_count = SchemeAccountEntry.objects.filter(scheme_account=sch_acc_entry.scheme_account.id).count()
         self.log_update(sch_acc_entry.scheme_account.pk)
         scheme = sch_acc_entry.scheme_account.scheme
         scheme_questions = scheme.questions.all()
@@ -589,7 +590,7 @@ class MembershipCardView(
             # send this event to data_warehouse
             register_lc_event(sch_acc_entry, request.channels_permit.bundle_id)
         else:
-            if sch_acc_entry.link_status != AccountLinkStatus.ACTIVE:
+            if sch_acc_count > 1:
                 raise CardAuthError(
                     "Cannot update authorise fields for Store type card. Card must be authorised "
                     "via POST /membership_cards endpoint first."
