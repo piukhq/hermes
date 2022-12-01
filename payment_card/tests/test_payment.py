@@ -12,9 +12,9 @@ from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentAudit, PaymentCardAccount, PaymentStatus
 from payment_card.payment import Payment, PaymentError
 from payment_card.tests.factories import PaymentAuditFactory, PaymentCardAccountFactory
-from scheme.models import SchemeAccount
 from scheme.tests.factories import SchemeAccountFactory
 from ubiquity.channel_vault import SecretKeyName
+from ubiquity.models import AccountLinkStatus
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from user.tests.factories import ClientApplicationFactory, OrganisationFactory, UserFactory
 
@@ -398,44 +398,51 @@ class TestPayment(GlobalMockAPITestCase):
         self.assertTrue(mock_capture_message.called)
         self.assertEqual(mock_capture_message.call_count, 1)
 
-    @patch("analytics.api.requests.post")
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
     @patch.object(Payment, "process_payment_void")
     @patch.object(Payment, "process_payment_success")
     def test_successful_join_processes_successful_payment(self, mock_payment_success, mock_payment_void, *_):
-        scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        entry = SchemeAccountEntryFactory(user=self.user, link_status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS)
         user_set = str(self.user.id)
 
         auth_headers = {"HTTP_AUTHORIZATION": "Token " + settings.SERVICE_API_KEY}
-        data = {"status": SchemeAccount.ACTIVE, "journey": "join", "user_info": {"user_set": user_set}}
+        data = {
+            "status": AccountLinkStatus.ACTIVE,
+            "journey": "join",
+            "user_info": {"user_set": user_set, "bink_user_id": self.user.id},
+        }
         response = self.client.post(
-            reverse("change_account_status", args=[scheme_account.id]), data, format="json", **auth_headers
+            reverse("change_account_status", args=[entry.scheme_account.id]), data, format="json", **auth_headers
         )
 
         self.assertEqual(response.status_code, 200)
-        scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
+        entry.refresh_from_db()
+        self.assertEqual(entry.link_status, AccountLinkStatus.ACTIVE)
         self.assertTrue(mock_payment_success.called)
         self.assertFalse(mock_payment_void.called)
 
-    @patch("analytics.api.requests.post")
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
     @patch.object(Payment, "process_payment_void")
     @patch.object(Payment, "process_payment_success")
     def test_failed_join_voids_payment(self, mock_payment_success, mock_payment_void, *_):
-        scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        scheme_account = SchemeAccountFactory()
+        scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=scheme_account, user=self.user, link_status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS
+        )
         user_set = str(self.user.id)
 
         auth_headers = {"HTTP_AUTHORIZATION": "Token " + settings.SERVICE_API_KEY}
-        data = {"status": SchemeAccount.ENROL_FAILED, "journey": "join", "user_info": {"user_set": user_set}}
+        data = {
+            "status": AccountLinkStatus.ENROL_FAILED,
+            "journey": "join",
+            "user_info": {"user_set": user_set, "bink_user_id": self.user.id},
+        }
         response = self.client.post(
             reverse("change_account_status", args=[scheme_account.id]), data, format="json", **auth_headers
         )
 
         self.assertEqual(response.status_code, 200)
-        scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.status, SchemeAccount.ENROL_FAILED)
+        scheme_account_entry.refresh_from_db()
+        self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.ENROL_FAILED)
         self.assertTrue(mock_payment_void.called)
         self.assertFalse(mock_payment_success.called)

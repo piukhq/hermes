@@ -17,17 +17,11 @@ from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactor
 from scheme.credentials import (
     BARCODE,
     CARD_NUMBER,
-    CASE_SENSITIVE_CREDENTIALS,
-    CREDENTIAL_TYPES,
-    DATE_TYPE_CREDENTIALS,
     EMAIL,
-    ENCRYPTED_CREDENTIALS,
     LAST_NAME,
     MERCHANT_IDENTIFIER,
     PASSWORD,
     PAYMENT_CARD_HASH,
-    PHONE,
-    PHONE_2,
     POSTCODE,
     USER_NAME,
 )
@@ -54,15 +48,18 @@ from scheme.tests.factories import (
 )
 from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.channel_vault import AESKeyNames
-from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
+from ubiquity.models import (
+    AccountLinkStatus,
+    PaymentCardAccountEntry,
+    PaymentCardSchemeEntry,
+    PllUserAssociation,
+    SchemeAccountEntry,
+    WalletPLLSlug,
+    WalletPLLStatus,
+)
 from ubiquity.reason_codes import CURRENT_STATUS_CODES
 from ubiquity.tasks import deleted_membership_card_cleanup
-from ubiquity.tests.factories import (
-    PaymentCardAccountEntryFactory,
-    PaymentCardSchemeEntryFactory,
-    SchemeAccountEntryFactory,
-    ServiceConsentFactory,
-)
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.tests.test_serializers import mock_secrets
 from ubiquity.versioning.base.serializers import MembershipCardSerializer as MembershipCardSerializer_base
@@ -228,20 +225,23 @@ class TestResources(GlobalMockAPITestCase):
         )
 
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
+
+        self.scheme_account_entry = SchemeAccountEntryFactory.create(scheme_account=self.scheme_account, user=self.user)
+
         self.scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=self.scheme.manual_question, scheme_account=self.scheme_account, answer=fake.first_name().lower()
+            question=self.scheme.manual_question,
+            answer=fake.first_name().lower(),
+            scheme_account_entry=self.scheme_account_entry,
         )
         self.second_scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=self.secondary_question, scheme_account=self.scheme_account
+            question=self.secondary_question,
+            scheme_account_entry=self.scheme_account_entry,
         )
         self.second_scheme_account_answer.answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(
             self.second_scheme_account_answer.answer
         )
-        self.scheme_account_entry = SchemeAccountEntryFactory.create(
-            scheme_account=self.scheme_account, user=self.user, auth_provided=True
-        )
 
-        self.scheme_account.update_barcode_and_card_number()
+        self.scheme_account_entry.update_scheme_account_key_credential_fields()
 
         self.test_hades_transactions = [
             {
@@ -352,7 +352,9 @@ class TestResources(GlobalMockAPITestCase):
         )
         SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=self.user)
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
-        expected_result = remove_empty(MembershipCardSerializer(scheme_accounts, many=True).data)
+        expected_result = remove_empty(
+            MembershipCardSerializer(scheme_accounts, many=True, context={"user_id": self.user.id}).data
+        )
         resp = self.client.get(reverse("membership-cards"), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result[0]["account"], resp.json()[0]["account"])
@@ -398,13 +400,17 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_list_membership_cards_hides_join_cards(self, *_):
-        join_scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN)
+        join_scheme_account = SchemeAccountFactory()
         SchemeBundleAssociationFactory(
             scheme=join_scheme_account.scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE
         )
-        SchemeAccountEntryFactory(scheme_account=join_scheme_account, user=self.user)
-        scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id, status=SchemeAccount.JOIN).all()
-        join_ids = [account.id for account in scheme_accounts]
+        SchemeAccountEntryFactory(
+            scheme_account=join_scheme_account, user=self.user, link_status=AccountLinkStatus.JOIN
+        )
+        scheme_account_entries = SchemeAccountEntry.objects.filter(
+            user_id=self.user.id, link_status=AccountLinkStatus.JOIN
+        ).all()
+        join_ids = [sae.scheme_account.id for sae in scheme_account_entries]
 
         resp = self.client.get(reverse("membership-cards"), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
@@ -413,7 +419,6 @@ class TestResources(GlobalMockAPITestCase):
             self.assertFalse(join_id in resp_join_ids)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_creation(self, *_):
         payload = {
@@ -441,7 +446,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 201)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_creation_other_wallet_same_fingerprint(self, *_):
         payload = {
@@ -482,7 +486,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(card.is_deleted, False)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_creation_other_wallet_date_changed(self, *_):
         payload = {
@@ -530,7 +533,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(card.is_deleted, False)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_creation_with_id_fails_when_not_internal_user(self, *_):
         payload = {
@@ -560,7 +562,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertNotEqual(resp.json()["id"], provided_id)
 
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_replace(self, *_):
         pca = PaymentCardAccountFactory(token="original-token")
@@ -617,30 +618,31 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.json()["detail"], "cannot override fingerprint.")
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_status_mapping_active(self, *_):
-        self.scheme_account.status = SchemeAccount.ACTIVE
-        self.scheme_account.save()
-        mcard_user_auth_provided_map = {self.scheme_account.id: True}
+        self.scheme_account_entry.link_status = AccountLinkStatus.ACTIVE
+        self.scheme_account_entry.save()
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account,
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual(data["status"]["state"], "authorised")
         self.assertEqual(data["status"]["reason_codes"], ["X300"])
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_status_mapping_user_error(self, *_):
-        user_error = SchemeAccount.INVALID_CREDENTIALS
-        self.scheme_account.status = user_error
+        user_error = AccountLinkStatus.INVALID_CREDENTIALS
+        self.scheme_account_entry.link_status = user_error
         self.scheme_account.balances = {}
         self.scheme_account.save()
+        self.scheme_account_entry.save()
 
-        mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account,
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual(data["status"]["state"], "failed")
         self.assertEqual(data["status"]["reason_codes"], ["X303"])
@@ -649,23 +651,26 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.save()
 
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account,
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual(data["status"]["state"], "failed")
         self.assertEqual(data["status"]["reason_codes"], ["X303"])
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_status_mapping_system_error(self, *_):
-        user_error = SchemeAccount.END_SITE_DOWN
-        self.scheme_account.status = user_error
+        user_error = AccountLinkStatus.END_SITE_DOWN
+        self.scheme_account_entry.link_status = user_error
+        self.scheme_account_entry.save()
+
         self.scheme_account.balances = {}
         self.scheme_account.save()
 
-        mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account,
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual("pending", data["status"]["state"])
         self.assertEqual(["X100"], data["status"]["reason_codes"])
@@ -674,24 +679,25 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.save()
 
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account,
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual("authorised", data["status"]["state"])
         self.assertEqual(["X300"], data["status"]["reason_codes"])
 
     def test_membership_card_V1_3_returns_default_error_message_if_no_override_exists(self, *_):
-        self.scheme_account.status = SchemeAccount.ACCOUNT_ALREADY_EXISTS
-        self.scheme_account.save()
+        self.scheme_account_entry.link_status = AccountLinkStatus.ACCOUNT_ALREADY_EXISTS
+        self.scheme_account_entry.save()
         error_messages = dict((code, message) for code, message in CURRENT_STATUS_CODES)
-        mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer_V1_3(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account,
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual(error_messages[445], data["status"]["error_text"])
 
     def test_membership_card_V1_3_contains_custom_error_message(self, *_):
-        self.scheme_account.status = SchemeAccount.ACCOUNT_ALREADY_EXISTS
-        self.scheme_account.save()
+        self.scheme_account_entry.link_status = AccountLinkStatus.ACCOUNT_ALREADY_EXISTS
+        self.scheme_account_entry.save()
         error = SchemeOverrideError(
             scheme_id=self.scheme_account.scheme_id,
             error_slug="ACCOUNT_ALREADY_EXISTS",
@@ -700,9 +706,10 @@ class TestResources(GlobalMockAPITestCase):
             message="Custom error message",
         )
         error.save()
-        mcard_user_auth_provided_map = {self.scheme_account.id: True}
+
         data = MembershipCardSerializer_V1_3(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account,
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual("Custom error message", data["status"]["error_text"])
 
@@ -720,23 +727,22 @@ class TestResources(GlobalMockAPITestCase):
     #     self.assertEqual('Custom system error message', data['status']['error_text'])
 
     def test_membership_card_serializer_base_V1_2_contains_no_error_message(self):
-        self.scheme_account.status = SchemeAccount.ACCOUNT_ALREADY_EXISTS
-        self.scheme_account.save()
-        mcard_user_auth_provided_map = {self.scheme_account.id: True}
+        self.scheme_account_entry.link_status = AccountLinkStatus.ACCOUNT_ALREADY_EXISTS
+        self.scheme_account_entry.save()
 
         data = MembershipCardSerializer_base(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account,
+            context={"user_id": self.user.id},
         ).data
         status = {"state": "failed", "reason_codes": ["X202"]}
         self.assertEqual(status, data["status"])
 
-        mcard_user_auth_provided_map = {self.scheme_account.id: True}
         data = MembershipCardSerializer(
-            self.scheme_account, context={"mcard_user_auth_provided_map": mcard_user_auth_provided_map}
+            self.scheme_account,
+            context={"user_id": self.user.id},
         ).data
         self.assertEqual(status, data["status"])
 
-    @patch("analytics.api")
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
@@ -755,7 +761,7 @@ class TestResources(GlobalMockAPITestCase):
         create_data = resp.data
 
         sa = SchemeAccount.objects.get(pk=create_data["id"])
-        self.assertEqual(sa.main_answer, payload["account"]["add_fields"][0]["value"])
+        self.assertEqual(sa.barcode, payload["account"]["add_fields"][0]["value"])
         self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
 
         # replay and check data with 200 response
@@ -774,45 +780,46 @@ class TestResources(GlobalMockAPITestCase):
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
 
+    # todo: fix as part of TC phase 3+
+    # @patch("ubiquity.influx_audit.InfluxDBClient")
+    # @patch("ubiquity.views.async_link", autospec=True)
+    # @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
+    # def test_wallet_only_mcard_creation(self, mock_async_balance, mock_async_link, *_):
+    #     payload = {
+    #         "membership_plan": self.scheme.id,
+    #         "account": {"add_fields": [{"column": self.scheme.manual_question.label, "value": "3038401022657083"}]},
+    #     }
+    #     resp = self.client.post(
+    #         reverse("membership-cards"), data=json.dumps(payload), content_type="application/json",
+    #         **self.auth_headers
+    #     )
+    #     self.assertEqual(resp.status_code, 201)
+    #     self.assertEqual(
+    #         {"state": "unauthorised", "reason_codes": ["X103"], "error_text": "Wallet only card"}, resp.data["status"]
+    #     )
+    #     create_data = resp.data
+    #
+    #     sa = SchemeAccount.objects.get(pk=create_data["id"])
+    #     self.assertEqual(sa.barcode, payload["account"]["add_fields"][0]["value"])
+    #     self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
+    #
+    #     # replay and check same data with 200 response
+    #     resp = self.client.post(
+    #         reverse("membership-cards"), data=json.dumps(payload), content_type="application/json",
+    #         **self.auth_headers
+    #     )
+    #     self.assertEqual(resp.status_code, 200)
+    #     self.assertDictEqual(resp.data, create_data)
+    #     self.assertEqual(
+    #         {"state": "unauthorised", "reason_codes": ["X103"], "error_text": "Wallet only card"}, resp.data["status"]
+    #     )
+    #     self.assertFalse(mock_async_link.delay.called)
+    #     self.assertFalse(mock_async_balance.delay.called)
+
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    def test_wallet_only_mcard_creation(self, mock_async_balance, mock_async_link, *_):
-        payload = {
-            "membership_plan": self.scheme.id,
-            "account": {"add_fields": [{"column": self.scheme.manual_question.label, "value": "3038401022657083"}]},
-        }
-        resp = self.client.post(
-            reverse("membership-cards"), data=json.dumps(payload), content_type="application/json", **self.auth_headers
-        )
-        self.assertEqual(resp.status_code, 201)
-        self.assertEqual(
-            {"state": "unauthorised", "reason_codes": ["X103"], "error_text": "Wallet only card"}, resp.data["status"]
-        )
-        create_data = resp.data
-
-        sa = SchemeAccount.objects.get(pk=create_data["id"])
-        self.assertEqual(sa.main_answer, payload["account"]["add_fields"][0]["value"])
-        self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
-
-        # replay and check same data with 200 response
-        resp = self.client.post(
-            reverse("membership-cards"), data=json.dumps(payload), content_type="application/json", **self.auth_headers
-        )
-        self.assertEqual(resp.status_code, 200)
-        self.assertDictEqual(resp.data, create_data)
-        self.assertEqual(
-            {"state": "unauthorised", "reason_codes": ["X103"], "error_text": "Wallet only card"}, resp.data["status"]
-        )
-        self.assertFalse(mock_async_link.delay.called)
-        self.assertFalse(mock_async_balance.delay.called)
-
-    @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch("ubiquity.views.async_link", autospec=True)
-    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("analytics.api")
     def test_link_user_to_existing_wallet_only_card(self, mock_analytics, *_):
-        mock_analytics._get_today_datetime.return_value = datetime.datetime(year=2000, month=5, day=19)
         test_schemes = (
             (self.wallet_only_scheme, self.wallet_only_question),
             (self.scheme, self.scheme.manual_question),
@@ -823,10 +830,12 @@ class TestResources(GlobalMockAPITestCase):
         for scheme, question in test_schemes:
             existing_answer_value = "1234554321"
             existing_scheme_account = SchemeAccountFactory(scheme=scheme, **{question.type: existing_answer_value})
+            scheme_account_entry = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
             SchemeCredentialAnswerFactory(
-                scheme_account=existing_scheme_account, question=question, answer=existing_answer_value
+                question=question,
+                answer=existing_answer_value,
+                scheme_account_entry=scheme_account_entry,
             )
-            SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
 
             payload = {
                 "membership_plan": scheme.id,
@@ -856,12 +865,14 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     def test_wallet_only_mcard_authorisation(self, *_):
         existing_answer_value = "34567876345678765"
-        existing_scheme_account = SchemeAccountFactory(
-            scheme=self.scheme, barcode=existing_answer_value, status=SchemeAccount.WALLET_ONLY
+        existing_scheme_account = SchemeAccountFactory(scheme=self.scheme, barcode=existing_answer_value)
+        scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=existing_scheme_account, user=self.user, link_status=AccountLinkStatus.WALLET_ONLY
         )
-        SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value
+            question=self.scheme.manual_question,
+            answer=existing_answer_value,
+            scheme_account_entry=scheme_account_entry,
         )
 
         new_user = UserFactory(client=self.client_app, external_id="testexternalid")
@@ -880,8 +891,13 @@ class TestResources(GlobalMockAPITestCase):
         card_id = resp_json["id"]
 
         self.assertEqual(resp.status_code, 200)
+
         self.assertEqual(
-            resp_json["status"], {"state": "pending", "reason_codes": ["X100"], "error_text": "Auth Pending"}
+            # was
+            # resp_json["status"], {"state": "unauthorised", "reason_codes": ["X103"], "error_text": "Wallet only card"}
+            # now 2nd user is pending until response from Midas responds (ie background tasks mocked out run)
+            resp_json["status"],
+            {"state": "pending", "reason_codes": ["X100"], "error_text": "Pending"},
         )
 
         user_links = SchemeAccountEntry.objects.filter(scheme_account=existing_scheme_account)
@@ -889,7 +905,6 @@ class TestResources(GlobalMockAPITestCase):
         linked_users = [link.user_id for link in user_links]
         self.assertIn(self.user.id, linked_users)
         self.assertIn(new_user.id, linked_users)
-        self.assertTrue(all([link.auth_provided for link in user_links]))
 
         # check card is in get membership_cards response
         resp = self.client.get(reverse("membership-cards"), content_type="application/json", **headers)
@@ -899,12 +914,16 @@ class TestResources(GlobalMockAPITestCase):
 
     def test_wallet_only_authorised_card_already_exists(self, *_):
         existing_answer_value = "34567876345678765"
-        existing_scheme_account = SchemeAccountFactory(
-            scheme=self.scheme, barcode=existing_answer_value, status=SchemeAccount.WALLET_ONLY
+        existing_scheme_account = SchemeAccountFactory(scheme=self.scheme, barcode=existing_answer_value)
+        scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=existing_scheme_account,
+            user=self.user,
+            link_status=AccountLinkStatus.WALLET_ONLY,
         )
-        SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user, auth_provided=True)
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value
+            question=self.scheme.manual_question,
+            answer=existing_answer_value,
+            scheme_account_entry=scheme_account_entry,
         )
 
         payload = {
@@ -916,20 +935,18 @@ class TestResources(GlobalMockAPITestCase):
         )
         resp_json = resp.json()
 
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(400, resp.status_code)
         self.assertEqual("Card already exists in your wallet", resp_json["detail"])
 
         user_links = SchemeAccountEntry.objects.filter(scheme_account=existing_scheme_account)
 
         linked_users = [link.user_id for link in user_links]
         self.assertIn(self.user.id, linked_users)
-        self.assertTrue(all([link.auth_provided for link in user_links]))
+        # self.assertTrue(all([link.auth_provided for link in user_links]))
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch("analytics.api")
-    def test_autolink_for_wallet_only_mcard_does_not_soft_link(self, mock_analytics, *_):
-        mock_analytics._get_today_datetime.return_value = datetime.datetime(year=2000, month=5, day=19)
+    def test_autolink_for_wallet_only_mcard_does_not_soft_link(self, *_):
         self.payment_card_account.status = PaymentCardAccount.ACTIVE
         self.payment_card_account.save()
 
@@ -953,12 +970,16 @@ class TestResources(GlobalMockAPITestCase):
 
     def test_manual_linking_for_wallet_only_mcard_does_not_create_soft_link(self):
         existing_answer_value = "36543456787656"
-        existing_scheme_account = SchemeAccountFactory(
-            scheme=self.scheme, barcode=existing_answer_value, status=SchemeAccount.WALLET_ONLY
+        existing_scheme_account = SchemeAccountFactory(scheme=self.scheme, barcode=existing_answer_value)
+        scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=existing_scheme_account,
+            user=self.user,
+            link_status=AccountLinkStatus.WALLET_ONLY,
         )
-        SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user, auth_provided=False)
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value
+            question=self.scheme.manual_question,
+            answer=existing_answer_value,
+            scheme_account_entry=scheme_account_entry,
         )
 
         resp = self.client.patch(
@@ -980,12 +1001,16 @@ class TestResources(GlobalMockAPITestCase):
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     def test_wallet_only_card_patch_fails(self):
         existing_answer_value = "36543456787656"
-        existing_scheme_account = SchemeAccountFactory(
-            scheme=self.scheme, barcode=existing_answer_value, status=SchemeAccount.WALLET_ONLY
+        existing_scheme_account = SchemeAccountFactory(scheme=self.scheme, barcode=existing_answer_value)
+        entry = SchemeAccountEntryFactory(
+            scheme_account=existing_scheme_account,
+            user=self.user,
+            link_status=AccountLinkStatus.WALLET_ONLY,
         )
-        entry = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user, auth_provided=False)
         SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer=existing_answer_value
+            question=self.scheme.manual_question,
+            answer=existing_answer_value,
+            scheme_account_entry=entry,
         )
 
         payload = {
@@ -1001,7 +1026,6 @@ class TestResources(GlobalMockAPITestCase):
         )
 
         self.assertEqual(400, resp.status_code)
-        self.assertFalse(entry.auth_provided)
         self.assertEqual(
             "Cannot update authorise fields for Store type card. Card must be authorised "
             "via POST /membership_cards endpoint first.",
@@ -1010,26 +1034,47 @@ class TestResources(GlobalMockAPITestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(None, "", None))
-    def test_wallet_only_card_patch_fails_multi_user(self, mock_update_balance):
-        """Test auth_provided user doing a PATCH with incorrect credentials willdelete auth credentials
-        and delete payment scheme entries if all remaining linked users are wallet only users
+    def test_patch_credentials_isolated_multi_user(self, mock_update_balance):
+        """
+        Test auth_provided user doing a PATCH with new credentials doesn't delete auth credentials
+        for other linked users.
         """
         external_id = "anothertest@user.com"
         user2 = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
 
-        existing_scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.ACTIVE)
+        existing_scheme_account = SchemeAccountFactory(scheme=self.scheme)
+
+        entry1 = SchemeAccountEntryFactory(
+            scheme_account=existing_scheme_account,
+            user=self.user,
+            link_status=AccountLinkStatus.ACTIVE,
+        )
+        entry2 = SchemeAccountEntryFactory(
+            scheme_account=existing_scheme_account,
+            user=user2,
+            link_status=AccountLinkStatus.WALLET_ONLY,
+        )
+
         manual_q = SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer="36543456787656"
+            question=self.scheme.manual_question,
+            answer="36543456787656",
+            scheme_account_entry=entry2,
         )
         auth_q = SchemeCredentialAnswerFactory(
-            scheme_account=existing_scheme_account, question=self.secondary_question, answer="Test"
+            question=self.secondary_question,
+            answer="Test",
+            scheme_account_entry=entry2,
         )
 
-        entry1 = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user, auth_provided=True)
-        entry2 = SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=user2, auth_provided=False)
-
-        pcard_scheme_entry1 = PaymentCardSchemeEntryFactory(
-            scheme_account=existing_scheme_account, payment_card_account=self.payment_card_account
+        SchemeCredentialAnswerFactory(
+            question=self.scheme.manual_question,
+            answer="36543456787656",
+            scheme_account_entry=entry1,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.secondary_question,
+            answer="Test",
+            scheme_account_entry=entry1,
         )
 
         payload = {
@@ -1049,17 +1094,10 @@ class TestResources(GlobalMockAPITestCase):
         existing_scheme_account.refresh_from_db()
         entry1.refresh_from_db()
         entry2.refresh_from_db()
-        self.assertFalse(entry1.auth_provided)
-        self.assertFalse(entry1.auth_provided)
 
-        # check only auth questions are deleted
+        # will error (DoesNotExist) if credentials have been deleted
         manual_q.refresh_from_db()
-        with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):
-            auth_q.refresh_from_db()
-
-        # check payment scheme entries are deleted
-        with self.assertRaises(PaymentCardSchemeEntry.DoesNotExist):
-            pcard_scheme_entry1.refresh_from_db()
+        auth_q.refresh_from_db()
 
     @patch("ubiquity.views.async_link", autospec=True)
     def test_membership_card_link_with_consents(self, *_):
@@ -1174,8 +1212,9 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertEqual(response.status_code, 201)
         scheme_account = SchemeAccount.objects.get(pk=response.json()["id"])
-        self.assertEqual(scheme_account.main_answer, main_answer)
-        self.assertIn(scheme_account.status, SchemeAccount.JOIN_PENDING)
+        scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user=user)
+        self.assertEqual(scheme_account.barcode, main_answer)
+        self.assertIn(scheme_account_entry.link_status, AccountLinkStatus.join_pending())
         self.assertEqual(scheme_account.originating_journey, JourneyTypes.JOIN)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
@@ -1231,12 +1270,11 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(headers["channel"], "test.auth.fake")
         self.assertEqual(headers["loyalty-plan"], scheme_account.scheme.slug)
         self.assertEqual(headers["request-id"], str(scheme_account.id))
-        self.assertEqual(headers["account-id"], scheme_account.main_answer)
+        self.assertEqual(headers["account-id"], scheme_account.barcode)
         self.assertEqual(headers["bink-user-id"], str(user.id))
         self.assertIsInstance(headers["transaction-id"], str)
 
     @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch("analytics.api")
     @patch("ubiquity.views.async_join", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
@@ -1263,13 +1301,12 @@ class TestResources(GlobalMockAPITestCase):
 
     @patch("ubiquity.views.async_balance_with_updated_credentials.delay", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_update(self, *_):
         payload = json.dumps(
             {
                 "account": {
-                    "add_fields": [{"column": "barcode", "value": "3038401022657083"}],
+                    "add_fields": [{"column": "barcode", "value": self.scheme_account_answer.answer}],
                     "authorise_fields": [{"column": "last_name", "value": "Test"}],
                 }
             }
@@ -1295,6 +1332,11 @@ class TestResources(GlobalMockAPITestCase):
 
         self.user.is_tester = True
         self.user.save()
+
+        # Must set active in order for re-patch to work and show result of test user
+        self.scheme_account_entry.link_status = AccountLinkStatus.ACTIVE
+        self.scheme_account_entry.save()
+
         response = self.client.patch(
             reverse("membership-card", args=[self.scheme_account.id]),
             content_type="application/json",
@@ -1310,15 +1352,14 @@ class TestResources(GlobalMockAPITestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("ubiquity.views.async_link", autospec=True)
-    @patch("ubiquity.tasks.analytics", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.tasks.remove_loyalty_card_event")
     def test_membership_card_delete(self, mock_to_warehouse, *_):
         payload = {
             "membership_plan": self.scheme.id,
             "account": {
-                "add_fields": [{"column": "barcode", "value": "3038401022657083"}],
-                "authorise_fields": [{"column": "last_name", "value": "Test"}],
+                "add_fields": [{"column": "barcode", "value": "3038401022657082131"}],
+                "authorise_fields": [{"column": "last_name", "value": "Testy"}],
             },
         }
         resp = self.client.post(
@@ -1355,8 +1396,12 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(mock_to_warehouse.call_count, 1)
 
     def test_membership_card_delete_error_on_pending_join_mcard(self):
-        scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS, scheme=self.scheme)
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        scheme_account = SchemeAccountFactory(scheme=self.scheme)
+        SchemeAccountEntryFactory(
+            scheme_account=scheme_account,
+            user=self.user,
+            link_status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS,
+        )
 
         resp = self.client.delete(
             reverse("membership-card", args=[scheme_account.id]), content_type="application/json", **self.auth_headers
@@ -1549,7 +1594,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp_payment.status_code, 404)
         self.assertEqual(resp_membership.status_code, 404)
 
-    @patch("analytics.api")
     @patch("payment_card.metis.enrol_new_payment_card")
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
@@ -1648,10 +1692,9 @@ class TestResources(GlobalMockAPITestCase):
         self.assertTrue(httpretty.has_request())
         self.assertEqual(expected_resp, resp.json())
 
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_put_missing_membership_plan_error(self, *_):
         sa = SchemeAccountFactory(scheme=self.scheme)
@@ -1671,16 +1714,28 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json(), {"detail": "required field membership_plan is missing"})
 
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    def test_membership_card_put_manual_question(self, *_):
-        scheme_account = SchemeAccountFactory(scheme=self.put_scheme)
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
-        SchemeCredentialAnswerFactory(question=self.put_scheme_manual_q, scheme_account=scheme_account, answer="55555")
-        SchemeCredentialAnswerFactory(question=self.put_scheme_auth_q, scheme_account=scheme_account, answer="pass")
+    def test_membership_card_put_manual_question_single_link(self, *_):
+        """
+        Tests that a PUT with a different, non-existing add_field (manual_question_answer) results in a new account
+        being created, the schemeaccountentry switched to the new account, and the old account deleted.
+        (Single link/LastManStanding)
+        """
+        scheme_account = SchemeAccountFactory(scheme=self.put_scheme, card_number="55555")
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_manual_q,
+            answer="55555",
+            scheme_account_entry=scheme_account_entry,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_auth_q,
+            answer="pass",
+            scheme_account_entry=scheme_account_entry,
+        )
 
         payload = {
             "membership_plan": self.put_scheme.id,
@@ -1697,24 +1752,112 @@ class TestResources(GlobalMockAPITestCase):
             **self.auth_headers,
         )
 
-        self.assertEqual(resp_put.status_code, 200)
         scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.status, SchemeAccount.PENDING)
-        answers = scheme_account._collect_credentials()
+        scheme_account_entry.refresh_from_db()
+
+        new_scheme_acc_id = resp_put.data["id"]
+        new_scheme_acc = SchemeAccount.objects.get(id=new_scheme_acc_id)
+        new_scheme_acc_entry = SchemeAccountEntry.objects.get(scheme_account=new_scheme_acc, user=self.user)
+
+        self.assertEqual(resp_put.status_code, 200)
+
+        self.assertTrue(scheme_account.is_deleted)
+        self.assertEqual(scheme_account_entry.scheme_account, new_scheme_acc)
+
+        answers = scheme_account_entry._collect_credential_answers()
         new_manual_answer = answers.get(self.put_scheme_manual_q.type)
         self.assertEqual(new_manual_answer, "12345")
         self.assertIsNone(answers.get(self.put_scheme_scan_q.type))
 
-    @patch("scheme.mixins.analytics", autospec=True)
+        self.assertEqual(new_scheme_acc.card_number, "12345")
+        self.assertEqual(new_scheme_acc_entry.link_status, AccountLinkStatus.PENDING)
+
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    def test_membership_card_put_scan_question(self, *_):
+    def test_membership_card_put_different_nonexisting_manual_question_multiple_links(self, *_):
+        """
+        Tests that a PUT with a different, non-existing add_field (manual_question_answer) results in a new account
+        being created, the schemeaccountentry switched to the new account, and the old account unaffected.
+        (Multiple link/ NOT LastManStanding)
+        """
+        scheme_account = SchemeAccountFactory(scheme=self.put_scheme, card_number="55555")
+        scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=scheme_account, user=self.user, link_status=AccountLinkStatus.ACTIVE
+        )
+        scheme_account_entry_2 = SchemeAccountEntryFactory(
+            scheme_account=scheme_account, user=self.user2, link_status=AccountLinkStatus.ACTIVE
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_manual_q,
+            answer="55555",
+            scheme_account_entry=scheme_account_entry,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_auth_q,
+            answer="pass",
+            scheme_account_entry=scheme_account_entry,
+        )
+
+        payload = {
+            "membership_plan": self.put_scheme.id,
+            "account": {
+                "add_fields": [{"column": "card_number", "value": "12345"}],
+                "authorise_fields": [{"column": "password", "value": "pass"}],
+            },
+        }
+
+        resp_put = self.client.put(
+            reverse("membership-card", args=[scheme_account.id]),
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self.auth_headers,
+        )
+
+        scheme_account.refresh_from_db()
+        scheme_account_entry.refresh_from_db()
+
+        new_scheme_acc_id = resp_put.data["id"]
+        new_scheme_acc = SchemeAccount.objects.get(id=new_scheme_acc_id)
+
+        self.assertEqual(resp_put.status_code, 200)
+
+        self.assertFalse(scheme_account.is_deleted)
+        self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.PENDING)
+        self.assertEqual(scheme_account_entry.scheme_account, new_scheme_acc)
+        self.assertEqual(scheme_account_entry_2.link_status, AccountLinkStatus.ACTIVE)
+        self.assertEqual(scheme_account_entry_2.scheme_account, scheme_account)
+
+        answers = scheme_account_entry._collect_credential_answers()
+        new_manual_answer = answers.get(self.put_scheme_manual_q.type)
+        self.assertEqual(new_manual_answer, "12345")
+        self.assertIsNone(answers.get(self.put_scheme_scan_q.type))
+
+        self.assertEqual(new_scheme_acc.card_number, "12345")
+
+    @patch("ubiquity.views.async_link", autospec=True)
+    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
+    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
+    def test_membership_card_put_scan_question_single_link(self, *_):
+        """
+        Tests that a PUT with a different, non-existing add_field (scan_question_answer) results in a new account
+        being created, the schemeaccountentry switched to the new account, and the old account deleted.
+        (Single link/LastManStanding)
+        """
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme)
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
-        SchemeCredentialAnswerFactory(question=self.put_scheme_manual_q, scheme_account=scheme_account, answer="55555")
-        SchemeCredentialAnswerFactory(question=self.put_scheme_auth_q, scheme_account=scheme_account, answer="pass")
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_manual_q,
+            answer="55555",
+            scheme_account_entry=scheme_account_entry,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_auth_q,
+            answer="pass",
+            scheme_account_entry=scheme_account_entry,
+        )
 
         payload = {
             "membership_plan": self.put_scheme.id,
@@ -1730,31 +1873,54 @@ class TestResources(GlobalMockAPITestCase):
             content_type="application/json",
             **self.auth_headers,
         )
-        self.assertEqual(resp_put.status_code, 200)
+
         scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.status, SchemeAccount.PENDING)
-        answers = scheme_account._collect_credentials()
+        scheme_account_entry.refresh_from_db()
+
+        new_scheme_acc = SchemeAccount.objects.get(id=resp_put.data["id"])
+        new_scheme_acc_entry = SchemeAccountEntry.objects.get(scheme_account=new_scheme_acc, user=self.user)
+
+        self.assertEqual(resp_put.status_code, 200)
+
+        self.assertTrue(scheme_account.is_deleted)
+
+        self.assertEqual(scheme_account_entry.scheme_account, new_scheme_acc)
+        self.assertEqual(new_scheme_acc_entry.link_status, AccountLinkStatus.PENDING)
+        self.assertEqual(new_scheme_acc.barcode, "67890")
+
+        answers = scheme_account_entry._collect_credential_answers()
         new_scan_answer = answers.get(self.put_scheme_scan_q.type)
         self.assertEqual(new_scan_answer, "67890")
-        self.assertIsNone(answers.get(self.put_scheme_manual_q.type))
 
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_put_with_previous_balance(self, *_):
+        """
+        Tests that a PUT with a different, non-existing add_field (scan_question_answer) results in a new account
+        being created, and that no balance is present on this new card.
+        (Single link/LastManStanding)
+        """
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme)
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
-        SchemeCredentialAnswerFactory(question=self.put_scheme_manual_q, scheme_account=scheme_account, answer="9999")
-        SchemeCredentialAnswerFactory(question=self.put_scheme_auth_q, scheme_account=scheme_account, answer="pass")
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_manual_q,
+            answer="9999",
+            scheme_account_entry=scheme_account_entry,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_auth_q,
+            answer="pass",
+            scheme_account_entry=scheme_account_entry,
+        )
         scheme_account.balances = [{"points": 1, "scheme_account_id": 27308}]
         scheme_account.save()
 
         payload = {
             "membership_plan": self.put_scheme.id,
             "account": {
-                "add_fields": [{"column": "card_number", "value": "test12345678"}],
+                "add_fields": [{"column": "card_number", "value": "12345"}],
                 "authorise_fields": [{"column": "password", "value": "pass"}],
             },
         }
@@ -1766,25 +1932,36 @@ class TestResources(GlobalMockAPITestCase):
             **self.auth_headers,
         )
 
-        self.assertEqual(resp_put.status_code, 200)
         scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.status, SchemeAccount.PENDING)
-        self.assertFalse(scheme_account.balances)
 
-    @patch("scheme.mixins.analytics", autospec=True)
+        new_scheme_acc = SchemeAccount.objects.get(id=resp_put.data["id"])
+        new_scheme_acc_entry = SchemeAccountEntry.objects.get(scheme_account=new_scheme_acc, user=self.user)
+
+        self.assertEqual(resp_put.status_code, 200)
+        self.assertEqual(new_scheme_acc_entry.link_status, AccountLinkStatus.PENDING)
+        self.assertFalse(new_scheme_acc.balances)
+
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_put_on_pending_card_error(self, *_):
-        scheme_account = SchemeAccountFactory(scheme=self.put_scheme, status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        scheme_account = SchemeAccountFactory(scheme=self.put_scheme)
+        scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=scheme_account, user=self.user, link_status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS
+        )
         test_card_no = "654321"
         test_pass = "pass4"
         SchemeCredentialAnswerFactory(
-            question=self.put_scheme_manual_q, scheme_account=scheme_account, answer=test_card_no
+            question=self.put_scheme_manual_q,
+            answer=test_card_no,
+            scheme_account_entry=scheme_account_entry,
         )
-        SchemeCredentialAnswerFactory(question=self.put_scheme_auth_q, scheme_account=scheme_account, answer=test_pass)
+        SchemeCredentialAnswerFactory(
+            question=self.put_scheme_auth_q,
+            answer=test_pass,
+            scheme_account_entry=scheme_account_entry,
+        )
 
         payload = {
             "membership_plan": self.put_scheme.id,
@@ -1807,14 +1984,13 @@ class TestResources(GlobalMockAPITestCase):
         )
 
         scheme_account.refresh_from_db()
-        answers = scheme_account._collect_credentials()
+        answers = scheme_account_entry._collect_credential_answers()
         add_answer = answers.get(self.put_scheme_manual_q.type)
         auth_answer = answers.get(self.put_scheme_auth_q.type)
         self.assertEqual(add_answer, test_card_no)
         self.assertEqual(auth_answer, test_pass)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(10, "", None))
     @patch("ubiquity.tasks.async_balance", autospec=True)
     @patch("ubiquity.views.async_registration", autospec=True)
@@ -1824,9 +2000,19 @@ class TestResources(GlobalMockAPITestCase):
         user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
         auth_headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(user))}
         sa = SchemeAccountFactory(scheme=self.scheme, card_number="12345", originating_journey=JourneyTypes.ADD)
-        SchemeAccountEntryFactory(user=user, scheme_account=sa)
-        SchemeCredentialAnswerFactory(question=self.scheme.manual_question, scheme_account=sa, answer="12345")
-        SchemeCredentialAnswerFactory(question=self.secondary_question, scheme_account=sa, answer="name")
+        scheme_account_entry = SchemeAccountEntryFactory(
+            user=user, scheme_account=sa, link_status=AccountLinkStatus.ACTIVE
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.scheme.manual_question,
+            answer="12345",
+            scheme_account_entry=scheme_account_entry,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.secondary_question,
+            answer="name",
+            scheme_account_entry=scheme_account_entry,
+        )
         expected_value = {"last_name": "changed name"}
         payload_update = {"account": {"authorise_fields": [{"column": "last_name", "value": "changed name"}]}}
         resp_update = self.client.patch(
@@ -1836,10 +2022,13 @@ class TestResources(GlobalMockAPITestCase):
             **auth_headers,
         )
         self.assertEqual(resp_update.status_code, 200)
-        sa.status = SchemeAccount.PRE_REGISTERED_CARD
+        scheme_account_entry.refresh_from_db()
+        scheme_account_entry.link_status = AccountLinkStatus.PRE_REGISTERED_CARD
+        scheme_account_entry.save()
         sa.save()
         sa.refresh_from_db()
-        self.assertEqual(expected_value["last_name"], sa._collect_credentials()["last_name"])
+
+        self.assertEqual(expected_value["last_name"], scheme_account_entry._collect_credential_answers()["last_name"])
 
         payload_register = {"account": {"registration_fields": [{"column": "last_name", "value": "new changed name"}]}}
         resp_register = self.client.patch(
@@ -1850,11 +2039,11 @@ class TestResources(GlobalMockAPITestCase):
         )
         self.assertEqual(resp_register.status_code, 200)
         sa.refresh_from_db()
-        self.assertIn(sa.status, SchemeAccount.REGISTER_PENDING)
+        scheme_account_entry.refresh_from_db()
+        self.assertIn(scheme_account_entry.link_status, AccountLinkStatus.register_pending())
         self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(10, "", None))
     @patch("ubiquity.tasks.async_balance", autospec=True)
     @patch("ubiquity.views.async_registration", autospec=True)
@@ -1864,9 +2053,17 @@ class TestResources(GlobalMockAPITestCase):
         user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
         auth_headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(user))}
         sa = SchemeAccountFactory(scheme=self.scheme, card_number="12345", originating_journey=JourneyTypes.JOIN)
-        SchemeAccountEntryFactory(user=user, scheme_account=sa)
-        SchemeCredentialAnswerFactory(question=self.scheme.manual_question, scheme_account=sa, answer="12345")
-        SchemeCredentialAnswerFactory(question=self.secondary_question, scheme_account=sa, answer="name")
+        scheme_account_entry = SchemeAccountEntryFactory(user=user, scheme_account=sa)
+        SchemeCredentialAnswerFactory(
+            question=self.scheme.manual_question,
+            answer="12345",
+            scheme_account_entry=scheme_account_entry,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.secondary_question,
+            answer="name",
+            scheme_account_entry=scheme_account_entry,
+        )
         expected_value = {"last_name": "changed name"}
         payload_update = {"account": {"authorise_fields": [{"column": "last_name", "value": "changed name"}]}}
         resp_update = self.client.patch(
@@ -1876,10 +2073,10 @@ class TestResources(GlobalMockAPITestCase):
             **auth_headers,
         )
         self.assertEqual(resp_update.status_code, 200)
-        sa.status = SchemeAccount.PRE_REGISTERED_CARD
+        scheme_account_entry.link_status = AccountLinkStatus.PRE_REGISTERED_CARD
         sa.save()
         sa.refresh_from_db()
-        self.assertEqual(expected_value["last_name"], sa._collect_credentials()["last_name"])
+        self.assertEqual(expected_value["last_name"], scheme_account_entry._collect_credential_answers()["last_name"])
 
         payload_register = {"account": {"registration_fields": [{"column": "last_name", "value": "new changed name"}]}}
         resp_register = self.client.patch(
@@ -1989,11 +2186,11 @@ class TestResources(GlobalMockAPITestCase):
                 "balance": Decimal("20"),
                 "is_stale": False,
             },
-            (True, SchemeAccount.PENDING),
+            (True, AccountLinkStatus.PENDING),
         )
 
         expected_keys = {"value", "currency", "updated_at"}
-        self.scheme_account.get_cached_balance()
+        self.scheme_account.get_cached_balance(self.scheme_account_entry)
         resp = self.client.get(reverse("membership-card", args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["balances"][0]["value"], 100)
@@ -2014,23 +2211,22 @@ class TestResources(GlobalMockAPITestCase):
                 "balance": Decimal("20"),
                 "is_stale": False,
             },
-            (True, SchemeAccount.PENDING),
+            (True, AccountLinkStatus.PENDING),
         )
 
         self.assertFalse(test_scheme_account.balances)
-        test_scheme_account.get_cached_balance()
+        test_scheme_account.get_cached_balance(self.scheme_account_entry)
         self.assertTrue(mock_get_midas_balance.called)
         self.assertEqual(mock_get_midas_balance.call_args[1]["journey"], JourneyTypes.LINK)
         self.assertTrue(test_scheme_account.balances)
 
-        test_scheme_account.get_cached_balance()
+        test_scheme_account.get_cached_balance(self.scheme_account_entry)
         self.assertEqual(mock_get_midas_balance.call_args[1]["journey"], JourneyTypes.UPDATE)
 
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
     def test_existing_membership_card_creation_success(self, *_):
         new_external_id = "Test User mcard creation success"
         new_user = UserFactory(external_id=new_external_id, client=self.client_app, email=new_external_id)
@@ -2043,7 +2239,10 @@ class TestResources(GlobalMockAPITestCase):
             options=SchemeCredentialQuestion.MERCHANT_IDENTIFIER,
         )
 
-        new_answer = SchemeCredentialAnswerFactory(question=merch_identifier, scheme_account=self.scheme_account)
+        new_answer = SchemeCredentialAnswerFactory(
+            question=merch_identifier,
+            scheme_account_entry=self.scheme_account_entry,
+        )
 
         payload = {
             "membership_plan": self.scheme.id,
@@ -2070,111 +2269,11 @@ class TestResources(GlobalMockAPITestCase):
         new_answer.delete()
         merch_identifier.delete()
 
-    @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch("ubiquity.views.async_link", autospec=True)
-    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
-    def test_existing_membership_card_creation_non_case_sensitive_auth_fields(self, *_):
-        # Setup new scheme with all question types as auth fields and create existing scheme account
-        new_external_id = "Test User non case sensitive auth fields"
-        new_user = UserFactory(external_id=new_external_id, client=self.client_app, email=new_external_id)
-        auth_header = self._get_auth_header(new_user)
-        scheme = SchemeFactory()
-        scheme_account = SchemeAccountFactory(scheme=scheme)
-        scheme_account.main_answer = fake.email()
-        scheme_account.save(update_fields=["main_answer"])
-        SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
-        SchemeCredentialQuestionFactory(
-            scheme=scheme, type=EMAIL, label=EMAIL, manual_question=True, add_field=True, enrol_field=True
-        )
-        email = SchemeCredentialAnswerFactory(
-            question=scheme.manual_question, scheme_account=scheme_account, answer=scheme_account.main_answer
-        )
-        scheme_account.update_barcode_and_card_number()
-
-        payload = {
-            "membership_plan": scheme.id,
-            "account": {"add_fields": [{"column": EMAIL, "value": email.answer}], "authorise_fields": []},
-        }
-
-        test_question_types = [
-            q
-            for q, _ in CREDENTIAL_TYPES
-            if q not in DATE_TYPE_CREDENTIALS and q not in [CARD_NUMBER, BARCODE, PHONE, PHONE_2, EMAIL]
-        ]
-        question_answer_map = {}
-        for question_type in test_question_types:
-            question = SchemeCredentialQuestionFactory(
-                scheme=scheme,
-                type=question_type,
-                label=question_type,
-                third_party_identifier=False,
-                options=SchemeCredentialQuestion.LINK_AND_JOIN,
-                auth_field=True,
-                enrol_field=True,
-                register_field=True,
-            )
-
-            answer = SchemeCredentialAnswerFactory(question=question, scheme_account=scheme_account).answer
-
-            if question_type in ENCRYPTED_CREDENTIALS:
-                answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(answer)
-
-            question_answer_map[question_type] = answer
-
-        # Test modifying all credentials will fail since case sensitive fields are included
-        payload["account"]["authorise_fields"] = [
-            {"column": question_type, "value": answer.upper()} for question_type, answer in question_answer_map.items()
-        ]
-        resp = self.client.post(
-            reverse("membership-cards"),
-            data=json.dumps(payload),
-            content_type="application/json",
-            HTTP_AUTHORIZATION=auth_header,
-        )
-        self.assertEqual(resp.status_code, 400)
-        linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account).exists()
-        self.assertFalse(linked)
-
-        # Test modifying only non case-sensitive credentials passes
-        case_modified_auth_fields = []
-        for question_type, answer in question_answer_map.items():
-            if question_type not in CASE_SENSITIVE_CREDENTIALS and isinstance(answer, str):
-                answer = answer.upper()
-
-            case_modified_auth_fields.append({"column": question_type, "value": answer})
-
-        payload["account"]["authorise_fields"] = case_modified_auth_fields
-        resp = self.client.post(
-            reverse("membership-cards"),
-            data=json.dumps(payload),
-            content_type="application/json",
-            HTTP_AUTHORIZATION=auth_header,
-        )
-        self.assertEqual(resp.status_code, 200)
-        link = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account)
-        self.assertTrue(link.exists())
-        link.delete()
-
-        # Test modifying string-based manual question passes
-        payload["account"]["add_fields"] = [{"column": EMAIL, "value": email.answer.upper()}]
-        resp = self.client.post(
-            reverse("membership-cards"),
-            data=json.dumps(payload),
-            content_type="application/json",
-            HTTP_AUTHORIZATION=auth_header,
-        )
-        self.assertEqual(resp.status_code, 200)
-        linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account).exists()
-        self.assertTrue(linked)
-
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch.object(SchemeAccount, "get_midas_balance")
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
     def test_credential_emails_are_stored_as_lowercase_auth_route(self, *_):
         new_user, scheme, card_num_question, email_question, auth_header = self._setup_user_and_email_scheme()
 
@@ -2202,7 +2301,9 @@ class TestResources(GlobalMockAPITestCase):
         linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account_id=scheme_acc_id).exists()
         self.assertTrue(linked)
 
-        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_acc_id, question=email_question)
+        answers = SchemeAccountCredentialAnswer.objects.filter(
+            scheme_account_entry__scheme_account_id=scheme_acc_id, question=email_question
+        )
         self.assertEqual(len(answers), 1)
         self.assertEqual(answers[0].answer, "mixedcase@email.com")
 
@@ -2210,7 +2311,6 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
     @patch("scheme.mixins.requests.post")
     def test_credential_emails_are_stored_as_lowercase_enrol_route(self, mock_join_resp, *_):
         mock_join_resp.return_value.json.return_value = {"message": "success"}
@@ -2233,7 +2333,9 @@ class TestResources(GlobalMockAPITestCase):
         linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account_id=scheme_acc_id).exists()
         self.assertTrue(linked)
 
-        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_acc_id, question=email_question)
+        answers = SchemeAccountCredentialAnswer.objects.filter(
+            scheme_account_entry__scheme_account_id=scheme_acc_id, question=email_question
+        )
         self.assertEqual(len(answers), 1)
         self.assertEqual(answers[0].answer, "mixedcase@email.com")
 
@@ -2242,7 +2344,6 @@ class TestResources(GlobalMockAPITestCase):
     @patch.object(SchemeAccount, "get_midas_balance")
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
     @patch("scheme.mixins.requests.post")
     def test_credential_emails_are_stored_as_lowercase_register_route(self, mock_join_resp, *_):
         mock_join_resp.return_value.json.return_value = {"message": "success"}
@@ -2252,10 +2353,12 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account = SchemeAccountFactory(scheme=scheme)
         scheme_account.card_number = card_number
         scheme_account.save(update_fields=["card_number"])
-        SchemeAccountEntryFactory(user=new_user, scheme_account=scheme_account)
+        scheme_account_entry = SchemeAccountEntryFactory(user=new_user, scheme_account=scheme_account)
 
         SchemeCredentialAnswerFactory(
-            question=scheme.manual_question, scheme_account=scheme_account, answer=card_number
+            question=scheme.manual_question,
+            answer=card_number,
+            scheme_account_entry=scheme_account_entry,
         )
 
         email = "MiXedCaSe@EmAiL.COm"
@@ -2277,7 +2380,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 200)
 
         answers = SchemeAccountCredentialAnswer.objects.filter(
-            scheme_account_id=scheme_account.id, question=email_question
+            scheme_account_entry__scheme_account_id=scheme_account.id, question=email_question
         )
         self.assertEqual(len(answers), 1)
         self.assertEqual(answers[0].answer, "mixedcase@email.com")
@@ -2286,7 +2389,6 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
     def test_existing_membership_card_creation_postcode_space_handling(self, *_):
         # Setup new scheme with all question types as auth fields and create existing scheme account
         new_external_id = "Test User non case sensitive auth fields"
@@ -2294,16 +2396,19 @@ class TestResources(GlobalMockAPITestCase):
         auth_header = self._get_auth_header(new_user)
         scheme = SchemeFactory()
         scheme_account = SchemeAccountFactory(scheme=scheme)
-        scheme_account.main_answer = fake.email()
-        scheme_account.save(update_fields=["main_answer"])
+        scheme_account.alt_main_answer = fake.email()
+        scheme_account.save(update_fields=["alt_main_answer"])
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
         SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         SchemeCredentialQuestionFactory(
             scheme=scheme, type=EMAIL, label=EMAIL, manual_question=True, add_field=True, enrol_field=True
         )
         email = SchemeCredentialAnswerFactory(
-            question=scheme.manual_question, scheme_account=scheme_account, answer=scheme_account.main_answer
+            question=scheme.manual_question,
+            answer=scheme_account.alt_main_answer,
+            scheme_account_entry=scheme_account_entry,
         )
-        scheme_account.update_barcode_and_card_number()
+        scheme_account_entry.update_scheme_account_key_credential_fields()
 
         postcode_question = SchemeCredentialQuestionFactory(
             scheme=scheme,
@@ -2316,7 +2421,11 @@ class TestResources(GlobalMockAPITestCase):
             register_field=True,
         )
         test_postcode = "CR0 1FB"
-        SchemeCredentialAnswerFactory(question=postcode_question, scheme_account=scheme_account, answer=test_postcode)
+        SchemeCredentialAnswerFactory(
+            question=postcode_question,
+            answer=test_postcode,
+            scheme_account_entry=scheme_account_entry,
+        )
 
         payload = {
             "membership_plan": scheme.id,
@@ -2357,34 +2466,6 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
-    def test_existing_membership_card_creation_fail(self, mock_date, *_):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        payload = {
-            "membership_plan": self.scheme.id,
-            "account": {
-                "add_fields": [{"column": "barcode", "value": self.scheme_account.barcode}],
-                "authorise_fields": [{"column": "last_name", "value": "Test Fail"}],
-            },
-        }
-        new_external_id = "Test User 2"
-        new_user = UserFactory(external_id=new_external_id, client=self.client_app, email=new_external_id)
-        PaymentCardAccountEntryFactory(user=new_user, payment_card_account=self.payment_card_account)
-        auth_header = self._get_auth_header(new_user)
-        resp = self.client.post(
-            reverse("membership-cards"),
-            data=json.dumps(payload),
-            content_type="application/json",
-            HTTP_AUTHORIZATION=auth_header,
-        )
-        self.assertEqual(resp.status_code, 400)
-        self.assertIn("This card already exists, but the provided credentials do not match.", resp.json().get("detail"))
-
-    @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch("ubiquity.views.async_link", autospec=True)
-    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("analytics.api")
     def test_existing_membership_card_creation_non_matching_question_type(self, mock_analytics, *_):
         mock_analytics._get_today_datetime.return_value = datetime.datetime(year=2000, month=5, day=19)
         payload = {
@@ -2471,7 +2552,6 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(mock_to_warehouse.call_count, 2)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("scheme.mixins.analytics", autospec=True)
     @patch.object(BaseLinkMixin, "link_account", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
@@ -2501,6 +2581,7 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertEqual(success_resp.status_code, 201)
         query["scheme_account_id"] = success_resp.json()["id"]
+
         self.assertTrue(PaymentCardSchemeEntry.objects.filter(**query).exists())
 
         # linking a second loyalty card of the same plan to the same payment account. UBIQUITY_COLLISION scenario.
@@ -2527,15 +2608,18 @@ class TestResources(GlobalMockAPITestCase):
             .all()
         )
         self.assertEqual(len(entries), 2)
-        self.assertEqual(PaymentCardSchemeEntry.UBIQUITY_COLLISION, entries[1].slug)
+        ulinks = PllUserAssociation.objects.get(pll=entries[1], user=user)
+        self.assertEqual(ulinks.slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
+        self.assertEqual(ulinks.state, WalletPLLStatus.INACTIVE.value)
+        self.assertFalse(entries[1].active_link)
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_join", autospec=True)
     @patch("payment_card.payment.get_secret_key", autospec=True)
     def test_replace_mcard_with_enrol_fields(self, mock_secret, mock_async_join, mock_async_balance):
         mock_secret.return_value = "test_secret"
-        self.scheme_account.status = SchemeAccount.ENROL_FAILED
-        self.scheme_account.save(update_fields=["status"])
+        self.scheme_account_entry.link_status = AccountLinkStatus.ENROL_FAILED
+        self.scheme_account_entry.save(update_fields=["link_status"])
 
         consent_label = "Consent 1"
         consent = ConsentFactory.create(scheme=self.scheme, journey=JourneyTypes.JOIN.value)
@@ -2572,9 +2656,10 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.scheme_account.refresh_from_db()
-        self.assertEqual(self.scheme_account.status, SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
-        self.assertIn(self.scheme_account.status, SchemeAccount.JOIN_PENDING)
-        self.assertTrue(not self.scheme_account.schemeaccountcredentialanswer_set.all())
+        self.scheme_account_entry.refresh_from_db()
+        self.assertEqual(self.scheme_account_entry.link_status, AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS)
+        self.assertIn(self.scheme_account_entry.link_status, AccountLinkStatus.join_pending())
+        self.assertTrue(not self.scheme_account_entry.schemeaccountcredentialanswer_set.all())
         self.assertTrue(mock_async_join.delay.called)
         self.assertTrue(mock_async_balance.delay.called)
 
@@ -2585,8 +2670,8 @@ class TestResources(GlobalMockAPITestCase):
         self, mock_secret, mock_async_join, mock_async_balance
     ):
         mock_secret.return_value = "test_secret"
-        self.scheme_account.status = SchemeAccount.ENROL_FAILED
-        self.scheme_account.save(update_fields=["status"])
+        self.scheme_account_entry.status = AccountLinkStatus.ENROL_FAILED
+        self.scheme_account_entry.save(update_fields=["link_status"])
 
         consent_label = "Consent 1"
         consent = ConsentFactory.create(scheme=self.scheme, journey=JourneyTypes.JOIN.value)
@@ -2626,9 +2711,10 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.scheme_account.refresh_from_db()
-        self.assertEqual(self.scheme_account.main_answer, main_answer)
-        self.assertEqual(self.scheme_account.status, SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
-        self.assertTrue(not self.scheme_account.schemeaccountcredentialanswer_set.all())
+        self.scheme_account_entry.refresh_from_db()
+        self.assertEqual(self.scheme_account.alt_main_answer, main_answer)
+        self.assertEqual(self.scheme_account_entry.link_status, AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS)
+        self.assertTrue(not self.scheme_account_entry.schemeaccountcredentialanswer_set.all())
         self.assertTrue(mock_async_join.delay.called)
         self.assertTrue(mock_async_balance.delay.called)
 
@@ -2666,19 +2752,20 @@ class TestMembershipCardCredentials(GlobalMockAPITestCase):
             auth_field=True,
         )
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
+        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=cls.scheme.manual_question, scheme_account=cls.scheme_account
+            question=cls.scheme.manual_question,
+            scheme_account_entry=cls.scheme_account_entry,
         )
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(
-            question=secondary_question, scheme_account=cls.scheme_account
+            question=secondary_question,
+            scheme_account_entry=cls.scheme_account_entry,
         )
-        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
         token = GenerateJWToken(client.organisation.name, client.secret, cls.bundle.bundle_id, external_id).get_token()
         cls.auth_headers = {"HTTP_AUTHORIZATION": "Bearer {}".format(token)}
 
     @patch("ubiquity.views.async_balance_with_updated_credentials.delay", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch("ubiquity.views.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     @patch.object(SchemeAccount, "get_midas_balance")
     def test_update_new_and_existing_credentials(self, *_):
@@ -2752,7 +2839,6 @@ class TestResourcesV1_2(GlobalMockAPITestCase):
     @patch("ubiquity.channel_vault._secret_keys", mock_secrets["secret_keys"])
     @patch("ubiquity.channel_vault._bundle_secrets", mock_secrets["bundle_secrets"])
     @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch("analytics.api")
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     def test_sensitive_field_decryption(self, mock_async_balance, mock_async_link, *_):
@@ -2784,8 +2870,9 @@ class TestResourcesV1_2(GlobalMockAPITestCase):
         )
         self.assertEqual(resp.status_code, 201)
 
-        scheme_acc = SchemeAccount.objects.get(pk=resp.data["id"])
-        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account=scheme_acc).all()
+        scheme_account = SchemeAccount.objects.get(pk=resp.data["id"])
+        scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user=self.user)
+        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_entry=scheme_account_entry).all()
 
         self.assertEqual(len(answers), 1)
         self.assertEqual(password, mock_async_link.delay.call_args[0][0][PASSWORD])
@@ -2812,7 +2899,6 @@ class TestResourcesV1_2(GlobalMockAPITestCase):
     @patch("ubiquity.channel_vault._secret_keys", mock_secrets["secret_keys"])
     @patch("ubiquity.channel_vault._bundle_secrets", mock_secrets["bundle_secrets"])
     @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch("analytics.api")
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     def test_double_escaped_sensitive_field_value(self, mock_async_balance, mock_async_link, *_):
@@ -2845,8 +2931,9 @@ class TestResourcesV1_2(GlobalMockAPITestCase):
         )
         self.assertEqual(resp.status_code, 201)
 
-        scheme_acc = SchemeAccount.objects.get(pk=resp.data["id"])
-        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account=scheme_acc).all()
+        scheme_account = SchemeAccount.objects.get(pk=resp.data["id"])
+        scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, user=self.user)
+        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_entry=scheme_account_entry).all()
 
         self.assertEqual(len(answers), 1)
         self.assertEqual(expected_password, mock_async_link.delay.call_args[0][0][PASSWORD])
@@ -2856,7 +2943,6 @@ class TestResourcesV1_2(GlobalMockAPITestCase):
 
     @patch("ubiquity.channel_vault._secret_keys", mock_secrets["secret_keys"])
     @patch("ubiquity.channel_vault._bundle_secrets", mock_secrets["bundle_secrets"])
-    @patch("analytics.api")
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)

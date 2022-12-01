@@ -1,7 +1,6 @@
 import json
 
 from django.conf import settings
-from django.urls import reverse
 from rest_framework.exceptions import ErrorDetail
 
 from history.utils import GlobalMockAPITestCase
@@ -15,6 +14,7 @@ from scheme.tests.factories import (
     SchemeCredentialQuestionFactory,
     SchemeFactory,
 )
+from ubiquity.models import AccountLinkStatus
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.tests.factories import (
@@ -55,7 +55,10 @@ class TestCredentials(GlobalMockAPITestCase):
             auth_field=True,
         )
         GenerateJWToken(client.organisation.name, client.secret, cls.bundle.bundle_id, external_id).get_token()
-        cls.auth_headers = {"HTTP_AUTHORIZATION": "Token {}".format(settings.SERVICE_API_KEY)}
+        cls.auth_headers = {
+            "HTTP_AUTHORIZATION": "Token {}".format(settings.SERVICE_API_KEY),
+            "HTTP_BINK_USER_ID": cls.user.id,
+        }
 
     def test_clean_answer(self):
         question = SchemeCredentialQuestionFactory(type=PASSWORD)
@@ -64,31 +67,37 @@ class TestCredentials(GlobalMockAPITestCase):
 
     def test_internal_update_main_answer_to_existing_credential_fails(self):
         # The credential lookup to check for existing accounts is done on the scheme account
-        # fields "card_number", "barcode", and/or "main_answer", not on the SchemeCredentialAnswer records.
+        # fields "card_number", "barcode", and/or "alt_main_answer", not on the SchemeCredentialAnswer records.
         for field in [CARD_NUMBER, BARCODE]:
             with self.subTest(field=field):
                 answer = "1111"
                 SchemeAccountFactory(scheme=self.scheme, **{field: answer})
 
                 scheme_account2 = SchemeAccountFactory(scheme=self.scheme)
-                SchemeAccountEntryFactory(scheme_account=scheme_account2, user=self.user)
+                scheme_account_entry_2 = SchemeAccountEntryFactory(scheme_account=scheme_account2, user=self.user)
 
                 if field == BARCODE:
                     SchemeCredentialAnswerFactory(
-                        question=self.scheme.scan_question, scheme_account=scheme_account2, answer="2222"
+                        question=self.scheme.scan_question,
+                        answer="2222",
+                        scheme_account_entry=scheme_account_entry_2,
                     )
                 else:
                     SchemeCredentialAnswerFactory(
-                        question=self.scheme.manual_question, scheme_account=scheme_account2, answer="2222"
+                        question=self.scheme.manual_question,
+                        answer="2222",
+                        scheme_account_entry=scheme_account_entry_2,
                     )
 
                 payload = {field: answer}
+
                 resp = self.client.put(
-                    reverse("change_account_credentials", args=[scheme_account2.id]),
+                    f"/schemes/accounts/{scheme_account2.id}/credentials",
                     data=json.dumps(payload),
                     content_type="application/json",
                     **self.auth_headers,
                 )
+
                 self.assertEqual(400, resp.status_code)
                 self.assertEqual(
                     {
@@ -101,16 +110,18 @@ class TestCredentials(GlobalMockAPITestCase):
 
                 if field == BARCODE:
                     ans = SchemeAccountCredentialAnswer.objects.get(
-                        scheme_account=scheme_account2, question=self.scheme.scan_question
+                        question=self.scheme.scan_question,
+                        scheme_account_entry=scheme_account_entry_2,
                     )
                 else:
                     ans = SchemeAccountCredentialAnswer.objects.get(
-                        scheme_account=scheme_account2, question=self.scheme.manual_question
+                        question=self.scheme.manual_question,
+                        scheme_account_entry=scheme_account_entry_2,
                     )
 
                 self.assertNotEqual(ans, answer)
-                scheme_account2.refresh_from_db()
-                self.assertEqual(scheme_account2.ACCOUNT_ALREADY_EXISTS, scheme_account2.status)
+                scheme_account_entry_2.refresh_from_db()
+                self.assertEqual(AccountLinkStatus.ACCOUNT_ALREADY_EXISTS, scheme_account_entry_2.link_status)
 
     def test_internal_update_existing_main_answer_with_same_credential_is_accepted(self):
         for field in [CARD_NUMBER, BARCODE]:
@@ -121,8 +132,9 @@ class TestCredentials(GlobalMockAPITestCase):
                 SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
 
                 payload = {field: answer}
+
                 resp = self.client.put(
-                    reverse("change_account_credentials", args=[scheme_account.id]),
+                    f"/schemes/accounts/{scheme_account.id}/credentials",
                     data=json.dumps(payload),
                     content_type="application/json",
                     **self.auth_headers,

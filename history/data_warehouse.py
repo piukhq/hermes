@@ -1,9 +1,15 @@
 import logging
+import typing as t
 
 import arrow
 from django.conf import settings
 
 from api_messaging.message_broker import SendingService
+
+if t.TYPE_CHECKING:
+    from scheme.models import SchemeAccount
+    from ubiquity.models import SchemeAccountEntry
+    from user.models import CustomUser
 
 logger = logging.getLogger("messaging")
 
@@ -19,7 +25,7 @@ def to_data_warehouse(payload: dict) -> None:
         message_sender.send(payload, headers, settings.WAREHOUSE_QUEUE_NAME)
 
 
-def addauth_request_lc_event(user: object, scheme_account: object, bundle_id: str):
+def addauth_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str):
     payload = {
         "event_type": "lc.addandauth.request",
         "origin": "channel",
@@ -30,12 +36,12 @@ def addauth_request_lc_event(user: object, scheme_account: object, bundle_id: st
         "email": user.email,
         "scheme_account_id": scheme_account.id,
         "loyalty_plan": scheme_account.scheme_id,
-        "main_answer": scheme_account.main_answer,
+        "main_answer": scheme_account.alt_main_answer,
     }
     to_data_warehouse(payload)
 
 
-def auth_request_lc_event(user: object, scheme_account: object, bundle_id: str):
+def auth_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str):
     payload = {
         "event_type": "lc.auth.request",
         "origin": "channel",
@@ -46,43 +52,46 @@ def auth_request_lc_event(user: object, scheme_account: object, bundle_id: str):
         "email": user.email,
         "scheme_account_id": scheme_account.id,
         "loyalty_plan": scheme_account.scheme_id,
-        "main_answer": scheme_account.main_answer,
+        "main_answer": scheme_account.alt_main_answer,
     }
     to_data_warehouse(payload)
 
 
-def register_lc_event(user: object, scheme_account: object, bundle_id: str):
+def register_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id: str):
     payload = {
         "event_type": "lc.register.request",
         "origin": "channel",
         "channel": bundle_id,
         "event_date_time": arrow.utcnow().isoformat(),
-        "external_user_ref": user.external_id,
-        "internal_user_ref": user.id,
-        "email": user.email,
-        "scheme_account_id": scheme_account.id,
-        "loyalty_plan": scheme_account.scheme_id,
-        "main_answer": scheme_account.main_answer,
+        "external_user_ref": scheme_account_entry.user.external_id,
+        "internal_user_ref": scheme_account_entry.user.id,
+        "email": scheme_account_entry.user.email,
+        "scheme_account_id": scheme_account_entry.scheme_account.id,
+        "loyalty_plan": scheme_account_entry.scheme_account.scheme_id,
+        "main_answer": scheme_account_entry.scheme_account.alt_main_answer,
     }
     to_data_warehouse(payload)
 
 
-def join_request_lc_event(user: object, scheme_account: object, bundle_id: str):
+def join_request_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id: str):
     payload = {
         "event_type": "lc.join.request",
         "origin": "channel",
         "channel": bundle_id,
         "event_date_time": arrow.utcnow().isoformat(),
-        "external_user_ref": user.external_id,
-        "internal_user_ref": user.id,
-        "email": user.email,
-        "scheme_account_id": scheme_account.id,
-        "loyalty_plan": scheme_account.scheme_id,
+        "external_user_ref": scheme_account_entry.user.external_id,
+        "internal_user_ref": scheme_account_entry.user.id,
+        "email": scheme_account_entry.user.email,
+        "scheme_account_id": scheme_account_entry.scheme_account.id,
+        "loyalty_plan": scheme_account_entry.scheme_account.scheme_id,
     }
     to_data_warehouse(payload)
 
 
-def remove_loyalty_card_event(user: object, scheme_account: object):
+def remove_loyalty_card_event(scheme_account_entry: "SchemeAccountEntry"):
+
+    user = scheme_account_entry.user
+    scheme_account = scheme_account_entry.scheme_account
     cabs = user.client.clientapplicationbundle_set.all()
     for cab in cabs:
         payload = {
@@ -95,111 +104,111 @@ def remove_loyalty_card_event(user: object, scheme_account: object):
             "email": user.email,
             "scheme_account_id": scheme_account.id,
             "loyalty_plan": scheme_account.scheme_id,
-            "main_answer": scheme_account.main_answer,
-            "status": scheme_account.status,
+            "main_answer": scheme_account.alt_main_answer,
+            "status": scheme_account_entry.link_status,
         }
         to_data_warehouse(payload)
 
 
-def join_outcome(success: bool, user: object, scheme_account: object):
+def join_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
     extra_data = {}
     if success:
         event_type = "lc.join.success"
-        extra_data["main_answer"] = scheme_account.main_answer
+        extra_data["main_answer"] = scheme_account_entry.scheme_account.alt_main_answer
     else:
         event_type = "lc.join.failed"
 
-    extra_data["status"] = scheme_account.status
+    extra_data["status"] = scheme_account_entry.link_status
 
-    cabs = user.client.clientapplicationbundle_set.all()
+    cabs = scheme_account_entry.user.client.clientapplicationbundle_set.all()
     for cab in cabs:
         payload = {
             "event_type": event_type,
             "origin": "merchant.callback",
             "channel": cab.bundle_id,
             "event_date_time": arrow.utcnow().isoformat(),
-            "external_user_ref": user.external_id,
-            "internal_user_ref": user.id,
-            "email": user.email,
-            "scheme_account_id": scheme_account.id,
-            "loyalty_plan": scheme_account.scheme_id,
+            "external_user_ref": scheme_account_entry.user.external_id,
+            "internal_user_ref": scheme_account_entry.user.id,
+            "email": scheme_account_entry.user.email,
+            "scheme_account_id": scheme_account_entry.scheme_account.id,
+            "loyalty_plan": scheme_account_entry.scheme_account.scheme_id,
             **extra_data,
         }
         to_data_warehouse(payload)
 
 
-def add_auth_outcome(success: bool, user: object, scheme_account: object):
+def add_auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
     extra_data = {}
     if success:
         event_type = "lc.addandauth.success"
-        extra_data["main_answer"] = scheme_account.main_answer
+        extra_data["main_answer"] = scheme_account_entry.scheme_account.alt_main_answer
     else:
         event_type = "lc.addandauth.failed"
 
-    extra_data["status"] = scheme_account.status
+    extra_data["status"] = scheme_account_entry.link_status
 
     payload = {
         "event_type": event_type,
         "origin": "channel",
-        "channel": user.bundle_id,
+        "channel": scheme_account_entry.user.bundle_id,
         "event_date_time": arrow.utcnow().isoformat(),
-        "external_user_ref": user.external_id,
-        "internal_user_ref": user.id,
-        "email": user.email,
-        "scheme_account_id": scheme_account.id,
-        "loyalty_plan": scheme_account.scheme_id,
+        "external_user_ref": scheme_account_entry.user.external_id,
+        "internal_user_ref": scheme_account_entry.user.id,
+        "email": scheme_account_entry.user.email,
+        "scheme_account_id": scheme_account_entry.scheme_account.id,
+        "loyalty_plan": scheme_account_entry.scheme_account.scheme_id,
         **extra_data,
     }
     to_data_warehouse(payload)
 
 
-def auth_outcome(success: bool, user: object, scheme_account: object):
+def auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
     extra_data = {}
     if success:
         event_type = "lc.auth.success"
-        extra_data["main_answer"] = scheme_account.main_answer
+        extra_data["main_answer"] = scheme_account_entry.scheme_account.alt_main_answer
     else:
         event_type = "lc.auth.failed"
 
-    extra_data["status"] = scheme_account.status
+    extra_data["status"] = scheme_account_entry.link_status
 
     payload = {
         "event_type": event_type,
         "origin": "channel",
-        "channel": user.bundle_id,
+        "channel": scheme_account_entry.user.bundle_id,
         "event_date_time": arrow.utcnow().isoformat(),
-        "external_user_ref": user.external_id,
-        "internal_user_ref": user.id,
-        "email": user.email,
-        "scheme_account_id": scheme_account.id,
-        "loyalty_plan": scheme_account.scheme_id,
+        "external_user_ref": scheme_account_entry.user.external_id,
+        "internal_user_ref": scheme_account_entry.user.id,
+        "email": scheme_account_entry.user.email,
+        "scheme_account_id": scheme_account_entry.scheme_account.id,
+        "loyalty_plan": scheme_account_entry.scheme_account.scheme_id,
         **extra_data,
     }
     to_data_warehouse(payload)
 
 
-def register_outcome(success: bool, user: object, scheme_account: object):
+def register_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
     extra_data = {}
     if success:
         event_type = "lc.register.success"
-        extra_data["main_answer"] = scheme_account.main_answer
+        extra_data["main_answer"] = scheme_account_entry.scheme_account.alt_main_answer
     else:
         event_type = "lc.register.failed"
 
-    extra_data["status"] = scheme_account.status
+    extra_data["status"] = scheme_account_entry.link_status
 
-    cabs = user.client.clientapplicationbundle_set.all()
+    cabs = scheme_account_entry.user.client.clientapplicationbundle_set.all()
     for cab in cabs:
         payload = {
             "event_type": event_type,
             "origin": "merchant.callback",
             "channel": cab.bundle_id,
             "event_date_time": arrow.utcnow().isoformat(),
-            "external_user_ref": user.external_id,
-            "internal_user_ref": user.id,
-            "email": user.email,
-            "scheme_account_id": scheme_account.id,
-            "loyalty_plan": scheme_account.scheme_id,
+            "external_user_ref": scheme_account_entry.user.external_id,
+            "internal_user_ref": scheme_account_entry.user.id,
+            "email": scheme_account_entry.user.email,
+            "scheme_account_id": scheme_account_entry.scheme_account.id,
+            "loyalty_plan": scheme_account_entry.scheme_account.scheme_id,
             **extra_data,
         }
         to_data_warehouse(payload)

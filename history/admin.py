@@ -1,5 +1,5 @@
 from django.contrib import admin
-from rangefilter.filter import DateTimeRangeFilter
+from rangefilter.filters import DateTimeRangeFilter
 
 from common.admin import InputFilter
 from history.enums import HistoryModel

@@ -1,6 +1,5 @@
 from unittest import mock
 from unittest.mock import patch
-from uuid import UUID
 
 from django.conf import settings
 from django.utils import timezone
@@ -154,7 +153,7 @@ class TestPaymentCard(GlobalMockAPITestCase):
         self.assertEqual(passed_to_mock["from_status"], 0)
         self.assertEqual(passed_to_mock["to_status"], 1)
         self.assertEqual(passed_to_mock["payment_account_id"], self.payment_card_account.id)
-        self.assertEqual(UUID(passed_to_mock["fingerprint"]), self.payment_card_account.fingerprint)
+        self.assertEqual(passed_to_mock["fingerprint"], self.payment_card_account.fingerprint)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["id"], self.payment_card_account.id)
@@ -195,7 +194,7 @@ class TestPaymentCard(GlobalMockAPITestCase):
         token = "test_token_123"
         user = UserFactory()
         sae = SchemeAccountEntryFactory(user=user)
-        pca = factories.PaymentCardAccountFactory(psp_token=token, payment_card=self.payment_card)
+        pca = factories.PaymentCardAccountFactory(psp_token=token, token=token, payment_card=self.payment_card)
         ubiquity.tests.factories.PaymentCardAccountEntryFactory(user=user, payment_card_account=pca)
         PaymentCardSchemeEntryFactory(payment_card_account=pca, scheme_account=sae.scheme_account)
 
@@ -212,7 +211,9 @@ class TestAuthTransactions(GlobalMockAPITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.auth_service_headers = {"HTTP_AUTHORIZATION": "Token " + settings.SERVICE_API_KEY}
-        cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token="234rghjcewerg4gf3ef23v")
+        cls.payment_card_account = factories.PaymentCardAccountFactory(
+            psp_token="234rghjcewerg4gf3ef23v", token="234rghjcewerg4gf3ef23v"
+        )
 
     def test_create_auth_transaction_endpoint(self):
         payload = {

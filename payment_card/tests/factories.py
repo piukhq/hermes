@@ -32,8 +32,8 @@ class PaymentCardFactory(factory.django.DjangoModelFactory):
     url = fake.url()
     scan_message = fake.bs()
     input_label = fake.bs()
-    system = models.PaymentCard.MASTERCARD
-    type = models.PaymentCard.MASTERCARD
+    system = models.PaymentCard.VISA
+    type = models.PaymentCard.CREDIT
 
 
 class PaymentCardAccountFactory(factory.django.DjangoModelFactory):
@@ -47,11 +47,15 @@ class PaymentCardAccountFactory(factory.django.DjangoModelFactory):
     start_year = fake.month()
     expiry_month = fake.month()
     expiry_year = fake.month()
+    currency_code = "GBP"
     pan_start = "111111"
     pan_end = "2222"
     order = 0
     issuer = factory.SubFactory(IssuerFactory)
-    fingerprint = FuzzyAttribute(uuid.uuid4)
+    fingerprint = str(uuid.uuid4().hex)
+    psp_token = str(uuid.uuid4().hex)
+    token = psp_token
+    issuer_name = fake.word()
 
 
 class PaymentCardImageFactory(factory.django.DjangoModelFactory):

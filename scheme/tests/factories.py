@@ -96,7 +96,6 @@ class SchemeAccountFactory(factory.django.DjangoModelFactory):
         model = models.SchemeAccount
 
     scheme = factory.SubFactory(SchemeFactory)
-    status = models.SchemeAccount.ACTIVE
     order = 0
     vouchers = [
         {
@@ -211,7 +210,6 @@ class SchemeCredentialAnswerFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.SchemeAccountCredentialAnswer
 
-    scheme_account = factory.SubFactory(SchemeAccountFactory)
     question = factory.SubFactory(SchemeCredentialQuestionFactory)
     answer = fake.first_name()
 
