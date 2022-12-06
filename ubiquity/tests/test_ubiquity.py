@@ -1007,6 +1007,12 @@ class TestResources(GlobalMockAPITestCase):
             user=self.user,
             link_status=AccountLinkStatus.WALLET_ONLY,
         )
+        SchemeAccountEntryFactory(
+            scheme_account=existing_scheme_account,
+            user=self.user2,
+            link_status=AccountLinkStatus.WALLET_ONLY,
+        )
+
         SchemeCredentialAnswerFactory(
             question=self.scheme.manual_question,
             answer=existing_answer_value,
@@ -1031,73 +1037,6 @@ class TestResources(GlobalMockAPITestCase):
             "via POST /membership_cards endpoint first.",
             resp.data["detail"],
         )
-
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(None, "", None))
-    def test_patch_credentials_isolated_multi_user(self, mock_update_balance):
-        """
-        Test auth_provided user doing a PATCH with new credentials doesn't delete auth credentials
-        for other linked users.
-        """
-        external_id = "anothertest@user.com"
-        user2 = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
-
-        existing_scheme_account = SchemeAccountFactory(scheme=self.scheme)
-
-        entry1 = SchemeAccountEntryFactory(
-            scheme_account=existing_scheme_account,
-            user=self.user,
-            link_status=AccountLinkStatus.ACTIVE,
-        )
-        entry2 = SchemeAccountEntryFactory(
-            scheme_account=existing_scheme_account,
-            user=user2,
-            link_status=AccountLinkStatus.WALLET_ONLY,
-        )
-
-        manual_q = SchemeCredentialAnswerFactory(
-            question=self.scheme.manual_question,
-            answer="36543456787656",
-            scheme_account_entry=entry2,
-        )
-        auth_q = SchemeCredentialAnswerFactory(
-            question=self.secondary_question,
-            answer="Test",
-            scheme_account_entry=entry2,
-        )
-
-        SchemeCredentialAnswerFactory(
-            question=self.scheme.manual_question,
-            answer="36543456787656",
-            scheme_account_entry=entry1,
-        )
-        SchemeCredentialAnswerFactory(
-            question=self.secondary_question,
-            answer="Test",
-            scheme_account_entry=entry1,
-        )
-
-        payload = {
-            "membership_plan": self.scheme.id,
-            "account": {"authorise_fields": [{"column": self.secondary_question.label, "value": "Fail Patch"}]},
-        }
-
-        resp = self.client.patch(
-            reverse("membership-card", kwargs={"pk": existing_scheme_account.id}),
-            data=json.dumps(payload),
-            content_type="application/json",
-            **self.auth_headers,
-        )
-
-        self.assertTrue(mock_update_balance.called)
-        self.assertEqual(200, resp.status_code)
-        existing_scheme_account.refresh_from_db()
-        entry1.refresh_from_db()
-        entry2.refresh_from_db()
-
-        # will error (DoesNotExist) if credentials have been deleted
-        manual_q.refresh_from_db()
-        auth_q.refresh_from_db()
 
     @patch("ubiquity.views.async_link", autospec=True)
     def test_membership_card_link_with_consents(self, *_):
