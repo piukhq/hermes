@@ -171,8 +171,6 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
         questions = scheme.questions.all()
 
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
-        import pdb; pdb.set_trace()
-        # create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
 
         if path == LoyaltyCardPath.REGISTER:
             register_lc_event(scheme_account_entry, ac.channel_slug)
