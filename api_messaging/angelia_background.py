@@ -143,7 +143,9 @@ def delete_payment_account(message: dict) -> None:
     with AngeliaContext(message) as ac:
         query = {"user_id": ac.user_id, "payment_card_account_id": message["payment_account_id"]}
         get_object_or_404(PaymentCardAccountEntry.objects, **query).delete()
-        deleted_payment_card_cleanup(payment_card_id=message["payment_account_id"], payment_card_hash=None)
+        deleted_payment_card_cleanup(
+            payment_card_id=message["payment_account_id"], payment_card_hash=None, user_id=ac.user_id
+        )
 
 
 def loyalty_card_register(message: dict) -> None:
