@@ -428,6 +428,7 @@ class PaymentCardView(
         deleted_payment_card_cleanup.delay(
             pcard_pk,
             pcard_hash,
+            request.channels_permit.user.id,
             history_kwargs={
                 "user_info": user_info(
                     user_id=request.channels_permit.user.id, channel=request.channels_permit.bundle_id

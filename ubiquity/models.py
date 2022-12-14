@@ -596,7 +596,7 @@ class WalletPLLStatus(IntEnum):
 
     @classmethod
     def get_states(cls) -> tuple:
-        return ((cls.PENDING.value, "pending"), (cls.ACTIVE.value, "active"), (cls.INACTIVE.value, "inactive"))
+        return (cls.PENDING.value, "pending"), (cls.ACTIVE.value, "active"), (cls.INACTIVE.value, "inactive")
 
 
 class WalletPLLSlug(Enum):
