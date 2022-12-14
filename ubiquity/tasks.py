@@ -278,7 +278,7 @@ def send_merchant_metrics_for_link_delete(scheme_account_id: int, scheme_slug: s
 
 @shared_task
 def deleted_payment_card_cleanup(
-    payment_card_id: t.Optional[int], payment_card_hash: t.Optional[str], history_kwargs: dict = None
+    payment_card_id: t.Optional[int], payment_card_hash: t.Optional[str], user_id: int, history_kwargs: dict = None
 ) -> None:
     set_history_kwargs(history_kwargs)
     if payment_card_id is not None:
@@ -289,6 +289,8 @@ def deleted_payment_card_cleanup(
     payment_card_account = PaymentCardAccount.objects.prefetch_related("paymentcardschemeentry_set").get(**query)
     p_card_users = payment_card_account.user_set.values_list("id", flat=True).all()
     pll_links = payment_card_account.paymentcardschemeentry_set.all()
+
+    PllUserAssociation.objects.filter(pll__in=pll_links, user__id=user_id).delete()
 
     if not p_card_users:
         payment_card_account.is_deleted = True
@@ -317,6 +319,7 @@ def deleted_membership_card_cleanup(
 ) -> None:
     set_history_kwargs(history_kwargs)
     scheme_slug = scheme_account_entry.scheme_account.scheme.slug
+    user = scheme_account_entry.user
 
     # todo: review PLL behaviour on card deletion in P3
     pll_links = PaymentCardSchemeEntry.objects.filter(
@@ -324,6 +327,8 @@ def deleted_membership_card_cleanup(
     ).prefetch_related("scheme_account", "payment_card_account", "payment_card_account__paymentcardschemeentry_set")
 
     remove_loyalty_card_event(scheme_account_entry)
+
+    PllUserAssociation.objects.filter(pll__in=pll_links, user=user).delete()
 
     other_scheme_account_entries = SchemeAccountEntry.objects.filter(
         scheme_account=scheme_account_entry.scheme_account

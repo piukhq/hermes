@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import arrow
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
 
@@ -313,7 +314,7 @@ class TestTasks(GlobalMockAPITestCase):
         PllUserAssociation.link_users_scheme_account_to_payment(mcard2, payment_card, user2)
 
         # TEST
-        deleted_payment_card_cleanup(payment_card.id, None)
+        deleted_payment_card_cleanup(payment_card.id, None, user1.id)
 
         # PLL links deleted for mcards held by user1 and
         # resolved to Active from UBIQUITY_COLLISION for mcard held by user2
@@ -327,6 +328,94 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertTrue(links[0].active_link)
         self.assertEqual(pll_users[0].slug, "")
         self.assertEqual(pll_users[0].state, WalletPLLStatus.ACTIVE)
+
+    @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
+    def test_deleted_membership_card_identical_2_wallet(self, mock_metrics):
+        external_id_1 = "testuser@testbink.com"
+        user1 = UserFactory(external_id=external_id_1, email=external_id_1)
+        external_id_2 = "testuser2@testbink.com"
+        user2 = UserFactory(external_id=external_id_2, email=external_id_2)
+
+        payment_card = PaymentCardAccountFactory()
+        membership_card = SchemeAccountFactory()
+
+        # add payment card and membership card to wallet 1
+        SchemeAccountEntryFactory(scheme_account=membership_card, user=user1)
+        PaymentCardAccountEntryFactory(user=user1, payment_card_account=payment_card)
+        PllUserAssociation.link_users_scheme_account_to_payment(membership_card, payment_card, user1)
+
+        # add same payment card and membership card accounts to wallet 2
+        sae2 = SchemeAccountEntryFactory(scheme_account=membership_card, user=user2)
+        PaymentCardAccountEntryFactory(user=user2, payment_card_account=payment_card)
+        PllUserAssociation.link_users_scheme_account_to_payment(membership_card, payment_card, user2)
+
+        # check status of set up links
+        base_links = payment_card.paymentcardschemeentry_set.all()
+        pll_user_links = PllUserAssociation.objects.all()
+
+        self.assertEqual(len(pll_user_links), 2)
+        self.assertEqual(len(base_links), 1)
+        self.assertEqual(pll_user_links[0].pll, base_links[0])
+        self.assertEqual(pll_user_links[1].pll, base_links[0])
+        self.assertEqual(pll_user_links[0].slug, "")
+        # Not a ubiquity collision because same scheme and payment accounts and shared base link
+        self.assertEqual(pll_user_links[0].state, WalletPLLStatus.ACTIVE)
+        self.assertEqual(pll_user_links[1].slug, "")
+        self.assertEqual(pll_user_links[1].state, WalletPLLStatus.ACTIVE)
+        self.assertTrue(base_links[0].active_link)
+
+        deleted_membership_card_cleanup(sae2, arrow.utcnow().format())
+
+        base_links = payment_card.paymentcardschemeentry_set.all()
+        pll_user_links = PllUserAssociation.objects.all()
+
+        self.assertEqual(len(pll_user_links), 1)
+        self.assertEqual(len(base_links), 1)
+        self.assertEqual(pll_user_links[0].user, user1)
+
+    @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
+    def test_deleted_payment_card_identical_2_wallet(self, mock_metrics):
+        external_id_1 = "testuser@testbink.com"
+        user1 = UserFactory(external_id=external_id_1, email=external_id_1)
+        external_id_2 = "testuser2@testbink.com"
+        user2 = UserFactory(external_id=external_id_2, email=external_id_2)
+
+        payment_card = PaymentCardAccountFactory()
+        membership_card = SchemeAccountFactory()
+
+        # add payment card and membership card to wallet 1
+        SchemeAccountEntryFactory(scheme_account=membership_card, user=user1)
+        PaymentCardAccountEntryFactory(user=user1, payment_card_account=payment_card)
+        PllUserAssociation.link_users_scheme_account_to_payment(membership_card, payment_card, user1)
+
+        # add same payment card and membership card accounts to wallet 2
+        SchemeAccountEntryFactory(scheme_account=membership_card, user=user2)
+        PaymentCardAccountEntryFactory(user=user2, payment_card_account=payment_card)
+        PllUserAssociation.link_users_scheme_account_to_payment(membership_card, payment_card, user2)
+
+        # check status of set up links
+        base_links = payment_card.paymentcardschemeentry_set.all()
+        pll_user_links = PllUserAssociation.objects.all()
+
+        self.assertEqual(len(pll_user_links), 2)
+        self.assertEqual(len(base_links), 1)
+        self.assertEqual(pll_user_links[0].pll, base_links[0])
+        self.assertEqual(pll_user_links[1].pll, base_links[0])
+        self.assertEqual(pll_user_links[0].slug, "")
+        # Not a ubiquity collision because same scheme and payment accounts and shared base link
+        self.assertEqual(pll_user_links[0].state, WalletPLLStatus.ACTIVE)
+        self.assertEqual(pll_user_links[1].slug, "")
+        self.assertEqual(pll_user_links[1].state, WalletPLLStatus.ACTIVE)
+        self.assertTrue(base_links[0].active_link)
+
+        deleted_payment_card_cleanup(payment_card.id, None, user_id=user2.id)
+
+        base_links = payment_card.paymentcardschemeentry_set.all()
+        pll_user_links = PllUserAssociation.objects.all()
+
+        self.assertEqual(len(pll_user_links), 1)
+        self.assertEqual(len(base_links), 1)
+        self.assertEqual(pll_user_links[0].user, user1)
 
     @patch("payment_card.metis.delete_payment_card")
     @patch("ubiquity.tasks._send_data_to_atlas")

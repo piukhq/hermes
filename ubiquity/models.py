@@ -596,7 +596,7 @@ class WalletPLLStatus(IntEnum):
 
     @classmethod
     def get_states(cls) -> tuple:
-        return ((cls.PENDING.value, "pending"), (cls.ACTIVE.value, "active"), (cls.INACTIVE.value, "inactive"))
+        return (cls.PENDING.value, "pending"), (cls.ACTIVE.value, "active"), (cls.INACTIVE.value, "inactive")
 
 
 class WalletPLLSlug(Enum):
@@ -820,13 +820,21 @@ class PllUserAssociation(models.Model):
     def get_state_and_slug(cls, payment_card_account: "PaymentCardAccount", scheme_account_status: int):
         pay_index = 2
         scheme_index = 2
+        account_pending = (
+            AccountLinkStatus.PENDING,
+            AccountLinkStatus.AUTH_PENDING,
+            AccountLinkStatus.ADD_AUTH_PENDING,
+            AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS,
+            AccountLinkStatus.JOIN_IN_PROGRESS,
+            AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS,
+        )
         if payment_card_account.status == payment_card_account.ACTIVE:
             pay_index = 0
         elif payment_card_account.status == payment_card_account.PENDING:
             pay_index = 1
         if scheme_account_status == AccountLinkStatus.ACTIVE:
             scheme_index = 0
-        elif scheme_account_status == AccountLinkStatus.PENDING:
+        elif scheme_account_status in account_pending:
             scheme_index = 1
         status_map = WalletPLLSlug.get_status_map()
         return status_map[pay_index][scheme_index]
