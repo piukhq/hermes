@@ -701,6 +701,7 @@ class WalletPLLData:
         self.pll_data = {}
         self.scheme_count = {}
         self.link_users = {}
+        self.included_payment_cards = {}
 
     def all(self) -> list["PllUserAssociation"]:
         for link in self.pll_user_associations:
@@ -724,7 +725,18 @@ class WalletPLLData:
         self.link_users = {}
         self.scheme_account_data = {}
         self.scheme_count = {}
+        self.included_payment_cards = {}
         for link in self.pll_user_associations:
+            if self.included_payment_cards.get(link.pll.payment_card_account_id):
+                self.included_payment_cards[link.pll.payment_card_account_id].append(link)
+            else:
+                self.included_payment_cards[link.pll.payment_card_account_id] = [link]
+
+        included_pll_user_associations = PllUserAssociation.objects.select_related(
+            "pll__scheme_account", "pll__payment_card_account"
+        ).filter(pll__payment_card_account__in=list(self.included_payment_cards.keys()))
+
+        for link in included_pll_user_associations:
             if self.link_users.get(link.user_id):
                 self.link_users[link.user_id].append(link)
             else:
