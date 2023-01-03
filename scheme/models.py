@@ -710,7 +710,8 @@ class SchemeAccount(models.Model):
                 return points, dw_event
             response = self._get_balance(credentials, journey, scheme_account_entry)
             points, account_status, dw_event = self._process_midas_response(response, scheme_account_entry)
-            scheme_account_entry.set_link_status(account_status)
+            if account_status != old_status:
+                scheme_account_entry.set_link_status(account_status)
 
         except ConnectionError:
             scheme_account_entry.set_link_status(AccountLinkStatus.MIDAS_UNREACHABLE)
