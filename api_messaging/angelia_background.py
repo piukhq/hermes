@@ -69,6 +69,9 @@ class AngeliaContext:
         self.channel_slug = message.get("channel_slug")
         self.entry_id = message.get("entry_id")
         self.add_fields = message.get("add_fields")
+        # auto_link was only sent for payment and not membership cards. Now use self.auto_link as it is True by default
+        # ie unless a message with specific entry auto_link=False must be sent
+        self.auto_link = message.get("auto_link", True)
         if not self.user_id:
             err = "An Angelia Background message exception user_id was not sent"
             logger.error(err)
@@ -119,7 +122,8 @@ def post_payment_account(message: dict) -> None:
     with AngeliaContext(message) as ac:
         payment_card_account = PaymentCardAccount.objects.get(pk=message.get("payment_account_id"))
         user = CustomUser.objects.get(pk=ac.user_id)
-        if message.get("auto_link"):
+        # auto_link
+        if ac.auto_link:
             # @todo - Do we must use PllUserAssociation for API 2.0
             # Linking before enrolment is ok because it ensures the pending states are set up with
             # a good chance of being ready when the new card goes active.
@@ -158,6 +162,15 @@ def loyalty_card_add_and_register(message: dict) -> None:
     _loyalty_card_register(message, path=LoyaltyCardPath.ADD_AND_REGISTER)
 
 
+def link_payment_cards(user_id: int, scheme_account_entry: SchemeAccountEntry, auto_link: bool = True):
+    if auto_link:
+        payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=user_id).values_list(
+            "payment_card_account_id", flat=True
+        )
+        if payment_cards_to_link:
+            PllUserAssociation.link_users_payment_cards(scheme_account_entry, payment_cards_to_link)
+
+
 def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
     with AngeliaContext(message, SchemeAccountJourney.REGISTER.value) as ac:
         all_credentials_and_consents = {}
@@ -177,6 +190,8 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
         if path == LoyaltyCardPath.REGISTER:
             register_lc_event(scheme_account_entry, ac.channel_slug)
 
+        link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link)
+        """
         if message.get("auto_link"):
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=user.id).values_list(
                 "payment_card_account_id", flat=True
@@ -184,6 +199,7 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
             if payment_cards_to_link:
                 PllUserAssociation.link_users_payment_cards(scheme_account_entry, payment_cards_to_link)
                 # auto_link_membership_to_payments(payment_cards_to_link=payment_cards_to_link, membership_card=account)
+        """
 
         MembershipCardView.handle_registration_route(
             user=user,
@@ -198,7 +214,7 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
 def loyalty_card_add(message: dict) -> None:
     with AngeliaContext(message) as ac:
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
-
+        link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link)
         create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
 
 
@@ -220,6 +236,12 @@ def loyalty_card_trusted_add(message: dict) -> None:
                     defaults={"answer": answer},
                 )
 
+            scheme_account_entry = SchemeAccountEntry.objects.select_related("scheme_account").get(
+                user=ac.user_id, scheme_account_id=scheme_account_id, scheme_account__is_deleted=False
+            )
+            link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link)
+
+            """
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=ac.user_id).values_list(
                 "payment_card_account_id", flat=True
             )
@@ -227,6 +249,7 @@ def loyalty_card_trusted_add(message: dict) -> None:
                 PllUserAssociation.link_user_scheme_account_to_payment_cards(
                     scheme_account_id, payment_cards_to_link, ac.user_id
                 )
+            """
 
 
 def loyalty_card_add_authorise(message: dict) -> None:
