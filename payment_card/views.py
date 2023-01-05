@@ -459,10 +459,13 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             ).inc()
 
             # Update soft link status
-            if new_status_code == payment_card_account.ACTIVE:
-                # make any soft links active for payment_card_account
-                PllUserAssociation.update_user_pll_by_pay_account(payment_card_account)
-                # PaymentCardSchemeEntry.update_soft_links({"payment_card_account": payment_card_account})
+            # old code updated soft links when active
+            # if new_status_code == payment_card_account.ACTIVE:
+            #   PaymentCardSchemeEntry.update_soft_links({"payment_card_account": payment_card_account})
+            #
+            # Always update status even if an error as we need to set the error states correctly also on active
+            # make any soft links active and send any activations
+            PllUserAssociation.update_user_pll_by_pay_account(payment_card_account)
 
             # Now report state change events for all owners of the payment card
             wallets = PaymentCardAccountEntry.objects.filter(payment_card_account=payment_card_account)
