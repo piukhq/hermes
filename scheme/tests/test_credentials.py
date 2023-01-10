@@ -150,4 +150,3 @@ class TestCredentials(GlobalMockAPITestCase):
                 if field == "card_number":
                     scheme_account.refresh_from_db()
                     self.assertEqual(scheme_account.card_number, answer)
-

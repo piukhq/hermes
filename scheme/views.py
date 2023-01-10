@@ -338,7 +338,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         scheme_account_entry.save(update_fields=["link_status"])
 
         # @todo trusted channels comment to update
-        """  
+        """
         I don't think this is required anymore because we set link status by user and do not need to set
         wallet only status ie it can remain pending until user enters correct details
             UpdateSchemeAccountStatus.set_user_authorisations_and_status(
