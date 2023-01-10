@@ -124,7 +124,7 @@ def post_payment_account(message: dict) -> None:
         user = CustomUser.objects.get(pk=ac.user_id)
         # auto_link
         if ac.auto_link:
-            # @todo - Do we must use PllUserAssociation for API 2.0
+            # @todo - Do we must use PllUserAssociation for API 2.0 - done now - remove comment when ready
             # Linking before enrolment is ok because it ensures the pending states are set up with
             # a good chance of being ready when the new card goes active.
             # AutoLinkOnCreationMixin.auto_link_to_membership_cards(
@@ -133,7 +133,8 @@ def post_payment_account(message: dict) -> None:
             auto_link_payment_to_memberships(
                 payment_card_account=payment_card_account,
                 user_id=user.id,
-                just_created=True,
+                just_created=True,  # The card may already exist in another wallet but it's just created in that it
+                # needs linking as if a new card
                 history_kwargs={"user_info": user_info(user_id=user.id, channel=ac.channel_slug)},
             )
 
@@ -220,26 +221,26 @@ def loyalty_card_add(message: dict) -> None:
 
 def loyalty_card_trusted_add(message: dict) -> None:
     with AngeliaContext(message) as ac:
-        if message.get("auto_link"):
-            scheme_account_id = message.get("loyalty_card_id")
-            scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
-            create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
+        scheme_account_id = message.get("loyalty_card_id")
+        scheme_account_entry = SchemeAccountEntry.objects.select_related("scheme_account").get(
+            user=ac.user_id, scheme_account_id=scheme_account_id, scheme_account__is_deleted=False
+        )
+        link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link)
 
-            for credential in message.get("merchant_fields"):
-                cred_type = credential["credential_slug"]
-                answer = credential["value"]
-                question = scheme_account_entry.scheme_account.scheme.questions.get(type=cred_type)
+        # scheme_account_id = message.get("loyalty_card_id")
+        # scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
+        create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
 
-                SchemeAccountCredentialAnswer.objects.update_or_create(
-                    scheme_account_entry=scheme_account_entry,
-                    question=question,
-                    defaults={"answer": answer},
-                )
+        for credential in message.get("merchant_fields"):
+            cred_type = credential["credential_slug"]
+            answer = credential["value"]
+            question = scheme_account_entry.scheme_account.scheme.questions.get(type=cred_type)
 
-            scheme_account_entry = SchemeAccountEntry.objects.select_related("scheme_account").get(
-                user=ac.user_id, scheme_account_id=scheme_account_id, scheme_account__is_deleted=False
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                scheme_account_entry=scheme_account_entry,
+                question=question,
+                defaults={"answer": answer},
             )
-            link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link)
 
             """
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=ac.user_id).values_list(
