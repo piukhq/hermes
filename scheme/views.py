@@ -337,6 +337,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         scheme_account_entry.link_status = new_status_code
         scheme_account_entry.save(update_fields=["link_status"])
 
+        # @todo trusted channels comment to update
         """
         I don't think this is required anymore because we set link status by user and do not need to set
         wallet only status ie it can remain pending until user enters correct details
@@ -346,6 +347,8 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         """
         if update_fields:
             scheme_account.save(update_fields=update_fields)
+
+        # @todo trusted channels comment - scheme_account_entry also calls this:
         PllUserAssociation.update_user_pll_by_scheme_account(scheme_account=scheme_account)
 
     def process_active_accounts(self, scheme_account, journey, new_status_code):
@@ -475,6 +478,9 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         """
         account = get_object_or_404(SchemeAccount.objects, id=self.kwargs["pk"])
         credential_answers = request.data
+        if credential_answers.get("card_number"):
+            account.card_number = credential_answers["card_number"]
+            account.save(update_fields=["card_number"])
         user_id = request.headers["bink-user-id"]
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=account, user_id=user_id)
 

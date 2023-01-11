@@ -127,7 +127,13 @@ class TestCredentials(GlobalMockAPITestCase):
         for field in [CARD_NUMBER, BARCODE]:
             with self.subTest(field=field):
                 answer = "1111"
-                scheme_account = SchemeAccountFactory(scheme=self.scheme, **{field: answer})
+                if field == "card_number":
+                    # If card number field leave blank - metis put will always override existing setting
+                    # required for SquareMeal trusted channels where card number not given
+                    scheme_account = SchemeAccountFactory(scheme=self.scheme)
+                    self.assertEqual(scheme_account.card_number, "")
+                else:
+                    scheme_account = SchemeAccountFactory(scheme=self.scheme, **{field: answer})
 
                 SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
 
@@ -141,3 +147,6 @@ class TestCredentials(GlobalMockAPITestCase):
                 )
                 self.assertEqual(200, resp.status_code)
                 self.assertEqual({"updated": [field]}, resp.data)
+                if field == "card_number":
+                    scheme_account.refresh_from_db()
+                    self.assertEqual(scheme_account.card_number, answer)
