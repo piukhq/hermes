@@ -9,12 +9,13 @@ def populate_merchant_identifier(apps, schema_editor):
     # identifier question answer. If so, populate the new field with that answer. This assumes
     # that all Scheme Account Entries linked to a single scheme account have the same value for
     # the merchant identifier, which should be the case.
-    start = time.perf_counter()
     SchemeAccount = apps.get_model("scheme", "SchemeAccount")
     SchemeAccountEntry = apps.get_model("ubiquity", "SchemeAccountEntry")
     SchemeAccountCredentialAnswer = apps.get_model("scheme", "SchemeAccountCredentialAnswer")
-    all_entries = SchemeAccountEntry.objects.all().select_related("scheme_account").prefetch_related(
-        "schemeaccountcredentialanswer_set", "schemeaccountcredentialanswer_set__question"
+    all_entries = (
+        SchemeAccountEntry.objects.all()
+        .select_related("scheme_account")
+        .prefetch_related("schemeaccountcredentialanswer_set", "schemeaccountcredentialanswer_set__question")
     )
 
     processed_scheme_acc_ids = set()
@@ -33,10 +34,7 @@ def populate_merchant_identifier(apps, schema_editor):
 
             processed_scheme_acc_ids.add(entry.scheme_account_id)
 
-    updated = SchemeAccount.objects.bulk_update(records_to_update, ["merchant_identifier"], batch_size=100)
-    print(updated)
-    end = time.perf_counter()
-    print(f"Time to execute: {end - start} seconds")
+    SchemeAccount.objects.bulk_update(records_to_update, ["merchant_identifier"], batch_size=100)
 
 
 def reverse_populate_merchant_identifier(apps, schema_editor):
@@ -46,14 +44,14 @@ def reverse_populate_merchant_identifier(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0112_remove_schemeaccount_status_and_more'),
+        ("scheme", "0112_remove_schemeaccount_status_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='schemeaccount',
-            name='merchant_identifier',
-            field=models.CharField(blank=True, db_index=True, default='', max_length=250),
+            model_name="schemeaccount",
+            name="merchant_identifier",
+            field=models.CharField(blank=True, db_index=True, default="", max_length=250),
         ),
-        migrations.RunPython(populate_merchant_identifier, reverse_code=reverse_populate_merchant_identifier)
+        migrations.RunPython(populate_merchant_identifier, reverse_code=reverse_populate_merchant_identifier),
     ]
