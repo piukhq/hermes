@@ -138,6 +138,8 @@ class PaymentCardUserAssociation(PaymentCardAccountEntry):
 @admin.register(PaymentCardUserAssociation)
 class PaymentCardUserAssociationAdmin(HistoryAdmin):
     list_display = (
+        "payment_card_account_id",
+        "user_id",
         "payment_card_account",
         "user",
         "payment_card_account_link",
@@ -161,6 +163,12 @@ class PaymentCardUserAssociationAdmin(HistoryAdmin):
         "payment_card_account__is_deleted",
     )
     raw_id_fields = ("payment_card_account", "user")
+
+    def payment_card_account_id(self, obj):
+        return obj.payment_card_account.id
+
+    def user_id(self, obj):
+        return obj.user.id
 
     def payment_card_account_link(self, obj):
         return format_html(

@@ -616,13 +616,15 @@ class SchemeAccount(models.Model):
     all_objects = models.Manager()
     objects = ActiveSchemeIgnoreQuestionManager()
 
-    # ubiquity fields
     balances = JSONField(default=dict, null=True, blank=True)
     vouchers = JSONField(default=dict, null=True, blank=True)
+    transactions = JSONField(default=list, null=True, blank=True)
+
     card_number = models.CharField(max_length=250, blank=True, db_index=True, default="")
     barcode = models.CharField(max_length=250, blank=True, db_index=True, default="")
-    transactions = JSONField(default=list, null=True, blank=True)
     alt_main_answer = models.CharField(max_length=250, blank=True, db_index=True, default="")
+    merchant_identifier = models.CharField(max_length=250, blank=True, db_index=True, default="")
+
     pll_links = JSONField(default=list, null=True, blank=True)
     formatted_images = JSONField(default=dict, null=True, blank=True)
     originating_journey = models.IntegerField(choices=JOURNEYS, default=JourneyTypes.UNKNOWN)
