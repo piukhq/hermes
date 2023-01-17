@@ -1289,6 +1289,47 @@ class TestResources(GlobalMockAPITestCase):
         self.user.is_tester = False
         self.user.save()
 
+    @patch("ubiquity.views.async_balance_with_updated_credentials.delay", autospec=True)
+    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
+    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
+    def test_membership_card_update_key_cred_to_existing(self, *_):
+        scheme_account2 = SchemeAccountFactory(scheme=self.scheme)
+        scheme_account_entry2 = SchemeAccountEntryFactory.create(scheme_account=scheme_account2, user=self.user2)
+
+        existing_answer = "some existing answer"
+        SchemeCredentialAnswerFactory(
+            question=self.scheme.manual_question,
+            answer=existing_answer,
+            scheme_account_entry=scheme_account_entry2,
+        )
+        SchemeCredentialAnswerFactory(
+            question=self.secondary_question,
+            scheme_account_entry=scheme_account_entry2,
+        )
+        scheme_account_entry2.update_scheme_account_key_credential_fields()
+
+        payload = json.dumps(
+            {
+                "account": {
+                    "add_fields": [{"column": "barcode", "value": existing_answer}],
+                    "authorise_fields": [{"column": "last_name", "value": "Test"}],
+                }
+            }
+        )
+        response = self.client.patch(
+            reverse("membership-card", args=[self.scheme_account.id]),
+            content_type="application/json",
+            data=payload,
+            **self.auth_headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.scheme_account_entry.refresh_from_db()
+        self.assertEqual(AccountLinkStatus.FAILED_UPDATE, self.scheme_account_entry.link_status)
+
+        answer_before = self.scheme_account_answer.answer
+        self.scheme_account_answer.refresh_from_db()
+        self.assertEqual(answer_before, self.scheme_account_answer.answer)
+
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("ubiquity.views.async_link", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
