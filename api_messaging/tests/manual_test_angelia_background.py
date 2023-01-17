@@ -25,6 +25,9 @@ from user.tests.factories import (
     UserFactory,
 )
 
+# @todo Convert this to automatic testing by removing word manual from file name.  Seems something is left set which
+# breaks other test cases.  Requires further investigation and possible fix of code.
+
 
 class MockMidasBalanceResponse:
     def __init__(self, status_code=200, balance=None, pending=False):
