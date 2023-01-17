@@ -648,7 +648,7 @@ class MembershipCardView(
         account = new_account
 
         # Deletes old account if no longer associated with any user
-        if not SchemeAccountEntry.objects.filter(scheme_account=original_account).all():
+        if not SchemeAccountEntry.objects.filter(scheme_account=original_account).exists():
             original_account.is_deleted = True
             original_account.save(update_fields=["is_deleted"])
 
@@ -680,8 +680,9 @@ class MembershipCardView(
         main_answer_field = None  # The lookup field on the scheme account (card_number, barcode, or alt_main_answer)
         main_answer_value = None
 
+        main_question = account.scheme.get_required_questions.first()
         for question_type, value in update_fields.items():
-            if question_type in [q_type for q_id, q_type in account.scheme.get_required_questions.all()]:
+            if question_type == main_question["type"]:
                 main_answer_value = value
                 main_answer_type = question_type
                 main_answer_field = SchemeAccount.get_key_cred_field_from_question_type(main_answer_type)
