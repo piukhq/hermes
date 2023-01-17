@@ -151,10 +151,10 @@ jobs:
             binkcore.azurecr.io/${{ github.event.repository.name }}:staging-${{ github.event.release.tag_name }}
             binkcore.azurecr.io/${{ github.event.repository.name }}:staging
 
-  release_sandbox:
+  release_banking:
     if: github.event_name == 'release' && github.event.action == 'published'
-    name: release_sandbox
-    environment: Sandbox
+    name: release_banking
+    environment: Banking
     needs: [release_staging]
     runs-on: ubuntu-latest
     container: ghcr.io/binkhq/tagbot:latest
@@ -164,12 +164,32 @@ jobs:
             --username binkcore \
             --password ${{ secrets.ACR_BINKCORE_PASSWORD }} \
             --source binkcore.azurecr.io/${{ github.event.repository.name }}:${{ github.event.release.tag_name }} \
-            --tag sandbox-${{ github.event.release.tag_name }}
+            --tag banking-${{ github.event.release.tag_name }}
           tagbot \
             --username binkcore \
             --password ${{ secrets.ACR_BINKCORE_PASSWORD }} \
             --source binkcore.azurecr.io/${{ github.event.repository.name }}:${{ github.event.release.tag_name }} \
-            --tag sandbox
+            --tag banking
+
+  release_retail:
+    if: github.event_name == 'release' && github.event.action == 'published'
+    name: release_retail
+    environment: Retail
+    needs: [release_staging]
+    runs-on: ubuntu-latest
+    container: ghcr.io/binkhq/tagbot:latest
+    steps:
+      - run: |-
+          tagbot \
+            --username binkcore \
+            --password ${{ secrets.ACR_BINKCORE_PASSWORD }} \
+            --source binkcore.azurecr.io/${{ github.event.repository.name }}:${{ github.event.release.tag_name }} \
+            --tag retail-${{ github.event.release.tag_name }}
+          tagbot \
+            --username binkcore \
+            --password ${{ secrets.ACR_BINKCORE_PASSWORD }} \
+            --source binkcore.azurecr.io/${{ github.event.repository.name }}:${{ github.event.release.tag_name }} \
+            --tag retail
 
   release_production:
     if: github.event_name == 'release' && github.event.action == 'published'
