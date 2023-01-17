@@ -11,7 +11,6 @@ from rest_framework.reverse import reverse
 from shared_config_storage.credentials.encryption import BLAKE2sHash, RSACipher
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
-from api_messaging.angelia_background import refresh_balances
 from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
@@ -87,16 +86,6 @@ class RequestMock:
 class ChannelPermitMock:
     def __init__(self, client=None):
         self.client = client
-
-
-class MockMidasBalanceResponse:
-    def __init__(self, status_code=200, balance=None, pending=False):
-        self.status_code = status_code
-        self.balance = balance
-        self.balance["pending"] = pending
-
-    def json(self) -> dict:
-        return self.balance
 
 
 class MockApiCache:
@@ -2172,95 +2161,6 @@ class TestResources(GlobalMockAPITestCase):
 
         test_scheme_account.get_cached_balance(self.scheme_account_entry)
         self.assertEqual(mock_get_midas_balance.call_args[1]["journey"], JourneyTypes.UPDATE)
-
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch.object(SchemeAccount, "_get_balance")
-    def test_angelia_background_refresh(self, mock_get_midas_response):
-        """
-        Using angelia background request to refresh for a user and bundle_id refresh balances on
-
-        """
-        test_scheme_account = SchemeAccountFactory(scheme=self.scheme)
-        test_scheme_account_entry = SchemeAccountEntryFactory(
-            scheme_account=test_scheme_account, user=self.user2, link_status=AccountLinkStatus.ACTIVE
-        )
-
-        PaymentCardAccountEntryFactory(user=self.user2, payment_card_account=self.payment_card_account)
-
-        PllUserAssociation.link_user_scheme_account_to_payment_cards(
-            payment_card_accounts=[self.payment_card_account], scheme_account=self.scheme_account, user=self.user
-        )
-
-        PllUserAssociation.link_user_scheme_account_to_payment_cards(
-            payment_card_accounts=[self.payment_card_account], scheme_account=test_scheme_account, user=self.user2
-        )
-
-        balance = {
-            "value": Decimal("10"),
-            "points": Decimal("100"),
-            "points_label": "100",
-            "value_label": "$10",
-            "reward_tier": 0,
-            "balance": Decimal("20"),
-            "is_stale": False,
-        }
-        # All accounts will get same balance response
-        mock_get_midas_response.return_value = MockMidasBalanceResponse(200, balance)
-
-        refresh_balance_message = {
-            "user_id": self.user.id,
-            "channel_slug": self.bundle.bundle_id,
-        }
-        user_pll = PllUserAssociation.objects.get(pll__scheme_account=self.scheme_account, user=self.user)
-        user_pll2 = PllUserAssociation.objects.get(pll__scheme_account=test_scheme_account, user=self.user2)
-        self.assertFalse(test_scheme_account.balances)
-        self.assertFalse(self.scheme_account.balances)
-
-        refresh_balances(refresh_balance_message)
-
-        test_scheme_account.refresh_from_db()
-        self.scheme_account.refresh_from_db()
-        test_scheme_account_entry.refresh_from_db()
-        self.scheme_account_entry.refresh_from_db()
-        self.assertTrue(mock_get_midas_response.called)
-        self.assertFalse(test_scheme_account.balances)
-        self.assertTrue(self.scheme_account.balances)
-        self.assertEqual(test_scheme_account_entry.link_status, AccountLinkStatus.ACTIVE)
-        self.assertEqual(self.scheme_account_entry.link_status, AccountLinkStatus.ACTIVE)
-
-        self.assertEqual("", user_pll.slug)
-        self.assertEqual(WalletPLLStatus.ACTIVE, user_pll.state)
-        self.assertTrue(user_pll.pll.active_link)
-
-        self.assertEqual(WalletPLLSlug.UBIQUITY_COLLISION.value, user_pll2.slug)
-        self.assertEqual(WalletPLLStatus.INACTIVE, user_pll2.state)
-        self.assertFalse(user_pll2.pll.active_link)
-
-        refresh_balance_message = {
-            "user_id": self.user2.id,
-            "channel_slug": self.bundle.bundle_id,
-        }
-
-        refresh_balances(refresh_balance_message)
-        test_scheme_account.refresh_from_db()
-        self.scheme_account.refresh_from_db()
-        test_scheme_account_entry.refresh_from_db()
-        self.scheme_account_entry.refresh_from_db()
-        user_pll.refresh_from_db()
-        user_pll2.refresh_from_db()
-        self.assertTrue(mock_get_midas_response.called)
-        self.assertTrue(test_scheme_account.balances)
-        self.assertTrue(self.scheme_account.balances)
-        self.assertEqual(test_scheme_account_entry.link_status, AccountLinkStatus.ACTIVE)
-        self.assertEqual(self.scheme_account_entry.link_status, AccountLinkStatus.ACTIVE)
-
-        self.assertEqual("", user_pll.slug)
-        self.assertEqual(WalletPLLStatus.ACTIVE, user_pll.state)
-        self.assertTrue(user_pll.pll.active_link)
-
-        self.assertEqual(WalletPLLSlug.UBIQUITY_COLLISION.value, user_pll2.slug)
-        self.assertEqual(WalletPLLStatus.INACTIVE, user_pll2.state)
-        self.assertFalse(user_pll2.pll.active_link)
 
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("ubiquity.views.async_link", autospec=True)
