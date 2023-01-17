@@ -680,9 +680,11 @@ class MembershipCardView(
         main_answer_field = None  # The lookup field on the scheme account (card_number, barcode, or alt_main_answer)
         main_answer_value = None
 
-        main_question = account.scheme.get_required_questions.first()
+        # Will need rework if we allow updating multiple main answers at once
+        main_questions = account.scheme.get_required_questions.all()
+        main_question_types = [question["type"] for question in main_questions]
         for question_type, value in update_fields.items():
-            if question_type == main_question["type"]:
+            if question_type in main_question_types:
                 main_answer_value = value
                 main_answer_type = question_type
                 main_answer_field = SchemeAccount.get_key_cred_field_from_question_type(main_answer_type)
