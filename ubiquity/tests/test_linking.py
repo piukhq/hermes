@@ -21,7 +21,7 @@ from ubiquity.models import (  # WalletPLLData,
     WalletPLLSlug,
     WalletPLLStatus,
 )
-from ubiquity.tests.factories import SchemeAccountEntryFactory
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.tests.factories import (
     ClientApplicationBundleFactory,
@@ -221,6 +221,88 @@ class TestUserPLL(testcases.TestCase):
         self.assertEqual(user_pll.state, WalletPLLStatus.PENDING)
         self.assertEqual(user_pll.slug, WalletPLLSlug.LOYALTY_CARD_PENDING.value)
         self.assertEqual(activate_check.call_count, 0)
+
+    def test_ppl_linking_duplicate_cards_in_2_wallets(self):
+        """
+        This tests the PllUserAssociation logic when duplicate payment and scheme accounts are
+        linked in two wallets.
+        Note a bug was reported which might imply this did not work correctly. This test proves
+        the PllUserAssociation logic works in this scenario
+        Error reported in LOY-2874
+        expected result: wallet1 has PLL status = PAYMENT_ACCOUNT_PENDING  wallet2 = LOYALTY_CARD_NOT_AUTHORISED
+        Steps to reproduce:
+        1. In Wallet_1 add and auth iceland card.
+        2. In Wallet_1 add Pending payment card with token ERRRET_500
+        3. GET /wallet. PLL link shows PAYMENT_ACCOUNT_PENDING as expected.
+        4. In Wallet_2 add Wallet_only card from step 1 (with only add credentials).
+            Or add and auth the same iceland card from step 1(with add and auth credentials).
+        5. Add the same pending card from step 2 in Wallet_2
+        6. GET /wallet. PLL link shows LOYALTY_CARD_NOT_AUTHORISED as expected in the second wallet
+        7. Call Get wallet_1 again. PLL in Wallet_1 is updated and
+          now shows LOYALTY_CARD_NOT_AUTHORISED instead of PAYMENT_ACCOUNT_PENDING.
+        """
+
+        # 1 to 3 - check wallet 1 is set up - user pll expected as PAYMENT_ACCOUNT_PENDING
+
+        shared_payment_card_account = set_up_payment_card_account(
+            self.payment_card, issuer=self.issuer, payload=self.payload_1, status=PaymentCardAccount.PENDING
+        )
+        shared_scheme_account, _ = set_up_membership_card(
+            self.user_wallet_1, self.scheme1, link_status=AccountLinkStatus.ACTIVE
+        )
+
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            payment_card_accounts=[shared_payment_card_account],
+            scheme_account=shared_scheme_account,
+            user=self.user_wallet_1,
+        )
+        PaymentCardAccountEntryFactory(user=self.user_wallet_1, payment_card_account=shared_payment_card_account)
+        user_pll_1 = PllUserAssociation.objects.get(pll__scheme_account=shared_scheme_account, user=self.user_wallet_1)
+
+        self.assertEqual(user_pll_1.state, WalletPLLStatus.PENDING.value)
+        self.assertEqual(user_pll_1.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
+
+        # Step 4 add same scheme account to Wallet2
+        scheme_account_entry_2 = SchemeAccountEntryFactory.create(
+            scheme_account=shared_scheme_account, user=self.user_wallet_2
+        )
+        scheme_account_entry_2.link_status = AccountLinkStatus.WALLET_ONLY
+        scheme_account_entry_2.save()
+
+        # Step 5 add same payment card to Wallet2
+        PaymentCardAccountEntryFactory(user=self.user_wallet_2, payment_card_account=shared_payment_card_account)
+
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            payment_card_accounts=[shared_payment_card_account],
+            scheme_account=shared_scheme_account,
+            user=self.user_wallet_2,
+        )
+        user_pll_1.refresh_from_db()
+        user_pll_2 = PllUserAssociation.objects.get(pll__scheme_account=shared_scheme_account, user=self.user_wallet_2)
+        self.assertEqual(user_pll_1.state, WalletPLLStatus.PENDING.value)
+        self.assertEqual(user_pll_1.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
+        self.assertEqual(user_pll_2.state, WalletPLLStatus.INACTIVE.value)
+        self.assertEqual(user_pll_2.slug, WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
+
+        # Now check PLL update by payment account
+        PllUserAssociation.update_user_pll_by_pay_account(payment_card_account=shared_payment_card_account)
+
+        user_pll_1.refresh_from_db()
+        user_pll_2.refresh_from_db()
+        self.assertEqual(user_pll_1.state, WalletPLLStatus.PENDING.value)
+        self.assertEqual(user_pll_1.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
+        self.assertEqual(user_pll_2.state, WalletPLLStatus.INACTIVE.value)
+        self.assertEqual(user_pll_2.slug, WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
+
+        # Now check PLL update by scheme account
+        PllUserAssociation.update_user_pll_by_scheme_account(scheme_account=shared_scheme_account)
+
+        user_pll_1.refresh_from_db()
+        user_pll_2.refresh_from_db()
+        self.assertEqual(user_pll_1.state, WalletPLLStatus.PENDING.value)
+        self.assertEqual(user_pll_1.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
+        self.assertEqual(user_pll_2.state, WalletPLLStatus.INACTIVE.value)
+        self.assertEqual(user_pll_2.slug, WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
 
     @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
     def test_link_accounts_ubiquity_collision(self, activate_check):

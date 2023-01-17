@@ -72,12 +72,10 @@ def async_link(
     scheme_account_entry = SchemeAccountEntry.objects.get(user=user, scheme_account=scheme_account)
     try:
         serializer = LinkSchemeSerializer(data=auth_fields, context={"scheme_account_entry": scheme_account_entry})
-        BaseLinkMixin.link_account(serializer, scheme_account, user, scheme_account_entry)
-
         if payment_cards_to_link:
             PllUserAssociation.link_user_scheme_account_to_payment_cards(scheme_account, payment_cards_to_link, user)
             # auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
-
+        BaseLinkMixin.link_account(serializer, scheme_account, user, scheme_account_entry)
         clean_history_kwargs(history_kwargs)
 
     except serializers.ValidationError as e:
@@ -197,11 +195,12 @@ def async_join(
 
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
-    SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer, channel)
 
     if payment_cards_to_link:
         PllUserAssociation.link_user_scheme_account_to_payment_cards(scheme_account, payment_cards_to_link, user)
         # auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+
+    SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer, channel)
 
     clean_history_kwargs(history_kwargs)
 
