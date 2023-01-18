@@ -316,12 +316,37 @@ class SchemeAccountEntry(models.Model):
         the SchemeAccountCredentialAnswers linked to the SchemeAccountEntry. By default, this will not update
         an existing value to an empty value if the user does not have the credential saved.
         """
+        answers, card_number, barcode, merchant_identifier, alt_main_answer = self._answers_to_update()
+
+        update_fields = []
+        if card_number or barcode:
+            self._update_barcode_and_card_number(card_number, answers=answers, primary_cred_type=CARD_NUMBER)
+            self._update_barcode_and_card_number(barcode, answers=answers, primary_cred_type=BARCODE)
+            update_fields.extend(["barcode", "card_number"])
+
+        if alt_main_answer and alt_main_answer.answer != self.scheme_account.alt_main_answer:
+            self.scheme_account.alt_main_answer = alt_main_answer.answer
+            update_fields.append("alt_main_answer")
+
+        if merchant_identifier and merchant_identifier.answer != self.scheme_account.merchant_identifier:
+            self.scheme_account.merchant_identifier = merchant_identifier.answer
+            update_fields.append("merchant_identifier")
+
+        self.scheme_account.save(update_fields=update_fields)
+
+    def _answers_to_update(
+        self,
+    ) -> tuple[
+        set,
+        SchemeAccountCredentialAnswer,
+        SchemeAccountCredentialAnswer,
+        SchemeAccountCredentialAnswer,
+        SchemeAccountCredentialAnswer,
+    ]:
         answers = {
             answer
             for answer in self.credential_answers
-            if answer.question.manual_question
-            or answer.question.scan_question
-            or answer.question.one_question_link
+            if answer.question.manual_question or answer.question.scan_question or answer.question.one_question_link
             # This is in case a merchant sends back one of these key fields but they're not an add field
             # e.g squaremeal in a trusted channel. The fields still need populating since they could be
             # an add field in non-trusted channels.
@@ -342,21 +367,7 @@ class SchemeAccountEntry(models.Model):
             else:
                 alt_main_answer = answer
 
-        update_fields = []
-        if card_number or barcode:
-            self._update_barcode_and_card_number(card_number, answers=answers, primary_cred_type=CARD_NUMBER)
-            self._update_barcode_and_card_number(barcode, answers=answers, primary_cred_type=BARCODE)
-            update_fields.extend(["barcode", "card_number"])
-
-        if alt_main_answer and alt_main_answer.answer != self.scheme_account.alt_main_answer:
-            self.scheme_account.alt_main_answer = alt_main_answer.answer
-            update_fields.append("alt_main_answer")
-
-        if merchant_identifier and merchant_identifier.answer != self.scheme_account.merchant_identifier:
-            self.scheme_account.merchant_identifier = merchant_identifier.answer
-            update_fields.append("merchant_identifier")
-
-        self.scheme_account.save(update_fields=update_fields)
+        return answers, card_number, barcode, merchant_identifier, alt_main_answer
 
     def _update_barcode_and_card_number(
         self,

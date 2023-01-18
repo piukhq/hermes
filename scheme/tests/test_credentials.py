@@ -4,7 +4,7 @@ from django.conf import settings
 from rest_framework.exceptions import ErrorDetail
 
 from history.utils import GlobalMockAPITestCase
-from scheme.credentials import BARCODE, CARD_NUMBER, LAST_NAME, PASSWORD, MERCHANT_IDENTIFIER
+from scheme.credentials import BARCODE, CARD_NUMBER, LAST_NAME, MERCHANT_IDENTIFIER, PASSWORD
 from scheme.models import SchemeAccountCredentialAnswer, SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.tests.factories import (
     SchemeAccountFactory,
