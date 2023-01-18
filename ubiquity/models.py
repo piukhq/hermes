@@ -338,10 +338,10 @@ class SchemeAccountEntry(models.Model):
         self,
     ) -> tuple[
         set,
-        SchemeAccountCredentialAnswer,
-        SchemeAccountCredentialAnswer,
-        SchemeAccountCredentialAnswer,
-        SchemeAccountCredentialAnswer,
+        "SchemeAccountCredentialAnswer",
+        "SchemeAccountCredentialAnswer",
+        "SchemeAccountCredentialAnswer",
+        "SchemeAccountCredentialAnswer",
     ]:
         answers = {
             answer
