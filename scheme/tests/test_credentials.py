@@ -4,7 +4,7 @@ from django.conf import settings
 from rest_framework.exceptions import ErrorDetail
 
 from history.utils import GlobalMockAPITestCase
-from scheme.credentials import BARCODE, CARD_NUMBER, LAST_NAME, PASSWORD
+from scheme.credentials import BARCODE, CARD_NUMBER, LAST_NAME, PASSWORD, MERCHANT_IDENTIFIER
 from scheme.models import SchemeAccountCredentialAnswer, SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.tests.factories import (
     SchemeAccountFactory,
@@ -50,9 +50,15 @@ class TestCredentials(GlobalMockAPITestCase):
             scheme=cls.scheme,
             type=LAST_NAME,
             label=LAST_NAME,
-            third_party_identifier=True,
             options=SchemeCredentialQuestion.LINK,
             auth_field=True,
+        )
+        cls.merchant_id_question = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme,
+            type=MERCHANT_IDENTIFIER,
+            label=MERCHANT_IDENTIFIER,
+            third_party_identifier=True,
+            options=SchemeCredentialQuestion.MERCHANT_IDENTIFIER,
         )
         GenerateJWToken(client.organisation.name, client.secret, cls.bundle.bundle_id, external_id).get_token()
         cls.auth_headers = {
@@ -67,8 +73,9 @@ class TestCredentials(GlobalMockAPITestCase):
 
     def test_internal_update_main_answer_to_existing_credential_fails(self):
         # The credential lookup to check for existing accounts is done on the scheme account
-        # fields "card_number", "barcode", and/or "alt_main_answer", not on the SchemeCredentialAnswer records.
-        for field in [CARD_NUMBER, BARCODE]:
+        # fields "card_number", "barcode", "alt_main_answer", or "merchant_identifier",
+        # not on the SchemeCredentialAnswer records.
+        for field in [CARD_NUMBER, BARCODE, MERCHANT_IDENTIFIER]:
             with self.subTest(field=field):
                 answer = "1111"
                 SchemeAccountFactory(scheme=self.scheme, **{field: answer})
@@ -79,6 +86,12 @@ class TestCredentials(GlobalMockAPITestCase):
                 if field == BARCODE:
                     SchemeCredentialAnswerFactory(
                         question=self.scheme.scan_question,
+                        answer="2222",
+                        scheme_account_entry=scheme_account_entry_2,
+                    )
+                elif field == MERCHANT_IDENTIFIER:
+                    SchemeCredentialAnswerFactory(
+                        question=self.merchant_id_question,
                         answer="2222",
                         scheme_account_entry=scheme_account_entry_2,
                     )
@@ -113,6 +126,11 @@ class TestCredentials(GlobalMockAPITestCase):
                         question=self.scheme.scan_question,
                         scheme_account_entry=scheme_account_entry_2,
                     )
+                elif field == MERCHANT_IDENTIFIER:
+                    ans = SchemeAccountCredentialAnswer.objects.get(
+                        question=self.merchant_id_question,
+                        scheme_account_entry=scheme_account_entry_2,
+                    )
                 else:
                     ans = SchemeAccountCredentialAnswer.objects.get(
                         question=self.scheme.manual_question,
@@ -124,17 +142,10 @@ class TestCredentials(GlobalMockAPITestCase):
                 self.assertEqual(AccountLinkStatus.ACCOUNT_ALREADY_EXISTS, scheme_account_entry_2.link_status)
 
     def test_internal_update_existing_main_answer_with_same_credential_is_accepted(self):
-        for field in [CARD_NUMBER, BARCODE]:
+        for field in [CARD_NUMBER, BARCODE, MERCHANT_IDENTIFIER]:
             with self.subTest(field=field):
                 answer = "1111"
-                if field == "card_number":
-                    # If card number field leave blank - metis put will always override existing setting
-                    # required for SquareMeal trusted channels where card number not given
-                    scheme_account = SchemeAccountFactory(scheme=self.scheme)
-                    self.assertEqual(scheme_account.card_number, "")
-                else:
-                    scheme_account = SchemeAccountFactory(scheme=self.scheme, **{field: answer})
-
+                scheme_account = SchemeAccountFactory(scheme=self.scheme, **{field: answer})
                 SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
 
                 payload = {field: answer}
@@ -147,6 +158,3 @@ class TestCredentials(GlobalMockAPITestCase):
                 )
                 self.assertEqual(200, resp.status_code)
                 self.assertEqual({"updated": [field]}, resp.data)
-                if field == "card_number":
-                    scheme_account.refresh_from_db()
-                    self.assertEqual(scheme_account.card_number, answer)

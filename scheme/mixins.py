@@ -17,8 +17,11 @@ from hermes.channels import Permit
 from history.tasks import add_auth_outcome_task, auth_outcome_task
 from payment_card.payment import Payment, PaymentError
 from scheme.credentials import (
+    BARCODE,
+    CARD_NUMBER,
     CASE_SENSITIVE_CREDENTIALS,
     ENCRYPTED_CREDENTIALS,
+    MERCHANT_IDENTIFIER,
     PASSWORD,
     PASSWORD_2,
     PAYMENT_CARD_HASH,
@@ -483,11 +486,19 @@ class UpdateCredentialsMixin:
             questions = (
                 SchemeCredentialQuestion.objects.filter(scheme=scheme_account.scheme)
                 .only("id", "type")
-                .annotate(is_main_question=Q(manual_question=True) | Q(scan_question=True) | Q(one_question_link=True))
+                .annotate(
+                    is_main_question=Q(manual_question=True)
+                    | Q(scan_question=True)
+                    | Q(one_question_link=True)
+                    | Q(type__in=[CARD_NUMBER, BARCODE, MERCHANT_IDENTIFIER])
+                )
             )
         else:
             questions = questions.annotate(
-                is_main_question=Q(manual_question=True) | Q(scan_question=True) | Q(one_question_link=True)
+                is_main_question=Q(manual_question=True)
+                | Q(scan_question=True)
+                | Q(one_question_link=True)
+                | Q(type__in=[CARD_NUMBER, BARCODE, MERCHANT_IDENTIFIER])
             )
 
         serializer = UpdateCredentialSerializer(
