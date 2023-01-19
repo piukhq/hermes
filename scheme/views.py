@@ -482,7 +482,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         # TODO: Needs investigating further if this should be fixed on Midas' side
         # Patch for midas sending empty value for merchant_identifier
         if not credential_answers.get("merchant_identifier"):
-            credential_answers.pop("merchant_identifier")
+            credential_answers.pop("merchant_identifier", None)
 
         user_id = request.headers["bink-user-id"]
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=account, user_id=user_id)
