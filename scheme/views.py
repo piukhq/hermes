@@ -478,9 +478,12 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         """
         account = get_object_or_404(SchemeAccount.objects, id=self.kwargs["pk"])
         credential_answers = request.data
-        if credential_answers.get("card_number"):
-            account.card_number = credential_answers["card_number"]
-            account.save(update_fields=["card_number"])
+
+        # TODO: Needs investigating further if this should be fixed on Midas' side
+        # Patch for midas sending empty value for merchant_identifier
+        if not credential_answers.get("merchant_identifier"):
+            credential_answers.pop("merchant_identifier")
+
         user_id = request.headers["bink-user-id"]
         scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=account, user_id=user_id)
 
