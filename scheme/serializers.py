@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from common.models import Image
-from scheme.credentials import BARCODE, CARD_NUMBER, CASE_SENSITIVE_CREDENTIALS
+from scheme.credentials import BARCODE, CARD_NUMBER, CASE_SENSITIVE_CREDENTIALS, MERCHANT_IDENTIFIER
 from scheme.models import (
     Consent,
     ConsentStatus,
@@ -557,10 +557,10 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
             if key not in CASE_SENSITIVE_CREDENTIALS:
                 val = val.lower()
 
-            if key in [CARD_NUMBER, BARCODE]:
+            if key in [CARD_NUMBER, BARCODE, MERCHANT_IDENTIFIER]:
                 q_objs |= Q(**{key: val})
             else:
-                q_objs |= Q(main_answer=val)
+                q_objs |= Q(alt_main_answer=val)
 
         return q_objs
 
@@ -589,8 +589,13 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
                 .all()
             )
 
-            if len(existing_accounts) > 0 and not allow_existing_main_answer:
+            if len(existing_accounts) == 1 and not allow_existing_main_answer:
                 scheme_account_entry.set_link_status(AccountLinkStatus.ACCOUNT_ALREADY_EXISTS)
+                logger.error(
+                    "Merchant attempt to update a key credential of an account to that of an existing account - "
+                    f"Prevented update of {query_args} for Scheme Account (id={scheme_account.id}) - "
+                    f"Conflicting Scheme Account (id={existing_accounts[0]})"
+                )
                 raise serializers.ValidationError("An account already exists with the given credentials")
 
             elif len(existing_accounts) > 1:
