@@ -252,6 +252,8 @@ def loyalty_card_trusted_add(message: dict) -> None:
                 )
             """
 
+        scheme_account_entry.update_scheme_account_key_credential_fields()
+
 
 def loyalty_card_add_authorise(message: dict) -> None:
     with AngeliaContext(message) as ac:
