@@ -241,7 +241,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             )
             return Response({"id": scheme_account.id, "status": previous_status}, status=200)
 
-        self.process_active_accounts(scheme_account, journey, new_status_code)
+        self.process_active_accounts(scheme_account, journey, new_status_code, scheme_account_entry.id)
 
         if new_status_code != previous_status:
             self.process_new_status(new_status_code, previous_status, scheme_account_entry)
@@ -351,14 +351,14 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         # @todo trusted channels comment - scheme_account_entry also calls this:
         PllUserAssociation.update_user_pll_by_scheme_account(scheme_account=scheme_account)
 
-    def process_active_accounts(self, scheme_account, journey, new_status_code):
+    def process_active_accounts(self, scheme_account, journey, new_status_code, scheme_account_entry_id):
         if journey in ["join", "join-with-balance"] and new_status_code == AccountLinkStatus.ACTIVE:
             join_date = timezone.now()
             scheme_account.join_date = join_date
             scheme_account.save(update_fields=["join_date"])
 
             if journey == "join":
-                async_join_journey_fetch_balance_and_update_status.delay(scheme_account.id)
+                async_join_journey_fetch_balance_and_update_status.delay(scheme_account.id, scheme_account_entry_id)
 
         elif new_status_code == AccountLinkStatus.ACTIVE and not (scheme_account.link_date or scheme_account.join_date):
             date_time_now = timezone.now()
