@@ -330,6 +330,9 @@ def deleted_membership_card_cleanup(
 
     remove_loyalty_card_event(scheme_account_entry)
 
+    # @todo consider if the next line is redundant - deleting base_pll cascades delete PLLAssociation on foreign key
+    #  also pll_links.delete() does this with a post delete signal.
+
     PllUserAssociation.objects.filter(pll__in=pll_links, user=user).delete()
 
     other_scheme_account_entries = SchemeAccountEntry.objects.filter(
