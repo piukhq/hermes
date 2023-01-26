@@ -50,6 +50,7 @@ from scheme.tests.factories import (
 )
 from ubiquity.channel_vault import AESKeyNames
 from ubiquity.models import AccountLinkStatus, PaymentCardSchemeEntry, SchemeAccountEntry
+from ubiquity.tasks import async_join_journey_fetch_balance_and_update_status
 from ubiquity.tests.factories import PaymentCardSchemeEntryFactory, SchemeAccountEntryFactory
 from user.models import ClientApplication, ClientApplicationBundle
 from user.tests.factories import ClientApplicationFactory, UserFactory
@@ -364,6 +365,26 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         scheme_account.refresh_from_db()
         self.assertEqual(scheme_account.alt_main_answer, "")
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.ENROL_FAILED)
+
+    @patch.object(SchemeAccount, "get_cached_balance")
+    def test_successful_join_gets_balance_and_sets_card_to_pending(self, *_):
+        client_app = ClientApplicationFactory(name="barclays")
+        scheme_account = SchemeAccountFactory()
+        user = UserFactory(client=client_app)
+        user_2 = UserFactory(client=client_app)
+        scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=scheme_account, user=user, link_status=AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS
+        )
+        scheme_account_entry_2 = SchemeAccountEntryFactory(
+            scheme_account=scheme_account, user=user_2, link_status=AccountLinkStatus.ACTIVE
+        )
+        async_join_journey_fetch_balance_and_update_status(scheme_account.id, scheme_account_entry.id)
+
+        scheme_account_entry.refresh_from_db()
+        scheme_account_entry_2.refresh_from_db()
+        self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.PENDING)
+        self.assertEqual(scheme_account_entry_2.link_status, AccountLinkStatus.ACTIVE)
+        self.assertTrue(scheme_account.get_cached_balance.called)
 
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
     def test_scheme_account_update_join_acc_already_exists_fails(self, *_):

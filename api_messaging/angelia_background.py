@@ -3,12 +3,15 @@ from datetime import datetime
 from enum import Enum
 
 import arrow
+from rest_framework.exceptions import ValidationError as RestValidationError
 from rest_framework.generics import get_object_or_404
+from rest_framework.settings import api_settings
 
 from hermes.channels import Permit
 from history.data_warehouse import (
     addauth_request_lc_event,
     auth_request_lc_event,
+    join_outcome,
     join_request_lc_event,
     register_lc_event,
     to_data_warehouse,
@@ -310,26 +313,39 @@ def loyalty_card_join(message: dict) -> None:
         scheme = Scheme.objects.get(pk=message.get("loyalty_plan_id"))
         permit = Permit(bundle_id=ac.channel_slug, user=user)
 
-        validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
-            data=all_credentials_and_consents,
-            scheme_account=account,
-            user=user,
-            permit=permit,
-            join_scheme=scheme,
-        )
-
-        # send event to data warehouse
-        join_request_lc_event(entry, ac.channel_slug)
-
-        async_join(
-            scheme_account_id=account.id,
-            user_id=user.id,
-            serializer=serializer,
-            scheme_id=scheme.id,
-            validated_data=validated_data,
-            channel=ac.channel_slug,
-            payment_cards_to_link=payment_cards_to_link,
-        )
+        try:
+            validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
+                data=all_credentials_and_consents,
+                scheme_account=account,
+                user=user,
+                permit=permit,
+                join_scheme=scheme,
+            )
+        except RestValidationError as e:
+            link_error = AccountLinkStatus.UNKNOWN_ERROR
+            if isinstance(e.detail, dict):
+                if api_settings.NON_FIELD_ERRORS_KEY not in e.detail.keys():
+                    link_error = AccountLinkStatus.INVALID_CREDENTIALS
+            entry.set_link_status(link_error)
+            if payment_cards_to_link:
+                PllUserAssociation.link_user_scheme_account_to_payment_cards(account, payment_cards_to_link, user)
+            # send event to data warehouse
+            join_request_lc_event(entry, ac.channel_slug)
+            # @todo we may need to modify join_outcome to accept a different origin as it is not "merchant call back"
+            # however need to agree this with data team.
+            join_outcome(success=False, scheme_account_entry=entry)
+        else:
+            # send event to data warehouse
+            join_request_lc_event(entry, ac.channel_slug)
+            async_join(
+                scheme_account_id=account.id,
+                user_id=user.id,
+                serializer=serializer,
+                scheme_id=scheme.id,
+                validated_data=validated_data,
+                channel=ac.channel_slug,
+                payment_cards_to_link=payment_cards_to_link,
+            )
 
 
 def delete_loyalty_card(message: dict) -> None:
