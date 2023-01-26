@@ -7,7 +7,13 @@ from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.credentials import CARD_NUMBER
 from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialQuestionFactory
-from ubiquity.models import PaymentCardSchemeEntry, PllUserAssociation, WalletPLLSlug, WalletPLLStatus
+from ubiquity.models import (
+    PaymentCardAccountEntry,
+    PaymentCardSchemeEntry,
+    PllUserAssociation,
+    WalletPLLSlug,
+    WalletPLLStatus,
+)
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from user.models import CustomUser
 from user.tests.factories import UserFactory
@@ -82,11 +88,9 @@ class TestPaymentAccountMessaging(GlobalMockAPITestCase):
 
     @patch("payment_card.metis.delete_payment_card")
     def test_process_delete_payment_account_deleted(self, metis_delete_payment_card):
-        objects_pre = PaymentCardAccount.objects.filter(id=self.payment_card_account_entry.id).count()
-
+        objects_pre = PaymentCardAccountEntry.objects.filter(id=self.payment_card_account_entry.id).count()
         angelia_background.delete_payment_account(self.delete_payment_account_message)
-
-        objects_post = PaymentCardAccount.objects.filter(id=self.payment_card_account_entry.id).count()
+        objects_post = PaymentCardAccountEntry.objects.filter(id=self.payment_card_account_entry.id).count()
 
         self.assertEqual(objects_pre, 1)
         self.assertLess(objects_post, objects_pre)
@@ -118,7 +122,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             {"credential_slug": "email", "value": "007@mi5.com"},
         ]
         cls.loyalty_card_auth_autolink_message = {
-            "loyalty_card_id": cls.scheme_account_entry.id,
+            "loyalty_card_id": cls.scheme_account.id,
             "user_id": cls.scheme_account_entry.user.id,
             "entry_id": cls.scheme_account_entry.id,
             "channel_slug": "com.bink.wallet",
@@ -127,7 +131,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             "authorise_fields": cls.auth_fields,
         }
         cls.loyalty_card_auth_no_autolink_message = {
-            "loyalty_card_id": cls.scheme_account_entry.id,
+            "loyalty_card_id": cls.scheme_account.id,
             "user_id": cls.scheme_account_entry.user.id,
             "entry_id": cls.scheme_account_entry.id,
             "channel_slug": "com.bink.wallet",
@@ -137,34 +141,34 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         }
 
         cls.loyalty_card_register_message = {
-            "loyalty_card_id": cls.scheme_account_entry.id,
+            "loyalty_card_id": cls.scheme_account.id,
             "user_id": cls.scheme_account_entry.user.id,
             "entry_id": cls.scheme_account_entry.id,
             "channel_slug": "com.bink.wallet",
             "auto_link": True,
-            "loyalty_plan_id": cls.scheme_account.id,
+            "loyalty_plan_id": cls.scheme_account.scheme.id,
             "add_fields": [{"credential_slug": "card_number", "value": "76389246123642384"}],
             "register_fields": [{"credential_slug": "postcode", "value": "GU552RH"}],
             "consents": cls.consents,
         }
 
         cls.loyalty_card_join_message = {
-            "loyalty_card_id": cls.scheme_account_entry.id,
+            "loyalty_card_id": cls.scheme_account.id,
             "user_id": cls.scheme_account_entry.user.id,
             "channel_slug": "com.bink.wallet",
             "auto_link": True,
-            "loyalty_plan_id": cls.scheme_account.id,
+            "loyalty_plan_id": cls.scheme_account.scheme.id,
             "join_fields": [{"credential_slug": "postcode", "value": "GU552RH"}],
             "consents": cls.consents,
         }
 
         cls.delete_loyalty_card_message = {
-            "loyalty_card_id": cls.scheme_account_entry.id,
+            "loyalty_card_id": cls.scheme_account.id,
             "user_id": cls.scheme_account_entry.user.id,
             "channel_slug": "com.bink.wallet",
             "auto_link": False,
             "created": True,
-            "loyalty_plan_id": cls.scheme_account.id,
+            "loyalty_plan_id": cls.scheme_account.scheme.id,
         }
 
         cls.loyalty_card_authorise_headers = {"X-http-path": "loyalty_card_authorise"}
