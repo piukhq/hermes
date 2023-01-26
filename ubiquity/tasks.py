@@ -230,16 +230,11 @@ def async_registration(
 
 
 @shared_task
-def async_join_journey_fetch_balance_and_update_status(scheme_account_id: int) -> None:
+def async_join_journey_fetch_balance_and_update_status(scheme_account_id: int, scheme_account_entry_id: int) -> None:
+    # After successful join, keep scheme account entry as pending until we have fetched balance
+    # Pending used rather than join pending to not re-trigger this logic
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
-    # todo: remove comments when understood for now fix intended logic and exception and add a test case!
-    # scheme_account.status = scheme_account.PENDING
-    # scheme_account.save(update_fields=["status"])
-
-    # todo: improve this! This is absolutely not the way to do this, but is a temporary hack for Phase 1.
-    # not sure what this means. It is probably the idea of setting to pending so that get_cached balance updates
-    # forces a status update.
-    scheme_account_entry = SchemeAccountEntry.objects.first(scheme_account=scheme_account)
+    scheme_account_entry = SchemeAccountEntry.objects.get(id=scheme_account_entry_id)
     scheme_account_entry.set_link_status(AccountLinkStatus.PENDING)
     scheme_account.get_cached_balance(scheme_account_entry)
 
