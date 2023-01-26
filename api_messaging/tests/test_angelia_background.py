@@ -3,17 +3,16 @@ from unittest.mock import patch
 
 from django.test import override_settings
 
-from api_messaging.angelia_background import loyalty_card_add, post_payment_account, refresh_balances
+from api_messaging.angelia_background import loyalty_card_add, loyalty_card_join, post_payment_account, refresh_balances
 from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
-from scheme.credentials import CARD_NUMBER
-from scheme.models import SchemeAccount, SchemeBundleAssociation
+from scheme.credentials import EMAIL
+from scheme.models import SchemeAccount, SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.tests.factories import (
     SchemeAccountFactory,
     SchemeBalanceDetailsFactory,
     SchemeBundleAssociationFactory,
-    SchemeCredentialQuestionFactory,
     SchemeFactory,
 )
 from ubiquity.models import AccountLinkStatus, PllUserAssociation, WalletPLLSlug, WalletPLLStatus
@@ -67,7 +66,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         cls.user2 = UserFactory(external_id=external_id2, client=cls.client_app, email=external_id2)
         cls.scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=cls.scheme)
-        SchemeCredentialQuestionFactory(scheme=cls.scheme, type=CARD_NUMBER)
+        # SchemeCredentialQuestionFactory(scheme=cls.scheme, type=CARD_NUMBER)
         # Need to add an active association since it was assumed no setting was enabled
         cls.scheme_bundle_association = SchemeBundleAssociationFactory(
             scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
@@ -80,7 +79,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
 
     def setUp(self) -> None:
         self.payment_card_account = PaymentCardAccountFactory(
-            issuer=self.issuer, payment_card=self.payment_card, hash=self.pcard_hash2
+            issuer=self.issuer, payment_card=self.payment_card, hash=self.pcard_hash2, status=PaymentCardAccount.ACTIVE
         )
         self.payment_card_account_entry = PaymentCardAccountEntryFactory(
             user=self.user, payment_card_account=self.payment_card_account
@@ -94,7 +93,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
     @patch.object(SchemeAccount, "_get_balance")
     def test_angelia_background_refresh(self, mock_get_midas_response):
         """
-        Using angelia background request to refresh for a user and bundle_id refresh balances on
+        Using angelia background request to refresh balance for a user and bundle_id
 
         """
         test_scheme_account = SchemeAccountFactory(scheme=self.scheme)
@@ -171,12 +170,85 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         self.assertFalse(user_pll2.pll.active_link)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("api_messaging.midas_messaging.to_midas", autospec=True)
+    def test_loyalty_card_join_valid(self, mock_midas_send):
+        """
+        This test is for angelia background "loyalty_card_join" message handler - testing complete route through midas
+        get balance
+        """
+        SchemeCredentialQuestion.objects.create(scheme=self.scheme, type=EMAIL, manual_question=True, label="Email")
+
+        self.scheme_account_entry.link_status = AccountLinkStatus.PENDING
+        self.scheme_account_entry.save()
+
+        loyalty_card_join(
+            {
+                "loyalty_plan_id": self.scheme.id,
+                "loyalty_card_id": self.scheme_account.id,
+                "entry_id": self.scheme_account_entry.id,
+                "user_id": self.user.id,
+                "channel_slug": self.bundle.bundle_id,
+                "journey": "JOIN",
+                "auto_link": True,
+                "join_fields": [{"credential_slug": "email", "value": "qatest+testnp2join1201@bink.com"}],
+                "consents": [],
+            }
+        )
+
+        self.assertTrue(mock_midas_send.called)
+        self.scheme_account_entry.refresh_from_db()
+        self.assertEqual(self.scheme_account_entry.link_status, AccountLinkStatus.PENDING)
+        user_pll = PllUserAssociation.objects.get(pll__scheme_account=self.scheme_account, user=self.user)
+        self.assertEqual(user_pll.state, WalletPLLStatus.PENDING.value)
+        self.assertEqual(user_pll.slug, WalletPLLSlug.LOYALTY_CARD_PENDING.value)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("api_messaging.midas_messaging.to_midas", autospec=True)
+    def test_loyalty_card_join_invalid_email(self, mock_midas_send):
+        """
+        This test is for angelia background "loyalty_card_join" message handler - testing complete route through midas
+        get balance
+
+        This test relates to a buf LOY-2883 - No pll when payment card added first and join in progress has an invalid
+        email
+
+        """
+
+        SchemeCredentialQuestion.objects.create(scheme=self.scheme, type=EMAIL, manual_question=True, label="Email")
+
+        self.scheme_account_entry.link_status = AccountLinkStatus.PENDING
+        self.scheme_account_entry.save()
+
+        loyalty_card_join(
+            {
+                "loyalty_plan_id": self.scheme.id,
+                "loyalty_card_id": self.scheme_account.id,
+                "entry_id": self.scheme_account_entry.id,
+                "user_id": self.user.id,
+                "channel_slug": self.bundle.bundle_id,
+                "journey": "JOIN",
+                "auto_link": True,
+                "join_fields": [{"credential_slug": "email", "value": "qatest+testnp2join1201bink.com"}],
+                "consents": [],
+            }
+        )
+
+        self.assertFalse(mock_midas_send.called)
+        self.scheme_account_entry.refresh_from_db()
+        self.assertEqual(self.scheme_account_entry.link_status, AccountLinkStatus.INVALID_CREDENTIALS)
+        user_pll = PllUserAssociation.objects.get(pll__scheme_account=self.scheme_account, user=self.user)
+        self.assertEqual(user_pll.state, WalletPLLStatus.INACTIVE.value)
+        self.assertEqual(user_pll.slug, WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch.object(SchemeAccount, "_get_balance")
     def test_duplicate_cards_in_2_wallets(self, mock_get_midas_response):
         """
-        This tests the angelia background logic when duplicate payment and scheme accounts are
+        This test uses angelia background calls to loyalty_card_add and loyalty_card_add and tests the wallet
+        setup with Mock midas get balance reply. The order is loyalty_card_add first
+        The focus is on the angelia background logic when duplicate payment and scheme accounts are
         linked in two wallets.
-        Note a bug was reported which might implies this did not work correctly.
+        Note a bug was reported which might implies this did not work correctly for API 2.0
 
         Error reported in LOY-2874
         expected result: wallet1 has PLL status = PAYMENT_ACCOUNT_PENDING  wallet2 = LOYALTY_CARD_NOT_AUTHORISED
@@ -278,7 +350,9 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
     @patch.object(SchemeAccount, "_get_balance")
     def test_duplicate_cards_in_pay_last_2_wallets(self, mock_get_midas_response):
         """
-        This tests the angelia background logic when duplicate payment and scheme accounts are
+        This test uses angelia background calls to loyalty_card_add and post_payment_account and tests the wallet
+        setup with Mock midas get balance reply.  The order is post_payment_account first
+        The focus is on angelia background logic when duplicate payment and scheme accounts are
         linked in two wallets.
         Note a bug was reported which might implies this did not work correctly.
 
