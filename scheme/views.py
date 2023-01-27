@@ -325,6 +325,9 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         if new_status_code == AccountLinkStatus.ACTIVE:
             # status event join success
+            # if balance is not obtained then previous state has been forced to pending so this
+            # test will fail for JOIN_ASYNC_IN_PROGRESS
+            # @todo How will join_outcome ever be reported if balance is not obtained?
             if previous_status == AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS:
                 join_outcome_event.delay(success=True, scheme_account_entry=scheme_account_entry)
             elif previous_status == AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS:
