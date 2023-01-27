@@ -13,6 +13,8 @@ if t.TYPE_CHECKING:
 
 logger = logging.getLogger("messaging")
 
+raise ValueError(f"RABBIT_DSN: {settings.RABBIT_DSN}")
+
 message_sender = SendingService(
     dsn=settings.RABBIT_DSN,
     log_to=logger,
