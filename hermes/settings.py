@@ -698,7 +698,9 @@ INFLUX_DB_CONFIG = {
 
 # RABBIT
 TIME_OUT = env_var("TIMEOUT", 4)
-RABBIT_DSN = env_var("RABBIT_DSN", "amqp://guest:guest@localhost/")
+RABBIT_DSN = env_var("RABBIT_DSN")
+if not RABBIT_DSN:
+    raise ValueError("NO RABBIT_DSN ENV VAR DETECTED")
 
 # Celery
 CELERY_BROKER_URL = RABBIT_DSN
