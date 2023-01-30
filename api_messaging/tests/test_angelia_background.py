@@ -4,11 +4,17 @@ from unittest.mock import patch
 from django.conf import settings
 from django.test import override_settings
 
-from api_messaging.angelia_background import loyalty_card_add, loyalty_card_join, post_payment_account, refresh_balances
+from api_messaging.angelia_background import (
+    loyalty_card_add,
+    loyalty_card_join,
+    loyalty_card_register,
+    post_payment_account,
+    refresh_balances,
+)
 from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
-from scheme.credentials import EMAIL
+from scheme.credentials import EMAIL, POSTCODE
 from scheme.models import SchemeAccount, SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.tests.factories import (
     SchemeAccountFactory,
@@ -16,7 +22,13 @@ from scheme.tests.factories import (
     SchemeBundleAssociationFactory,
     SchemeFactory,
 )
-from ubiquity.models import AccountLinkStatus, PllUserAssociation, WalletPLLSlug, WalletPLLStatus
+from ubiquity.models import (
+    AccountLinkStatus,
+    PaymentCardSchemeEntry,
+    PllUserAssociation,
+    WalletPLLSlug,
+    WalletPLLStatus,
+)
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from user.tests.factories import (
     ClientApplicationBundleFactory,
@@ -359,6 +371,143 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         user_pll.refresh_from_db()
         self.assertEqual(user_pll.state, WalletPLLStatus.ACTIVE.value)
         self.assertEqual(user_pll.slug, "")
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch.object(SchemeAccount, "_get_balance")
+    @patch("api_messaging.midas_messaging.to_midas", autospec=True)
+    @patch.object(PaymentCardSchemeEntry, "vop_activate_check", autospec=True)
+    def test_payment_card_active_and_loyalty_card_register_valid(
+        self, mock_vop_check, mock_midas_send, mock_get_midas_response
+    ):
+        """
+        This test is for angelia background "loyalty_card_join" message handler when there is a pending
+        payment card - testing complete route through to midas message send via Q.
+        Then tests the Midas call back of status change
+        """
+
+        SchemeCredentialQuestion.objects.create(
+            scheme=self.scheme, type=POSTCODE, manual_question=True, label="PostCode"
+        )
+
+        self.scheme_account.card_number = "1234"
+        self.scheme_account.save()
+
+        self.scheme_account_entry.link_status = AccountLinkStatus.PENDING
+        self.scheme_account_entry.save()
+
+        loyalty_card_register(
+            {
+                "loyalty_plan_id": self.scheme.id,
+                "loyalty_card_id": self.scheme_account.id,
+                "entry_id": self.scheme_account_entry.id,
+                "user_id": self.user.id,
+                "channel_slug": self.bundle.bundle_id,
+                "journey": "REGISTER",
+                "auto_link": True,
+                "register_fields": [{"credential_slug": "postcode", "value": "GU22TT"}],
+                "consents": [],
+            }
+        )
+
+        self.assertTrue(mock_midas_send.called)
+        self.scheme_account_entry.refresh_from_db()
+        self.assertEqual(self.scheme_account_entry.link_status, AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS)
+        user_pll = PllUserAssociation.objects.get(pll__scheme_account=self.scheme_account, user=self.user)
+        self.assertEqual(user_pll.state, WalletPLLStatus.PENDING.value)
+        self.assertEqual(user_pll.slug, WalletPLLSlug.LOYALTY_CARD_PENDING.value)
+
+        # Now verify the call back from midas
+        mock_get_midas_response.return_value = MockMidasBalanceResponse(200)
+        data = {
+            "status": AccountLinkStatus.ACTIVE,
+            "journey": "register",
+            "user_info": {"bink_user_id": self.user.id},
+        }
+        response = self.client.post(
+            "/schemes/accounts/{}/status/".format(self.scheme_account.id),
+            data,
+            format="json",
+            **self.auth_service_headers
+        )
+        self.assertTrue(mock_vop_check.called)
+        self.assertFalse(mock_get_midas_response.called)
+        self.assertEqual(response.status_code, 200)
+        self.scheme_account_entry.refresh_from_db()
+        self.assertEqual(self.scheme_account_entry.link_status, AccountLinkStatus.ACTIVE)
+        user_pll.refresh_from_db()
+        self.assertTrue(user_pll.pll.active_link)
+        self.assertEqual(user_pll.state, WalletPLLStatus.ACTIVE.value)
+        self.assertEqual(user_pll.slug, "")
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch.object(SchemeAccount, "_get_balance")
+    @patch("api_messaging.midas_messaging.to_midas", autospec=True)
+    @patch.object(PaymentCardSchemeEntry, "vop_activate_check", autospec=True)
+    def test_payment_card_pending_and_loyalty_card_register_valid(
+        self, mock_vop_check, mock_midas_send, mock_get_midas_response
+    ):
+        """
+        This test is for angelia background "loyalty_card_join" message handler when there is a pending
+        payment card - testing complete route through to midas message send via Q.
+        Then tests the Midas call back of status change
+        """
+
+        SchemeCredentialQuestion.objects.create(
+            scheme=self.scheme, type=POSTCODE, manual_question=True, label="PostCode"
+        )
+
+        self.scheme_account.card_number = "1234"
+        self.scheme_account.save()
+
+        self.scheme_account_entry.link_status = AccountLinkStatus.PENDING
+        self.scheme_account_entry.save()
+
+        self.payment_card_account.status = PaymentCardAccount.PENDING
+        self.payment_card_account.save()
+
+        loyalty_card_register(
+            {
+                "loyalty_plan_id": self.scheme.id,
+                "loyalty_card_id": self.scheme_account.id,
+                "entry_id": self.scheme_account_entry.id,
+                "user_id": self.user.id,
+                "channel_slug": self.bundle.bundle_id,
+                "journey": "REGISTER",
+                "auto_link": True,
+                "register_fields": [{"credential_slug": "postcode", "value": "GU22TT"}],
+                "consents": [],
+            }
+        )
+
+        self.assertTrue(mock_midas_send.called)
+        self.scheme_account_entry.refresh_from_db()
+        self.assertEqual(self.scheme_account_entry.link_status, AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS)
+        user_pll = PllUserAssociation.objects.get(pll__scheme_account=self.scheme_account, user=self.user)
+        self.assertEqual(user_pll.state, WalletPLLStatus.PENDING.value)
+        self.assertEqual(user_pll.slug, WalletPLLSlug.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_PENDING.value)
+
+        # Now verify the call back from midas
+        mock_get_midas_response.return_value = MockMidasBalanceResponse(200)
+        data = {
+            "status": AccountLinkStatus.ACTIVE,
+            "journey": "register",
+            "user_info": {"bink_user_id": self.user.id},
+        }
+        response = self.client.post(
+            "/schemes/accounts/{}/status/".format(self.scheme_account.id),
+            data,
+            format="json",
+            **self.auth_service_headers
+        )
+        self.assertFalse(mock_vop_check.called)
+        self.assertFalse(mock_get_midas_response.called)
+        self.assertEqual(response.status_code, 200)
+        self.scheme_account_entry.refresh_from_db()
+        self.assertEqual(self.scheme_account_entry.link_status, AccountLinkStatus.ACTIVE)
+        user_pll.refresh_from_db()
+        self.assertFalse(user_pll.pll.active_link)
+        self.assertEqual(user_pll.state, WalletPLLStatus.PENDING.value)
+        self.assertEqual(user_pll.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch.object(SchemeAccount, "_get_balance")
