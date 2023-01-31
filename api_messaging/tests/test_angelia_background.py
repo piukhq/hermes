@@ -5,6 +5,7 @@ from django.conf import settings
 from django.test import override_settings
 
 from api_messaging.angelia_background import (
+    delete_payment_account,
     loyalty_card_add,
     loyalty_card_join,
     loyalty_card_register,
@@ -12,6 +13,7 @@ from api_messaging.angelia_background import (
     refresh_balances,
 )
 from history.utils import GlobalMockAPITestCase
+from payment_card.enums import RequestMethod
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import EMAIL, POSTCODE
@@ -24,6 +26,7 @@ from scheme.tests.factories import (
 )
 from ubiquity.models import (
     AccountLinkStatus,
+    PaymentCardAccountEntry,
     PaymentCardSchemeEntry,
     PllUserAssociation,
     WalletPLLSlug,
@@ -94,7 +97,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
 
     def setUp(self) -> None:
         self.payment_card_account = PaymentCardAccountFactory(
-            issuer=self.issuer, payment_card=self.payment_card, hash=self.pcard_hash2, status=PaymentCardAccount.ACTIVE
+            issuer=self.issuer, payment_card=self.payment_card, status=PaymentCardAccount.ACTIVE
         )
         self.payment_card_account_entry = PaymentCardAccountEntryFactory(
             user=self.user, payment_card_account=self.payment_card_account
@@ -105,8 +108,160 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         self.scheme_account_entry = SchemeAccountEntryFactory.create(scheme_account=self.scheme_account, user=self.user)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("hermes.vop_tasks.send_activation", autospec=True)
+    @patch("payment_card.tasks.metis_request", autospec=True)
+    def test_delete_payment_card_with_pll(self, mock_metis_request, _):
+
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            payment_card_accounts=[self.payment_card_account], scheme_account=self.scheme_account, user=self.user
+        )
+        user_pll = PllUserAssociation.objects.get(
+            pll__scheme_account=self.scheme_account, pll__payment_card_account=self.payment_card_account, user=self.user
+        )
+
+        self.assertEqual("", user_pll.slug)
+        self.assertEqual(WalletPLLStatus.ACTIVE, user_pll.state)
+        self.assertTrue(user_pll.pll.active_link)
+
+        delete_payment_account(
+            {
+                "channel_slug": self.bundle.bundle_id,
+                "user_id": self.user.id,
+                "payment_account_id": self.payment_card_account.id,
+            }
+        )
+        no_pll_users = PllUserAssociation.objects.filter(
+            pll__scheme_account=self.scheme_account, user=self.user
+        ).count()
+        self.assertEquals(0, no_pll_users)
+        no_pay_cards_in_wallet = PaymentCardAccountEntry.objects.filter(
+            payment_card_account=self.payment_card_account, user=self.user
+        ).count()
+        self.assertEquals(0, no_pay_cards_in_wallet)
+        self.payment_card_account.refresh_from_db()
+        self.assertTrue(self.payment_card_account.is_deleted)
+        self.assertTrue(mock_metis_request.called)
+        self.assertEqual(RequestMethod.DELETE, mock_metis_request.call_args.args[0])
+        self.assertEqual("/payment_service/payment_card", mock_metis_request.call_args.args[1])
+        self.assertEqual(self.payment_card_account.psp_token, mock_metis_request.call_args.args[2]["payment_token"])
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("hermes.vop_tasks.send_activation", autospec=True)
+    @patch("payment_card.tasks.metis_request", autospec=True)
+    def test_delete_active_with_pending_payment_card(self, mock_metis_request, _):
+        payment_card_account_2 = PaymentCardAccountFactory(
+            issuer=self.issuer, payment_card=self.payment_card, status=PaymentCardAccount.PENDING
+        )
+        PaymentCardAccountEntryFactory(user=self.user, payment_card_account=payment_card_account_2)
+
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            payment_card_accounts=[self.payment_card_account, payment_card_account_2],
+            scheme_account=self.scheme_account,
+            user=self.user,
+        )
+        user_pll = PllUserAssociation.objects.get(
+            pll__scheme_account=self.scheme_account, pll__payment_card_account=self.payment_card_account, user=self.user
+        )
+        user_pll_2 = PllUserAssociation.objects.get(
+            pll__scheme_account=self.scheme_account, pll__payment_card_account=payment_card_account_2, user=self.user
+        )
+
+        self.assertEqual("", user_pll.slug)
+        self.assertEqual(WalletPLLStatus.ACTIVE, user_pll.state)
+        self.assertTrue(user_pll.pll.active_link)
+
+        self.assertEqual(WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value, user_pll_2.slug)
+        self.assertEqual(WalletPLLStatus.PENDING, user_pll_2.state)
+        self.assertFalse(user_pll_2.pll.active_link)
+
+        delete_payment_account(
+            {
+                "channel_slug": self.bundle.bundle_id,
+                "user_id": self.user.id,
+                "payment_account_id": self.payment_card_account.id,
+            }
+        )
+        pll_users = PllUserAssociation.objects.filter(pll__scheme_account=self.scheme_account, user=self.user)
+        self.assertEquals(1, len(pll_users))
+
+        self.assertEqual(WalletPLLStatus.PENDING, pll_users[0].state)
+        self.assertEqual(WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value, pll_users[0].slug)
+        self.assertFalse(pll_users[0].pll.active_link)
+
+        no_pay_cards_in_wallet = PaymentCardAccountEntry.objects.filter(
+            payment_card_account=self.payment_card_account, user=self.user
+        ).count()
+        self.assertEquals(0, no_pay_cards_in_wallet)
+        self.payment_card_account.refresh_from_db()
+        self.assertTrue(self.payment_card_account.is_deleted)
+        self.assertTrue(mock_metis_request.called)
+        self.assertEqual(RequestMethod.DELETE, mock_metis_request.call_args.args[0])
+        self.assertEqual("/payment_service/payment_card", mock_metis_request.call_args.args[1])
+        self.assertEqual(self.payment_card_account.psp_token, mock_metis_request.call_args.args[2]["payment_token"])
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("hermes.vop_tasks.send_activation", autospec=True)
+    @patch("payment_card.tasks.metis_request", autospec=True)
+    def test_delete_pending_with_active_payment_card(self, mock_metis_request, _):
+        payment_card_account_2 = PaymentCardAccountFactory(
+            issuer=self.issuer, payment_card=self.payment_card, status=PaymentCardAccount.PENDING
+        )
+        PaymentCardAccountEntryFactory(user=self.user, payment_card_account=payment_card_account_2)
+
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            payment_card_accounts=[self.payment_card_account, payment_card_account_2],
+            scheme_account=self.scheme_account,
+            user=self.user,
+        )
+        user_pll = PllUserAssociation.objects.get(
+            pll__scheme_account=self.scheme_account, pll__payment_card_account=self.payment_card_account, user=self.user
+        )
+        user_pll_2 = PllUserAssociation.objects.get(
+            pll__scheme_account=self.scheme_account, pll__payment_card_account=payment_card_account_2, user=self.user
+        )
+
+        self.assertEqual("", user_pll.slug)
+        self.assertEqual(WalletPLLStatus.ACTIVE, user_pll.state)
+        self.assertTrue(user_pll.pll.active_link)
+
+        self.assertEqual(WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value, user_pll_2.slug)
+        self.assertEqual(WalletPLLStatus.PENDING, user_pll_2.state)
+        self.assertFalse(user_pll_2.pll.active_link)
+
+        delete_payment_account(
+            {
+                "channel_slug": self.bundle.bundle_id,
+                "user_id": self.user.id,
+                "payment_account_id": payment_card_account_2.id,
+            }
+        )
+        pll_users = PllUserAssociation.objects.filter(pll__scheme_account=self.scheme_account, user=self.user)
+        self.assertEquals(1, len(pll_users))
+        self.assertEqual(self.payment_card_account.id, pll_users[0].pll.payment_card_account.id)
+        self.assertEqual(WalletPLLStatus.ACTIVE, pll_users[0].state)
+        self.assertEqual("", pll_users[0].slug)
+
+        self.assertTrue(pll_users[0].pll.active_link)
+
+        pay_cards_in_wallet = PaymentCardAccountEntry.objects.filter(
+            payment_card_account=self.payment_card_account, user=self.user
+        )
+        self.assertEquals(1, len(pay_cards_in_wallet))
+        self.assertFalse(pay_cards_in_wallet[0].payment_card_account.is_deleted)
+        self.assertFalse(self.payment_card_account.is_deleted)
+
+        self.assertEquals(self.payment_card_account.id, pay_cards_in_wallet[0].payment_card_account.id)
+        self.assertTrue(mock_metis_request.called)
+        self.assertEqual(RequestMethod.DELETE, mock_metis_request.call_args.args[0])
+        self.assertEqual("/payment_service/payment_card", mock_metis_request.call_args.args[1])
+        payment_card_account_2.refresh_from_db()
+        self.assertEqual(payment_card_account_2.psp_token, mock_metis_request.call_args.args[2]["payment_token"])
+        self.assertTrue(payment_card_account_2.is_deleted)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("hermes.vop_tasks.send_activation", autospec=True)
     @patch.object(SchemeAccount, "_get_balance")
-    def test_angelia_background_refresh(self, mock_get_midas_response):
+    def test_angelia_background_refresh(self, mock_get_midas_response, _):
         """
         Using angelia background request to refresh balance for a user and bundle_id
 
@@ -317,9 +472,10 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         self.assertEqual(user_pll.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("hermes.vop_tasks.send_activation", autospec=True)
     @patch.object(SchemeAccount, "_get_balance")
     @patch("api_messaging.midas_messaging.to_midas", autospec=True)
-    def test_payment_card_active_and_loyalty_card_join_valid(self, mock_midas_send, mock_get_midas_response):
+    def test_payment_card_active_and_loyalty_card_join_valid(self, mock_midas_send, mock_get_midas_response, _):
         """
         This test is for angelia background "loyalty_card_join" message handler when there is a pending
         payment card - testing complete route through to midas message send via Q.
