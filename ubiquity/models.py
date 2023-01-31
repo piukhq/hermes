@@ -907,7 +907,7 @@ class PllUserAssociation(models.Model):
         # these are pll user links to all wallets which have this payment_card_account
         for link in wallet_pll_data.all_except_collision():
             link.state, link.slug = cls.get_state_and_slug(
-                payment_card_account, wallet_pll_data.scheme_account_status(link)
+                link.pll.payment_card_account, wallet_pll_data.scheme_account_status(link)
             )
             cls.update_link(link)
 
@@ -917,7 +917,7 @@ class PllUserAssociation(models.Model):
         # these are pll user links to all wallets which have this payment_card_account
         for link in wallet_pll_data.all_except_collision():
             link.state, link.slug = cls.get_state_and_slug(
-                payment_card_account, wallet_pll_data.scheme_account_status(link)
+                link.pll.payment_card_account, wallet_pll_data.scheme_account_status(link)
             )
             cls.update_link(link)
 
