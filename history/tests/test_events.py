@@ -1,7 +1,6 @@
 from unittest.mock import patch
-from django.test import override_settings
 
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 
 from history.data_warehouse import (
     add_auth_outcome,
@@ -16,7 +15,7 @@ from history.data_warehouse import (
 )
 from scheme.models import SchemeBundleAssociation
 from scheme.tests.factories import SchemeAccountFactory, SchemeBundleAssociationFactory, SchemeFactory, fake
-from ubiquity.tests.factories import SchemeAccountEntryFactory, PaymentCardAccountEntryFactory
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from user.tests.factories import (
     ClientApplicationBundleFactory,
     ClientApplicationFactory,
@@ -665,7 +664,6 @@ class TestRegisterFailEventHandlers(TransactionTestCase):
 
 
 class TestHistoryEvents(TransactionTestCase):
-
     @classmethod
     def setUpClass(cls):
         cls.external_id = "ext_test@setup.user"
@@ -686,20 +684,20 @@ class TestHistoryEvents(TransactionTestCase):
         payment_card_account = payment_card_account_entry.payment_card_account
         self.assertTrue(mock_to_warehouse.called)
         args = mock_to_warehouse.call_args[0][0]
-        self.assertTrue(args.get('event_date_time', False))
-        del (args['event_date_time'])
+        self.assertTrue(args.get("event_date_time", False))
+        del args["event_date_time"]
         expected = {
-            'event_type': 'payment.account.added',
-            'origin': 'merchant.callback',
-            'external_user_ref': 'ext_test@setup.user',
-            'internal_user_ref': 1,
-            'email': self.email,
-            'channel': self.bundle_id,
-            'payment_account_id': payment_card_account.id,
-            'fingerprint': payment_card_account.fingerprint,
-            'expiry_date': f"{payment_card_account.expiry_month}/{payment_card_account.expiry_year}",
-            'token': payment_card_account.token,
-            'status': 1
+            "event_type": "payment.account.added",
+            "origin": "merchant.callback",
+            "external_user_ref": "ext_test@setup.user",
+            "internal_user_ref": 1,
+            "email": self.email,
+            "channel": self.bundle_id,
+            "payment_account_id": payment_card_account.id,
+            "fingerprint": payment_card_account.fingerprint,
+            "expiry_date": f"{payment_card_account.expiry_month}/{payment_card_account.expiry_year}",
+            "token": payment_card_account.token,
+            "status": 1,
         }
         self.assertDictEqual(expected, args)
 
@@ -719,16 +717,19 @@ class TestHistoryEvents(TransactionTestCase):
         user = UserFactory(external_id=external_id, client=self.client_app, email=email)
         self.assertTrue(mock_to_warehouse.called)
         args = mock_to_warehouse.call_args[0][0]
-        self.assertTrue(args.get('event_date_time', False))
-        del(args['event_date_time'])
-        self.assertDictEqual(args, {
-            "event_type": "user.created",
-            "origin": "merchant.callback",
-            "channel": self.bundle_id,
-            "external_user_ref": external_id,
-            "email": email,
-            "internal_user_ref": user.id
-        })
+        self.assertTrue(args.get("event_date_time", False))
+        del args["event_date_time"]
+        self.assertDictEqual(
+            args,
+            {
+                "event_type": "user.created",
+                "origin": "merchant.callback",
+                "channel": self.bundle_id,
+                "external_user_ref": external_id,
+                "email": email,
+                "internal_user_ref": user.id,
+            },
+        )
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("history.data_warehouse.to_data_warehouse")
@@ -737,14 +738,16 @@ class TestHistoryEvents(TransactionTestCase):
         self.user.delete()
         self.assertTrue(mock_to_warehouse.called)
         args = mock_to_warehouse.call_args[0][0]
-        self.assertTrue(args.get('event_date_time', False))
-        del (args['event_date_time'])
-        self.assertDictEqual(args, {
-            "event_type": "user.deleted",
-            "origin": "merchant.callback",
-            "channel": self.bundle_id,
-            "external_user_ref": self.external_id,
-            "email": self.email,
-            "internal_user_ref": user_id
-        })
-
+        self.assertTrue(args.get("event_date_time", False))
+        del args["event_date_time"]
+        self.assertDictEqual(
+            args,
+            {
+                "event_type": "user.deleted",
+                "origin": "merchant.callback",
+                "channel": self.bundle_id,
+                "external_user_ref": self.external_id,
+                "email": self.email,
+                "internal_user_ref": user_id,
+            },
+        )

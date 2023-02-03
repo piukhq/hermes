@@ -19,7 +19,6 @@ message_sender = SendingService(
 )
 
 
-
 def to_data_warehouse(payload: dict) -> None:
     headers = {}
     if payload:
@@ -237,17 +236,19 @@ def pay_account_from_entry(data: dict, channel_slug: str) -> list:
 
     extra_data = []
     for channel in channels:
-        extra_data.append({
-            "external_user_ref": user_info.external_id,
-            "internal_user_ref": user_info.id,
-            "email": user_info.email,
-            "channel": channel,
-            "payment_account_id": pay_card_account.id,
-            "fingerprint": pay_card_account.fingerprint,
-            "expiry_date": f"{pay_card_account.expiry_month}/{pay_card_account.expiry_year}",
-            "token": pay_card_account.token,
-            "status": pay_card_account.status,
-        })
+        extra_data.append(
+            {
+                "external_user_ref": user_info.external_id,
+                "internal_user_ref": user_info.id,
+                "email": user_info.email,
+                "channel": channel,
+                "payment_account_id": pay_card_account.id,
+                "fingerprint": pay_card_account.fingerprint,
+                "expiry_date": f"{pay_card_account.expiry_month}/{pay_card_account.expiry_year}",
+                "token": pay_card_account.token,
+                "status": pay_card_account.status,
+            }
+        )
     return extra_data
 
 
@@ -278,6 +279,7 @@ def scheme_account_status_update(data: dict, channel_slug: str) -> list:
 
 def user_data(data: dict, channel_slug: str) -> list:
     from user.models import CustomUser
+
     body = data.get("body", {})
     channels = []
     if not channel_slug:
@@ -290,12 +292,14 @@ def user_data(data: dict, channel_slug: str) -> list:
 
     extra_data = []
     for channel in channels:
-        extra_data.append({
-            "external_user_ref": body.get("external_id"),
-            "internal_user_ref": body.get("id"),
-            "email": body.get("email"),
-            "channel": channel
-        })
+        extra_data.append(
+            {
+                "external_user_ref": body.get("external_id"),
+                "internal_user_ref": body.get("id"),
+                "email": body.get("email"),
+                "channel": channel,
+            }
+        )
     return extra_data
 
 
