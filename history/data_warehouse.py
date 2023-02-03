@@ -19,6 +19,7 @@ message_sender = SendingService(
 )
 
 
+
 def to_data_warehouse(payload: dict) -> None:
     headers = {}
     if payload:
@@ -214,26 +215,43 @@ def register_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
         to_data_warehouse(payload)
 
 
-def pay_account_from_entry(data: dict) -> list:
+def pay_account_from_entry(data: dict, channel_slug: str) -> list:
     from payment_card.models import PaymentCardAccount
+    from ubiquity.models import PaymentCardAccountEntry
     from user.models import CustomUser
 
     pay_card_account = PaymentCardAccount.objects.get(id=data.get("payment_card_account_id"))
-    user_info = CustomUser.objects.get(id=data.get("user_id"))
-    extra_data = {
-        "external_user_ref": user_info.external_id,
-        "internal_user_ref": user_info.id,
-        "email": user_info.email,
-        "payment_account_id": pay_card_account.id,
-        "fingerprint": pay_card_account.fingerprint,
-        "expiry_date": f"{pay_card_account.expiry_month}/{pay_card_account.expiry_year}",
-        "token": pay_card_account.token,
-        "status": pay_card_account.status,
-    }
-    return [extra_data]
+    user_id = data.get("user_id")
+    if data.get("user_id"):
+        user_info = CustomUser.objects.get(id=user_id)
+    else:
+        user_info = PaymentCardAccountEntry.objects.get(id=data.get("instance_id")).user
+
+    channels = []
+    if not channel_slug:
+        cabs = user_info.client.clientapplicationbundle_set.all()
+        for cab in cabs:
+            channels.append(cab.bundle_id)
+    else:
+        channels.append(channel_slug)
+
+    extra_data = []
+    for channel in channels:
+        extra_data.append({
+            "external_user_ref": user_info.external_id,
+            "internal_user_ref": user_info.id,
+            "email": user_info.email,
+            "channel": channel,
+            "payment_account_id": pay_card_account.id,
+            "fingerprint": pay_card_account.fingerprint,
+            "expiry_date": f"{pay_card_account.expiry_month}/{pay_card_account.expiry_year}",
+            "token": pay_card_account.token,
+            "status": pay_card_account.status,
+        })
+    return extra_data
 
 
-def scheme_account_status_update(data: dict) -> list:
+def scheme_account_status_update(data: dict, channel_slug: str) -> list:
     from scheme.models import SchemeAccount
     from ubiquity.models import SchemeAccountEntry
 
@@ -258,14 +276,27 @@ def scheme_account_status_update(data: dict) -> list:
     return extras
 
 
-def user_data(data: dict) -> list:
+def user_data(data: dict, channel_slug: str) -> list:
+    from user.models import CustomUser
     body = data.get("body", {})
-    extra_data = {
-        "external_user_ref": body.get("external_id"),
-        "internal_user_ref": body.get("id"),
-        "email": body.get("email"),
-    }
-    return [extra_data]
+    channels = []
+    if not channel_slug:
+        user = CustomUser.objects.get(id=body.get("id"))
+        cabs = user.client.clientapplicationbundle_set.all()
+        for cab in cabs:
+            channels.append(cab.bundle_id)
+    else:
+        channels.append(channel_slug)
+
+    extra_data = []
+    for channel in channels:
+        extra_data.append({
+            "external_user_ref": body.get("external_id"),
+            "internal_user_ref": body.get("id"),
+            "email": body.get("email"),
+            "channel": channel
+        })
+    return extra_data
 
 
 event_map = {
@@ -293,14 +324,13 @@ def history_event(model_name: str, data: dict):
             #  due to a merchant callback and decide what to do if it is due to some other cause
             origin = "merchant.callback"
             channel_slug = ""
-        extra_datas = []
+
         if event_info[1]:
-            extra_datas = event_info[1](data)
+            extra_datas = event_info[1](data, channel_slug)
             for extra_data in extra_datas:
                 payload = {
                     "event_type": event_info[0],
                     "origin": origin,
-                    "channel": channel_slug,
                     "event_date_time": arrow.utcnow().isoformat(),
                     **extra_data,
                 }
