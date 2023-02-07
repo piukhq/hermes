@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 
 from history.data_warehouse import (
     add_auth_outcome,
@@ -13,15 +13,20 @@ from history.data_warehouse import (
     register_outcome,
     remove_loyalty_card_event,
 )
-from scheme.models import SchemeBundleAssociation
-from scheme.tests.factories import SchemeAccountFactory, SchemeBundleAssociationFactory, SchemeFactory
-from ubiquity.tests.factories import SchemeAccountEntryFactory
+from scheme.models import SchemeAccount, SchemeBundleAssociation
+from scheme.tests.factories import SchemeAccountFactory, SchemeBundleAssociationFactory, SchemeFactory, fake
+from ubiquity.models import AccountLinkStatus
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from user.tests.factories import (
     ClientApplicationBundleFactory,
     ClientApplicationFactory,
     OrganisationFactory,
     UserFactory,
 )
+
+
+def get_main_answer(scheme_account: SchemeAccount):
+    return scheme_account.card_number or scheme_account.barcode or scheme_account.alt_main_answer
 
 
 class TestRemoveLCEventHandlers(TransactionTestCase):
@@ -661,3 +666,122 @@ class TestRegisterFailEventHandlers(TransactionTestCase):
         cls.client_app.delete()
         cls.organisation.delete()
         super().tearDownClass()
+
+
+@override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+class TestHistoryEvents(TransactionTestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.external_id = "ext_test@setup.user"
+        cls.email = "test@setuo.user"
+        super().setUpClass()
+
+    def setUp(self) -> None:
+        self.organisation = OrganisationFactory()
+        self.client_app = ClientApplicationFactory(organisation=self.organisation)
+        self.bundle_id = fake.text(max_nb_chars=30)
+        self.bundle = ClientApplicationBundleFactory(bundle_id=self.bundle_id, client=self.client_app)
+        self.user = UserFactory(external_id=self.external_id, client=self.client_app, email=self.email)
+
+    @patch("history.data_warehouse.to_data_warehouse")
+    def test_history_paymentcard_added_event(self, mock_to_warehouse):
+        payment_card_account_entry = PaymentCardAccountEntryFactory(user=self.user)
+        payment_card_account = payment_card_account_entry.payment_card_account
+        self.assertTrue(mock_to_warehouse.called)
+        args = mock_to_warehouse.call_args[0][0]
+        self.assertTrue(args.get("event_date_time", False))
+        del args["event_date_time"]
+        expected = {
+            "event_type": "payment.account.added",
+            "origin": "merchant.callback",
+            "external_user_ref": self.user.external_id,
+            "internal_user_ref": self.user.id,
+            "email": self.email,
+            "channel": self.bundle_id,
+            "payment_account_id": payment_card_account.id,
+            "fingerprint": payment_card_account.fingerprint,
+            "expiry_date": f"{payment_card_account.expiry_month}/{payment_card_account.expiry_year}",
+            "token": payment_card_account.token,
+            "status": 1,
+        }
+        self.assertDictEqual(expected, args)
+
+    @patch("history.data_warehouse.to_data_warehouse")
+    def test_history_schemeaccountentry_event(self, mock_to_warehouse):
+        sae = SchemeAccountEntryFactory(user=self.user, link_status=AccountLinkStatus.PENDING.value)
+        sae.set_link_status(AccountLinkStatus.ACTIVE)
+        self.assertTrue(mock_to_warehouse.called)
+        args = mock_to_warehouse.call_args[0][0]
+        self.assertTrue(args.get("event_date_time", False))
+        del args["event_date_time"]
+        self.assertDictEqual(
+            args,
+            {
+                "event_type": "lc.statuschange",
+                "origin": "merchant.callback",
+                "external_user_ref": self.user.external_id,
+                "internal_user_ref": self.user.id,
+                "email": self.user.email,
+                "scheme_account_id": sae.scheme_account.id,
+                "loyalty_plan": sae.scheme_account.scheme.id,
+                "main_answer": get_main_answer(sae.scheme_account),
+                "to_status": AccountLinkStatus.ACTIVE.value,
+                "channel": self.bundle_id,
+            },
+        )
+
+    @patch("history.data_warehouse.to_data_warehouse")
+    def test_history_2users_create_event(self, mock_to_warehouse):
+        external_id = "ext_test@new.user"
+        email = "test@new.user"
+        user = UserFactory(external_id=external_id, client=self.client_app, email=email)
+        self.assertTrue(mock_to_warehouse.called)
+        args = mock_to_warehouse.call_args[0][0]
+        self.assertTrue(args.get("event_date_time", False))
+        del args["event_date_time"]
+        self.assertDictEqual(
+            args,
+            {
+                "event_type": "user.created",
+                "origin": "merchant.callback",
+                "channel": self.bundle_id,
+                "external_user_ref": external_id,
+                "email": email,
+                "internal_user_ref": user.id,
+            },
+        )
+        user2 = UserFactory(external_id="ext_user2", client=self.client_app, email="email2@test.com")
+        args = mock_to_warehouse.call_args[0][0]
+        self.assertTrue(args.get("event_date_time", False))
+        del args["event_date_time"]
+        self.assertDictEqual(
+            args,
+            {
+                "event_type": "user.created",
+                "origin": "merchant.callback",
+                "channel": self.bundle_id,
+                "external_user_ref": user2.external_id,
+                "email": user2.email,
+                "internal_user_ref": user2.id,
+            },
+        )
+
+    @patch("history.data_warehouse.to_data_warehouse")
+    def test_history_user_delete_event(self, mock_to_warehouse):
+        user_id = self.user.id
+        self.user.delete()
+        self.assertTrue(mock_to_warehouse.called)
+        args = mock_to_warehouse.call_args[0][0]
+        self.assertTrue(args.get("event_date_time", False))
+        del args["event_date_time"]
+        self.assertDictEqual(
+            args,
+            {
+                "event_type": "user.deleted",
+                "origin": "merchant.callback",
+                "channel": self.bundle_id,
+                "external_user_ref": self.external_id,
+                "email": self.email,
+                "internal_user_ref": user_id,
+            },
+        )

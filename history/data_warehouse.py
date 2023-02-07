@@ -19,6 +19,10 @@ message_sender = SendingService(
 )
 
 
+def get_main_answer(scheme_account: "SchemeAccount") -> str:
+    return scheme_account.card_number or scheme_account.barcode or scheme_account.alt_main_answer
+
+
 def to_data_warehouse(payload: dict) -> None:
     headers = {}
     if payload:
@@ -36,7 +40,7 @@ def addauth_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount"
         "email": user.email,
         "scheme_account_id": scheme_account.id,
         "loyalty_plan": scheme_account.scheme_id,
-        "main_answer": scheme_account.alt_main_answer,
+        "main_answer": get_main_answer(scheme_account),
     }
     to_data_warehouse(payload)
 
@@ -52,7 +56,7 @@ def auth_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount", b
         "email": user.email,
         "scheme_account_id": scheme_account.id,
         "loyalty_plan": scheme_account.scheme_id,
-        "main_answer": scheme_account.alt_main_answer,
+        "main_answer": get_main_answer(scheme_account),
     }
     to_data_warehouse(payload)
 
@@ -68,7 +72,7 @@ def register_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id: str
         "email": scheme_account_entry.user.email,
         "scheme_account_id": scheme_account_entry.scheme_account.id,
         "loyalty_plan": scheme_account_entry.scheme_account.scheme_id,
-        "main_answer": scheme_account_entry.scheme_account.alt_main_answer,
+        "main_answer": get_main_answer(scheme_account_entry.scheme_account),
     }
     to_data_warehouse(payload)
 
@@ -104,7 +108,7 @@ def remove_loyalty_card_event(scheme_account_entry: "SchemeAccountEntry"):
             "email": user.email,
             "scheme_account_id": scheme_account.id,
             "loyalty_plan": scheme_account.scheme_id,
-            "main_answer": scheme_account.alt_main_answer,
+            "main_answer": get_main_answer(scheme_account),
             "status": scheme_account_entry.link_status,
         }
         to_data_warehouse(payload)
@@ -114,7 +118,7 @@ def join_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
     extra_data = {}
     if success:
         event_type = "lc.join.success"
-        extra_data["main_answer"] = scheme_account_entry.scheme_account.alt_main_answer
+        extra_data["main_answer"] = get_main_answer(scheme_account_entry.scheme_account)
     else:
         event_type = "lc.join.failed"
 
@@ -141,7 +145,7 @@ def add_auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
     extra_data = {}
     if success:
         event_type = "lc.addandauth.success"
-        extra_data["main_answer"] = scheme_account_entry.scheme_account.alt_main_answer
+        extra_data["main_answer"] = get_main_answer(scheme_account_entry.scheme_account)
     else:
         event_type = "lc.addandauth.failed"
 
@@ -166,7 +170,7 @@ def auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
     extra_data = {}
     if success:
         event_type = "lc.auth.success"
-        extra_data["main_answer"] = scheme_account_entry.scheme_account.alt_main_answer
+        extra_data["main_answer"] = get_main_answer(scheme_account_entry.scheme_account)
     else:
         event_type = "lc.auth.failed"
 
@@ -191,7 +195,7 @@ def register_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
     extra_data = {}
     if success:
         event_type = "lc.register.success"
-        extra_data["main_answer"] = scheme_account_entry.scheme_account.alt_main_answer
+        extra_data["main_answer"] = get_main_answer(scheme_account_entry.scheme_account)
     else:
         event_type = "lc.register.failed"
 
@@ -216,56 +220,88 @@ def register_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
 
 def pay_account_from_entry(data: dict) -> list:
     from payment_card.models import PaymentCardAccount
-    from user.models import CustomUser
+    from ubiquity.models import PaymentCardAccountEntry
+
+    """
+    Note:  data.get("user_id") and by_channel_slug
+    """
 
     pay_card_account = PaymentCardAccount.objects.get(id=data.get("payment_card_account_id"))
-    user_info = CustomUser.objects.get(id=data.get("user_id"))
-    extra_data = {
-        "external_user_ref": user_info.external_id,
-        "internal_user_ref": user_info.id,
-        "email": user_info.email,
-        "payment_account_id": pay_card_account.id,
-        "fingerprint": pay_card_account.fingerprint,
-        "expiry_date": f"{pay_card_account.expiry_month}/{pay_card_account.expiry_year}",
-        "token": pay_card_account.token,
-        "status": pay_card_account.status,
-    }
-    return [extra_data]
+    # One day we might want to include in the report which user has caused the event ie
+    # by_user_id = data.get("user_id")
+    # if by_user_id:
+    #    by_user_info = CustomUser.objects.get(id=user_id)
+
+    user = PaymentCardAccountEntry.objects.get(id=data.get("instance_id")).user
+    extra_data = []
+
+    cabs = user.client.clientapplicationbundle_set.all()
+    for cab in cabs:
+        extra_data.append(
+            {
+                "external_user_ref": user.external_id,
+                "internal_user_ref": user.id,
+                "email": user.email,
+                "channel": cab.bundle_id,
+                "payment_account_id": pay_card_account.id,
+                "fingerprint": pay_card_account.fingerprint,
+                "expiry_date": f"{pay_card_account.expiry_month}/{pay_card_account.expiry_year}",
+                "token": pay_card_account.token,
+                "status": pay_card_account.status,
+            }
+        )
+    return extra_data
 
 
-def scheme_account_status_update(data: dict) -> list:
-    from scheme.models import SchemeAccount
+def scheme_account_entry_status_update(data: dict) -> list:
     from ubiquity.models import SchemeAccountEntry
 
-    body = data.get("body", {})
+    # One day we might want to include in the report which user has caused the event ie
+    # by_user_id = data.get("user_id")
+    # if by_user_id:
+    #    by_user_info = CustomUser.objects.get(id=user_id)
+
     extras = []
-    if "status" in data.get("change_details") and body:
-        scheme_account_id = body.get("id")
-        scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
-        wallets = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
-        for wallet in wallets:
-            user = wallet.user
+    if data.get("link_status", False):
+        sae = SchemeAccountEntry.objects.select_related("scheme_account", "scheme_account__scheme", "user").get(
+            id=data.get("instance_id")
+        )
+        user = sae.user
+        scheme_account = sae.scheme_account
+        cabs = user.client.clientapplicationbundle_set.all()
+
+        for cab in cabs:
             extra_data = {
                 "external_user_ref": user.external_id,
                 "internal_user_ref": user.id,
                 "email": user.email,
-                "scheme_account_id": scheme_account_id,
-                "loyalty_plan": body.get("scheme"),
-                "main_answer": body.get("main_answer"),
-                "to_status": body.get("status"),
+                "scheme_account_id": scheme_account.id,
+                "loyalty_plan": scheme_account.scheme.id,
+                "main_answer": get_main_answer(scheme_account),
+                "to_status": data["link_status"],
+                "channel": cab.bundle_id,
             }
             extras.append(extra_data)
     return extras
 
 
 def user_data(data: dict) -> list:
+    from user.models import CustomUser
+
     body = data.get("body", {})
-    extra_data = {
-        "external_user_ref": body.get("external_id"),
-        "internal_user_ref": body.get("id"),
-        "email": body.get("email"),
-    }
-    return [extra_data]
+    extra_data = []
+    user = CustomUser.objects.get(id=body.get("id"))
+    cabs = user.client.clientapplicationbundle_set.all()
+    for cab in cabs:
+        extra_data.append(
+            {
+                "external_user_ref": body.get("external_id"),
+                "internal_user_ref": body.get("id"),
+                "email": body.get("email"),
+                "channel": cab.bundle_id,
+            }
+        )
+    return extra_data
 
 
 event_map = {
@@ -274,8 +310,8 @@ event_map = {
         "delete": ("payment.account.removed", pay_account_from_entry),
     },
     "CustomUser": {"create": ("user.created", user_data), "delete": ("user.deleted", user_data)},
-    "SchemeAccount": {
-        "update": ("lc.statuschange", scheme_account_status_update),
+    "SchemeAccountEntry": {
+        "update": ("lc.statuschange", scheme_account_entry_status_update),
     },
 }
 
@@ -284,23 +320,29 @@ def history_event(model_name: str, data: dict):
     if model_name in event_map and data.get("change_type") in event_map.get(model_name, {}):
         event_info = event_map[model_name][data["change_type"]]
         origin = "channel"
-        channel_slug = data.get("channel")
-        if channel_slug == "django_admin":
+        by_channel_slug = data.get("channel")
+        if by_channel_slug == "django_admin":
             origin = "django_admin"
-            channel_slug = ""
-        elif channel_slug == "internal_service":
-            # todo we will need to confirm using thread.local/history_kwargs that the internal_service has occurred
-            #  due to a merchant callback and decide what to do if it is due to some other cause
+            by_channel_slug = ""
+        elif by_channel_slug == "internal_service":
+            # todo since we could confirm using thread.local/history_kwargs that the internal_service has really
+            #  occurred we might want to distinguish between "merchant.callback" and other causes. However this has
+            #  not been agreed with the Data team
             origin = "merchant.callback"
-            channel_slug = ""
-        extra_datas = []
+            by_channel_slug = ""
+        # Note by_channel_slug is the channel in which event occurred and is not currently reported instead every
+        # channel affected will be reported in the extra datas dict.
         if event_info[1]:
             extra_datas = event_info[1](data)
             for extra_data in extra_datas:
+                # These next 2 lines are not really necessary as the channel should always be present.
+                # In future we might want to report the channel_slug and the by_channel_slug
+                # i.e. remove next two lines and add extra_data['by_channel'] = by_channel_slug
+                if not extra_data.get("channel"):
+                    extra_data["channel"] = by_channel_slug
                 payload = {
                     "event_type": event_info[0],
                     "origin": origin,
-                    "channel": channel_slug,
                     "event_date_time": arrow.utcnow().isoformat(),
                     **extra_data,
                 }
