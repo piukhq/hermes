@@ -191,7 +191,7 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
 
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
 
-        if path == LoyaltyCardPath.REGISTER:
+        if path in [LoyaltyCardPath.REGISTER, LoyaltyCardPath.ADD_AND_REGISTER]:
             register_lc_event(scheme_account_entry, ac.channel_slug)
 
         link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link)
