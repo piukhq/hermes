@@ -13,8 +13,9 @@ from history.data_warehouse import (
     register_outcome,
     remove_loyalty_card_event,
 )
-from scheme.models import SchemeBundleAssociation
+from scheme.models import SchemeAccount, SchemeBundleAssociation
 from scheme.tests.factories import SchemeAccountFactory, SchemeBundleAssociationFactory, SchemeFactory, fake
+from ubiquity.models import AccountLinkStatus
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from user.tests.factories import (
     ClientApplicationBundleFactory,
@@ -22,6 +23,10 @@ from user.tests.factories import (
     OrganisationFactory,
     UserFactory,
 )
+
+
+def get_main_answer(scheme_account: SchemeAccount):
+    return scheme_account.card_number or scheme_account.barcode or scheme_account.alt_main_answer
 
 
 class TestRemoveLCEventHandlers(TransactionTestCase):
@@ -663,6 +668,7 @@ class TestRegisterFailEventHandlers(TransactionTestCase):
         super().tearDownClass()
 
 
+@override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
 class TestHistoryEvents(TransactionTestCase):
     @classmethod
     def setUpClass(cls):
@@ -677,7 +683,6 @@ class TestHistoryEvents(TransactionTestCase):
         self.bundle = ClientApplicationBundleFactory(bundle_id=self.bundle_id, client=self.client_app)
         self.user = UserFactory(external_id=self.external_id, client=self.client_app, email=self.email)
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("history.data_warehouse.to_data_warehouse")
     def test_history_paymentcard_added_event(self, mock_to_warehouse):
         payment_card_account_entry = PaymentCardAccountEntryFactory(user=self.user)
@@ -689,8 +694,8 @@ class TestHistoryEvents(TransactionTestCase):
         expected = {
             "event_type": "payment.account.added",
             "origin": "merchant.callback",
-            "external_user_ref": "ext_test@setup.user",
-            "internal_user_ref": 1,
+            "external_user_ref": self.user.external_id,
+            "internal_user_ref": self.user.id,
             "email": self.email,
             "channel": self.bundle_id,
             "payment_account_id": payment_card_account.id,
@@ -701,17 +706,32 @@ class TestHistoryEvents(TransactionTestCase):
         }
         self.assertDictEqual(expected, args)
 
-    """
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("history.data_warehouse.to_data_warehouse")
     def test_history_schemeaccountentry_event(self, mock_to_warehouse):
-        SchemeAccountEntryFactory(user=self.user)
+        sae = SchemeAccountEntryFactory(user=self.user, link_status=AccountLinkStatus.PENDING.value)
+        sae.set_link_status(AccountLinkStatus.ACTIVE)
         self.assertTrue(mock_to_warehouse.called)
-    """
+        args = mock_to_warehouse.call_args[0][0]
+        self.assertTrue(args.get("event_date_time", False))
+        del args["event_date_time"]
+        self.assertDictEqual(
+            args,
+            {
+                "event_type": "lc.statuschange",
+                "origin": "merchant.callback",
+                "external_user_ref": self.user.external_id,
+                "internal_user_ref": self.user.id,
+                "email": self.user.email,
+                "scheme_account_id": sae.scheme_account.id,
+                "loyalty_plan": sae.scheme_account.scheme.id,
+                "main_answer": get_main_answer(sae.scheme_account),
+                "to_status": AccountLinkStatus.ACTIVE.value,
+                "channel": self.bundle_id,
+            },
+        )
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("history.data_warehouse.to_data_warehouse")
-    def test_history_user_create_event(self, mock_to_warehouse):
+    def test_history_2users_create_event(self, mock_to_warehouse):
         external_id = "ext_test@new.user"
         email = "test@new.user"
         user = UserFactory(external_id=external_id, client=self.client_app, email=email)
@@ -730,8 +750,22 @@ class TestHistoryEvents(TransactionTestCase):
                 "internal_user_ref": user.id,
             },
         )
+        user2 = UserFactory(external_id="ext_user2", client=self.client_app, email="email2@test.com")
+        args = mock_to_warehouse.call_args[0][0]
+        self.assertTrue(args.get("event_date_time", False))
+        del args["event_date_time"]
+        self.assertDictEqual(
+            args,
+            {
+                "event_type": "user.created",
+                "origin": "merchant.callback",
+                "channel": self.bundle_id,
+                "external_user_ref": user2.external_id,
+                "email": user2.email,
+                "internal_user_ref": user2.id,
+            },
+        )
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("history.data_warehouse.to_data_warehouse")
     def test_history_user_delete_event(self, mock_to_warehouse):
         user_id = self.user.id
