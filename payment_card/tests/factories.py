@@ -45,8 +45,8 @@ class PaymentCardAccountFactory(factory.django.DjangoModelFactory):
     name_on_card = fake.name()
     start_month = fake.month()
     start_year = fake.month()
-    expiry_month = fake.month()
-    expiry_year = fake.month()
+    expiry_month = "11"
+    expiry_year = "25"
     currency_code = "GBP"
     pan_start = "111111"
     pan_end = "2222"
