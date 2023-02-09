@@ -992,6 +992,20 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertFalse(points["is_stale"])
         self.assertEqual(entry.link_status, AccountLinkStatus.ACTIVE)
 
+    @patch("requests.get", auto_spec=True, return_value=MagicMock())
+    def test_get_midas_balance_dw_event(self, mock_request):
+        mock_request.return_value.status_code = 200
+        mock_request.return_value.json.return_value = {"points": 500}
+        entry = SchemeAccountEntryFactory(link_status=AccountLinkStatus.AUTH_PENDING)
+        scheme_account = entry.scheme_account
+        points, dw_event = scheme_account.get_midas_balance(JourneyTypes.UPDATE, entry)
+
+        self.assertTrue(dw_event[0])
+        self.assertEqual(dw_event[1], AccountLinkStatus.AUTH_PENDING)
+        self.assertEqual(points["points"], 500)
+        self.assertFalse(points["is_stale"])
+        self.assertEqual(entry.link_status, AccountLinkStatus.ACTIVE)
+
     @patch("requests.get", auto_spec=True, side_effect=ConnectionError)
     def test_get_midas_balance_connection_error(self, mock_request):
         entry = SchemeAccountEntryFactory()

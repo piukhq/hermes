@@ -677,7 +677,7 @@ class SchemeAccount(models.Model):
         # only when a scheme_account was in a pre-pending status
         if previous_status in AccountLinkStatus.pre_pending_statuses():
             # dw_event is a tuple(success: bool, SchemeAccount.STATUS: int)
-            dw_event = (response.status_code == AccountLinkStatus.ACTIVE, previous_status)
+            dw_event = (account_status == AccountLinkStatus.ACTIVE, previous_status)
 
         return points, account_status, dw_event
 
