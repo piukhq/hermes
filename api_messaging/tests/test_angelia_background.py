@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -7,6 +8,7 @@ from django.test import override_settings
 from api_messaging.angelia_background import (
     delete_payment_account,
     loyalty_card_add,
+    loyalty_card_add_authorise,
     loyalty_card_join,
     loyalty_card_register,
     post_payment_account,
@@ -16,14 +18,22 @@ from history.utils import GlobalMockAPITestCase
 from payment_card.enums import RequestMethod
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
-from scheme.credentials import EMAIL, POSTCODE
-from scheme.models import SchemeAccount, SchemeBundleAssociation, SchemeCredentialQuestion
+from scheme.credentials import BARCODE, CARD_NUMBER, EMAIL, LAST_NAME, MERCHANT_IDENTIFIER, POSTCODE
+from scheme.encryption import AESCipher
+from scheme.models import (
+    SchemeAccount,
+    SchemeAccountCredentialAnswer,
+    SchemeBundleAssociation,
+    SchemeCredentialQuestion,
+)
 from scheme.tests.factories import (
     SchemeAccountFactory,
     SchemeBalanceDetailsFactory,
     SchemeBundleAssociationFactory,
+    SchemeCredentialQuestionFactory,
     SchemeFactory,
 )
+from ubiquity.channel_vault import AESKeyNames
 from ubiquity.models import (
     AccountLinkStatus,
     PaymentCardAccountEntry,
@@ -877,3 +887,73 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         self.assertEqual(user_pll_1.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
         self.assertEqual(user_pll_2.state, WalletPLLStatus.INACTIVE.value)
         self.assertEqual(user_pll_2.slug, WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch.object(SchemeAccount, "_get_balance")
+    def test_auth_request_deletes_merchant_identifier(self, mock_get_midas_response):
+        # Question setup
+        card_number_q = SchemeCredentialQuestionFactory(
+            scheme=self.scheme, type=CARD_NUMBER, label=CARD_NUMBER, manual_question=True, add_field=True
+        )
+        barcode_q = SchemeCredentialQuestionFactory(
+            scheme=self.scheme, type=BARCODE, label=BARCODE, scan_question=True, add_field=True
+        )
+        postcode_q = SchemeCredentialQuestionFactory(scheme=self.scheme, type=POSTCODE, label=POSTCODE, auth_field=True)
+        last_name_q = SchemeCredentialQuestionFactory(
+            scheme=self.scheme,
+            type=LAST_NAME,
+            label=LAST_NAME,
+            options=SchemeCredentialQuestion.LINK,
+            auth_field=True,
+        )
+        merchant_id_q = SchemeCredentialQuestionFactory(
+            scheme=self.scheme,
+            type=MERCHANT_IDENTIFIER,
+            label=MERCHANT_IDENTIFIER,
+            third_party_identifier=True,
+            options=SchemeCredentialQuestion.MERCHANT_IDENTIFIER,
+        )
+
+        # Answer setup
+        for question, answer in (
+            (card_number_q, "1234"),
+            (barcode_q, "5678"),
+            (postcode_q, "SW3 6HG"),  # This will be updated to RGB 114
+            (last_name_q, "Bonk"),  # This will be updated to Jones
+            (merchant_id_q, "some merchant identifier"),
+        ):
+            SchemeAccountCredentialAnswer(
+                scheme_account_entry=self.scheme_account_entry,
+                question=question,
+                answer=answer,
+            ).save()
+
+        # Test
+        loyalty_card_add_authorise(
+            {
+                "loyalty_card_id": self.scheme_account.id,
+                "user_id": self.scheme_account_entry.user.id,
+                "entry_id": self.scheme_account_entry.id,
+                "channel_slug": "com.bink.wallet",
+                "auto_link": True,
+                "primary_auth": True,
+                "journey": "AUTH",
+                "authorise_fields": [
+                    {"credential_slug": "last_name", "value": "Jones"},
+                    {"credential_slug": "postcode", "value": "RGB 114"},
+                ],
+            }
+        )
+
+        credentials = mock_get_midas_response.call_args.args[0]
+        decrypted_credentials = json.loads(AESCipher(AESKeyNames.AES_KEY).decrypt(credentials))
+        assert mock_get_midas_response.called
+        assert {
+            "last_name": "Jones",
+            "postcode": "RGB 114",
+            "barcode": "5678",
+            "card_number": "1234",
+            "consents": [],
+        } == decrypted_credentials
+        self.scheme_account_entry.refresh_from_db()
+        assert self.scheme_account_entry.link_status == AccountLinkStatus.AUTH_PENDING
