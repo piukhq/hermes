@@ -23,6 +23,7 @@ from history.tasks import add_auth_outcome_task, auth_outcome_task, record_histo
 from history.utils import clean_history_kwargs, set_history_kwargs, user_info
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
+from scheme.credentials import MERCHANT_IDENTIFIER
 from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
 from ubiquity.models import (
@@ -282,6 +283,9 @@ def loyalty_card_add_authorise(message: dict) -> None:
             create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
             scheme_account_entry.set_link_status(AccountLinkStatus.ADD_AUTH_PENDING)
         elif journey == "AUTH":
+            scheme_account_entry.schemeaccountcredentialanswer_set.filter(
+                question__type=MERCHANT_IDENTIFIER,
+            ).delete()
             scheme_account_entry.set_link_status(AccountLinkStatus.AUTH_PENDING)
 
         async_link(
