@@ -720,7 +720,7 @@ class TestHistoryEvents(TransactionTestCase):
         payment_card_account = payment_card_account_entry.payment_card_account
         pca_id = payment_card_account.id
         pca_fingerprint = payment_card_account.fingerprint
-        pca_expiry = f"{payment_card_account.expiry_month}/{payment_card_account.expiry_year}"
+        pca_expiry = f"{int(payment_card_account.expiry_month):02d}/{int(payment_card_account.expiry_year):02d}"
         pca_token = payment_card_account.token
         pca_status = payment_card_account.status
         payment_card_account.delete()
