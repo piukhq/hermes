@@ -220,19 +220,13 @@ def register_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
 
 def pay_account_from_entry(data: dict) -> list:
     from payment_card.models import PaymentCardAccount
-    from ubiquity.models import PaymentCardAccountEntry
+    from user.models import CustomUser
 
-    """
-    Note:  data.get("user_id") and by_channel_slug
-    """
+    pay_card_account = PaymentCardAccount.all_objects.get(id=data.get("payment_card_account_id"))
+    # Note on delete payment card account has already been marked deleted and the association with
+    # user has also been deleted.
 
-    pay_card_account = PaymentCardAccount.objects.get(id=data.get("payment_card_account_id"))
-    # One day we might want to include in the report which user has caused the event ie
-    # by_user_id = data.get("user_id")
-    # if by_user_id:
-    #    by_user_info = CustomUser.objects.get(id=user_id)
-
-    user = PaymentCardAccountEntry.objects.get(id=data.get("instance_id")).user
+    user = CustomUser.objects.get(id=data.get("user_id"))
     extra_data = []
 
     cabs = user.client.clientapplicationbundle_set.all()
@@ -288,16 +282,15 @@ def scheme_account_entry_status_update(data: dict) -> list:
 def user_data(data: dict) -> list:
     from user.models import CustomUser
 
-    body = data.get("body", {})
     extra_data = []
-    user = CustomUser.objects.get(id=body.get("id"))
+    user = CustomUser.all_objects.get(id=data.get("instance_id"))
     cabs = user.client.clientapplicationbundle_set.all()
     for cab in cabs:
         extra_data.append(
             {
-                "external_user_ref": body.get("external_id"),
-                "internal_user_ref": body.get("id"),
-                "email": body.get("email"),
+                "external_user_ref": user.external_id,
+                "internal_user_ref": user.id,
+                "email": user.email,
                 "channel": cab.bundle_id,
             }
         )
