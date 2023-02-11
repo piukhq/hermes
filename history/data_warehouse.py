@@ -239,7 +239,7 @@ def pay_account_from_entry(data: dict) -> list:
                 "channel": cab.bundle_id,
                 "payment_account_id": pay_card_account.id,
                 "fingerprint": pay_card_account.fingerprint,
-                "expiry_date": f"{pay_card_account.expiry_month}/{pay_card_account.expiry_year}",
+                "expiry_date": f"{pay_card_account.expiry_month:02d}/{pay_card_account.expiry_year:02d}",
                 "token": pay_card_account.token,
                 "status": pay_card_account.status,
             }
