@@ -51,4 +51,5 @@ app.conf.task_routes = {
     "history.tasks.bulk_record_history": {"queue": "record-history"},
     "retry_tasks": {"queue": "retry-tasks"},
     "expired_payment_void_task": {"queue": "retry-tasks"},
+    "retry_metis_request_tasks": {"queue": "retry-tasks"},
 }
