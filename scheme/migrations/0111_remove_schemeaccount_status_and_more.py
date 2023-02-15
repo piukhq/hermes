@@ -8,8 +8,8 @@ import ubiquity.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("scheme", "0111_rename_main_answer_schemeaccount_alt_main_answer"),
-        ("ubiquity", "0015_schemeaccountentry_link_status"),
+        ("scheme", "0110_remove_schemeaccountcredentialanswer_scheme_account"),
+        ("ubiquity", "0016_alter_schemeaccountentry_link_status"),
     ]
 
     operations = [
