@@ -51,9 +51,4 @@ app.conf.task_routes = {
     "history.tasks.bulk_record_history": {"queue": "record-history"},
     "retry_tasks": {"queue": "retry-tasks"},
     "expired_payment_void_task": {"queue": "retry-tasks"},
-    "scheme.migrations.0109_alter_schemeaccountcredentialanswer_unique_together_and_more.populate_answer_task": {
-        "queue": "migration-tasks"
-    },
-    "ubiquity.migrations.0016_alter_schemeaccountentry_link_status.populate_link_task": {"queue": "migration-tasks"},
-    "ubiquity.migrations.0018_migrate_pll_data.populate_pll_task": {"queue": "migration-tasks"},
 }
