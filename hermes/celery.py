@@ -16,6 +16,9 @@ app.autodiscover_tasks(
         "hermes.vop_tasks.tasks",
         "history.tasks",
         "notification.tasks",
+        "scheme.migrations.0109_alter_schemeaccountcredentialanswer_unique_together_and_more",
+        "ubiquity.migrations.0016_alter_schemeaccountentry_link_status",
+        "ubiquity.migrations.0018_migrate_pll_data",
     ]
 )
 
