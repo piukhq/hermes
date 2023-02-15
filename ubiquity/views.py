@@ -1688,14 +1688,16 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
 
     @censor_and_decorate
     def composite(self, request, *args, **kwargs):
-        transactions = (
-            request.channels_permit.scheme_account_query(
-                SchemeAccount.objects.filter(id=kwargs["mcard_id"]), user_id=request.user.id, user_filter=True
-            )
-            .values_list("transactions", flat=True)
-            .first()
-        )
-        return Response(transactions or [])
+        transactions = []
+        scheme_account_entry = request.channels_permit.scheme_account_entry_query(
+            SchemeAccountEntry.objects.filter(scheme_account_id=kwargs["mcard_id"]).select_related("scheme_account"),
+            user_id=request.user.id,
+            user_filter=True,
+        ).first()
+        if scheme_account_entry.display_status == AccountLinkStatus.ACTIVE:
+            transactions = scheme_account_entry.scheme_account.transactions
+
+        return Response(transactions)
 
     @staticmethod
     def _account_belongs_to_user(request: "Request", mcard_id: int) -> bool:

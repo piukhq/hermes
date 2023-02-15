@@ -1636,6 +1636,30 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertListEqual(resp.json(), expected_resp)
 
+    def test_membership_transactions_filters_unauthorised_user(self):
+        transactions = [
+            {
+                "id": 1,
+                "status": "active",
+                "timestamp": 1589898995,
+                "description": "Test Transaction",
+                "amounts": [{"currency": "Morgan and Sons", "suffix": "mention-perform", "value": 200}],
+            }
+        ]
+        self.scheme_account.transactions = transactions
+        self.scheme_account.save(update_fields=["transactions"])
+
+        # These are the only non-active statuses display_status can currently be set to
+        for status in (AccountLinkStatus.PENDING, AccountLinkStatus.JOIN, AccountLinkStatus.WALLET_ONLY):
+            self.scheme_account_entry.link_status = status
+            self.scheme_account_entry.save(update_fields=["link_status"])
+
+            resp = self.client.get(
+                reverse("membership-card-transactions", args=[self.scheme_account.id]), **self.auth_headers
+            )
+            self.assertEqual(resp.status_code, 200)
+            self.assertListEqual(resp.json(), [])
+
     @httpretty.activate
     def test_user_transactions(self):
         uri = "{}/transactions/user/{}".format(settings.HADES_URL, self.user.id)
@@ -2291,10 +2315,8 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("scheme.mixins.requests.post")
-    def test_credential_emails_are_stored_as_lowercase_enrol_route(self, mock_join_resp, *_):
-        mock_join_resp.return_value.json.return_value = {"message": "success"}
-
+    @patch("api_messaging.midas_messaging.to_midas", autospec=True, return_value=MagicMock())
+    def test_credential_emails_are_stored_as_lowercase_enrol_route(self, mock_join_msg, *_):
         new_user, scheme, card_num_question, email_question, auth_header = self._setup_user_and_email_scheme()
 
         email = "MiXedCaSe@EmAiL.COm"
@@ -2318,16 +2340,15 @@ class TestResources(GlobalMockAPITestCase):
         )
         self.assertEqual(len(answers), 1)
         self.assertEqual(answers[0].answer, "mixedcase@email.com")
+        self.assertTrue(mock_join_msg.called)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch.object(SchemeAccount, "get_midas_balance")
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("scheme.mixins.requests.post")
-    def test_credential_emails_are_stored_as_lowercase_register_route(self, mock_join_resp, *_):
-        mock_join_resp.return_value.json.return_value = {"message": "success"}
-
+    @patch("api_messaging.midas_messaging.to_midas", autospec=True, return_value=MagicMock())
+    def test_credential_emails_are_stored_as_lowercase_register_route(self, mock_join_msg, *_):
         new_user, scheme, card_num_question, email_question, auth_header = self._setup_user_and_email_scheme()
         card_number = "123456789"
         scheme_account = SchemeAccountFactory(scheme=scheme)
@@ -2364,6 +2385,7 @@ class TestResources(GlobalMockAPITestCase):
         )
         self.assertEqual(len(answers), 1)
         self.assertEqual(answers[0].answer, "mixedcase@email.com")
+        self.assertTrue(mock_join_msg.called)
 
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("ubiquity.views.async_link", autospec=True)
