@@ -1636,6 +1636,13 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertListEqual(resp.json(), expected_resp)
 
+    def test_membership_transactions_invalid_scheme_account(self):
+        resp = self.client.get(
+            reverse("membership-card-transactions", args=[99999999]), **self.auth_headers
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json(), [])
+
     def test_membership_transactions_filters_unauthorised_user(self):
         transactions = [
             {
