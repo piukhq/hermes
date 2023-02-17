@@ -1694,7 +1694,7 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
             user_id=request.user.id,
             user_filter=True,
         ).first()
-        if scheme_account_entry.display_status == AccountLinkStatus.ACTIVE:
+        if scheme_account_entry and scheme_account_entry.display_status == AccountLinkStatus.ACTIVE:
             transactions = scheme_account_entry.scheme_account.transactions
 
         return Response(transactions)
