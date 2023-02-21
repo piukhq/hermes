@@ -716,7 +716,14 @@ class TestResources(GlobalMockAPITestCase):
         vouchers = [
             {
                 "burn": {"type": "voucher", "value": None, "prefix": "Free", "suffix": "Meal", "currency": ""},
-                "earn": {"type": "stamps", "value": 3.0, "prefix": "", "suffix": "stamps", "currency": "", "target_value": 7.0},
+                "earn": {
+                    "type": "stamps",
+                    "value": 3.0,
+                    "prefix": "",
+                    "suffix": "stamps",
+                    "currency": "",
+                    "target_value": 7.0,
+                },
                 "state": "inprogress",
                 "subtext": "",
                 "headline": "Spend \u00a37.00 or more to get a stamp. Collect 7 stamps to get a"
@@ -726,7 +733,13 @@ class TestResources(GlobalMockAPITestCase):
                 "terms_and_conditions_url": "",
             },
         ]
-        pll_links = [{"payment_account_id": 1, "payment_scheme": "visa", "status": {"state": "active", "slug": "", "description": ""}}]
+        pll_links = [
+            {
+                "payment_account_id": 1,
+                "payment_scheme": "visa",
+                "status": {"state": "active", "slug": "", "description": ""},
+            }
+        ]
 
         self.scheme_account.balances = balances
         self.scheme_account.transactions = transactions
@@ -776,7 +789,14 @@ class TestResources(GlobalMockAPITestCase):
         vouchers = [
             {
                 "burn": {"type": "voucher", "value": None, "prefix": "Free", "suffix": "Meal", "currency": ""},
-                "earn": {"type": "stamps", "value": 3.0, "prefix": "", "suffix": "stamps", "currency": "", "target_value": 7.0},
+                "earn": {
+                    "type": "stamps",
+                    "value": 3.0,
+                    "prefix": "",
+                    "suffix": "stamps",
+                    "currency": "",
+                    "target_value": 7.0,
+                },
                 "state": "inprogress",
                 "subtext": "",
                 "headline": "Spend \u00a37.00 or more to get a stamp. Collect 7 stamps to get a"
@@ -786,7 +806,13 @@ class TestResources(GlobalMockAPITestCase):
                 "terms_and_conditions_url": "",
             },
         ]
-        pll_links = [{"payment_account_id": 1, "payment_scheme": "visa", "status": {"state": "active", "slug": "", "description": ""}}]
+        pll_links = [
+            {
+                "payment_account_id": 1,
+                "payment_scheme": "visa",
+                "status": {"state": "active", "slug": "", "description": ""},
+            }
+        ]
 
         self.scheme_account.balances = balances
         self.scheme_account.transactions = transactions
@@ -842,17 +868,17 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account_entry.save()
         error = SchemeOverrideError(
             scheme_id=self.scheme_account.scheme_id,
-            error_slug='UNKNOWN_ERROR',
+            error_slug="UNKNOWN_ERROR",
             error_code=520,
-            reason_code='X202',
-            message='Custom system error message'
+            reason_code="X202",
+            message="Custom system error message",
         )
         error.save()
         data = MembershipCardSerializer_V1_3(
             self.scheme_account,
             context={"user_id": self.user.id},
         ).data
-        self.assertEqual('Custom system error message', data['status']['error_text'])
+        self.assertEqual("Custom system error message", data["status"]["error_text"])
 
     def test_membership_card_serializer_base_V1_2_contains_no_error_message(self):
         self.scheme_account_entry.link_status = AccountLinkStatus.ACCOUNT_ALREADY_EXISTS

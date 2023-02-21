@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from rest_framework import serializers
 
 from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
-from ubiquity.reason_codes import get_state_reason_code_and_text, ubiquity_status_translation
+from ubiquity.reason_codes import get_state_reason_code_and_text
 from ubiquity.versioning.base import serializers as base_serializers
 from ubiquity.versioning.v1_2 import serializers as v1_2_serializers
 
