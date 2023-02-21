@@ -46,6 +46,7 @@ from scheme.tests.factories import (
     SchemeFactory,
     fake,
 )
+from ubiquity import reason_codes
 from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.channel_vault import AESKeyNames
 from ubiquity.models import (
@@ -685,6 +686,125 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual("authorised", data["status"]["state"])
         self.assertEqual(["X300"], data["status"]["reason_codes"])
 
+    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
+    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
+    def test_membership_card_status_mapping_user_error_V1_3(self, *_):
+        user_error = AccountLinkStatus.INVALID_CREDENTIALS
+        self.scheme_account_entry.link_status = user_error
+        self.scheme_account.balances = {}
+        self.scheme_account.save()
+        self.scheme_account_entry.save()
+
+        data = MembershipCardSerializer_V1_3(
+            self.scheme_account,
+            context={"user_id": self.user.id},
+        ).data
+        self.assertEqual(data["status"]["state"], "failed")
+        self.assertEqual(data["status"]["reason_codes"], ["X303"])
+
+        balances = [{"points": 1.1}]
+        transactions = [
+            {
+                "id": 1,
+                "status": "active",
+                "timestamp": 1589898995,
+                "description": "Test Transaction",
+                "amounts": [{"currency": "Morgan and Sons", "suffix": "mention-perform", "value": 200}],
+            }
+        ]
+        vouchers = [
+            {
+                "burn": {"type": "voucher", "value": None, "prefix": "Free", "suffix": "Meal", "currency": ""},
+                "earn": {"type": "stamps", "value": 3.0, "prefix": "", "suffix": "stamps", "currency": "", "target_value": 7.0},
+                "state": "inprogress",
+                "subtext": "",
+                "headline": "Spend \u00a37.00 or more to get a stamp. Collect 7 stamps to get a"
+                " Meal Voucher of up to \u00a37 off your next meal.",
+                "body_text": "",
+                "barcode_type": 0,
+                "terms_and_conditions_url": "",
+            },
+        ]
+        pll_links = [{"payment_account_id": 1, "payment_scheme": "visa", "status": {"state": "active", "slug": "", "description": ""}}]
+
+        self.scheme_account.balances = balances
+        self.scheme_account.transactions = transactions
+        self.scheme_account.vouchers = vouchers
+        self.scheme_account.pll_links = pll_links
+        self.scheme_account.save()
+
+        data = MembershipCardSerializer_V1_3(
+            self.scheme_account,
+            context={"user_id": self.user.id},
+        ).data
+        self.assertEqual(data["status"]["state"], reason_codes.FAILED)
+        self.assertEqual(data["status"]["reason_codes"], ["X303"])
+        self.assertEqual([], data["balances"])
+        self.assertEqual([], data["membership_transactions"])
+        self.assertEqual({}, data["vouchers"])
+        self.assertEqual([], data["payment_cards"])
+
+    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
+    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
+    def test_membership_card_status_mapping_system_error_V1_3(self, *_):
+        user_error = AccountLinkStatus.END_SITE_DOWN
+        self.scheme_account_entry.link_status = user_error
+        self.scheme_account_entry.save()
+
+        self.scheme_account.balances = {}
+        self.scheme_account.save()
+
+        data = MembershipCardSerializer_V1_3(
+            self.scheme_account,
+            context={"user_id": self.user.id},
+        ).data
+        self.assertEqual("pending", data["status"]["state"])
+        self.assertEqual(["X100"], data["status"]["reason_codes"])
+
+        balances = [{"points": 1.1}]
+        transactions = [
+            {
+                "id": 1,
+                "status": "active",
+                "timestamp": 1589898995,
+                "description": "Test Transaction",
+                "amounts": [{"currency": "Morgan and Sons", "suffix": "mention-perform", "value": 200}],
+            }
+        ]
+        vouchers = [
+            {
+                "burn": {"type": "voucher", "value": None, "prefix": "Free", "suffix": "Meal", "currency": ""},
+                "earn": {"type": "stamps", "value": 3.0, "prefix": "", "suffix": "stamps", "currency": "", "target_value": 7.0},
+                "state": "inprogress",
+                "subtext": "",
+                "headline": "Spend \u00a37.00 or more to get a stamp. Collect 7 stamps to get a"
+                " Meal Voucher of up to \u00a37 off your next meal.",
+                "body_text": "",
+                "barcode_type": 0,
+                "terms_and_conditions_url": "",
+            },
+        ]
+        pll_links = [{"payment_account_id": 1, "payment_scheme": "visa", "status": {"state": "active", "slug": "", "description": ""}}]
+
+        self.scheme_account.balances = balances
+        self.scheme_account.transactions = transactions
+        self.scheme_account.vouchers = vouchers
+        self.scheme_account.pll_links = pll_links
+        self.scheme_account.save()
+
+        data = MembershipCardSerializer_V1_3(
+            self.scheme_account,
+            context={"user_id": self.user.id},
+        ).data
+        self.assertEqual(reason_codes.AUTHORISED, data["status"]["state"])
+        self.assertEqual(["X300"], data["status"]["reason_codes"])
+        self.assertEqual(balances, data["balances"])
+        self.assertEqual(transactions, data["membership_transactions"])
+        self.assertEqual(vouchers, data["vouchers"])
+        self.assertEqual(pll_links, data["payment_cards"])
+
     def test_membership_card_V1_3_returns_default_error_message_if_no_override_exists(self, *_):
         self.scheme_account_entry.link_status = AccountLinkStatus.ACCOUNT_ALREADY_EXISTS
         self.scheme_account_entry.save()
@@ -694,15 +814,17 @@ class TestResources(GlobalMockAPITestCase):
             context={"user_id": self.user.id},
         ).data
         self.assertEqual(error_messages[445], data["status"]["error_text"])
+        self.assertEqual(["X202"], data["status"]["reason_codes"])
+        self.assertEqual(reason_codes.FAILED, data["status"]["state"])
 
-    def test_membership_card_V1_3_contains_custom_error_message(self, *_):
-        self.scheme_account_entry.link_status = AccountLinkStatus.ACCOUNT_ALREADY_EXISTS
+    def test_membership_card_V1_3_override_user_error(self, *_):
+        self.scheme_account_entry.link_status = AccountLinkStatus.INVALID_CREDENTIALS
         self.scheme_account_entry.save()
         error = SchemeOverrideError(
             scheme_id=self.scheme_account.scheme_id,
-            error_slug="ACCOUNT_ALREADY_EXISTS",
-            error_code=445,
-            reason_code="X202",
+            error_slug="INVALID_CREDENTIALS",
+            error_code=AccountLinkStatus.INVALID_CREDENTIALS,
+            reason_code="X303",
             message="Custom error message",
         )
         error.save()
@@ -712,19 +834,25 @@ class TestResources(GlobalMockAPITestCase):
             context={"user_id": self.user.id},
         ).data
         self.assertEqual("Custom error message", data["status"]["error_text"])
+        self.assertEqual(["X303"], data["status"]["reason_codes"])
+        self.assertEqual(reason_codes.FAILED, data["status"]["state"])
 
-    # Test falls in the pipeline - to be investigated.
-    # def test_membership_card_V1_3_override_system_error(self, *_):
-    #     self.scheme_account.status = SchemeAccount.UNKNOWN_ERROR
-    #     self.scheme_account.save()
-    #     error = SchemeOverrideError(scheme_id=self.scheme_account.scheme_id,
-    #                                 error_slug='UNKNOWN_ERROR',
-    #                                 error_code=520,
-    #                                 reason_code='X202',
-    #                                 message='Custom system error message')
-    #     error.save()
-    #     data = MembershipCardSerializer_V1_3(self.scheme_account).data
-    #     self.assertEqual('Custom system error message', data['status']['error_text'])
+    def test_membership_card_V1_3_override_system_error(self, *_):
+        self.scheme_account_entry.link_status = AccountLinkStatus.UNKNOWN_ERROR
+        self.scheme_account_entry.save()
+        error = SchemeOverrideError(
+            scheme_id=self.scheme_account.scheme_id,
+            error_slug='UNKNOWN_ERROR',
+            error_code=520,
+            reason_code='X202',
+            message='Custom system error message'
+        )
+        error.save()
+        data = MembershipCardSerializer_V1_3(
+            self.scheme_account,
+            context={"user_id": self.user.id},
+        ).data
+        self.assertEqual('Custom system error message', data['status']['error_text'])
 
     def test_membership_card_serializer_base_V1_2_contains_no_error_message(self):
         self.scheme_account_entry.link_status = AccountLinkStatus.ACCOUNT_ALREADY_EXISTS
