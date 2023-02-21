@@ -568,6 +568,7 @@ class MembershipCardView(
         scheme = sch_acc_entry.scheme_account.scheme
         scheme_questions = scheme.questions.all()
         update_fields, registration_fields = self._collect_updated_answers(scheme, scheme_questions)
+        send_auth_outcome = False
 
         if auto_link(request):
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=request.user.id).values_list(
@@ -603,14 +604,21 @@ class MembershipCardView(
                 auth_fields = request.data["account"]["authorise_fields"]
             except (KeyError, TypeError):
                 auth_fields = None
+
             if auth_fields:
                 auth_request_lc_event(request.user, sch_acc_entry.scheme_account, request.channels_permit.bundle_id)
+                send_auth_outcome = True
 
             if update_fields:
                 update_fields = detect_and_handle_escaped_unicode(update_fields)
 
             updated_account = self._handle_update_fields(
-                update_fields, scheme_questions, request.user.id, sch_acc_entry, payment_cards_to_link
+                update_fields,
+                scheme_questions,
+                request.user.id,
+                sch_acc_entry,
+                payment_cards_to_link,
+                send_auth_outcome,
             )
             metrics_route = MembershipCardAddRoute.UPDATE
 
@@ -665,6 +673,7 @@ class MembershipCardView(
         user_id: int,
         scheme_account_entry: SchemeAccountEntry,
         payment_cards_to_link: list,
+        send_auth_outcome: bool = False,
     ) -> SchemeAccount:
         if "consents" in update_fields:
             del update_fields["consents"]
@@ -733,6 +742,7 @@ class MembershipCardView(
             scheme_account_entry=scheme_account_entry,
             payment_cards_to_link=payment_cards_to_link,
             relink_pll=relink_pll,
+            send_auth_outcome=send_auth_outcome,
         )
         return account
 

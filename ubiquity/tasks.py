@@ -103,6 +103,7 @@ def async_balance_with_updated_credentials(
     scheme_account_entry: SchemeAccountEntry,
     payment_cards_to_link: list,
     relink_pll: bool = False,
+    send_auth_outcome: bool = False,
 ) -> None:
     scheme_account = SchemeAccount.objects.get(id=instance_id)
     scheme_account.delete_cached_balance()
@@ -116,9 +117,10 @@ def async_balance_with_updated_credentials(
 
     # data warehouse event could be success or failed (depends on midas response etc.)
 
-    if dw_event:
-        success, _ = dw_event
-        auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry)
+    # @todo: trusted channels removal -delete if happy
+    #  if dw_event:
+    #    success, _ = dw_event
+    #    auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry)
 
     if balance:
         logger.debug(
@@ -127,6 +129,8 @@ def async_balance_with_updated_credentials(
         )
 
         scheme_account_entry.set_link_status(AccountLinkStatus.ACTIVE)
+        if send_auth_outcome:
+            auth_outcome_task(success=True, scheme_account_entry=scheme_account_entry)
 
         if relink_pll and payment_cards_to_link:
             PllUserAssociation.link_users_payment_cards(scheme_account_entry, payment_cards_to_link)
@@ -141,7 +145,8 @@ def async_balance_with_updated_credentials(
         scheme_account_entry.auth_provided = False
         scheme_account_entry.save()
         """
-
+        if send_auth_outcome:
+            auth_outcome_task(success=False, scheme_account_entry=scheme_account_entry)
         scheme_account_entry.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
         PllUserAssociation.update_user_pll_by_scheme_account(scheme_account=scheme_account)
 
