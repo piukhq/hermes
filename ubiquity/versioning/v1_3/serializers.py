@@ -25,7 +25,8 @@ class UbiquityImageSerializer(base_serializers.UbiquityImageSerializer):
 
 class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
     @staticmethod
-    def get_translated_status(scheme_account_entry: "SchemeAccountEntry", status: int) -> dict:
+    def get_translated_status(scheme_account_entry: "SchemeAccountEntry") -> dict:
+        status = scheme_account_entry.link_status
         state, reason_codes, error_text = get_state_reason_code_and_text(status)
         scheme_errors = scheme_account_entry.scheme_account.scheme.schemeoverrideerror_set.all()
 
