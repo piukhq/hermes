@@ -1,5 +1,6 @@
 import re
 from collections import namedtuple
+from decimal import Decimal
 from typing import TYPE_CHECKING, Iterable, Optional, Tuple, Type
 from unittest.mock import patch
 
@@ -56,6 +57,44 @@ class GlobalMockAPITestCase(APITestCase):
         cls.bulk_history_patcher.stop()
         cls.aes_patcher.stop()
         super().tearDownClass()
+
+
+class GlobalMockAPIHistoryTestCase(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.bulk_history_patcher = patch("history.utils.bulk_record_history", autospec=True)
+        cls.aes_patcher = patch("ubiquity.channel_vault._aes_keys", mock_aes_keys)
+        cls.bulk_history_patcher.start()
+        cls.aes_patcher.start()
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.bulk_history_patcher.stop()
+        cls.aes_patcher.stop()
+        super().tearDownClass()
+
+
+class MockMidasBalanceResponse:
+    def __init__(self, status_code=200, balance=None, pending=False):
+        self.status_code = status_code
+        if balance is None:
+            self.json_body = {
+                "value": Decimal("10"),
+                "points": Decimal("100"),
+                "points_label": "100",
+                "value_label": "$10",
+                "reward_tier": 0,
+                "balance": Decimal("20"),
+                "is_stale": False,
+                "pending": pending,
+            }
+        else:
+            self.json_body = {"is_stale": False, "pending": pending}
+            self.json_body.update(balance)
+
+    def json(self) -> dict:
+        return self.json_body
 
 
 def set_history_kwargs(kwargs: Optional[dict]) -> None:

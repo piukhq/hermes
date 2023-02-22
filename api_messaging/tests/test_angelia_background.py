@@ -1,5 +1,4 @@
 import json
-from decimal import Decimal
 from unittest.mock import patch
 
 from django.conf import settings
@@ -14,7 +13,7 @@ from api_messaging.angelia_background import (
     post_payment_account,
     refresh_balances,
 )
-from history.utils import GlobalMockAPITestCase
+from history.utils import GlobalMockAPITestCase, MockMidasBalanceResponse
 from payment_card.enums import RequestMethod
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
@@ -49,31 +48,6 @@ from user.tests.factories import (
     OrganisationFactory,
     UserFactory,
 )
-
-# @todo Convert this to automatic testing by removing word manual from file name.  Seems something is left set which
-# breaks other test cases.  Requires further investigation and possible fix of code.
-
-
-class MockMidasBalanceResponse:
-    def __init__(self, status_code=200, balance=None, pending=False):
-        self.status_code = status_code
-        if balance is None:
-            self.json_body = {
-                "value": Decimal("10"),
-                "points": Decimal("100"),
-                "points_label": "100",
-                "value_label": "$10",
-                "reward_tier": 0,
-                "balance": Decimal("20"),
-                "is_stale": False,
-                "pending": pending,
-            }
-        else:
-            self.json_body = {"is_stale": False, "pending": pending}
-            self.json_body.update(balance)
-
-    def json(self) -> dict:
-        return self.json_body
 
 
 class TestAngeliaBackground(GlobalMockAPITestCase):

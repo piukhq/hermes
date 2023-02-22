@@ -11,7 +11,7 @@ from rest_framework.reverse import reverse
 from shared_config_storage.credentials.encryption import BLAKE2sHash, RSACipher
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
-from history.utils import GlobalMockAPITestCase
+from history.utils import GlobalMockAPIHistoryTestCase, GlobalMockAPITestCase, MockMidasBalanceResponse
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import (
@@ -3274,3 +3274,207 @@ class TestLastManStanding(GlobalMockAPITestCase):
         # Checking membership-link endpoint because it does the same thing as above
         response = self.client.delete(reverse("membership-link", args=[pcard_1.id, mcard.id]), **self.auth_headers_1)
         self.assertEqual(response.status_code, 403)
+
+
+class TestHistoryResources(GlobalMockAPIHistoryTestCase):
+    @classmethod
+    def _get_auth_header(cls, user):
+        token = GenerateJWToken(
+            cls.client_app.organisation.name, cls.client_app.secret, cls.bundle.bundle_id, user.external_id
+        ).get_token()
+        return "Bearer {}".format(token)
+
+    @classmethod
+    def setUpTestData(cls):
+        organisation = OrganisationFactory(name="test_organisation")
+        cls.client_app = ClientApplicationFactory(
+            organisation=organisation,
+            name="set up client application",
+            client_id="2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi",
+        )
+        cls.bundle = ClientApplicationBundleFactory(bundle_id="test.auth.fake", client=cls.client_app)
+        external_id = "test@user.com"
+        external_id2 = "test2@user.com"
+        cls.user = UserFactory(external_id=external_id, client=cls.client_app, email=external_id)
+        cls.user2 = UserFactory(external_id=external_id2, client=cls.client_app, email=external_id2)
+        cls.scheme = SchemeFactory()
+        SchemeBalanceDetailsFactory(scheme_id=cls.scheme)
+
+        cls.scheme.manual_question = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme, type=BARCODE, label=BARCODE, manual_question=True, add_field=True, enrol_field=True
+        )
+        cls.secondary_question = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme,
+            type=LAST_NAME,
+            label=LAST_NAME,
+            third_party_identifier=True,
+            options=SchemeCredentialQuestion.LINK_AND_JOIN,
+            auth_field=True,
+            enrol_field=True,
+            register_field=True,
+        )
+        cls.jwp_question = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme,
+            type=PAYMENT_CARD_HASH,
+            label=PAYMENT_CARD_HASH,
+            enrol_field=True,
+            options=SchemeCredentialQuestion.OPTIONAL_JOIN,
+        )
+
+        # Need to add an active association since it was assumed no setting was enabled
+        cls.scheme_bundle_association = SchemeBundleAssociationFactory(
+            scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
+        )
+
+        cls.issuer = IssuerFactory(name="Barclays")
+        cls.payment_card = PaymentCardFactory(slug="visa", system="visa")
+        cls.pcard_hash1 = "some_hash"
+        cls.pcard_hash2 = "5ae741975b4db7bc80072fe8f88f233ef4a67e1e1d7e3bbf68a314dfc6691636"
+
+        cls.auth_headers = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user))}
+        cls.auth_headers_user2 = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user2))}
+        cls.version_header = {"HTTP_ACCEPT": "Application/json;v=1.1"}
+        cls.version_header_v1_2 = {"HTTP_ACCEPT": "Application/json;v=1.2"}
+        cls.version_header_v1_3 = {"HTTP_ACCEPT": "Application/json;v=1.3"}
+
+        cls.put_scheme = SchemeFactory()
+        SchemeBalanceDetailsFactory(scheme_id=cls.put_scheme)
+
+        cls.scheme_bundle_association_put = SchemeBundleAssociationFactory(
+            scheme=cls.put_scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
+        )
+        cls.put_scheme_manual_q = SchemeCredentialQuestionFactory(
+            scheme=cls.put_scheme,
+            type=CARD_NUMBER,
+            label=CARD_NUMBER,
+            manual_question=True,
+            add_field=True,
+        )
+        cls.put_scheme_scan_q = SchemeCredentialQuestionFactory(
+            scheme=cls.put_scheme,
+            type=BARCODE,
+            label=BARCODE,
+            scan_question=True,
+            add_field=True,
+        )
+        cls.put_scheme_auth_q = SchemeCredentialQuestionFactory(
+            scheme=cls.put_scheme, type=PASSWORD, label=PASSWORD, auth_field=True
+        )
+
+        cls.wallet_only_scheme = SchemeFactory()
+        cls.wallet_only_question = SchemeCredentialQuestionFactory(
+            type=CARD_NUMBER,
+            scheme=cls.wallet_only_scheme,
+            manual_question=True,
+            add_field=True,
+        )
+        cls.scheme_bundle_association_put = SchemeBundleAssociationFactory(
+            scheme=cls.wallet_only_scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
+        )
+
+    def setUp(self) -> None:
+        self.payment_card_account = PaymentCardAccountFactory(
+            issuer=self.issuer, payment_card=self.payment_card, hash=self.pcard_hash2
+        )
+        self.payment_card_account_entry = PaymentCardAccountEntryFactory(
+            user=self.user, payment_card_account=self.payment_card_account
+        )
+
+        self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
+
+        self.scheme_account_entry = SchemeAccountEntryFactory.create(scheme_account=self.scheme_account, user=self.user)
+
+        self.scheme_account_answer = SchemeCredentialAnswerFactory(
+            question=self.scheme.manual_question,
+            answer=fake.first_name().lower(),
+            scheme_account_entry=self.scheme_account_entry,
+        )
+        self.second_scheme_account_answer = SchemeCredentialAnswerFactory(
+            question=self.secondary_question,
+            scheme_account_entry=self.scheme_account_entry,
+        )
+        self.second_scheme_account_answer.answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(
+            self.second_scheme_account_answer.answer
+        )
+
+        self.scheme_account_entry.update_scheme_account_key_credential_fields()
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("history.data_warehouse.to_data_warehouse")
+    @patch.object(SchemeAccount, "_get_balance")
+    def test_history_membership_card_update_success(self, mock_get_midas_response, mock_to_data_warehouse, *_):
+        payload = json.dumps(
+            {
+                "account": {
+                    "add_fields": [{"column": "barcode", "value": self.scheme_account_answer.answer}],
+                    "authorise_fields": [{"column": "last_name", "value": "Test"}],
+                }
+            }
+        )
+        mock_get_midas_response.return_value = MockMidasBalanceResponse(200)
+
+        response = self.client.patch(
+            reverse("membership-card", args=[self.scheme_account.id]),
+            content_type="application/json",
+            data=payload,
+            **self.auth_headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(mock_get_midas_response.called)
+        self.assertTrue(mock_to_data_warehouse.called)
+        # The sequence is a bit weird with 2 status updates as it calls get balance twice - once in main background
+        # process and once triggering another async_balance.delay to get balance from the serializer to_representation.
+        request_event = {}
+        response_success = {}
+        response_fail = {}
+        for call_number in range(0, len(mock_to_data_warehouse.call_args_list)):
+            args = mock_to_data_warehouse.call_args_list[call_number][0][0]
+            if args["event_type"] == "lc.auth.request":
+                request_event = args
+            elif args["event_type"] == "lc.auth.success":
+                response_success = args
+            elif args["event_type"] == "lc.auth.fail":
+                response_fail = args
+        self.assertTrue(request_event)
+        self.assertTrue(response_success)
+        self.assertFalse(response_fail)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("history.data_warehouse.to_data_warehouse")
+    @patch.object(SchemeAccount, "_get_balance")
+    def test_history_membership_card_update_fail(self, mock_get_midas_response, mock_to_data_warehouse, *_):
+        payload = json.dumps(
+            {
+                "account": {
+                    "add_fields": [{"column": "barcode", "value": self.scheme_account_answer.answer}],
+                    "authorise_fields": [{"column": "last_name", "value": "Test"}],
+                }
+            }
+        )
+        mock_get_midas_response.return_value = MockMidasBalanceResponse(904)
+
+        response = self.client.patch(
+            reverse("membership-card", args=[self.scheme_account.id]),
+            content_type="application/json",
+            data=payload,
+            **self.auth_headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(mock_get_midas_response.called)
+        self.assertTrue(mock_to_data_warehouse.called)
+        # The sequence is a bit weird with 2 status updates as it calls get balance twice - once in main background
+        # process and once triggering another async_balance.delay to get balance from the serializer to_representation.
+        request_event = {}
+        response_success = {}
+        response_fail = {}
+        for call_number in range(0, len(mock_to_data_warehouse.call_args_list)):
+            args = mock_to_data_warehouse.call_args_list[call_number][0][0]
+            if args["event_type"] == "lc.auth.request":
+                request_event = args
+            elif args["event_type"] == "lc.auth.success":
+                response_success = args
+            elif args["event_type"] == "lc.auth.failed":
+                response_fail = args
+        self.assertTrue(request_event)
+        self.assertFalse(response_success)
+        self.assertTrue(response_fail)
