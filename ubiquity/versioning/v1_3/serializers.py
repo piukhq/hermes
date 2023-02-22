@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from rest_framework import serializers
 
 from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
-from ubiquity.reason_codes import get_state_reason_code_and_text, ubiquity_status_translation
+from ubiquity.reason_codes import get_state_reason_code_and_text
 from ubiquity.versioning.base import serializers as base_serializers
 from ubiquity.versioning.v1_2 import serializers as v1_2_serializers
 
@@ -25,8 +25,16 @@ class UbiquityImageSerializer(base_serializers.UbiquityImageSerializer):
 
 class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
     @staticmethod
-    def get_translated_status(scheme_account_entry: "SchemeAccountEntry", status: int) -> dict:
-        state, reason_codes, error_text = get_state_reason_code_and_text(status)
+    def get_translated_status(scheme_account_entry: "SchemeAccountEntry") -> dict:
+        status = display_status = scheme_account_entry.link_status
+
+        if status in AccountLinkStatus.system_action_required():
+            if scheme_account_entry.scheme_account.balances:
+                display_status = AccountLinkStatus.ACTIVE
+            else:
+                display_status = AccountLinkStatus.PENDING
+
+        state, reason_codes, error_text = get_state_reason_code_and_text(display_status)
         scheme_errors = scheme_account_entry.scheme_account.scheme.schemeoverrideerror_set.all()
 
         for error in scheme_errors:
@@ -34,12 +42,6 @@ class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
                 error_text = error.message
                 reason_codes = [error.reason_code]
                 break
-
-        if status in AccountLinkStatus.system_action_required():
-            if scheme_account_entry.scheme_account.balances:
-                state = ubiquity_status_translation[AccountLinkStatus.ACTIVE]
-            else:
-                state = ubiquity_status_translation[AccountLinkStatus.PENDING]
 
         return {"state": state, "reason_codes": reason_codes, "error_text": error_text}
 

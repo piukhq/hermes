@@ -35,6 +35,7 @@ from scheme.models import (
 )
 from scheme.serializers import JoinSerializer, SchemeAnswerSerializer, UserConsentSerializer
 from scheme.vouchers import VoucherStateStr
+from ubiquity import reason_codes
 from ubiquity.channel_vault import retry_session
 from ubiquity.models import (
     AccountLinkStatus,
@@ -707,7 +708,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         return filtered_images
 
     @staticmethod
-    def get_translated_status(scheme_account_entry: "SchemeAccountEntry", status: int) -> dict:
+    def get_translated_status(scheme_account_entry: "SchemeAccountEntry") -> dict:
+        status = scheme_account_entry.link_status
         if status in AccountLinkStatus.system_action_required():
             if scheme_account_entry.scheme_account.balances:
                 status = AccountLinkStatus.ACTIVE
@@ -778,20 +780,18 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         scheme = current_scheme if current_scheme is not None else instance.scheme
         images = self._get_images(instance, scheme, str(reward_tier))
 
-        status = scheme_account_entry.link_status
         balances = []
         transactions = []
         vouchers = {}
         pll_links = []
 
-        if status == AccountLinkStatus.ACTIVE:
-            status = scheme_account_entry.link_status
+        ubiquity_status = self.get_translated_status(scheme_account_entry)
+        if ubiquity_status["state"] == reason_codes.AUTHORISED:
             balances = scheme_account_entry.scheme_account.balances
             transactions = scheme_account_entry.scheme_account.transactions
             vouchers = scheme_account_entry.scheme_account.vouchers
             pll_links = scheme_account_entry.scheme_account.pll_links
 
-        status = self.get_translated_status(scheme_account_entry, status)
         balances = self._strip_reward_tier(balances)
         for voucher in vouchers:
             if voucher.get("code"):
@@ -804,7 +804,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             "membership_plan": instance.scheme_id,
             "payment_cards": pll_links,
             "membership_transactions": transactions,
-            "status": status,
+            "status": ubiquity_status,
             "card": {
                 "barcode": instance.barcode,
                 "membership_id": instance.card_number,
