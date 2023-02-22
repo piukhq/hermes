@@ -793,17 +793,16 @@ class WalletPLLData:
             self.analyse_pll_user_associations()
 
             scheme_entries = SchemeAccountEntry.objects.filter(user_id__in=list(self.link_users.keys()))
-
             for entry in scheme_entries:
-                for lk in self.link_users[entry.user.id]:
-                    if lk.pll.scheme_account.id == entry.scheme_account.id:
+                for lk in self.link_users[entry.user_id]:
+                    if lk.pll.scheme_account_id == entry.scheme_account_id:
                         matched_link = lk
 
                         pay_id = matched_link.pll.payment_card_account_id
                         scheme_id = matched_link.pll.scheme_account.scheme_id
-                        if not self.scheme_account_data.get(entry.scheme_account.id):
-                            self.scheme_account_data[entry.scheme_account.id] = {}
-                        self.scheme_account_data[entry.scheme_account.id][entry.user.id] = {
+                        if not self.scheme_account_data.get(entry.scheme_account_id):
+                            self.scheme_account_data[entry.scheme_account_id] = {}
+                        self.scheme_account_data[entry.scheme_account_id][entry.user_id] = {
                             "status": entry.link_status,
                             "link": matched_link,
                             "scheme_count": self.scheme_count[pay_id][scheme_id],
@@ -813,7 +812,7 @@ class WalletPLLData:
         self.process_links()
         sas = self.scheme_account_data.get(link.pll.scheme_account.id)
         if sas:
-            sa = sas.get(link.user.id, None)
+            sa = sas.get(link.user_id, None)
             return sa
         return {"status": None, "link": None, "scheme_count": 0}
 
