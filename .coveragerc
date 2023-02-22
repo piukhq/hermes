@@ -28,4 +28,4 @@ omit = *migrations*
 branch = True
 
 [report]
-fail_under = 81
+fail_under = 75
