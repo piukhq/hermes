@@ -64,6 +64,7 @@ LOCAL_APPS = (
     "scripts",
     "prometheus.apps.PrometheusPusherConfig",
     "api_messaging",
+    "periodic_corrections",
 )
 
 INSTALLED_APPS = (
@@ -709,6 +710,11 @@ CELERY_RESULT_SERIALIZER = "pickle"
 CELERY_WORKER_ENABLE_REMOTE_CONTROL = False
 
 SPREEDLY_BASE_URL = env_var("SPREEDLY_BASE_URL", "")
+
+# Time in seconds for periodic corrections to be called by celery beats
+PERIODIC_CORRECTIONS_PERIOD = env_var("PERIODIC_CORRECTIONS_PERIOD", "600")
+RETAIN_FROM_MINUTES = int(env_var("RETAIN_FROM_MINUTES", "-600"))
+RETAIN_TO_MINUTES = int(env_var("RETAIN_TO_MINUTES", "-10"))
 
 # Time in seconds for the interval between retry tasks called by celery beats
 RETRY_PERIOD = env_var("RETRY_PERIOD", "900")
