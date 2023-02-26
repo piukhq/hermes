@@ -65,53 +65,68 @@ def retain_pending_payments():
     logger.info(f"Found {len(periodic_retains)} periodic retain retries to process")
 
     for periodic_retain in periodic_retains:
-        periodic_retain.retry_count += 1
+        retain_retry(periodic_retain)
 
-        try:
-            reply = retain_via_foundation(periodic_retain.payment_card_account)
 
-        except Exception as e:
-            status_code = 0
-            reason = f"Exception {e}"
-            reply = None
+def retain_retry(periodic_retain: PeriodicRetain) -> None:
+    periodic_retain.retry_count += 1
+    status_code = 0
+    reason = ""
+    try:
+        reply = retain_via_foundation(periodic_retain.payment_card_account)
 
-        try:
-            reply_json = json.loads(reply.get("resp_text", {}))
-            transaction = reply_json.get("transaction", {})
-        except Exception:
-            transaction = {}
+    except Exception as e:
+        status_code = 0
+        reason = f"Exception {e}"
+        reply = None
 
-        if reply:
-            status_code = reply.get("status_code", 0)
-            reason = reply.get("reason", "")
+    try:
+        reply_json = json.loads(reply.get("resp_text", {}))
+        transaction = reply_json.get("transaction", {})
+    except Exception:
+        transaction = {}
 
-        message_key = transaction.get("message_key", "")
-        message = transaction.get("message", "")
-        succeeded = transaction.get("succeeded", False)
-        pay_method = transaction.get("payment_method", {})
-        storage_state = pay_method.get("storage_state", "")
+    if reply:
+        status_code = reply.get("status_code", 0)
+        reason = reply.get("reason", "")
 
-        if status_code == 200:
-            periodic_retain.status = RetryStatus.SUCCESSFUL
-        elif (arrow.get(periodic_retain.created) - utc < timedelta(minutes=settings.RETAIN_FROM_MINUTES)) or (
-            message_key == "messages.unable_to_retain_since_storage_state_is_redacted"
-        ):
-            periodic_retain.status = RetryStatus.STOPPED
-        periodic_retain.message_key = message_key
-        periodic_retain.succeeded = succeeded
-        periodic_retain.results.append(
-            json.dumps(
-                {
-                    "status_code": status_code,
-                    "reason": reason,
-                    "message_key": message_key,
-                    "message": message,
-                    "succeeded": succeeded,
-                    "storage_state": storage_state,
-                }
-            )
-        )
-        periodic_retain.save()
+    message_key = transaction.get("message_key", "")
+    message = transaction.get("message", "")
+    succeeded = transaction.get("succeeded", False)
+    pay_method = transaction.get("payment_method", {})
+    storage_state = pay_method.get("storage_state", "")
+
+    if status_code == 200:
+        periodic_retain.status = RetryStatus.SUCCESSFUL
+    elif (arrow.get(periodic_retain.created) - arrow.utcnow() < timedelta(minutes=settings.RETAIN_FROM_MINUTES)) or (
+        message_key == "messages.unable_to_retain_since_storage_state_is_redacted"
+    ):
+        periodic_retain.status = RetryStatus.STOPPED
+
+    periodic_retain.message_key = message_key
+    periodic_retain.succeeded = succeeded
+
+    entry = [status_code, reason, succeeded, message_key, message, storage_state]
+    titles = ["status:", "reason:", "succeeded:", "message key:", "message:", "storage:"]
+    result_dict = formated_results_entry(periodic_retain, entry, titles)
+    periodic_retain.results.insert(0, result_dict)
+    periodic_retain.save()
+
+
+def formated_results_entry(periodic_retain: PeriodicRetain, entry: list, titles: list) -> dict:
+    items = ", ".join([f"{titles[index]} {entry[index]}" for index in range(0, len(entry)) if entry[index]])
+    result_dict = {}
+    if periodic_retain.results:
+        last_entry = periodic_retain.results.pop(0)
+        if last_entry["results"] == items:
+            result_dict = last_entry
+            result_dict["repeated"] += 1
+            result_dict["results"] = last_entry["results"]
+    else:
+        result_dict["repeated"] = 0
+        result_dict["results"] = items
+    result_dict["retry"] = periodic_retain.retry_count
+    return result_dict
 
 
 def retain_via_foundation(account: PaymentCardAccount) -> object:

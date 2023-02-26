@@ -24,7 +24,6 @@ class PeriodicRetain(models.Model):
     message_key = models.CharField(max_length=80, null=True, blank=True)
     succeeded = models.BooleanField(default=False)
     retry_count = models.IntegerField(default=0, null=True, blank=True)
-    data = JSONField(default=dict, null=True, blank=True)
     results = JSONField(default=list, null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
