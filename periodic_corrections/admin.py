@@ -1,7 +1,9 @@
+import arrow
 from django.contrib import admin
 from rangefilter.filters import DateTimeRangeFilter
 
 from .models import PeriodicRetain, RetryStatus
+from .tasks import retain_pending_payments
 
 
 @admin.register(PeriodicRetain)
@@ -36,11 +38,8 @@ class PeriodicRetainAdmin(admin.ModelAdmin):
     actions = ["retry", "stop"]
 
     def retry(self, request, queryset):
-        for retain in queryset:
-            retain.status = RetryStatus.RETRYING
-            retain.save()
+        queryset.update(status=RetryStatus.RETRYING, created=arrow.utcnow().format())
+        retain_pending_payments()
 
     def stop(self, request, queryset):
-        for retain in queryset:
-            retain.status = RetryStatus.STOPPED
-            retain.save()
+        queryset.update(status=RetryStatus.STOPPED)

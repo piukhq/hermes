@@ -115,16 +115,16 @@ def retain_retry(periodic_retain: PeriodicRetain) -> None:
 
 def formated_results_entry(periodic_retain: PeriodicRetain, entry: list, titles: list) -> dict:
     items = ", ".join([f"{titles[index]} {entry[index]}" for index in range(0, len(entry)) if entry[index]])
-    result_dict = {}
+    result_dict = {"repeated": 0, "results": items}
     if periodic_retain.results:
         last_entry = periodic_retain.results.pop(0)
-        if last_entry["results"] == items:
+        if last_entry.get("results") == items:
             result_dict = last_entry
-            result_dict["repeated"] += 1
+            repeated = result_dict.get("repeated", 0) + 1
+            result_dict["repeated"] = repeated
             result_dict["results"] = last_entry["results"]
-    else:
-        result_dict["repeated"] = 0
-        result_dict["results"] = items
+        else:
+            periodic_retain.results.insert(0, last_entry)
     result_dict["retry"] = periodic_retain.retry_count
     return result_dict
 
