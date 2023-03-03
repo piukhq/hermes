@@ -279,6 +279,34 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.MIDAS_UNREACHABLE)
 
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
+    def test_scheme_account_update_status_populates_link_date(self, *_):
+        client_app = ClientApplicationFactory(name="barclays")
+        scheme_account = SchemeAccountFactory(link_date=None, join_date=None)
+        user = UserFactory(client=client_app)
+        scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=scheme_account, user=user, link_status=AccountLinkStatus.ACTIVE
+        )
+        user_set = str(user.id)
+
+        data = {
+            "status": AccountLinkStatus.ACTIVE,
+            "journey": None,
+            "user_info": {"user_set": user_set, "bink_user_id": user.id},
+        }
+        response = self.client.post(
+            "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
+        )
+        scheme_account_entry.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["id"], scheme_account.id)
+        self.assertEqual(response.data["status"], AccountLinkStatus.ACTIVE)
+        scheme_account.refresh_from_db()
+        self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.ACTIVE)
+        self.assertIsNotNone(scheme_account.link_date)
+        self.assertIsNone(scheme_account.join_date)
+
+    @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
     def test_scheme_account_update_status_join_callback(self, *_):
         scheme_account = SchemeAccountFactory()
         scheme_account_entry = SchemeAccountEntryFactory(
