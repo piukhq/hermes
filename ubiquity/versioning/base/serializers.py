@@ -761,6 +761,12 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         return mcard_user_auth_provided_map
     """
 
+    @staticmethod
+    def _handle_pending_vouchers(voucher):
+        if voucher["state"] == VoucherStateStr.PENDING:
+            voucher["headline"] = None
+            voucher["state"] = VoucherStateStr.ISSUED.value
+
     def to_representation(self, instance: "SchemeAccount") -> dict:
 
         scheme_account_entry = instance.schemeaccountentry_set.get(user_id=self.context["user_id"])
@@ -794,14 +800,15 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         balances = self._strip_reward_tier(balances)
         for voucher in vouchers:
-            if voucher["state"] == VoucherStateStr.PENDING:
-                voucher["headline"] = None
-                voucher["state"] = VoucherStateStr.ISSUED.value
             if voucher.get("code"):
                 if voucher["state"] in [VoucherStateStr.EXPIRED, VoucherStateStr.REDEEMED, VoucherStateStr.CANCELLED]:
                     voucher["code"] = ""
             if voucher.get("body_text"):
                 voucher["body_text"] = None
+
+            # handle PENDING vouchers
+            self._handle_pending_vouchers(voucher)
+
         card_repr = {
             "id": instance.id,
             "membership_plan": instance.scheme_id,
