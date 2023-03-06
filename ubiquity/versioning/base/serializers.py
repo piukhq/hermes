@@ -794,6 +794,9 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         balances = self._strip_reward_tier(balances)
         for voucher in vouchers:
+            if voucher["state"] == VoucherStateStr.PENDING:
+                voucher["headline"] = None
+                voucher["state"] = VoucherStateStr.ISSUED.value
             if voucher.get("code"):
                 if voucher["state"] in [VoucherStateStr.EXPIRED, VoucherStateStr.REDEEMED, VoucherStateStr.CANCELLED]:
                     voucher["code"] = ""
