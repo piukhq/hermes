@@ -767,6 +767,7 @@ class VoucherSchemeAdmin(admin.ModelAdmin):
                     "headline_redeemed",
                     "headline_issued",
                     "headline_cancelled",
+                    "headline_pending",
                 ),
             },
         ),
@@ -779,6 +780,7 @@ class VoucherSchemeAdmin(admin.ModelAdmin):
                     "body_text_redeemed",
                     "body_text_issued",
                     "body_text_cancelled",
+                    "body_text_pending",
                 )
             },
         ),
