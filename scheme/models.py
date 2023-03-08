@@ -1248,12 +1248,14 @@ class VoucherScheme(models.Model):
     headline_redeemed = models.CharField(max_length=250, verbose_name="Redeemed")
     headline_issued = models.CharField(max_length=250, verbose_name="Issued")
     headline_cancelled = models.CharField(max_length=250, verbose_name="Cancelled", default="")
+    headline_pending = models.CharField(max_length=250, verbose_name="Pending", default="")
 
     body_text_inprogress = models.TextField(null=False, blank=True, verbose_name="In Progress")
     body_text_expired = models.TextField(null=False, blank=True, verbose_name="Expired")
     body_text_redeemed = models.TextField(null=False, blank=True, verbose_name="Redeemed")
     body_text_issued = models.TextField(null=False, blank=True, verbose_name="Issued")
     body_text_cancelled = models.TextField(null=False, blank=True, verbose_name="Cancelled", default="")
+    body_text_pending = models.TextField(null=False, blank=True, verbose_name="Pending", default="")
     subtext = models.CharField(max_length=250, null=False, blank=True)
     terms_and_conditions_url = models.URLField(null=False, blank=True)
 
@@ -1270,6 +1272,7 @@ class VoucherScheme(models.Model):
             VoucherStateStr.EXPIRED: self.headline_expired,
             VoucherStateStr.REDEEMED: self.headline_redeemed,
             VoucherStateStr.CANCELLED: self.headline_cancelled,
+            VoucherStateStr.PENDING: self.headline_pending,
         }[state]
 
     def get_body_text(self, state: VoucherStateStr):
@@ -1279,6 +1282,7 @@ class VoucherScheme(models.Model):
             VoucherStateStr.EXPIRED: self.body_text_expired,
             VoucherStateStr.REDEEMED: self.body_text_redeemed,
             VoucherStateStr.CANCELLED: self.body_text_cancelled,
+            VoucherStateStr.PENDING: self.body_text_pending,
         }[state]
 
     def get_earn_target_value(self, voucher_fields: Dict) -> float:

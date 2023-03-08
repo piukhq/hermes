@@ -11,6 +11,7 @@ class VoucherState(enum.Enum):
     EXPIRED = 2
     REDEEMED = 3
     CANCELLED = 4
+    PENDING = 5
 
 
 class VoucherStateStr(str, enum.Enum):
@@ -19,6 +20,7 @@ class VoucherStateStr(str, enum.Enum):
     EXPIRED = "expired"
     REDEEMED = "redeemed"
     CANCELLED = "cancelled"
+    PENDING = "pending"
 
 
 def apply_template(template_string, *, voucher_scheme, earn_value, earn_target_value):

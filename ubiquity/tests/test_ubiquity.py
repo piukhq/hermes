@@ -385,7 +385,7 @@ class TestResources(GlobalMockAPITestCase):
 
         vouchers = resp.data["vouchers"]
 
-        self.assertEqual(len(vouchers), 4)
+        self.assertEqual(len(vouchers), 5)
         self.assertEqual(vouchers[0]["state"], "issued")
         self.assertEqual(vouchers[0]["code"], self.scheme_account.vouchers[0]["code"])
 
@@ -397,6 +397,13 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertEqual(vouchers[3]["state"], "cancelled")
         self.assertEqual(vouchers[3]["code"], "")
+
+        # Pending vouchers
+        self.assertEqual(vouchers[4]["state"], "issued")
+        self.assertEqual(vouchers[4]["code"], "WHS000055")
+        self.assertEqual(vouchers[4]["expiry_date"], 1600570000)
+        self.assertFalse(vouchers[4].get("body_text"))
+        self.assertFalse(vouchers[4].get("headline"))
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")

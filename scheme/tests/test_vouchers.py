@@ -34,12 +34,14 @@ class TestVouchers(GlobalMockAPITestCase):
             headline_redeemed="Voucher redeemed",
             headline_expired="Voucher expired",
             headline_cancelled="Voucher cancelled",
+            headline_pending="Voucher pending",
             terms_and_conditions_url="https://example.com",
             body_text_inprogress="voucher body",
             body_text_issued="voucher body",
             body_text_redeemed="voucher body",
             body_text_expired="voucher body",
             body_text_cancelled="voucher body",
+            body_text_pending="voucher body",
         )
         VoucherScheme.objects.create(
             scheme=cls.scheme_stamps,
@@ -58,12 +60,14 @@ class TestVouchers(GlobalMockAPITestCase):
             headline_redeemed="Voucher redeemed",
             headline_expired="Voucher expired",
             headline_cancelled="Voucher cancelled",
+            headline_pending="Voucher pending",
             terms_and_conditions_url="https://example.com",
             body_text_inprogress="voucher body",
             body_text_issued="voucher body",
             body_text_redeemed="voucher body",
             body_text_expired="voucher body",
             body_text_cancelled="voucher body",
+            body_text_pending="voucher body",
         )
         VoucherScheme.objects.create(
             scheme=cls.scheme_join,
@@ -80,6 +84,7 @@ class TestVouchers(GlobalMockAPITestCase):
             headline_redeemed="Voucher redeemed",
             headline_expired="Voucher expired",
             headline_cancelled="Voucher cancelled",
+            headline_pending="Voucher pending",
         )
 
     def test_accumulator_inprogress_headline(self):
@@ -111,6 +116,12 @@ class TestVouchers(GlobalMockAPITestCase):
         headline_template = vs.get_headline(vouchers.VoucherStateStr.CANCELLED)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "Voucher cancelled")
+
+    def test_accumulator_pending_headline(self):
+        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_ACCUMULATOR)
+        headline_template = vs.get_headline(vouchers.VoucherStateStr.PENDING)
+        headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
+        self.assertEqual(headline, "Voucher pending")
 
     def test_stamps_inprogress_headline(self):
         vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_STAMPS)
