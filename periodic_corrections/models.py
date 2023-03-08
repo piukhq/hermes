@@ -25,5 +25,5 @@ class PeriodicRetain(models.Model):
     succeeded = models.BooleanField(default=False)
     retry_count = models.IntegerField(default=0, null=True, blank=True)
     results = JSONField(default=list, null=True, blank=True)
-    created = models.DateTimeField(auto_now_add=True)
+    created = models.DateTimeField(auto_now_add=True, verbose_name="started")
     updated = models.DateTimeField(auto_now=True)

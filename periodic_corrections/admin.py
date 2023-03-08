@@ -14,6 +14,8 @@ class PeriodicRetainAdmin(admin.ModelAdmin):
         "message_key",
         "succeeded",
         "retry_count",
+        "account_created",
+        "hours_old",
         "created",
         "updated",
     )
@@ -23,6 +25,7 @@ class PeriodicRetainAdmin(admin.ModelAdmin):
         "message_key",
         ("updated", DateTimeRangeFilter),
         ("created", DateTimeRangeFilter),
+        ("payment_card_account__created", DateTimeRangeFilter),
     )
     readonly_fields = (
         "payment_card_account",
@@ -43,3 +46,9 @@ class PeriodicRetainAdmin(admin.ModelAdmin):
 
     def stop(self, request, queryset):
         queryset.update(status=RetryStatus.STOPPED)
+
+    def account_created(self, obj):
+        return obj.payment_card_account.created
+
+    def hours_old(self, obj):
+        return round((arrow.utcnow() - obj.payment_card_account.created).total_seconds() / 3600, 2)
