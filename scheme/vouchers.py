@@ -64,7 +64,3 @@ def get_expiry_date(voucher_scheme, voucher_fields, issue_date):
         expiry_date = None
 
     return expiry_date
-
-
-# def get_conversion_date(voucher_scheme, voucher_fields, issue_date):
-#     if "conversion_date"
