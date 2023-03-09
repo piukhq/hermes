@@ -16,6 +16,7 @@ app.autodiscover_tasks(
         "hermes.vop_tasks.tasks",
         "history.tasks",
         "notification.tasks",
+        "periodic_corrections.tasks",
         "scheme.migrations.0109_alter_schemeaccountcredentialanswer_unique_together_and_more",
         "ubiquity.migrations.0016_alter_schemeaccountentry_link_status",
         "ubiquity.migrations.0018_migrate_pll_data",
@@ -42,6 +43,11 @@ app.conf.beat_schedule = {
         "task": "notification.tasks.notification_file",
         "schedule": crontab(minute=0, hour=settings.NOTIFICATION_RUN_TIME),
         "args": (False,),
+    },
+    "periodic_corrections_tasks": {
+        "task": "periodic_corrections.tasks.retain_pending_payments",
+        "schedule": int(settings.PERIODIC_CORRECTIONS_PERIOD),
+        "args": (),
     },
 }
 
