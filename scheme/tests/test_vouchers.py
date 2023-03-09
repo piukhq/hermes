@@ -266,6 +266,52 @@ class TestVouchers(GlobalMockAPITestCase):
             },
         )
 
+    def test_make_voucher_pending_conversion_date(self):
+        now = arrow.utcnow().int_timestamp
+        voucher_fields = {
+            "issue_date": now,
+            "code": "abc123",
+            "value": 0,
+            "target_value": 0,
+            "state": "pending",
+            "conversion_date": now,
+        }
+        scheme = Scheme.objects.get(slug=TEST_SLUG_ACCUMULATOR)
+        vs: VoucherScheme = VoucherScheme.objects.get(scheme=scheme)
+        account = SchemeAccount.objects.create(scheme=scheme, order=0)
+        voucher = account.make_single_voucher(voucher_fields)
+
+        self.assertEqual(
+            voucher,
+            {
+                "earn": {
+                    "type": "accumulator",
+                    "prefix": vs.earn_prefix,
+                    "suffix": vs.earn_suffix,
+                    "currency": vs.earn_currency,
+                    "value": 0,
+                    "target_value": 0,
+                },
+                "burn": {
+                    "type": vs.burn_type,
+                    "currency": vs.burn_currency,
+                    "prefix": vs.burn_prefix,
+                    "suffix": vs.burn_suffix,
+                    "value": vs.burn_value,
+                },
+                "code": "abc123",
+                "date_issued": now,
+                "expiry_date": arrow.get(now).shift(months=vs.expiry_months).int_timestamp,
+                "headline": "Voucher pending",
+                "body_text": "voucher body",
+                "subtext": "",
+                "state": "pending",
+                "barcode_type": vs.barcode_type,
+                "terms_and_conditions_url": "https://example.com",
+                "conversion_date": now,
+            },
+        )
+
     def test_get_earn_target_value_from_voucher(self):
         """
         Test fetching the target value from the incoming voucher
