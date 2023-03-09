@@ -1160,7 +1160,7 @@ class TestFacebookLogin(GlobalMockAPITestCase):
     @httpretty.activate
     def test_facebook_login_no_email_available(self):
         facebook_id = "O7bz6vG60Y"
-        UserFactory(facebook=facebook_id, email=None)
+        UserFactory(facebook=facebook_id, email="")
         httpretty.register_uri(
             httpretty.GET,
             "https://graph.facebook.com/me",
@@ -1169,12 +1169,12 @@ class TestFacebookLogin(GlobalMockAPITestCase):
         )
         response = facebook_login("Ju76xER1A5")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["email"], None)
+        self.assertEqual(response.data["email"], "")
 
     @httpretty.activate
     def test_facebook_login_no_email_twitter_email(self):
         facebook_id = "O7bz6vG60Y"
-        UserFactory(facebook=facebook_id, email=None)
+        UserFactory(facebook=facebook_id, email="")
         httpretty.register_uri(
             httpretty.GET,
             "https://graph.facebook.com/me",
@@ -1188,7 +1188,7 @@ class TestFacebookLogin(GlobalMockAPITestCase):
     @httpretty.activate
     def test_facebook_login_no_email_app_email_priority(self):
         facebook_id = "O7bz6vG60Y"
-        UserFactory(facebook=facebook_id, email=None)
+        UserFactory(facebook=facebook_id, email="")
         httpretty.register_uri(
             httpretty.GET,
             "https://graph.facebook.com/me",
@@ -1276,17 +1276,17 @@ class TestSocialLogin(GlobalMockAPITestCase):
 
     def test_social_login_exists_no_email(self):
         facebook_id = "O7bz6vG60Y"
-        UserFactory(facebook=facebook_id, email=None)
+        UserFactory(facebook=facebook_id, email="")
         status, user = social_login(facebook_id, "frank@sea.com", "facebook")
         self.assertEqual(status, 200)
         self.assertEqual(user.email, "frank@sea.com")
 
     def test_social_login_exists_no_email_twitter(self):
         facebook_id = "O7bz6vG60Y"
-        UserFactory(facebook=facebook_id, email=None)
+        UserFactory(facebook=facebook_id, email="")
         status, user = social_login(facebook_id, "", "facebook")
         self.assertEqual(status, 200)
-        self.assertEqual(user.email, None)
+        self.assertEqual(user.email, "")
 
     def test_social_login_not_linked(self):
         user = UserFactory()
@@ -1305,10 +1305,10 @@ class TestSocialLogin(GlobalMockAPITestCase):
 
     def test_social_login_no_user_no_email(self):
         twitter_id = "twitter_email"
-        status, user = social_login(twitter_id, None, "twitter")
+        status, user = social_login(twitter_id, "", "twitter")
         self.assertEqual(status, 201)
         self.assertEqual(user.twitter, twitter_id)
-        self.assertEqual(user.email, None)
+        self.assertEqual(user.email, "")
 
 
 class TestLogout(GlobalMockAPITestCase):

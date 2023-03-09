@@ -351,7 +351,7 @@ class FaceBookLogin(CreateAPIView):
         """
         access_token = request.data["access_token"]
         user_id = request.data["user_id"]
-        email = request.data.get("email", None)
+        email = request.data.get("email", "")
         client_id = request.data.get("client_id", BINK_APP_ID)
         r = requests.get("https://graph.facebook.com/me?access_token={0}".format(access_token))
         if not r.ok:
@@ -448,7 +448,7 @@ class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
         return obj
 
 
-def facebook_login(access_token, user_email=None, client_id=BINK_APP_ID):
+def facebook_login(access_token, user_email="", client_id=BINK_APP_ID):
     params = {"access_token": access_token, "fields": "email,name,id"}
     # Retrieve information about the current user.
     r = requests.get("https://graph.facebook.com/me", params=params)
@@ -457,7 +457,7 @@ def facebook_login(access_token, user_email=None, client_id=BINK_APP_ID):
     profile = r.json()
     # Email from client over-rides the facebook one
     if not user_email:
-        user_email = profile.get("email")
+        user_email = profile.get("email", "")
     return social_response(profile["id"], user_email, "facebook", client_id)
 
 
@@ -481,10 +481,7 @@ def twitter_login(access_token, access_token_secret, client_id=BINK_APP_ID):
         return Response(request.json()["errors"], status=request.status_code)
     profile = request.json()
 
-    # twitter can send back an empty string, and we need a None
-    email = profile.get("email")
-    if not email:
-        email = None
+    email = profile.get("email", "")
     return social_response(profile["id_str"], email, "twitter", client_id)
 
 
