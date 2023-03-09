@@ -1,4 +1,5 @@
 import typing
+from enum import Enum
 
 from celery import shared_task
 
@@ -13,6 +14,13 @@ if typing.TYPE_CHECKING:
 
 @shared_task
 def record_history(model_name: str, **kwargs) -> None:
+    # Django is able to convert enums to the value before saving to the db but the serializer below will
+    # raise an error for any enums. This is to convert to the value so no errors are raised, without having
+    # to add .value to the enums in the code.
+    for key, val in kwargs.items():
+        if isinstance(val, Enum):
+            kwargs[key] = val.value
+
     serializer = get_historical_serializer(model_name)(data=kwargs)
     serializer.is_valid(raise_exception=True)
     if model_name == HistoryModel.CUSTOM_USER.value:
