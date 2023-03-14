@@ -719,6 +719,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
                 "channel_slug": self.bundle.bundle_id,
                 "auto_link": True,
                 "created": False,
+                "supercede": False,
             }
         )
 
@@ -809,6 +810,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
                 "channel_slug": self.bundle.bundle_id,
                 "auto_link": True,
                 "created": False,
+                "supersede": False,
             }
         )
 
@@ -861,6 +863,38 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         self.assertEqual(user_pll_1.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
         self.assertEqual(user_pll_2.state, WalletPLLStatus.INACTIVE.value)
         self.assertEqual(user_pll_2.slug, WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
+
+    @patch("payment_card.metis.metis_request", autospec=True)
+    def test_payment_card_supersede_old_account(self, mock_metis_request):
+        visa = PaymentCardFactory(slug="visa", system="visa")
+        amex = PaymentCardFactory(slug="amex", system="amex")
+        mastercard = PaymentCardFactory(slug="mastercard", system="mastercard")
+
+        for payment_system in (visa, amex, mastercard):
+            payment_card_account = PaymentCardAccountFactory(
+                issuer=self.issuer, payment_card=payment_system, status=PaymentCardAccount.ACTIVE
+            )
+            PaymentCardAccountEntryFactory(user=self.user, payment_card_account=payment_card_account)
+
+            post_payment_account(
+                {
+                    "payment_account_id": payment_card_account.id,
+                    "user_id": self.user.id,
+                    "channel_slug": self.bundle.bundle_id,
+                    "auto_link": True,
+                    "created": True,
+                    "supersede": True,
+                }
+            )
+
+            self.assertTrue(mock_metis_request.called)
+
+            if payment_system == mastercard:
+                self.assertEqual(mock_metis_request.call_args.args[0], "POST")
+                self.assertEqual(mock_metis_request.call_args.args[1], "/payment_service/payment_card/update")
+            else:
+                self.assertEqual(mock_metis_request.call_args.args[0], "POST")
+                self.assertEqual(mock_metis_request.call_args.args[1], "/payment_service/payment_card")
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch.object(SchemeAccount, "_get_balance")
