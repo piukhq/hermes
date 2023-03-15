@@ -124,7 +124,7 @@ def post_payment_account(message: dict) -> None:
     # Calls Metis to enrol payment card if account was just created.
     logger.info("Handling onward POST/payment_account journey from Angelia. ")
     with AngeliaContext(message) as ac:
-        payment_card_account = PaymentCardAccount.objects.get(pk=message.get("payment_account_id"))
+        payment_card_account = PaymentCardAccount.all_objects.get(pk=message.get("payment_account_id"))
         user = CustomUser.objects.get(pk=ac.user_id)
         # auto_link
         if ac.auto_link:
@@ -143,7 +143,11 @@ def post_payment_account(message: dict) -> None:
             )
 
         if message.get("created"):
-            metis.enrol_new_payment_card(payment_card_account, run_async=False)
+            # For when adding a previously deleted card. Unique logic required for MasterCard.
+            if message.get("supersede"):
+                metis.enrol_existing_payment_card(payment_card_account, run_async=False)
+            else:
+                metis.enrol_new_payment_card(payment_card_account, run_async=False)
 
 
 # @todo we must use API method of linking here:
