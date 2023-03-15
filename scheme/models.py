@@ -857,6 +857,7 @@ class SchemeAccount(models.Model):
         redeem_date = arrow.get(voucher_fields["redeem_date"]) if "redeem_date" in voucher_fields else None
 
         expiry_date = vouchers.get_expiry_date(voucher_scheme, voucher_fields, issue_date)
+        conversion_date = arrow.get(voucher_fields["conversion_date"]) if "conversion_date" in voucher_fields else None
 
         headline_template = voucher_scheme.get_headline(voucher_fields["state"])
         headline = vouchers.apply_template(
@@ -865,6 +866,9 @@ class SchemeAccount(models.Model):
             earn_value=earn_value,
             earn_target_value=earn_target_value,
         )
+
+        # Barclays patch because they can't handle % in headlines
+        headline = headline.replace("%", " percent")
 
         body_text = voucher_scheme.get_body_text(voucher_fields["state"])
 
@@ -905,6 +909,9 @@ class SchemeAccount(models.Model):
 
         if "code" in voucher_fields:
             voucher["code"] = voucher_fields["code"]
+
+        if conversion_date is not None:
+            voucher["conversion_date"] = conversion_date.int_timestamp
 
         return voucher
 
