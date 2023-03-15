@@ -3,9 +3,11 @@ import arrow
 from history.utils import GlobalMockAPITestCase
 from scheme import vouchers
 from scheme.models import Category, Scheme, SchemeAccount, VoucherScheme
+from scheme.vouchers import VoucherStateStr
 
 TEST_SLUG_STAMPS = "stamps_scheme"
 TEST_SLUG_ACCUMULATOR = "accumulator_scheme"
+TEST_SLUG_ACCUMULATOR_PERCENT = "accumulator_scheme_percent"
 TEST_SLUG_JOIN = "join_scheme"
 
 
@@ -17,8 +19,11 @@ class TestVouchers(GlobalMockAPITestCase):
         cls.scheme_accumulator = Scheme.objects.create(
             tier=Scheme.ENGAGE, category=category, slug=TEST_SLUG_ACCUMULATOR
         )
+        cls.scheme_accumulator_percent_headline = Scheme.objects.create(
+            tier=Scheme.ENGAGE, category=category, slug=TEST_SLUG_ACCUMULATOR_PERCENT
+        )
         cls.scheme_join = Scheme.objects.create(tier=Scheme.ENGAGE, category=category, slug=TEST_SLUG_JOIN)
-        VoucherScheme.objects.create(
+        cls.vs_accumulator = VoucherScheme.objects.create(
             scheme=cls.scheme_accumulator,
             barcode_type=1,
             expiry_months=3,
@@ -43,7 +48,35 @@ class TestVouchers(GlobalMockAPITestCase):
             body_text_cancelled="voucher body",
             body_text_pending="voucher body",
         )
-        VoucherScheme.objects.create(
+        cls.vs_accumulator_percent_headline = VoucherScheme.objects.create(
+            scheme=cls.scheme_accumulator_percent_headline,
+            barcode_type=1,
+            expiry_months=3,
+            earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR,
+            earn_prefix="£",
+            earn_suffix="",
+            earn_currency="GBP",
+            earn_target_value=200,
+            burn_type=VoucherScheme.BURNTYPE_VOUCHER,
+            burn_value=None,
+            burn_prefix="10% off",
+            headline_inprogress=(
+                "Spend {{earn_prefix}}{{earn_target_remaining|floatformat:2}} to get a {{burn_prefix}} " "voucher code"
+            ),
+            headline_issued="Earned {{burn_prefix}}",
+            headline_redeemed="Redeemed {{burn_prefix}}",
+            headline_expired="Expired {{burn_prefix}}",
+            headline_cancelled="Cancelled {{burn_prefix}}",
+            headline_pending="Pending {{burn_prefix}}",
+            terms_and_conditions_url="https://example.com",
+            body_text_inprogress="voucher body",
+            body_text_issued="voucher body",
+            body_text_redeemed="voucher body",
+            body_text_expired="voucher body",
+            body_text_cancelled="voucher body",
+            body_text_pending="voucher body",
+        )
+        cls.vs_stamps = VoucherScheme.objects.create(
             scheme=cls.scheme_stamps,
             barcode_type=1,
             expiry_months=3,
@@ -69,7 +102,7 @@ class TestVouchers(GlobalMockAPITestCase):
             body_text_cancelled="voucher body",
             body_text_pending="voucher body",
         )
-        VoucherScheme.objects.create(
+        cls.vs_join = VoucherScheme.objects.create(
             scheme=cls.scheme_join,
             barcode_type=2,
             expiry_months=3,
@@ -88,91 +121,98 @@ class TestVouchers(GlobalMockAPITestCase):
         )
 
     def test_accumulator_inprogress_headline(self):
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_ACCUMULATOR)
+        vs = self.vs_accumulator
         headline_template = vs.get_headline(vouchers.VoucherStateStr.IN_PROGRESS)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "£50.00 left to go!")
 
     def test_accumulator_issued_headline(self):
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_ACCUMULATOR)
+        vs = self.vs_accumulator
         headline_template = vs.get_headline(vouchers.VoucherStateStr.ISSUED)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "£5.00 voucher earned")
 
     def test_accumulator_redeemed_headline(self):
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_ACCUMULATOR)
+        vs = self.vs_accumulator
         headline_template = vs.get_headline(vouchers.VoucherStateStr.REDEEMED)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "Voucher redeemed")
 
     def test_accumulator_expired_headline(self):
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_ACCUMULATOR)
+        vs = self.vs_accumulator
         headline_template = vs.get_headline(vouchers.VoucherStateStr.EXPIRED)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "Voucher expired")
 
     def test_accumulator_cancelled_headline(self):
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_ACCUMULATOR)
+        vs = self.vs_accumulator
         headline_template = vs.get_headline(vouchers.VoucherStateStr.CANCELLED)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "Voucher cancelled")
 
     def test_accumulator_pending_headline(self):
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_ACCUMULATOR)
+        vs = self.vs_accumulator
         headline_template = vs.get_headline(vouchers.VoucherStateStr.PENDING)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "Voucher pending")
 
+    # This is for a barclays patch since they can't handle '%' in the headline
+    def test_accumulator_percent_inprogress_headline(self):
+        vs = self.vs_accumulator_percent_headline
+        headline_template = vs.get_headline(vouchers.VoucherStateStr.IN_PROGRESS)
+        headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
+        self.assertEqual(headline, "Spend £50.00 to get a 10% off voucher code")
+
     def test_stamps_inprogress_headline(self):
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_STAMPS)
+        vs = self.vs_stamps
         headline_template = vs.get_headline(vouchers.VoucherStateStr.IN_PROGRESS)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "£50.00 left to go!")
 
     def test_stamps_issued_headline(self):
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_STAMPS)
+        vs = self.vs_stamps
         headline_template = vs.get_headline(vouchers.VoucherStateStr.ISSUED)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "£5.00 voucher earned")
 
     def test_stamps_redeemed_headline(self):
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_STAMPS)
+        vs = self.vs_stamps
         headline_template = vs.get_headline(vouchers.VoucherStateStr.REDEEMED)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "Voucher redeemed")
 
     def test_stamps_expired_headline(self):
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_STAMPS)
+        vs = self.vs_stamps
         headline_template = vs.get_headline(vouchers.VoucherStateStr.EXPIRED)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "Voucher expired")
 
     def test_stamps_cancelled_headline(self):
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_STAMPS)
+        vs = self.vs_stamps
         headline_template = vs.get_headline(vouchers.VoucherStateStr.CANCELLED)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "Voucher cancelled")
 
     def test_join_issued_headline(self):
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_JOIN)
+        vs = self.vs_join
         headline_template = vs.get_headline(vouchers.VoucherStateStr.ISSUED)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "£5.00 voucher earned")
 
     def test_join_redeemed_headline(self):
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_JOIN)
+        vs = self.vs_join
         headline_template = vs.get_headline(vouchers.VoucherStateStr.REDEEMED)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "Voucher redeemed")
 
     def test_join_expired_headline(self):
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_JOIN)
+        vs = self.vs_join
         headline_template = vs.get_headline(vouchers.VoucherStateStr.EXPIRED)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "Voucher expired")
 
     def test_join_cancelled_headline(self):
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_JOIN)
+        vs = self.vs_join
         headline_template = vs.get_headline(vouchers.VoucherStateStr.CANCELLED)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "Voucher cancelled")
@@ -186,7 +226,7 @@ class TestVouchers(GlobalMockAPITestCase):
             "code": "abc123",
             "value": 300,
             "target_value": 400,
-            "state": "redeemed",
+            "state": VoucherStateStr.REDEEMED.value,
         }
         scheme = Scheme.objects.get(slug=TEST_SLUG_ACCUMULATOR)
         vs: VoucherScheme = VoucherScheme.objects.get(scheme=scheme)
@@ -222,6 +262,64 @@ class TestVouchers(GlobalMockAPITestCase):
                 "terms_and_conditions_url": "https://example.com",
             },
         )
+
+    # This is for a barclays patch since they can't handle '%' in the headline
+    def test_make_voucher_percent_headline(self):
+        states_and_headlines = [
+            (VoucherStateStr.REDEEMED.value, "Redeemed 10 percent off"),
+            (VoucherStateStr.ISSUED.value, "Earned 10 percent off"),
+            (VoucherStateStr.PENDING.value, "Pending 10 percent off"),
+            (VoucherStateStr.CANCELLED.value, "Cancelled 10 percent off"),
+            (VoucherStateStr.EXPIRED.value, "Expired 10 percent off"),
+            (VoucherStateStr.IN_PROGRESS.value, "Spend £100.00 to get a 10 percent off voucher code"),
+        ]
+
+        for state, headline in states_and_headlines:
+            now = arrow.utcnow().int_timestamp
+            voucher_fields = {
+                "issue_date": now,
+                "redeem_date": now,
+                "expiry_date": now + 1000,
+                "code": "abc123",
+                "value": 300,
+                "target_value": 400,
+                "state": state,
+            }
+            scheme = Scheme.objects.get(slug=TEST_SLUG_ACCUMULATOR_PERCENT)
+            vs: VoucherScheme = self.vs_accumulator_percent_headline
+            account = SchemeAccount.objects.create(scheme=scheme, order=0)
+            voucher = account.make_single_voucher(voucher_fields)
+            self.maxDiff = None
+            self.assertEqual(
+                voucher,
+                {
+                    "earn": {
+                        "type": "accumulator",
+                        "prefix": vs.earn_prefix,
+                        "suffix": vs.earn_suffix,
+                        "currency": vs.earn_currency,
+                        "value": 300,
+                        "target_value": 400,
+                    },
+                    "burn": {
+                        "type": vs.burn_type,
+                        "currency": vs.burn_currency,
+                        "prefix": vs.burn_prefix,
+                        "suffix": vs.burn_suffix,
+                        "value": vs.burn_value,
+                    },
+                    "code": "abc123",
+                    "date_issued": now,
+                    "date_redeemed": now,
+                    "expiry_date": now + 1000,
+                    "headline": headline,
+                    "body_text": "voucher body",
+                    "subtext": "",
+                    "state": state,
+                    "barcode_type": vs.barcode_type,
+                    "terms_and_conditions_url": "https://example.com",
+                },
+            )
 
     def test_make_voucher_sans_expiry_and_redeem_dates(self):
         now = arrow.utcnow().int_timestamp
@@ -271,7 +369,7 @@ class TestVouchers(GlobalMockAPITestCase):
         Test fetching the target value from the incoming voucher
         """
         # GIVEN
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_STAMPS)
+        vs = self.vs_stamps
         voucher_fields = {"target_value": 10}
 
         # WHEN
@@ -287,7 +385,7 @@ class TestVouchers(GlobalMockAPITestCase):
         both None
         """
         # GIVEN
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_STAMPS)
+        vs = self.vs_stamps
         voucher_fields = {}
 
         # WHEN
@@ -303,7 +401,7 @@ class TestVouchers(GlobalMockAPITestCase):
         have been set, raises a ValueError
         """
         # GIVEN
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_STAMPS)
+        vs = self.vs_stamps
         vs.earn_target_value = None
         voucher_fields = {}
 
@@ -315,7 +413,7 @@ class TestVouchers(GlobalMockAPITestCase):
         Test getting the earn value from the incoming voucher, ahead of the earn_target_voucher
         """
         # GIVEN
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_STAMPS)
+        vs = self.vs_stamps
         expected_value = 8
         voucher_fields = {"value": expected_value}
 
@@ -330,7 +428,7 @@ class TestVouchers(GlobalMockAPITestCase):
         Test that the earn value gets set to the earn target value, if the earn value is None.
         """
         # GIVEN
-        vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG_STAMPS)
+        vs = self.vs_stamps
         earn_target_value = 10
         voucher_fields = {
             "type": "stamps",
