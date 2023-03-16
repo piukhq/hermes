@@ -668,6 +668,46 @@ class TestResources(GlobalMockAPITestCase):
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
+    def test_membership_card_headline_percent_replace(self, *_):
+        self.scheme_account_entry.link_status = AccountLinkStatus.ACTIVE
+        self.scheme_account_entry.save()
+
+        vouchers = [
+            {
+                "burn": {"type": "voucher", "value": None, "prefix": "Free", "suffix": "Meal", "currency": ""},
+                "earn": {
+                    "type": "stamps",
+                    "value": 3.0,
+                    "prefix": "",
+                    "suffix": "stamps",
+                    "currency": "",
+                    "target_value": 7.0,
+                },
+                "state": "inprogress",
+                "subtext": "",
+                "headline": "Get 10% off for some reason!",
+                "body_text": "",
+                "barcode_type": 0,
+                "terms_and_conditions_url": "",
+            },
+        ]
+
+        self.scheme_account.vouchers = vouchers
+        self.scheme_account.save()
+
+        data = MembershipCardSerializer_V1_3(
+            self.scheme_account,
+            context={"user_id": self.user.id},
+        ).data
+        self.assertEqual(reason_codes.AUTHORISED, data["status"]["state"])
+        self.assertEqual(["X300"], data["status"]["reason_codes"])
+        self.scheme_account.refresh_from_db()
+        self.assertEqual(self.scheme_account.vouchers[0]["headline"], "Get 10% off for some reason!")
+        self.assertEqual(data["vouchers"][0]["headline"], "Get 10 percent off for some reason!")
+
+    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
+    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_membership_card_status_mapping_system_error(self, *_):
         user_error = AccountLinkStatus.END_SITE_DOWN
         self.scheme_account_entry.link_status = user_error

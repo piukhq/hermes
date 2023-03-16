@@ -48,34 +48,6 @@ class TestVouchers(GlobalMockAPITestCase):
             body_text_cancelled="voucher body",
             body_text_pending="voucher body",
         )
-        cls.vs_accumulator_percent_headline = VoucherScheme.objects.create(
-            scheme=cls.scheme_accumulator_percent_headline,
-            barcode_type=1,
-            expiry_months=3,
-            earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR,
-            earn_prefix="£",
-            earn_suffix="",
-            earn_currency="GBP",
-            earn_target_value=200,
-            burn_type=VoucherScheme.BURNTYPE_VOUCHER,
-            burn_value=None,
-            burn_prefix="10% off",
-            headline_inprogress=(
-                "Spend {{earn_prefix}}{{earn_target_remaining|floatformat:2}} to get a {{burn_prefix}} " "voucher code"
-            ),
-            headline_issued="Earned {{burn_prefix}}",
-            headline_redeemed="Redeemed {{burn_prefix}}",
-            headline_expired="Expired {{burn_prefix}}",
-            headline_cancelled="Cancelled {{burn_prefix}}",
-            headline_pending="Pending {{burn_prefix}}",
-            terms_and_conditions_url="https://example.com",
-            body_text_inprogress="voucher body",
-            body_text_issued="voucher body",
-            body_text_redeemed="voucher body",
-            body_text_expired="voucher body",
-            body_text_cancelled="voucher body",
-            body_text_pending="voucher body",
-        )
         cls.vs_stamps = VoucherScheme.objects.create(
             scheme=cls.scheme_stamps,
             barcode_type=1,
@@ -155,13 +127,6 @@ class TestVouchers(GlobalMockAPITestCase):
         headline_template = vs.get_headline(vouchers.VoucherStateStr.PENDING)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "Voucher pending")
-
-    # This is for a barclays patch since they can't handle '%' in the headline
-    def test_accumulator_percent_inprogress_headline(self):
-        vs = self.vs_accumulator_percent_headline
-        headline_template = vs.get_headline(vouchers.VoucherStateStr.IN_PROGRESS)
-        headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
-        self.assertEqual(headline, "Spend £50.00 to get a 10% off voucher code")
 
     def test_stamps_inprogress_headline(self):
         vs = self.vs_stamps
@@ -262,64 +227,6 @@ class TestVouchers(GlobalMockAPITestCase):
                 "terms_and_conditions_url": "https://example.com",
             },
         )
-
-    # This is for a barclays patch since they can't handle '%' in the headline
-    def test_make_voucher_percent_headline(self):
-        states_and_headlines = [
-            (VoucherStateStr.REDEEMED.value, "Redeemed 10 percent off"),
-            (VoucherStateStr.ISSUED.value, "Earned 10 percent off"),
-            (VoucherStateStr.PENDING.value, "Pending 10 percent off"),
-            (VoucherStateStr.CANCELLED.value, "Cancelled 10 percent off"),
-            (VoucherStateStr.EXPIRED.value, "Expired 10 percent off"),
-            (VoucherStateStr.IN_PROGRESS.value, "Spend £100.00 to get a 10 percent off voucher code"),
-        ]
-
-        for state, headline in states_and_headlines:
-            now = arrow.utcnow().int_timestamp
-            voucher_fields = {
-                "issue_date": now,
-                "redeem_date": now,
-                "expiry_date": now + 1000,
-                "code": "abc123",
-                "value": 300,
-                "target_value": 400,
-                "state": state,
-            }
-            scheme = Scheme.objects.get(slug=TEST_SLUG_ACCUMULATOR_PERCENT)
-            vs: VoucherScheme = self.vs_accumulator_percent_headline
-            account = SchemeAccount.objects.create(scheme=scheme, order=0)
-            voucher = account.make_single_voucher(voucher_fields)
-            self.maxDiff = None
-            self.assertEqual(
-                voucher,
-                {
-                    "earn": {
-                        "type": "accumulator",
-                        "prefix": vs.earn_prefix,
-                        "suffix": vs.earn_suffix,
-                        "currency": vs.earn_currency,
-                        "value": 300,
-                        "target_value": 400,
-                    },
-                    "burn": {
-                        "type": vs.burn_type,
-                        "currency": vs.burn_currency,
-                        "prefix": vs.burn_prefix,
-                        "suffix": vs.burn_suffix,
-                        "value": vs.burn_value,
-                    },
-                    "code": "abc123",
-                    "date_issued": now,
-                    "date_redeemed": now,
-                    "expiry_date": now + 1000,
-                    "headline": headline,
-                    "body_text": "voucher body",
-                    "subtext": "",
-                    "state": state,
-                    "barcode_type": vs.barcode_type,
-                    "terms_and_conditions_url": "https://example.com",
-                },
-            )
 
     def test_make_voucher_sans_expiry_and_redeem_dates(self):
         now = arrow.utcnow().int_timestamp
