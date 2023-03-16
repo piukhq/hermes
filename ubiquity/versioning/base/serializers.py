@@ -806,6 +806,10 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             if voucher.get("body_text"):
                 voucher["body_text"] = None
 
+            # Patch for barclays since they can't handle the % character in headlines
+            if voucher.get("headline"):
+                voucher["headline"] = voucher["headline"].replace("%", " percent")
+
             # handle PENDING vouchers
             self._handle_pending_vouchers(voucher)
 

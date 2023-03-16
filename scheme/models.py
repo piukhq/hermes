@@ -866,9 +866,6 @@ class SchemeAccount(models.Model):
             earn_target_value=earn_target_value,
         )
 
-        # Barclays patch because they can't handle % in headlines
-        headline = headline.replace("%", " percent")
-
         body_text = voucher_scheme.get_body_text(voucher_fields["state"])
 
         voucher = {

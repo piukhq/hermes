@@ -263,64 +263,6 @@ class TestVouchers(GlobalMockAPITestCase):
             },
         )
 
-    # This is for a barclays patch since they can't handle '%' in the headline
-    def test_make_voucher_percent_headline(self):
-        states_and_headlines = [
-            (VoucherStateStr.REDEEMED.value, "Redeemed 10 percent off"),
-            (VoucherStateStr.ISSUED.value, "Earned 10 percent off"),
-            (VoucherStateStr.PENDING.value, "Pending 10 percent off"),
-            (VoucherStateStr.CANCELLED.value, "Cancelled 10 percent off"),
-            (VoucherStateStr.EXPIRED.value, "Expired 10 percent off"),
-            (VoucherStateStr.IN_PROGRESS.value, "Spend £100.00 to get a 10 percent off voucher code"),
-        ]
-
-        for state, headline in states_and_headlines:
-            now = arrow.utcnow().int_timestamp
-            voucher_fields = {
-                "issue_date": now,
-                "redeem_date": now,
-                "expiry_date": now + 1000,
-                "code": "abc123",
-                "value": 300,
-                "target_value": 400,
-                "state": state,
-            }
-            scheme = Scheme.objects.get(slug=TEST_SLUG_ACCUMULATOR_PERCENT)
-            vs: VoucherScheme = self.vs_accumulator_percent_headline
-            account = SchemeAccount.objects.create(scheme=scheme, order=0)
-            voucher = account.make_single_voucher(voucher_fields)
-            self.maxDiff = None
-            self.assertEqual(
-                voucher,
-                {
-                    "earn": {
-                        "type": "accumulator",
-                        "prefix": vs.earn_prefix,
-                        "suffix": vs.earn_suffix,
-                        "currency": vs.earn_currency,
-                        "value": 300,
-                        "target_value": 400,
-                    },
-                    "burn": {
-                        "type": vs.burn_type,
-                        "currency": vs.burn_currency,
-                        "prefix": vs.burn_prefix,
-                        "suffix": vs.burn_suffix,
-                        "value": vs.burn_value,
-                    },
-                    "code": "abc123",
-                    "date_issued": now,
-                    "date_redeemed": now,
-                    "expiry_date": now + 1000,
-                    "headline": headline,
-                    "body_text": "voucher body",
-                    "subtext": "",
-                    "state": state,
-                    "barcode_type": vs.barcode_type,
-                    "terms_and_conditions_url": "https://example.com",
-                },
-            )
-
     def test_make_voucher_sans_expiry_and_redeem_dates(self):
         now = arrow.utcnow().int_timestamp
         voucher_fields = {
