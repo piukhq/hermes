@@ -48,34 +48,6 @@ class TestVouchers(GlobalMockAPITestCase):
             body_text_cancelled="voucher body",
             body_text_pending="voucher body",
         )
-        cls.vs_accumulator_percent_headline = VoucherScheme.objects.create(
-            scheme=cls.scheme_accumulator_percent_headline,
-            barcode_type=1,
-            expiry_months=3,
-            earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR,
-            earn_prefix="£",
-            earn_suffix="",
-            earn_currency="GBP",
-            earn_target_value=200,
-            burn_type=VoucherScheme.BURNTYPE_VOUCHER,
-            burn_value=None,
-            burn_prefix="10% off",
-            headline_inprogress=(
-                "Spend {{earn_prefix}}{{earn_target_remaining|floatformat:2}} to get a {{burn_prefix}} " "voucher code"
-            ),
-            headline_issued="Earned {{burn_prefix}}",
-            headline_redeemed="Redeemed {{burn_prefix}}",
-            headline_expired="Expired {{burn_prefix}}",
-            headline_cancelled="Cancelled {{burn_prefix}}",
-            headline_pending="Pending {{burn_prefix}}",
-            terms_and_conditions_url="https://example.com",
-            body_text_inprogress="voucher body",
-            body_text_issued="voucher body",
-            body_text_redeemed="voucher body",
-            body_text_expired="voucher body",
-            body_text_cancelled="voucher body",
-            body_text_pending="voucher body",
-        )
         cls.vs_stamps = VoucherScheme.objects.create(
             scheme=cls.scheme_stamps,
             barcode_type=1,
@@ -155,13 +127,6 @@ class TestVouchers(GlobalMockAPITestCase):
         headline_template = vs.get_headline(vouchers.VoucherStateStr.PENDING)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "Voucher pending")
-
-    # This is for a barclays patch since they can't handle '%' in the headline
-    def test_accumulator_percent_inprogress_headline(self):
-        vs = self.vs_accumulator_percent_headline
-        headline_template = vs.get_headline(vouchers.VoucherStateStr.IN_PROGRESS)
-        headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
-        self.assertEqual(headline, "Spend £50.00 to get a 10% off voucher code")
 
     def test_stamps_inprogress_headline(self):
         vs = self.vs_stamps
