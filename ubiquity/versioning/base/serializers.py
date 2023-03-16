@@ -762,10 +762,24 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
     """
 
     @staticmethod
-    def _handle_pending_vouchers(voucher):
-        if voucher["state"] == VoucherStateStr.PENDING:
-            voucher["headline"] = None
-            voucher["state"] = VoucherStateStr.ISSUED.value
+    def _handle_vouchers(vouchers):
+        for voucher in vouchers:
+            if voucher.get("code") and voucher["state"] in [
+                VoucherStateStr.EXPIRED,
+                VoucherStateStr.REDEEMED,
+                VoucherStateStr.CANCELLED,
+            ]:
+                voucher["code"] = ""
+            if voucher.get("body_text"):
+                voucher["body_text"] = None
+
+            # Patch for barclays since they can't handle the % character in headlines
+            if voucher.get("headline"):
+                voucher["headline"] = voucher["headline"].replace("%", " percent")
+
+            if voucher["state"] == VoucherStateStr.PENDING:
+                voucher["headline"] = None
+                voucher["state"] = VoucherStateStr.ISSUED.value
 
     def to_representation(self, instance: "SchemeAccount") -> dict:
 
@@ -799,15 +813,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             pll_links = scheme_account_entry.scheme_account.pll_links
 
         balances = self._strip_reward_tier(balances)
-        for voucher in vouchers:
-            if voucher.get("code"):
-                if voucher["state"] in [VoucherStateStr.EXPIRED, VoucherStateStr.REDEEMED, VoucherStateStr.CANCELLED]:
-                    voucher["code"] = ""
-            if voucher.get("body_text"):
-                voucher["body_text"] = None
 
-            # handle PENDING vouchers
-            self._handle_pending_vouchers(voucher)
+        self._handle_vouchers(vouchers)
 
         card_repr = {
             "id": instance.id,
