@@ -3,6 +3,7 @@ import json
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
+import arrow
 import httpretty
 from django.conf import settings
 from django.test import RequestFactory, override_settings
@@ -704,6 +705,47 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.refresh_from_db()
         self.assertEqual(self.scheme_account.vouchers[0]["headline"], "Get 10% off for some reason!")
         self.assertEqual(data["vouchers"][0]["headline"], "Get 10 percent off for some reason!")
+
+    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
+    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
+    def test_membership_card_handle_pending_vouchers(self, *_):
+        now = arrow.utcnow().int_timestamp
+        self.scheme_account_entry.link_status = AccountLinkStatus.ACTIVE
+        self.scheme_account_entry.save()
+
+        vouchers = [
+            {
+                "burn": {"type": "voucher", "value": None, "prefix": "Free", "suffix": "Meal", "currency": ""},
+                "earn": {
+                    "type": "stamps",
+                    "value": 3.0,
+                    "prefix": "",
+                    "suffix": "stamps",
+                    "currency": "",
+                    "target_value": 7.0,
+                },
+                "state": "pending",
+                "subtext": "",
+                "headline": "Some pending voucher headline.",
+                "body_text": "Some pending voucher text. Creative.",
+                "barcode_type": 0,
+                "terms_and_conditions_url": "",
+                "conversion_date": now,
+            },
+        ]
+
+        self.scheme_account.vouchers = vouchers
+        self.scheme_account.save()
+
+        data = MembershipCardSerializer(
+            self.scheme_account,
+            context={"user_id": self.user.id},
+        ).data
+
+        self.assertEqual(data["vouchers"][0]["state"], "issued")
+        self.assertIsNone(data["vouchers"][0]["conversion_date"])
+        self.assertIsNone(data["vouchers"][0]["headline"])
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_balance_with_updated_credentials", autospec=True)
