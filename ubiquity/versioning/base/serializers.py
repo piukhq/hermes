@@ -780,6 +780,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             if voucher["state"] == VoucherStateStr.PENDING:
                 voucher["headline"] = None
                 voucher["state"] = VoucherStateStr.ISSUED.value
+                voucher["conversion_date"] = None
 
     def to_representation(self, instance: "SchemeAccount") -> dict:
 
