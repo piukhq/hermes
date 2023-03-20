@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "ee79050bcd608cf51e51717615010697b9f52afcd2ffd5b7a079e7a4f3858200"
+            "sha256": "7dee466eda12571ea0e79845ed92b2802d776845fd49983379b97c29ecb291e8"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -1097,8 +1097,7 @@
             "version": "==1.6.1"
         },
         "single-beat": {
-            "editable": true,
-            "git": "https://github.com/binkhq/single-beat.git",
+            "git": "ssh://git@github.com/binkhq/single-beat.git",
             "hashes": [
                 "sha256:7561c2b32a7804e44b872434de7170880fc1f5de05aeb1c9c46522710a03fb70",
                 "sha256:f3820f8ba27ea3e35ce1a2cf59ca4e3aaf7ddb7ec909f0a1f52fb2f4739c9dc7"
