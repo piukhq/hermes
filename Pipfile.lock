@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "04d5b34601a58707b975bb5b783953aea3a3e8b288bcc413f31cd77016a223aa"
+            "sha256": "ee79050bcd608cf51e51717615010697b9f52afcd2ffd5b7a079e7a4f3858200"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -21,14 +21,6 @@
         ]
     },
     "default": {
-        "aioredis": {
-            "hashes": [
-                "sha256:9ac0d0b3b485d293b8ca1987e6de8658d7dafcca1cddfcd1d506cae8cdebfdd6",
-                "sha256:eaa51aaf993f2d71f54b70527c440437ba65340588afeb786cd87c55c89cd98e"
-            ],
-            "markers": "python_version >= '3.6'",
-            "version": "==2.0.1"
-        },
         "amqp": {
             "hashes": [
                 "sha256:2c1b13fecc0893e946c65cbd5f36427861cffa4ea2201d8f6fca22e2a373b5e2",
@@ -52,14 +44,6 @@
             ],
             "markers": "python_version >= '3.7'",
             "version": "==3.6.0"
-        },
-        "async-timeout": {
-            "hashes": [
-                "sha256:2163e1640ddb52b7a8c80d0a67a08587e5d245cc9c553a74a847056bc2976b15",
-                "sha256:8ca1e4fcf50d07413d66d1a5e416e42cfdf5851c981d679a09851a6853383b3c"
-            ],
-            "markers": "python_version >= '3.6'",
-            "version": "==4.0.2"
         },
         "azure-common": {
             "hashes": [
@@ -1048,11 +1032,11 @@
         },
         "redis": {
             "hashes": [
-                "sha256:1eec3741cda408d3a5f84b78d089c8b8d895f21b3b050988351e925faf202864",
-                "sha256:5deb072d26e67d2be1712603bfb7947ec3431fb0eec9c578994052e33035af6d"
+                "sha256:4b12b3a1e9bfb43dc533330ec6d142329d0c27ea6bb6716a9d0389e8f2038a4e",
+                "sha256:d8ae1a4f725eea6e3958411870fdf944c587b00ea12be28d3bd5575d8f26430c"
             ],
             "index": "bink-pypi",
-            "version": "==4.5.1"
+            "version": "==4.5.2"
         },
         "requests": {
             "hashes": [
@@ -1113,12 +1097,13 @@
             "version": "==1.6.1"
         },
         "single-beat": {
+            "editable": true,
+            "git": "https://github.com/binkhq/single-beat.git",
             "hashes": [
                 "sha256:7561c2b32a7804e44b872434de7170880fc1f5de05aeb1c9c46522710a03fb70",
                 "sha256:f3820f8ba27ea3e35ce1a2cf59ca4e3aaf7ddb7ec909f0a1f52fb2f4739c9dc7"
             ],
-            "index": "bink-pypi",
-            "version": "==0.6.1"
+            "ref": "789c0e582a7b730d7e99ce3c23a6409a2958e0d9"
         },
         "six": {
             "hashes": [
@@ -1206,14 +1191,6 @@
                 "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128"
             ],
             "version": "==1.4.4"
-        },
-        "async-timeout": {
-            "hashes": [
-                "sha256:2163e1640ddb52b7a8c80d0a67a08587e5d245cc9c553a74a847056bc2976b15",
-                "sha256:8ca1e4fcf50d07413d66d1a5e416e42cfdf5851c981d679a09851a6853383b3c"
-            ],
-            "markers": "python_version >= '3.6'",
-            "version": "==4.0.2"
         },
         "attrs": {
             "hashes": [
@@ -1687,11 +1664,11 @@
         },
         "redis": {
             "hashes": [
-                "sha256:1eec3741cda408d3a5f84b78d089c8b8d895f21b3b050988351e925faf202864",
-                "sha256:5deb072d26e67d2be1712603bfb7947ec3431fb0eec9c578994052e33035af6d"
+                "sha256:4b12b3a1e9bfb43dc533330ec6d142329d0c27ea6bb6716a9d0389e8f2038a4e",
+                "sha256:d8ae1a4f725eea6e3958411870fdf944c587b00ea12be28d3bd5575d8f26430c"
             ],
             "index": "bink-pypi",
-            "version": "==4.5.1"
+            "version": "==4.5.2"
         },
         "requests": {
             "hashes": [

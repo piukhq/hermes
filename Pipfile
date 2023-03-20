@@ -64,7 +64,7 @@ paramiko = "*"
 dj-database-url = "*"
 azure-identity = "*"
 azure-keyvault-secrets = "*"
-single-beat = "*"
+single-beat = {git = "https://github.com/binkhq/single-beat.git", editable = true}
 django = "<4.1"
 tzdata = "*"
 whitenoise = "*"
