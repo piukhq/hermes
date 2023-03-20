@@ -5,7 +5,7 @@ from azure.storage.blob import BlobServiceClient
 from django.conf import settings
 
 
-def upload_files_and_process(correction_script: object, location: str, func: Callable[[dict]]) -> list:
+def upload_files_and_process(correction_script: object, location: str, func: Callable[[dict], None]) -> list:
     results = []
     try:
         blob_service_client = BlobServiceClient.from_connection_string(settings.AZURE_CONNECTION_STRING)
