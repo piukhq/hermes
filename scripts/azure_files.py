@@ -30,7 +30,10 @@ def upload_files_and_process(correction_script: object, location: str, func: Cal
 
 
 def process_files(
-    correction_script: object, file_list: list, type_dir: str, func: Callable[[list, int], tuple[list, int]]
+    correction_script: object,
+    file_list: list,
+    type_dir: str,
+    func: Callable[[object, str, list, int], tuple[list, int]],
 ):
     now = datetime.now()
     now_str = now.strftime("%H%M")
