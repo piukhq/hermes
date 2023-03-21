@@ -21,14 +21,6 @@
         ]
     },
     "default": {
-        "aioredis": {
-            "hashes": [
-                "sha256:9ac0d0b3b485d293b8ca1987e6de8658d7dafcca1cddfcd1d506cae8cdebfdd6",
-                "sha256:eaa51aaf993f2d71f54b70527c440437ba65340588afeb786cd87c55c89cd98e"
-            ],
-            "markers": "python_version >= '3.6'",
-            "version": "==2.0.1"
-        },
         "amqp": {
             "hashes": [
                 "sha256:2c1b13fecc0893e946c65cbd5f36427861cffa4ea2201d8f6fca22e2a373b5e2",
@@ -52,14 +44,6 @@
             ],
             "markers": "python_version >= '3.7'",
             "version": "==3.6.0"
-        },
-        "async-timeout": {
-            "hashes": [
-                "sha256:2163e1640ddb52b7a8c80d0a67a08587e5d245cc9c553a74a847056bc2976b15",
-                "sha256:8ca1e4fcf50d07413d66d1a5e416e42cfdf5851c981d679a09851a6853383b3c"
-            ],
-            "markers": "python_version >= '3.6'",
-            "version": "==4.0.2"
         },
         "azure-common": {
             "hashes": [
@@ -1114,11 +1098,11 @@
         },
         "single-beat": {
             "hashes": [
-                "sha256:ae254595999b9667ed77792cf9c99de0005ccc0eaf076f642b09c83b501ce67e",
-                "sha256:b9033380a2bd8a54713e54a85932477c7897dba68f6c1d0291c5dcccda992825"
+                "sha256:6d065e8230adaa9f6ebf358ca4b86b8ecfefcab884146896af6afac005444a00",
+                "sha256:cf052adbe6144f2e88538675303bd82d8a261157d41108cff7173c3fe69b7445"
             ],
             "index": "bink-pypi",
-            "version": "==0.6.2"
+            "version": "==0.6.3"
         },
         "six": {
             "hashes": [
