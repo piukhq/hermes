@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "7dee466eda12571ea0e79845ed92b2802d776845fd49983379b97c29ecb291e8"
+            "sha256": "04d5b34601a58707b975bb5b783953aea3a3e8b288bcc413f31cd77016a223aa"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -21,6 +21,14 @@
         ]
     },
     "default": {
+        "aioredis": {
+            "hashes": [
+                "sha256:9ac0d0b3b485d293b8ca1987e6de8658d7dafcca1cddfcd1d506cae8cdebfdd6",
+                "sha256:eaa51aaf993f2d71f54b70527c440437ba65340588afeb786cd87c55c89cd98e"
+            ],
+            "markers": "python_version >= '3.6'",
+            "version": "==2.0.1"
+        },
         "amqp": {
             "hashes": [
                 "sha256:2c1b13fecc0893e946c65cbd5f36427861cffa4ea2201d8f6fca22e2a373b5e2",
@@ -44,6 +52,14 @@
             ],
             "markers": "python_version >= '3.7'",
             "version": "==3.6.0"
+        },
+        "async-timeout": {
+            "hashes": [
+                "sha256:2163e1640ddb52b7a8c80d0a67a08587e5d245cc9c553a74a847056bc2976b15",
+                "sha256:8ca1e4fcf50d07413d66d1a5e416e42cfdf5851c981d679a09851a6853383b3c"
+            ],
+            "markers": "python_version >= '3.6'",
+            "version": "==4.0.2"
         },
         "azure-common": {
             "hashes": [
@@ -493,11 +509,11 @@
         },
         "faker": {
             "hashes": [
-                "sha256:51f37ff9df710159d6d736d0ba1c75e063430a8c806b91334d7794305b5a6114",
-                "sha256:5aaa16fa9cfde7d117eef70b6b293a705021e57158f3fa6b44ed1b70202d2065"
+                "sha256:20272ff42eaa3fd0a83d1c4ad27a6c0a58ebded4e48411a635b31643087d4bd6",
+                "sha256:daf4fc907cdc009bfde011db845d9847e0293baa701c49607bac1184f11e5d95"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==17.6.0"
+            "version": "==18.2.0"
         },
         "gunicorn": {
             "hashes": [
@@ -1097,12 +1113,12 @@
             "version": "==1.6.1"
         },
         "single-beat": {
-            "git": "ssh://git@github.com/binkhq/single-beat.git",
             "hashes": [
-                "sha256:7561c2b32a7804e44b872434de7170880fc1f5de05aeb1c9c46522710a03fb70",
-                "sha256:f3820f8ba27ea3e35ce1a2cf59ca4e3aaf7ddb7ec909f0a1f52fb2f4739c9dc7"
+                "sha256:ae254595999b9667ed77792cf9c99de0005ccc0eaf076f642b09c83b501ce67e",
+                "sha256:b9033380a2bd8a54713e54a85932477c7897dba68f6c1d0291c5dcccda992825"
             ],
-            "ref": "789c0e582a7b730d7e99ce3c23a6409a2958e0d9"
+            "index": "bink-pypi",
+            "version": "==0.6.2"
         },
         "six": {
             "hashes": [
@@ -1381,11 +1397,11 @@
         },
         "faker": {
             "hashes": [
-                "sha256:51f37ff9df710159d6d736d0ba1c75e063430a8c806b91334d7794305b5a6114",
-                "sha256:5aaa16fa9cfde7d117eef70b6b293a705021e57158f3fa6b44ed1b70202d2065"
+                "sha256:20272ff42eaa3fd0a83d1c4ad27a6c0a58ebded4e48411a635b31643087d4bd6",
+                "sha256:daf4fc907cdc009bfde011db845d9847e0293baa701c49607bac1184f11e5d95"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==17.6.0"
+            "version": "==18.2.0"
         },
         "fakeredis": {
             "hashes": [
