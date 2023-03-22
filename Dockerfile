@@ -1,4 +1,4 @@
-FROM ghcr.io/binkhq/python:3.9-pipenv
+FROM ghcr.io/binkhq/python:3.11-pipenv
 
 WORKDIR /app
 ADD . .
