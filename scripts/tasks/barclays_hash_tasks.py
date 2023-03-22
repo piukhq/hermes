@@ -67,7 +67,7 @@ def select_correction(
         if vop:
             correction_script.set_correction(Correction.VOP_REMOVE_DEACTIVATE_AND_DELETE_PAYMENT_ACCOUNT)
         else:
-            correction_script.set_correction(Correction.REMOVE_UNENROLL_DELETE_PAYMENT_ACCOUNT)
+            correction_script.set_correction(Correction.REMOVE_UN_ENROLL_DELETE_PAYMENT_ACCOUNT)
     elif len(owners) > 1:
         correction_script.set_correction(Correction.REMOVE_PAYMENT_ACCOUNT)
 
