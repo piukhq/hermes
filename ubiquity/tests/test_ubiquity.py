@@ -1140,7 +1140,7 @@ class TestResources(GlobalMockAPITestCase):
             # resp_json["status"], {"state": "unauthorised", "reason_codes": ["X103"], "error_text": "Wallet only card"}
             # now 2nd user is pending until response from Midas responds (ie background tasks mocked out run)
             resp_json["status"],
-            {"state": "pending", "reason_codes": ["X100"], "error_text": "Pending"},
+            {"state": "pending", "reason_codes": ["X100"], "error_text": "Add Auth Pending"},
         )
 
         user_links = SchemeAccountEntry.objects.filter(scheme_account=existing_scheme_account)
@@ -3365,6 +3365,31 @@ class TestLastManStanding(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 403)
 
 
+def setup_user_and_email_scheme(client_app, bundle, email):
+    # Setup new scheme with all question types as auth fields and create existing scheme account
+    new_user = UserFactory(external_id=email, client=client_app, email=email)
+    scheme = SchemeFactory()
+    SchemeBundleAssociationFactory(scheme=scheme, bundle=bundle, status=SchemeBundleAssociation.ACTIVE)
+    card_num_question = SchemeCredentialQuestionFactory(
+        scheme=scheme,
+        type=CARD_NUMBER,
+        label=CARD_NUMBER,
+        manual_question=True,
+        add_field=True,
+    )
+    email_question = SchemeCredentialQuestionFactory(
+        scheme=scheme,
+        type=EMAIL,
+        label=EMAIL,
+        auth_field=True,
+        enrol_field=True,
+        register_field=True,
+        options=SchemeCredentialQuestion.LINK_AND_JOIN,
+    )
+
+    return new_user, scheme, card_num_question, email_question
+
+
 class TestHistoryResources(GlobalMockAPIHistoryTestCase):
     @classmethod
     def _get_auth_header(cls, user):
@@ -3567,3 +3592,91 @@ class TestHistoryResources(GlobalMockAPIHistoryTestCase):
         self.assertTrue(request_event)
         self.assertFalse(response_success)
         self.assertTrue(response_fail)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("history.data_warehouse.to_data_warehouse")
+    @patch.object(SchemeAccount, "_get_balance")
+    def test_history_add_and_auth(self, mock_get_midas_response, mock_to_data_warehouse, *_):
+        email = "user1_test@test.com"
+        user1, scheme, card_num_question, email_question = setup_user_and_email_scheme(
+            self.client_app, self.bundle, email
+        )
+
+        payload = json.dumps(
+            {
+                "membership_plan": scheme.id,
+                "account": {
+                    "add_fields": [{"column": CARD_NUMBER, "value": "123456789"}],
+                    "authorise_fields": [{"column": EMAIL, "value": email}],
+                },
+            }
+        )
+
+        mock_get_midas_response.return_value = MockMidasBalanceResponse(200)
+
+        response = self.client.post(
+            reverse("membership-cards"),
+            data=payload,
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self._get_auth_header(user1),
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(mock_get_midas_response.called)
+        self.assertTrue(mock_to_data_warehouse.called)
+        # The sequence is a bit weird with 2 status updates as it calls get balance twice - once in main background
+        # process and once triggering another async_balance.delay to get balance from the serializer to_representation.
+        request_event = {}
+        response_success = {}
+        response_fail = {}
+        for call_number in range(0, len(mock_to_data_warehouse.call_args_list)):
+            args = mock_to_data_warehouse.call_args_list[call_number][0][0]
+            if args["event_type"] == "lc.addandauth.request":
+                request_event = args
+            elif args["event_type"] == "lc.addandauth.success":
+                response_success = args
+            elif args["event_type"] == "lc.addandauth.failed":
+                response_fail = args
+        self.assertTrue(request_event)
+        self.assertTrue(response_success)
+        self.assertFalse(response_fail)
+        sae = SchemeAccountEntry.objects.get(scheme_account__scheme=scheme, user=user1)
+        self.assertEqual(sae.link_status, AccountLinkStatus.ACTIVE)
+
+        # Second wallet with same card should also give same events
+        email2 = "user2_test@test.com"
+        user2 = UserFactory(external_id=email2, client=self.client_app, email=email2)
+        response = self.client.post(
+            reverse("membership-cards"),
+            data=payload,
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self._get_auth_header(user2),
+        )
+        self.assertEqual(response.status_code, 200)
+        sae2 = SchemeAccountEntry.objects.get(scheme_account__scheme=scheme, user=user2)
+        self.assertEqual(sae2.link_status, AccountLinkStatus.ACTIVE)
+
+        self.assertTrue(mock_get_midas_response.called)
+        self.assertTrue(mock_to_data_warehouse.called)
+        last_request_event = {}
+        request_event_count = 0
+        last_response_success = {}
+        response_success_count = 0
+        last_response_fail = {}
+        response_fail_count = 0
+        for call_number in range(0, len(mock_to_data_warehouse.call_args_list)):
+            args = mock_to_data_warehouse.call_args_list[call_number][0][0]
+            if args["event_type"] == "lc.addandauth.request":
+                last_request_event = args
+                request_event_count += 1
+            elif args["event_type"] == "lc.addandauth.success":
+                last_response_success = args
+                response_success_count += 1
+            elif args["event_type"] == "lc.addandauth.failed":
+                last_response_fail = args
+                response_fail_count += 1
+        self.assertTrue(last_request_event)
+        self.assertTrue(last_response_success)
+        self.assertFalse(last_response_fail)
+        self.assertEqual(request_event_count, 2)
+        self.assertEqual(response_fail_count, 0)
+        self.assertEqual(response_success_count, 2)
