@@ -1144,6 +1144,8 @@ class MembershipCardView(
                 auth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
             else:
                 addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
+                sch_acc_entry.link_status = AccountLinkStatus.ADD_AUTH_PENDING
+                sch_acc_entry.save(update_fields=["link_status"])
 
             metrics_route = MembershipCardAddRoute.MULTI_WALLET
             async_link.delay(
