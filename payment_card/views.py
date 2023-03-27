@@ -263,43 +263,50 @@ class RetrievePaymentCardUserInfo(APIView):
                 payment_card_account__id__in=(p.payment_card_account.id for p in payment_card_entries),
             )
 
-            if active_links.exists():
-                scheme_account = active_links.order_by("scheme_account__created").first().scheme_account
-                user_id = scheme_account.get_transaction_matching_user_id()
-
-                scheme_account_entry = SchemeAccountEntry.objects.get(user=user_id, scheme_account=scheme_account)
-
-                response_data[payment_card_token] = {
-                    "loyalty_id": scheme_account_entry.third_party_identifier,
-                    "scheme_account_id": scheme_account.id,
-                    "user_id": user_id,
-                    "credentials": scheme_account_entry.credentials(),
-                }
-            else:
-                # the user was matched but is not registered in that scheme
-                response_data[payment_card_token] = {
-                    "loyalty_id": None,
-                    "scheme_account_id": None,
-                    "user_id": payment_card_entries.first().user.id,
-                    "credentials": "",
-                }
-
-            active_card = next(
-                (x for x in payment_card_entries if x.payment_card_account.status == PaymentCardAccount.ACTIVE), None
+            RetrievePaymentCardUserInfo._create_user_info_resp(
+                active_links, response_data, payment_card_token, payment_card_entries
             )
-            if active_card:
-                response_data[payment_card_token]["card_information"] = {
-                    "first_six": active_card.payment_card_account.pan_start,
-                    "last_four": active_card.payment_card_account.pan_end,
-                    "expiry_year": active_card.payment_card_account.expiry_year,
-                    "expiry_month": active_card.payment_card_account.expiry_month,
-                }
-
-            response_data[payment_card_token]["payment_card_account_id"] = payment_card_entries[
-                0
-            ].payment_card_account.id
 
         return JsonResponse(response_data, safe=False)
+
+    @staticmethod
+    def _create_user_info_resp(active_links, response_data, payment_card_token, payment_card_entries) -> None:
+        user_id = None
+        scheme_account = None
+        if active_links.exists():
+            scheme_account = active_links.order_by("scheme_account__created").first().scheme_account
+            user_id = scheme_account.get_transaction_matching_user_id()
+
+        if user_id and scheme_account:
+            scheme_account_entry = SchemeAccountEntry.objects.get(user=user_id, scheme_account=scheme_account)
+
+            response_data[payment_card_token] = {
+                "loyalty_id": scheme_account_entry.third_party_identifier,
+                "scheme_account_id": scheme_account.id,
+                "user_id": user_id,
+                "credentials": scheme_account_entry.credentials(),
+            }
+        else:
+            # the user was matched but is not registered in that scheme
+            response_data[payment_card_token] = {
+                "loyalty_id": None,
+                "scheme_account_id": None,
+                "user_id": payment_card_entries.first().user.id,
+                "credentials": "",
+            }
+
+        active_card = next(
+            (x for x in payment_card_entries if x.payment_card_account.status == PaymentCardAccount.ACTIVE), None
+        )
+        if active_card:
+            response_data[payment_card_token]["card_information"] = {
+                "first_six": active_card.payment_card_account.pan_start,
+                "last_four": active_card.payment_card_account.pan_end,
+                "expiry_year": active_card.payment_card_account.expiry_year,
+                "expiry_month": active_card.payment_card_account.expiry_month,
+            }
+
+        response_data[payment_card_token]["payment_card_account_id"] = payment_card_entries[0].payment_card_account.id
 
 
 class UpdatePaymentCardAccountStatus(GenericAPIView):

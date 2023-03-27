@@ -961,13 +961,16 @@ class SchemeAccount(models.Model):
 
     def get_transaction_matching_user_id(self):
         # todo: Awaiting confirmation of whether this should be sent as a list or is even needed by harmonia.
-        return (
-            self.user_set.filter(schemeaccountentry__link_status=AccountLinkStatus.ACTIVE)
-            .order_by("date_joined")
-            .values("id")
-            .first()
-            .get("id")
-        )
+        try:
+            return (
+                self.user_set.filter(schemeaccountentry__link_status=AccountLinkStatus.ACTIVE)
+                .order_by("date_joined")
+                .values("id")
+                .first()
+                .get("id")
+            )
+        except AttributeError:
+            return None
 
     def save(self, *args, **kwargs):
         # Only when we update, we update the updated date time.
