@@ -746,7 +746,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             )
         )
 
-    @patch("api_messaging.midas_messaging.to_midas", auto_spec=True, return_value=MagicMock())
+    @patch("api_messaging.midas_messaging.to_midas", autospec=True, return_value=MagicMock())
     def test_register_join_endpoint_create_scheme_account(self, _mock_message):
 
         scheme = SchemeFactory()
@@ -794,7 +794,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(len(scheme_account_entry.schemeaccountcredentialanswer_set.all()), 1)
         self.assertTrue(scheme_account_entry.schemeaccountcredentialanswer_set.filter(question=link_question))
 
-    @patch("api_messaging.midas_messaging.to_midas", auto_spec=True, return_value=MagicMock())
+    @patch("api_messaging.midas_messaging.to_midas", autospec=True, return_value=MagicMock())
     def test_register_join_endpoint_optional_join_not_required(self, _mock_message):
 
         scheme = SchemeFactory()
@@ -810,7 +810,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         resp = self.client.post("/schemes/{}/join".format(scheme.id), **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 201)
 
-    @patch("api_messaging.midas_messaging.to_midas", auto_spec=True, return_value=MagicMock())
+    @patch("api_messaging.midas_messaging.to_midas", autospec=True, return_value=MagicMock())
     def test_register_join_endpoint_saves_user_profile(self, _mock_message):
 
         scheme = SchemeFactory()
@@ -997,7 +997,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         scheme_account = SchemeAccountFactory(scheme=scheme)
         self.assertIsNone(scheme_account.card_label)
 
-    @patch.object(SchemeAccountEntry, "credentials", auto_spec=True, return_value=None)
+    @patch.object(SchemeAccountEntry, "credentials", autospec=True, return_value=None)
     def test_get_midas_balance_no_credentials(self, mock_credentials):
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
@@ -1007,7 +1007,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertIsNone(points)
         self.assertTrue(mock_credentials.called)
 
-    @patch("requests.get", auto_spec=True, return_value=MagicMock())
+    @patch("requests.get", autospec=True, return_value=MagicMock())
     def test_get_midas_balance(self, mock_request):
         mock_request.return_value.status_code = 200
         mock_request.return_value.json.return_value = {"points": 500}
@@ -1020,7 +1020,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertFalse(points["is_stale"])
         self.assertEqual(entry.link_status, AccountLinkStatus.ACTIVE)
 
-    @patch("requests.get", auto_spec=True, return_value=MagicMock())
+    @patch("requests.get", autospec=True, return_value=MagicMock())
     def test_get_midas_balance_dw_event(self, mock_request):
         mock_request.return_value.status_code = 200
         mock_request.return_value.json.return_value = {"points": 500}
@@ -1034,7 +1034,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertFalse(points["is_stale"])
         self.assertEqual(entry.link_status, AccountLinkStatus.ACTIVE)
 
-    @patch("requests.get", auto_spec=True, side_effect=ConnectionError)
+    @patch("requests.get", autospec=True, side_effect=ConnectionError)
     def test_get_midas_balance_connection_error(self, mock_request):
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
@@ -1045,7 +1045,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertTrue(mock_request.called)
         self.assertEqual(entry.link_status, AccountLinkStatus.MIDAS_UNREACHABLE)
 
-    @patch("requests.get", auto_spec=True, return_value=MagicMock())
+    @patch("requests.get", autospec=True, return_value=MagicMock())
     def test_get_midas_balance_invalid_status(self, mock_request):
         invalid_status = 502
         mock_request.return_value.status_code = invalid_status
@@ -1063,7 +1063,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.UNKNOWN_ERROR)
 
-    @patch("requests.get", auto_spec=True, return_value=MagicMock())
+    @patch("requests.get", autospec=True, return_value=MagicMock())
     def test_get_midas_balance_link_limit_exceeded(self, mock_request):
         test_status = AccountLinkStatus.LINK_LIMIT_EXCEEDED
         mock_request.return_value.status_code = test_status
@@ -1077,7 +1077,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertEqual(scheme_account_entry.link_status, test_status)
         self.assertEqual(scheme_account_entry.display_status, AccountLinkStatus.WALLET_ONLY)
 
-    @patch("requests.get", auto_spec=True, return_value=MagicMock())
+    @patch("requests.get", autospec=True, return_value=MagicMock())
     def test_get_midas_balance_card_not_registered(self, mock_request):
         test_status = AccountLinkStatus.CARD_NOT_REGISTERED
         mock_request.return_value.status_code = test_status
@@ -1091,7 +1091,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertEqual(scheme_account_entry.link_status, test_status)
         self.assertEqual(scheme_account_entry.display_status, AccountLinkStatus.JOIN)
 
-    @patch("requests.get", auto_spec=True, return_value=MagicMock())
+    @patch("requests.get", autospec=True, return_value=MagicMock())
     def test_get_midas_balance_card_number_error(self, mock_request):
         test_status = AccountLinkStatus.CARD_NUMBER_ERROR
         mock_request.return_value.status_code = test_status
@@ -1105,7 +1105,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertEqual(scheme_account_entry.link_status, test_status)
         self.assertEqual(scheme_account_entry.display_status, AccountLinkStatus.WALLET_ONLY)
 
-    @patch("requests.get", auto_spec=True, return_value=MagicMock())
+    @patch("requests.get", autospec=True, return_value=MagicMock())
     def test_get_midas_balance_general_error(self, mock_request):
         test_status = AccountLinkStatus.GENERAL_ERROR
         mock_request.return_value.status_code = test_status
@@ -1119,7 +1119,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertEqual(scheme_account_entry.link_status, test_status)
         self.assertEqual(scheme_account_entry.display_status, AccountLinkStatus.WALLET_ONLY)
 
-    @patch("requests.get", auto_spec=True, return_value=MagicMock())
+    @patch("requests.get", autospec=True, return_value=MagicMock())
     def test_get_midas_join_error(self, mock_request):
         test_status = AccountLinkStatus.JOIN_ERROR
         mock_request.return_value.status_code = test_status
@@ -1138,7 +1138,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.JOIN_ERROR)
         self.assertEqual(scheme_account_entry.display_status, AccountLinkStatus.WALLET_ONLY)
 
-    @patch("requests.get", auto_spec=True, return_value=MagicMock())
+    @patch("requests.get", autospec=True, return_value=MagicMock())
     def test_get_midas_join_in_progress(self, mock_request):
         test_status = AccountLinkStatus.JOIN_IN_PROGRESS
         mock_request.return_value.status_code = test_status
@@ -1152,7 +1152,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertEqual(scheme_account_entry.link_status, test_status)
         self.assertEqual(scheme_account_entry.display_status, AccountLinkStatus.WALLET_ONLY)
 
-    @patch("requests.get", auto_spec=True, return_value=MagicMock())
+    @patch("requests.get", autospec=True, return_value=MagicMock())
     def test_ignore_midas_500_error(self, mock_request):
         test_status = AccountLinkStatus.TRIPPED_CAPTCHA
         mock_request.return_value.status_code = test_status
@@ -1165,7 +1165,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.ACTIVE)
         self.assertEqual(scheme_account_entry.display_status, AccountLinkStatus.ACTIVE)
 
-    @patch("requests.get", auto_spec=True, return_value=MagicMock())
+    @patch("requests.get", autospec=True, return_value=MagicMock())
     def test_midas_500_error_preserve_scheme_account_error_status(self, mock_request):
         test_status = AccountLinkStatus.RESOURCE_LIMIT_REACHED
         mock_request.return_value.status_code = test_status
