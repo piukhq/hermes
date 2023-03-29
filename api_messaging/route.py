@@ -15,10 +15,10 @@ logger = logging.getLogger("messaging")
 
 
 # Keeping it basic for now and only retry on DoesNotExist exceptions
-def retry(func):
+def retry(headers: dict, message: dict, route: dict) -> None:
     for i in range(settings.API_MESSAGING_RETRY_LIMIT):
         try:
-            func
+            route[headers["X-http-path"]](message)
             break
         except ObjectDoesNotExist as e:
             sleep(1)
@@ -26,8 +26,10 @@ def retry(func):
             if i == settings.API_MESSAGING_RETRY_LIMIT:
                 raise e
             else:
-                logger.info(f"Retrying function: {func}")
+                logger.info(f"Retrying function: {headers['X-http-path']}")
                 continue
+        except KeyError:
+            raise InvalidMessagePath
 
 
 def on_message_received(body, message):
@@ -83,7 +85,4 @@ def route_message(headers: dict, message: dict):
         "user_session": angelia_background.user_session,
     }
 
-    try:
-        retry(route[headers["X-http-path"]](message))
-    except KeyError:
-        raise InvalidMessagePath
+    retry(headers, message, route)
