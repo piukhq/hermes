@@ -829,3 +829,5 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 STATIC_URL = "/admin/static/"
 STATIC_ROOT = "/tmp/static/"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+API_MESSAGING_RETRY_LIMIT = env_var("API_MESSAGING_RETRY_LIMIT", 3)
