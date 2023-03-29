@@ -96,12 +96,6 @@ class AngeliaContext:
 
     def __exit__(self, exc_type, exc_value, exc_tb):
         clean_history_kwargs(self.history_kwargs)
-        if exc_value:
-            # Handle Error...
-            logger.exception(
-                f"An Angelia Background exception occurred in block: {exc_type}," f" Exception message: {exc_value}"
-            )
-            return True
 
 
 def credentials_to_key_pairs(cred_list: list) -> dict:

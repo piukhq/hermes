@@ -2,6 +2,7 @@ import json
 import logging
 from time import sleep
 
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import close_old_connections
 from django.http import Http404
@@ -9,27 +10,32 @@ from urllib3.exceptions import RequestError
 
 from api_messaging import angelia_background
 from api_messaging.exceptions import InvalidMessagePath, MessageReject, MessageRequeue
-from django.conf import settings
 
 logger = logging.getLogger("messaging")
 
 
 # Keeping it basic for now and only retry on DoesNotExist exceptions
 def retry(headers: dict, message: dict, route: dict) -> None:
-    for i in range(settings.API_MESSAGING_RETRY_LIMIT):
+    for retry_count in range(settings.API_MESSAGING_RETRY_LIMIT):
         try:
             route[headers["X-http-path"]](message)
             break
         except ObjectDoesNotExist as e:
             sleep(1)
-            # Retry if object doesn't exist
-            if i == settings.API_MESSAGING_RETRY_LIMIT:
-                raise e
+            if retry_count == settings.API_MESSAGING_RETRY_LIMIT:
+                logger.exception(
+                    f"An Angelia Background exception occurred. Traceback: {e}"
+                )
+                break
             else:
                 logger.info(f"Retrying function: {headers['X-http-path']}")
-                continue
         except KeyError:
             raise InvalidMessagePath
+        except Exception as e:
+            logger.exception(
+                f"An Angelia Background exception occurred. Traceback: {e}"
+            )
+            break
 
 
 def on_message_received(body, message):
