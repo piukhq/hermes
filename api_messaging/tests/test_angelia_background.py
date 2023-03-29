@@ -1,4 +1,3 @@
-import json
 from unittest.mock import patch
 
 from django.conf import settings
@@ -6,8 +5,6 @@ from django.test import override_settings
 
 from api_messaging.angelia_background import (
     delete_payment_account,
-    loyalty_card_add,
-    loyalty_card_add_authorise,
     loyalty_card_join,
     loyalty_card_register,
     post_payment_account,
@@ -17,22 +14,14 @@ from history.utils import GlobalMockAPITestCase, MockMidasBalanceResponse
 from payment_card.enums import RequestMethod
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
-from scheme.credentials import BARCODE, CARD_NUMBER, EMAIL, LAST_NAME, MERCHANT_IDENTIFIER, POSTCODE
-from scheme.encryption import AESCipher
-from scheme.models import (
-    SchemeAccount,
-    SchemeAccountCredentialAnswer,
-    SchemeBundleAssociation,
-    SchemeCredentialQuestion,
-)
+from scheme.credentials import EMAIL, POSTCODE
+from scheme.models import SchemeAccount, SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.tests.factories import (
     SchemeAccountFactory,
     SchemeBalanceDetailsFactory,
     SchemeBundleAssociationFactory,
-    SchemeCredentialQuestionFactory,
     SchemeFactory,
 )
-from ubiquity.channel_vault import AESKeyNames
 from ubiquity.models import (
     AccountLinkStatus,
     PaymentCardAccountEntry,
@@ -650,7 +639,8 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         self.assertEqual(user_pll.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
 
     # todo: test needs fixing but commenting out for now to release hotfix
-    # @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    # @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True,
+    # BROKER_BACKEND="memory")
     # @patch.object(SchemeAccount, "_get_balance")
     # def test_duplicate_cards_in_2_wallets(self, mock_get_midas_response):
     #     """
@@ -758,7 +748,8 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
     #     self.assertEqual(user_pll_2.slug, WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
 
     # todo: test needs fixing but commenting out for now to release hotfix
-    # @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    # @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True,
+    # BROKER_BACKEND="memory")
     # @patch.object(SchemeAccount, "_get_balance")
     # def test_duplicate_cards_in_pay_last_2_wallets(self, mock_get_midas_response):
     #     """
@@ -899,7 +890,8 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
                 self.assertEqual(mock_metis_request.call_args.args[1], "/payment_service/payment_card")
 
     # todo: test needs fixing but commenting out for now to release hotfix
-    # @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    # @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True,
+    # BROKER_BACKEND="memory")
     # @patch.object(SchemeAccount, "_get_balance")
     # def test_auth_request_deletes_merchant_identifier(self, mock_get_midas_response):
     #     # Question setup
@@ -909,7 +901,8 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
     #     barcode_q = SchemeCredentialQuestionFactory(
     #         scheme=self.scheme, type=BARCODE, label=BARCODE, scan_question=True, add_field=True
     #     )
-    #     postcode_q = SchemeCredentialQuestionFactory(scheme=self.scheme, type=POSTCODE, label=POSTCODE, auth_field=True)
+    #     postcode_q = SchemeCredentialQuestionFactory(scheme=self.scheme, type=POSTCODE, label=POSTCODE,
+    #     auth_field=True)
     #     last_name_q = SchemeCredentialQuestionFactory(
     #         scheme=self.scheme,
     #         type=LAST_NAME,

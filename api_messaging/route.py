@@ -23,18 +23,14 @@ def retry(headers: dict, message: dict, route: dict) -> None:
         except ObjectDoesNotExist as e:
             sleep(1)
             if retry_count == settings.API_MESSAGING_RETRY_LIMIT:
-                logger.exception(
-                    f"An Angelia Background exception occurred. Traceback: {e}"
-                )
+                logger.exception(f"An Angelia Background exception occurred. Traceback: {e}")
                 break
             else:
                 logger.info(f"Retrying function: {headers['X-http-path']}")
         except KeyError:
             raise InvalidMessagePath
         except Exception as e:
-            logger.exception(
-                f"An Angelia Background exception occurred. Traceback: {e}"
-            )
+            logger.exception(f"An Angelia Background exception occurred. Traceback: {e}")
             break
 
 
