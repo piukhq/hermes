@@ -1142,10 +1142,11 @@ class MembershipCardView(
             # auth fields provided, new scheme account not created (linking to existing scheme account)
             if not sch_acc_entry_created:
                 auth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
+                sch_acc_entry.set_link_status(AccountLinkStatus.AUTH_PENDING)
             else:
                 addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
                 sch_acc_entry.link_status = AccountLinkStatus.ADD_AUTH_PENDING
-                sch_acc_entry.save(update_fields=["link_status"])
+            sch_acc_entry.save(update_fields=["link_status"])
 
             metrics_route = MembershipCardAddRoute.MULTI_WALLET
             async_link.delay(
