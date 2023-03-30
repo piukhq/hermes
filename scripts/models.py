@@ -14,3 +14,4 @@ class ScriptResult(models.Model):
     results = JSONField(default=list, null=True, blank=True)
     correction = models.IntegerField(choices=CHOICES, default=0, help_text="Correction Required", db_index=True)
     apply = models.IntegerField(choices=CHOICES, default=0, help_text="Correction to Apply Now", db_index=True)
+    script_run_uid = models.UUIDField(blank=True, null=True)
