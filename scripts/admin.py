@@ -66,7 +66,7 @@ def user_can_run_script(request):
 
 @admin.register(ScriptResult)
 class ScriptResultAdmin(admin.ModelAdmin):
-    list_display = ("script_name", "item_id", "done", "apply", "correction", "results")
+    list_display = ("script_name", "item_id", "script_run_uid", "done", "apply", "correction", "results")
     list_filter = (
         "script_name",
         "done",
@@ -74,7 +74,7 @@ class ScriptResultAdmin(admin.ModelAdmin):
         "correction",
     )
     readonly_fields = ("script_name", "item_id", "data", "results", "correction", "apply", "done")
-    search_fields = ("script_name", "done", "data", "results")
+    search_fields = ("script_run_uid", "script_name", "done", "data", "results")
     list_per_page = 500
     actions = [apply_correction, apply_correction_in_background]
 

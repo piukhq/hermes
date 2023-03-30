@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from scripts.models import ScriptResult
 
 from ..actions.corrections import Correction
@@ -15,6 +17,7 @@ class BaseScript:
         self.correction_function = Correction.NO_CORRECTION
         self._sequence = []
         self.summary = ""
+        self.script_run_uid = uuid4()
 
     def script(self):
         """
@@ -44,7 +47,12 @@ class BaseScript:
         sr, created = ScriptResult.objects.get_or_create(
             item_id=unique_ref,
             script_name=self.script_name,
-            defaults={"data": data, "apply": self._sequence[0], "correction": self.correction_function},
+            defaults={
+                "data": data,
+                "apply": self._sequence[0],
+                "correction": self.correction_function,
+                "script_run_uid": self.script_run_uid,
+            },
         )
         self.correction_count += 1
         if created:

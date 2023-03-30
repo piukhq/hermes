@@ -81,6 +81,26 @@ from user.tests.factories import (
 )
 
 
+def check_events(mock_to_data_warehouse: object, event_types: list) -> (dict, dict):
+    found_events = {}
+    count_events = {}
+    for e in event_types:
+        count_events[e] = 0
+        found_events[e] = {}
+
+    for call_number in range(0, len(mock_to_data_warehouse.call_args_list)):
+        args = mock_to_data_warehouse.call_args_list[call_number][0][0]
+        event_type = args["event_type"]
+        if event_type in event_types:
+            count_events[event_type] += 1
+            if event_type == "lc.statuschange":
+                found_events["lc.statuschange"][args["to_status"]] = args
+            else:
+                found_events[event_type][count_events[event_type]] = args
+
+    return found_events, count_events
+
+
 class RequestMock:
     channels_permit = None
 
@@ -1013,7 +1033,7 @@ class TestResources(GlobalMockAPITestCase):
         )
         self.assertEqual(resp.status_code, 200)
         # data not the same since we added auth_pending / add_auth_pending status
-        status = {"state": "pending", "reason_codes": ["X100"], "error_text": "Add Auth Pending"}
+        status = {"state": "pending", "reason_codes": ["X100"], "error_text": "Auth Pending"}
 
         self.assertEqual(status, resp.data["status"])
         # remove the status field then check the dict's are equal
@@ -1596,7 +1616,7 @@ class TestResources(GlobalMockAPITestCase):
         )
         self.assertEqual(resp.status_code, 200)
         # data not the same since we added auth_pending / add_auth_pending status
-        status = {"state": "pending", "reason_codes": ["X100"], "error_text": "Add Auth Pending"}
+        status = {"state": "pending", "reason_codes": ["X100"], "error_text": "Auth Pending"}
 
         self.assertEqual(status, resp.data["status"])
         # remove the status field then check the dict's are equal
@@ -3547,7 +3567,7 @@ class TestHistoryResources(GlobalMockAPIHistoryTestCase):
                 request_event = args
             elif args["event_type"] == "lc.auth.success":
                 response_success = args
-            elif args["event_type"] == "lc.auth.fail":
+            elif args["event_type"] == "lc.auth.failed":
                 response_fail = args
         self.assertTrue(request_event)
         self.assertTrue(response_success)
@@ -3680,3 +3700,116 @@ class TestHistoryResources(GlobalMockAPIHistoryTestCase):
         self.assertEqual(request_event_count, 2)
         self.assertEqual(response_fail_count, 0)
         self.assertEqual(response_success_count, 2)
+
+    def add_to_wallet(self, card_number, email, mock_get_midas_response, mock_to_data_warehouse):
+
+        user1, scheme, card_num_question, email_question = setup_user_and_email_scheme(
+            self.client_app, self.bundle, email
+        )
+
+        payload = json.dumps(
+            {
+                "membership_plan": scheme.id,
+                "account": {
+                    "add_fields": [{"column": CARD_NUMBER, "value": card_number}],
+                },
+            }
+        )
+
+        response = self.client.post(
+            reverse("membership-cards"),
+            content_type="application/json",
+            data=payload,
+            **self.auth_headers,
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertFalse(mock_get_midas_response.called)
+        self.assertTrue(mock_to_data_warehouse.called)
+
+        count = 0
+        for call_number in range(0, len(mock_to_data_warehouse.call_args_list)):
+            args = mock_to_data_warehouse.call_args_list[call_number][0][0]
+            if args["event_type"] == "user.created":
+                count += 1
+            elif args["event_type"] == "lc.statuschange" and args["to_status"] == AccountLinkStatus.WALLET_ONLY.value:
+                count += 1
+        self.assertEqual(count, 2)
+        return scheme, user1, response.data["id"]
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("history.data_warehouse.to_data_warehouse")
+    @patch.object(SchemeAccount, "_get_balance")
+    def test_history_membership_card_auth_success(self, mock_get_midas_response, mock_to_data_warehouse, *_):
+        card_number = "123456789"
+        email = "user1_test@test.com"
+        scheme, _, _ = self.add_to_wallet(card_number, email, mock_get_midas_response, mock_to_data_warehouse)
+
+        mock_get_midas_response.return_value = MockMidasBalanceResponse(200)
+
+        payload = json.dumps(
+            {
+                "membership_plan": scheme.id,
+                "account": {
+                    "add_fields": [{"column": CARD_NUMBER, "value": card_number}],
+                    "authorise_fields": [{"column": EMAIL, "value": email}],
+                },
+            }
+        )
+        response = self.client.post(
+            reverse("membership-cards"),
+            content_type="application/json",
+            data=payload,
+            **self.auth_headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(mock_get_midas_response.called)
+        self.assertTrue(mock_to_data_warehouse.called)
+
+        events, counts = check_events(
+            mock_to_data_warehouse, ["lc.auth.request", "lc.auth.success", "lc.auth.failed", "lc.statuschange"]
+        )
+        self.assertEqual(counts["lc.auth.request"], 1)
+        self.assertEqual(counts["lc.auth.success"], 1)
+        self.assertEqual(counts["lc.auth.failed"], 0)
+        self.assertTrue(events["lc.statuschange"].get(AccountLinkStatus.AUTH_PENDING.value))
+        self.assertTrue(events["lc.statuschange"].get(AccountLinkStatus.ACTIVE.value))
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("history.data_warehouse.to_data_warehouse")
+    @patch.object(SchemeAccount, "_get_balance")
+    def test_history_membership_card_auth_fail(self, mock_get_midas_response, mock_to_data_warehouse, *_):
+        card_number = "123456789"
+        email = "user1_test@test.com"
+
+        scheme, _, _ = self.add_to_wallet(card_number, email, mock_get_midas_response, mock_to_data_warehouse)
+
+        mock_get_midas_response.return_value = MockMidasBalanceResponse(AccountLinkStatus.INVALID_CREDENTIALS.value)
+
+        payload = json.dumps(
+            {
+                "membership_plan": scheme.id,
+                "account": {
+                    "add_fields": [{"column": CARD_NUMBER, "value": card_number}],
+                    "authorise_fields": [{"column": EMAIL, "value": email}],
+                },
+            }
+        )
+        response = self.client.post(
+            reverse("membership-cards"),
+            content_type="application/json",
+            data=payload,
+            **self.auth_headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(mock_get_midas_response.called)
+        self.assertTrue(mock_to_data_warehouse.called)
+
+        events, counts = check_events(
+            mock_to_data_warehouse, ["lc.auth.request", "lc.auth.success", "lc.auth.failed", "lc.statuschange"]
+        )
+        self.assertEqual(counts["lc.auth.request"], 1)
+        self.assertEqual(counts["lc.auth.success"], 0)
+        self.assertEqual(counts["lc.auth.failed"], 1)
+        self.assertTrue(events["lc.statuschange"].get(AccountLinkStatus.AUTH_PENDING.value))
+        self.assertFalse(events["lc.statuschange"].get(AccountLinkStatus.ACTIVE.value))
+        self.assertTrue(events["lc.statuschange"].get(AccountLinkStatus.INVALID_CREDENTIALS.value))
