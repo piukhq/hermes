@@ -56,6 +56,11 @@ def on_message_received(body, message):
             # Todo: Look into custom requeuing to allow for automatic retries (as requeuing adds it back to the
             #  top of the queue - we want to put it to the back, with altered headers for retry information (count,
             #  delay, time etc.) which will exponentially get longer.
+            #  Note by Martin:  I think the way to do this would be not to requeue but to write to a dead-letter queue
+            #  with a ttl which when expires writes the task back on to the original queue.  Similar to what was done
+            #  for celery delay feature.  This would not provide an exponential backoff since the ttl is a queue based
+            #  config.  There is a RabbitMQ plug in to do delays per message but read the issues and exceptions before
+            #  using in Production
             logger.error("Error processing message - message requeued.", exc_info=True)
             message.requeue()
     except Exception:

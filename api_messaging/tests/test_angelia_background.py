@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import arrow
 from django.conf import settings
 from django.test import override_settings
 
@@ -98,6 +99,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
 
         delete_payment_account(
             {
+                "utc_adjusted": arrow.utcnow().isoformat(),
                 "channel_slug": self.bundle.bundle_id,
                 "user_id": self.user.id,
                 "payment_account_id": self.payment_card_account.id,
@@ -149,6 +151,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
 
         delete_payment_account(
             {
+                "utc_adjusted": arrow.utcnow().isoformat(),
                 "channel_slug": self.bundle.bundle_id,
                 "user_id": self.user.id,
                 "payment_account_id": self.payment_card_account.id,
@@ -203,6 +206,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
 
         delete_payment_account(
             {
+                "utc_adjusted": arrow.utcnow().isoformat(),
                 "channel_slug": self.bundle.bundle_id,
                 "user_id": self.user.id,
                 "payment_account_id": payment_card_account_2.id,
@@ -258,6 +262,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         mock_get_midas_response.return_value = MockMidasBalanceResponse(200)
 
         refresh_balance_message = {
+            "utc_adjusted": arrow.utcnow().isoformat(),
             "user_id": self.user.id,
             "channel_slug": self.bundle.bundle_id,
         }
@@ -287,6 +292,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         self.assertFalse(user_pll2.pll.active_link)
 
         refresh_balance_message = {
+            "utc_adjusted": arrow.utcnow().isoformat(),
             "user_id": self.user2.id,
             "channel_slug": self.bundle.bundle_id,
         }
@@ -326,6 +332,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
 
         loyalty_card_join(
             {
+                "utc_adjusted": arrow.utcnow().isoformat(),
                 "loyalty_plan_id": self.scheme.id,
                 "loyalty_card_id": self.scheme_account.id,
                 "entry_id": self.scheme_account_entry.id,
@@ -364,6 +371,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
 
         loyalty_card_join(
             {
+                "utc_adjusted": arrow.utcnow().isoformat(),
                 "loyalty_plan_id": self.scheme.id,
                 "loyalty_card_id": self.scheme_account.id,
                 "entry_id": self.scheme_account_entry.id,
@@ -404,6 +412,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
 
         loyalty_card_join(
             {
+                "utc_adjusted": arrow.utcnow().isoformat(),
                 "loyalty_plan_id": self.scheme.id,
                 "loyalty_card_id": self.scheme_account.id,
                 "entry_id": self.scheme_account_entry.id,
@@ -461,6 +470,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
 
         loyalty_card_join(
             {
+                "utc_adjusted": arrow.utcnow().isoformat(),
                 "loyalty_plan_id": self.scheme.id,
                 "loyalty_card_id": self.scheme_account.id,
                 "entry_id": self.scheme_account_entry.id,
@@ -526,6 +536,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
 
         loyalty_card_register(
             {
+                "utc_adjusted": arrow.utcnow().isoformat(),
                 "loyalty_plan_id": self.scheme.id,
                 "loyalty_card_id": self.scheme_account.id,
                 "entry_id": self.scheme_account_entry.id,
@@ -596,6 +607,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
 
         loyalty_card_register(
             {
+                "utc_adjusted": arrow.utcnow().isoformat(),
                 "loyalty_plan_id": self.scheme.id,
                 "loyalty_card_id": self.scheme_account.id,
                 "entry_id": self.scheme_account_entry.id,
@@ -871,6 +883,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
 
             post_payment_account(
                 {
+                    "utc_adjusted": arrow.utcnow().isoformat(),
                     "payment_account_id": payment_card_account.id,
                     "user_id": self.user.id,
                     "channel_slug": self.bundle.bundle_id,
