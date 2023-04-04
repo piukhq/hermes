@@ -226,7 +226,7 @@ def pay_account_from_entry(data: dict) -> list:
     # Note on delete payment card account has already been marked deleted and the association with
     # user has also been deleted.
 
-    user = CustomUser.objects.get(id=data.get("user_id"))
+    user = CustomUser.all_objects.get(id=data.get("user_id"))
     extra_data = []
 
     cabs = user.client.clientapplicationbundle_set.all()
