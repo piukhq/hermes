@@ -704,7 +704,6 @@ class SchemeAccount(models.Model):
         points = None
         account_status = scheme_account_entry.link_status
         dw_event = None
-        credentials = None
 
         if scheme_account_entry.link_status in AccountLinkStatus.join_exclude_balance_statuses() or not (
             credentials := scheme_account_entry.credentials(credentials_override)
