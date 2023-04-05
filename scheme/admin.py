@@ -334,10 +334,9 @@ class SchemeAccountEntryInline(admin.TabularInline):
         return False
 
     def scheme_account_to_user_association(self, obj):
-        return mark_safe('<a href="{}">{}</a>'.format(
-            reverse("admin:scheme_schemeuserassociation_change", args=(obj.pk,)),
-            obj.pk
-        ))
+        return mark_safe(
+            '<a href="{}">{}</a>'.format(reverse("admin:scheme_schemeuserassociation_change", args=(obj.pk,)), obj.pk)
+        )
 
 
 @admin.register(SchemeAccount)

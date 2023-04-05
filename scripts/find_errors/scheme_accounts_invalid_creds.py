@@ -17,7 +17,7 @@ class FindIcelandSchemeAccountsStuckInInvalidCreds(BaseScript):
         scheme_account_entries = SchemeAccountEntry.objects.filter(
             scheme_account__scheme__slug="iceland-bonus-card",
             scheme_account__join_date__isnull=False,
-            link_status=AccountLinkStatus.INVALID_CREDENTIALS
+            link_status=AccountLinkStatus.INVALID_CREDENTIALS,
         )
 
         for entry in scheme_account_entries:
