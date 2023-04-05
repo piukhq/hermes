@@ -195,7 +195,7 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
 
         if path in [LoyaltyCardPath.REGISTER, LoyaltyCardPath.ADD_AND_REGISTER]:
-            register_lc_event(scheme_account_entry, ac.channel_slug)
+            register_lc_event(scheme_account_entry, ac.channel_slug, ac.date_time)
 
         link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link)
         """
@@ -486,26 +486,28 @@ def mapper_history(message: dict) -> None:
 def add_auth_outcome_event(message: dict) -> None:
     success = message.get("success")
     journey = message.get("journey")
+    date_time = message.get("utc_adjusted")
     scheme_account_entry = SchemeAccountEntry.objects.get(pk=message.get("entry_id"))
 
     if journey == "ADD_AND_AUTH":
-        add_auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry)
+        add_auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry, date_time=date_time)
     elif journey == "AUTH":
-        auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry)
+        auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry, date_time=date_time)
 
 
 def add_auth_request_event(message: dict) -> None:
     journey = message.get("journey")
     user_id = message.get("user_id")
+    date_time = message.get("utc_adjusted")
     loyalty_card_id = message.get("loyalty_card_id")
     channel_slug = message.get("channel_slug")
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(pk=loyalty_card_id)
 
     if journey == "ADD_AND_AUTH":
-        addauth_request_lc_event(user, scheme_account, channel_slug)
+        addauth_request_lc_event(user, scheme_account, channel_slug, date_time)
     elif journey == "AUTH":
-        auth_request_lc_event(user, scheme_account, channel_slug)
+        auth_request_lc_event(user, scheme_account, channel_slug, date_time)
 
 
 def sql_history(message: dict) -> None:

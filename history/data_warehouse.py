@@ -29,12 +29,14 @@ def to_data_warehouse(payload: dict) -> None:
         message_sender.send(payload, headers, settings.WAREHOUSE_QUEUE_NAME)
 
 
-def addauth_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str):
+def addauth_request_lc_event(
+    user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str, date_time: object = None
+):
     payload = {
         "event_type": "lc.addandauth.request",
         "origin": "channel",
         "channel": bundle_id,
-        "event_date_time": arrow.utcnow().isoformat(),
+        "event_date_time": date_time if date_time else arrow.utcnow().isoformat(),
         "external_user_ref": user.external_id,
         "internal_user_ref": user.id,
         "email": user.email,
@@ -45,12 +47,14 @@ def addauth_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount"
     to_data_warehouse(payload)
 
 
-def auth_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str):
+def auth_request_lc_event(
+    user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str, date_time: object = None
+):
     payload = {
         "event_type": "lc.auth.request",
         "origin": "channel",
         "channel": bundle_id,
-        "event_date_time": arrow.utcnow().isoformat(),
+        "event_date_time": date_time if date_time else arrow.utcnow().isoformat(),
         "external_user_ref": user.external_id,
         "internal_user_ref": user.id,
         "email": user.email,
@@ -61,12 +65,12 @@ def auth_request_lc_event(user: "CustomUser", scheme_account: "SchemeAccount", b
     to_data_warehouse(payload)
 
 
-def register_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id: str):
+def register_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id: str, date_time: object = None):
     payload = {
         "event_type": "lc.register.request",
         "origin": "channel",
         "channel": bundle_id,
-        "event_date_time": arrow.utcnow().isoformat(),
+        "event_date_time": date_time if date_time else arrow.utcnow().isoformat(),
         "external_user_ref": scheme_account_entry.user.external_id,
         "internal_user_ref": scheme_account_entry.user.id,
         "email": scheme_account_entry.user.email,
@@ -77,12 +81,12 @@ def register_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id: str
     to_data_warehouse(payload)
 
 
-def join_request_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id: str):
+def join_request_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id: str, date_time: object = None):
     payload = {
         "event_type": "lc.join.request",
         "origin": "channel",
         "channel": bundle_id,
-        "event_date_time": arrow.utcnow().isoformat(),
+        "event_date_time": date_time if date_time else arrow.utcnow().isoformat(),
         "external_user_ref": scheme_account_entry.user.external_id,
         "internal_user_ref": scheme_account_entry.user.id,
         "email": scheme_account_entry.user.email,
@@ -92,7 +96,7 @@ def join_request_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id:
     to_data_warehouse(payload)
 
 
-def remove_loyalty_card_event(scheme_account_entry: "SchemeAccountEntry"):
+def remove_loyalty_card_event(scheme_account_entry: "SchemeAccountEntry", date_time: object = None):
 
     user = scheme_account_entry.user
     scheme_account = scheme_account_entry.scheme_account
@@ -102,7 +106,7 @@ def remove_loyalty_card_event(scheme_account_entry: "SchemeAccountEntry"):
             "event_type": "lc.removed",
             "origin": "channel",
             "channel": cab.bundle_id,
-            "event_date_time": arrow.utcnow().isoformat(),
+            "event_date_time": date_time if date_time else arrow.utcnow().isoformat(),
             "external_user_ref": user.external_id,
             "internal_user_ref": user.id,
             "email": user.email,
@@ -114,7 +118,7 @@ def remove_loyalty_card_event(scheme_account_entry: "SchemeAccountEntry"):
         to_data_warehouse(payload)
 
 
-def join_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
+def join_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None):
     extra_data = {}
     if success:
         event_type = "lc.join.success"
@@ -130,7 +134,7 @@ def join_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
             "event_type": event_type,
             "origin": "merchant.callback",
             "channel": cab.bundle_id,
-            "event_date_time": arrow.utcnow().isoformat(),
+            "event_date_time": date_time if date_time else arrow.utcnow().isoformat(),
             "external_user_ref": scheme_account_entry.user.external_id,
             "internal_user_ref": scheme_account_entry.user.id,
             "email": scheme_account_entry.user.email,
@@ -141,7 +145,7 @@ def join_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
         to_data_warehouse(payload)
 
 
-def add_auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
+def add_auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None):
     extra_data = {}
     if success:
         event_type = "lc.addandauth.success"
@@ -155,7 +159,7 @@ def add_auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
         "event_type": event_type,
         "origin": "channel",
         "channel": scheme_account_entry.user.bundle_id,
-        "event_date_time": arrow.utcnow().isoformat(),
+        "event_date_time": date_time if date_time else arrow.utcnow().isoformat(),
         "external_user_ref": scheme_account_entry.user.external_id,
         "internal_user_ref": scheme_account_entry.user.id,
         "email": scheme_account_entry.user.email,
@@ -166,7 +170,7 @@ def add_auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
     to_data_warehouse(payload)
 
 
-def auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
+def auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None):
     extra_data = {}
     if success:
         event_type = "lc.auth.success"
@@ -180,7 +184,7 @@ def auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
         "event_type": event_type,
         "origin": "channel",
         "channel": scheme_account_entry.user.bundle_id,
-        "event_date_time": arrow.utcnow().isoformat(),
+        "event_date_time": date_time if date_time else arrow.utcnow().isoformat(),
         "external_user_ref": scheme_account_entry.user.external_id,
         "internal_user_ref": scheme_account_entry.user.id,
         "email": scheme_account_entry.user.email,
@@ -191,7 +195,7 @@ def auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
     to_data_warehouse(payload)
 
 
-def register_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
+def register_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None):
     extra_data = {}
     if success:
         event_type = "lc.register.success"
@@ -207,7 +211,7 @@ def register_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry"):
             "event_type": event_type,
             "origin": "merchant.callback",
             "channel": cab.bundle_id,
-            "event_date_time": arrow.utcnow().isoformat(),
+            "event_date_time": date_time if date_time else arrow.utcnow().isoformat(),
             "external_user_ref": scheme_account_entry.user.external_id,
             "internal_user_ref": scheme_account_entry.user.id,
             "email": scheme_account_entry.user.email,
