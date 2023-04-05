@@ -134,7 +134,7 @@ class TestResources(GlobalMockAPITestCase):
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch.object(SchemeAccount, "get_midas_balance")
+    @patch.object(SchemeAccount, "_get_midas_balance")
     def test_membership_card_versioning(self, *_):
         resp_v1_1 = self.client.get(reverse("membership-cards"), **self.headers_v1_1)
         resp_v1_2 = self.client.get(reverse("membership-cards"), **self.headers_v1_2)

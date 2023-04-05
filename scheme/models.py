@@ -649,7 +649,7 @@ class SchemeAccount(models.Model):
     @staticmethod
     def _process_midas_response(
         response, scheme_account_entry: "SchemeAccountEntry"
-    ) -> tuple[Optional[bool], int, Optional[bool]]:
+    ) -> tuple[Optional[bool], int, Optional[tuple[bool, AccountLinkStatus]]]:
         # todo: liaise with Merchant to work out how we parse credentials back in.
         points = None
         previous_status = scheme_account_entry.link_status
@@ -698,30 +698,28 @@ class SchemeAccount(models.Model):
         else:
             return "alt_main_answer"
 
-    def get_midas_balance(self, journey, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None):
+    def _get_midas_balance(
+        self, journey, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None
+    ) -> (Optional[dict], AccountLinkStatus, Optional[tuple[bool, int]]):
         points = None
-        old_status = scheme_account_entry.link_status
+        account_status = scheme_account_entry.link_status
         dw_event = None
 
-        if scheme_account_entry.link_status in AccountLinkStatus.join_exclude_balance_statuses():
-            return points, dw_event
+        if scheme_account_entry.link_status in AccountLinkStatus.join_exclude_balance_statuses() or not (
+            credentials := scheme_account_entry.credentials(credentials_override)
+        ):
+            return points, account_status, dw_event
 
         try:
-            credentials = scheme_account_entry.credentials(credentials_override)
-            if not credentials:
-                return points, dw_event
-            response = self._get_balance(credentials, journey, scheme_account_entry)
+            response = self._get_balance_request(credentials, journey, scheme_account_entry)
             points, account_status, dw_event = self._process_midas_response(response, scheme_account_entry)
-            if account_status != old_status:
-                scheme_account_entry.set_link_status(account_status)
-
+            self._received_balance_checks(scheme_account_entry)
         except ConnectionError:
-            scheme_account_entry.set_link_status(AccountLinkStatus.MIDAS_UNREACHABLE)
+            account_status = AccountLinkStatus.MIDAS_UNREACHABLE
 
-        self._received_balance_checks(old_status, scheme_account_entry)
-        return points, dw_event
+        return points, account_status, dw_event
 
-    def _received_balance_checks(self, old_status, scheme_account_entry):
+    def _received_balance_checks(self, scheme_account_entry):
         saved = False
         if scheme_account_entry.link_status in AccountLinkStatus.join_action_required():
             queryset = scheme_account_entry.schemeaccountcredentialanswer_set
@@ -733,7 +731,7 @@ class SchemeAccount(models.Model):
 
         return saved
 
-    def _get_balance(self, credentials, journey, scheme_account_entry):
+    def _get_balance_request(self, credentials, journey, scheme_account_entry):
         # todo: liaise with Midas to work out what we need to see here
         user_set = ",".join([str(u.id) for u in self.user_set.all()])
         parameters = {
@@ -750,65 +748,49 @@ class SchemeAccount(models.Model):
         return response
 
     def get_journey_type(self):
+        # Todo: This needs changing since it's incorrect for multi-wallet where one user is Active and the other
+        #  has invalid credentials
         if self.balances:
             return JourneyTypes.UPDATE
         else:
             return JourneyTypes.LINK
 
-    def update_cached_balance(
-        self, cache_key, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None
-    ):
-        journey = self.get_journey_type()
-        balance, dw_event = self.get_midas_balance(
-            journey=journey, credentials_override=credentials_override, scheme_account_entry=scheme_account_entry
-        )
-        vouchers = None
-
-        if balance:
-            if "vouchers" in balance:
-                vouchers = self.make_vouchers_response(balance["vouchers"])
-                del balance["vouchers"]
-
-            balance.update({"updated_at": arrow.utcnow().int_timestamp, "scheme_id": self.scheme.id})
-            balance = UbiquityBalanceHandler(balance).data
-            cache.set(cache_key, balance, self.scheme.balance_renew_period)
-
-        return balance, vouchers, dw_event
-
-    def check_balance_and_vouchers(self, balance=None, vouchers=None):
+    def check_balance_and_vouchers(self, balance=None, voucher_resp=None):
         update_fields = []
 
         if balance and balance != self.balances:
             self.balances = balance
             update_fields.append("balances")
 
-        if vouchers and vouchers != self.vouchers:
+        if voucher_resp and voucher_resp != self.vouchers:
             self.vouchers = vouchers
             update_fields.append("vouchers")
 
         return update_fields
 
-    def get_cached_balance(
-        self, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None, user: object = None
-    ):
-        # Gets scheme account balance from cache if existing, else updates the cache.
-
-        cache_key = "scheme_{}".format(self.pk)
+    def get_balance(
+        self, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None, journey: JourneyTypes = None
+    ) -> (Optional[dict], Optional[tuple[bool, int]]):
         old_status = scheme_account_entry.link_status
-        balance = cache.get(cache_key)
-        vouchers = None  # should we cache these too?
-        dw_event = None
+        journey = journey or self.get_journey_type()
 
-        # todo: We will need to change this so that we force an update (and therefore the auth check) when a new link is
-        #  created (otherwise user 2 will not be sent to Midas). For now, bypassing the cache entirely.
-        # if not balance:
-        balance, vouchers, dw_event = self.update_cached_balance(
-            cache_key=cache_key, credentials_override=credentials_override, scheme_account_entry=scheme_account_entry
+        balance, account_status, dw_event = self._get_midas_balance(
+            journey=journey, credentials_override=credentials_override, scheme_account_entry=scheme_account_entry
         )
 
-        update_fields = self.check_balance_and_vouchers(balance=balance, vouchers=vouchers)
-        status_update = old_status != scheme_account_entry.link_status
-        if status_update:
+        voucher_resp = None
+        if balance:
+            if "vouchers" in balance:
+                voucher_resp = self.make_vouchers_response(balance["vouchers"])
+                del balance["vouchers"]
+
+            balance.update({"updated_at": arrow.utcnow().int_timestamp, "scheme_id": self.scheme.id})
+            balance = UbiquityBalanceHandler(balance).data
+
+        update_fields = self.check_balance_and_vouchers(balance=balance, voucher_resp=voucher_resp)
+
+        if account_status != old_status:
+            scheme_account_entry.set_link_status(account_status)
             capture_membership_card_status_change_metric(
                 scheme_slug=Scheme.get_scheme_slug_by_scheme_id(self.scheme_id),
                 old_status=old_status,

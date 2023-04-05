@@ -20,7 +20,7 @@ from user.tests.factories import (
 )
 
 
-def mock_get_cached_balance(self, scheme_account_entry=None):
+def mock_get_balance(self, scheme_account_entry=None):
     balances = [
         {
             "value": 380,
@@ -91,7 +91,7 @@ class TestTasks(APITestCase):
 
     # todo: fix as part of TC phase 3+
     # @patch("analytics.api")
-    # @patch.object(SchemeAccount, "get_cached_balance", mock_get_cached_balance)
+    # @patch.object(SchemeAccount, "get_balance", mock_get_balance)
     # @patch("ubiquity.channel_vault._aes_keys", mock_aes_keys)
     # @httpretty.activate
     # def test_bulk_and_signal_history_resource(self, *_):

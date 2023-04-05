@@ -344,8 +344,8 @@ class TestResources(GlobalMockAPITestCase):
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    def test_get_single_membership_card(self, mock_get_midas_balance, *_):
-        mock_get_midas_balance.return_value = self.scheme_account.balances
+    def test_get_single_membership_card(self, mock_get_balance, *_):
+        mock_get_balance.return_value = self.scheme_account.balances
         resp = self.client.get(reverse("membership-card", args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
 
@@ -399,8 +399,8 @@ class TestResources(GlobalMockAPITestCase):
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    def test_get_single_membership_vouchers(self, mock_get_midas_balance, *_):
-        mock_get_midas_balance.return_value = self.scheme_account.balances
+    def test_get_single_membership_vouchers(self, mock_get_balance, *_):
+        mock_get_balance.return_value = self.scheme_account.balances
         resp = self.client.get(reverse("membership-card", args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
 
@@ -2263,7 +2263,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(auth_answer, test_pass)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(10, "", None))
+    @patch.object(SchemeAccount, "_get_midas_balance", autospec=True, return_value=(10, "", None))
     @patch("ubiquity.tasks.async_balance", autospec=True)
     @patch("ubiquity.views.async_registration", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
@@ -2316,7 +2316,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch.object(SchemeAccount, "update_cached_balance", autospec=True, return_value=(10, "", None))
+    @patch.object(SchemeAccount, "_get_midas_balance", autospec=True, return_value=(10, "", None))
     @patch("ubiquity.tasks.async_balance", autospec=True)
     @patch("ubiquity.views.async_registration", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
@@ -2446,7 +2446,7 @@ class TestResources(GlobalMockAPITestCase):
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch.object(SchemeAccount, "get_midas_balance")
+    @patch.object(SchemeAccount, "_get_midas_balance")
     def test_membership_card_balance(self, mock_get_midas_balance, *_):
         mock_get_midas_balance.return_value = (
             {
@@ -2458,11 +2458,12 @@ class TestResources(GlobalMockAPITestCase):
                 "balance": Decimal("20"),
                 "is_stale": False,
             },
+            AccountLinkStatus.ACTIVE,
             (True, AccountLinkStatus.PENDING),
         )
 
         expected_keys = {"value", "currency", "updated_at"}
-        self.scheme_account.get_cached_balance(self.scheme_account_entry)
+        self.scheme_account.get_balance(self.scheme_account_entry)
         resp = self.client.get(reverse("membership-card", args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["balances"][0]["value"], 100)
@@ -2470,8 +2471,8 @@ class TestResources(GlobalMockAPITestCase):
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch.object(SchemeAccount, "get_midas_balance")
-    def test_get_cached_balance_link(self, mock_get_midas_balance, *_):
+    @patch.object(SchemeAccount, "_get_midas_balance")
+    def test_get_balance_link(self, mock_get_midas_balance, *_):
         test_scheme_account = SchemeAccountFactory(scheme=self.scheme)
         mock_get_midas_balance.return_value = (
             {
@@ -2483,16 +2484,17 @@ class TestResources(GlobalMockAPITestCase):
                 "balance": Decimal("20"),
                 "is_stale": False,
             },
+            AccountLinkStatus.ACTIVE,
             (True, AccountLinkStatus.PENDING),
         )
 
         self.assertFalse(test_scheme_account.balances)
-        test_scheme_account.get_cached_balance(self.scheme_account_entry)
+        test_scheme_account.get_balance(self.scheme_account_entry)
         self.assertTrue(mock_get_midas_balance.called)
         self.assertEqual(mock_get_midas_balance.call_args[1]["journey"], JourneyTypes.LINK)
         self.assertTrue(test_scheme_account.balances)
 
-        test_scheme_account.get_cached_balance(self.scheme_account_entry)
+        test_scheme_account.get_balance(self.scheme_account_entry)
         self.assertEqual(mock_get_midas_balance.call_args[1]["journey"], JourneyTypes.UPDATE)
 
     @patch("ubiquity.influx_audit.InfluxDBClient")
@@ -2543,7 +2545,7 @@ class TestResources(GlobalMockAPITestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch.object(SchemeAccount, "get_midas_balance")
+    @patch.object(SchemeAccount, "_get_midas_balance")
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     def test_credential_emails_are_stored_as_lowercase_auth_route(self, *_):
@@ -2612,7 +2614,7 @@ class TestResources(GlobalMockAPITestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch.object(SchemeAccount, "get_midas_balance")
+    @patch.object(SchemeAccount, "_get_midas_balance")
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     @patch("api_messaging.midas_messaging.to_midas", autospec=True, return_value=MagicMock())
@@ -3037,7 +3039,7 @@ class TestMembershipCardCredentials(GlobalMockAPITestCase):
     @patch("ubiquity.views.async_balance_with_updated_credentials.delay", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch.object(SchemeAccount, "get_midas_balance")
+    @patch.object(SchemeAccount, "_get_midas_balance")
     def test_update_new_and_existing_credentials(self, *_):
         payload = {
             "account": {
@@ -3535,7 +3537,7 @@ class TestHistoryResources(GlobalMockAPIHistoryTestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("history.data_warehouse.to_data_warehouse")
-    @patch.object(SchemeAccount, "_get_balance")
+    @patch.object(SchemeAccount, "_get_balance_request")
     def test_history_membership_card_update_success(self, mock_get_midas_response, mock_to_data_warehouse, *_):
         payload = json.dumps(
             {
@@ -3575,7 +3577,7 @@ class TestHistoryResources(GlobalMockAPIHistoryTestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("history.data_warehouse.to_data_warehouse")
-    @patch.object(SchemeAccount, "_get_balance")
+    @patch.object(SchemeAccount, "_get_balance_request")
     def test_history_membership_card_update_fail(self, mock_get_midas_response, mock_to_data_warehouse, *_):
         payload = json.dumps(
             {
@@ -3585,7 +3587,7 @@ class TestHistoryResources(GlobalMockAPIHistoryTestCase):
                 }
             }
         )
-        mock_get_midas_response.return_value = MockMidasBalanceResponse(904)
+        mock_get_midas_response.return_value = MockMidasBalanceResponse(AccountLinkStatus.INVALID_CREDENTIALS)
 
         response = self.client.patch(
             reverse("membership-card", args=[self.scheme_account.id]),
@@ -3615,7 +3617,7 @@ class TestHistoryResources(GlobalMockAPIHistoryTestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("history.data_warehouse.to_data_warehouse")
-    @patch.object(SchemeAccount, "_get_balance")
+    @patch.object(SchemeAccount, "_get_balance_request")
     def test_history_add_and_auth(self, mock_get_midas_response, mock_to_data_warehouse, *_):
         email = "user1_test@test.com"
         user1, scheme, card_num_question, email_question = setup_user_and_email_scheme(
@@ -3738,7 +3740,7 @@ class TestHistoryResources(GlobalMockAPIHistoryTestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("history.data_warehouse.to_data_warehouse")
-    @patch.object(SchemeAccount, "_get_balance")
+    @patch.object(SchemeAccount, "_get_balance_request")
     def test_history_membership_card_auth_success(self, mock_get_midas_response, mock_to_data_warehouse, *_):
         card_number = "123456789"
         email = "user1_test@test.com"
@@ -3776,7 +3778,7 @@ class TestHistoryResources(GlobalMockAPIHistoryTestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("history.data_warehouse.to_data_warehouse")
-    @patch.object(SchemeAccount, "_get_balance")
+    @patch.object(SchemeAccount, "_get_balance_request")
     def test_history_membership_card_auth_fail(self, mock_get_midas_response, mock_to_data_warehouse, *_):
         card_number = "123456789"
         email = "user1_test@test.com"

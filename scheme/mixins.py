@@ -90,7 +90,7 @@ class BaseLinkMixin(object):
                 scheme_account_entry=scheme_account_entry,
             )
 
-        midas_information, dw_event = scheme_account.get_cached_balance(scheme_account_entry)
+        midas_information, dw_event = scheme_account.get_balance(scheme_account_entry)
 
         # dw_event is a two piece tuple, success: bool, journey: SchemeAccount STATUS
         #  - not present for cached balances only fresh crepes

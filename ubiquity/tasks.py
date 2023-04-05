@@ -93,13 +93,12 @@ def async_balance(scheme_account_entry: "SchemeAccountEntry", delete_balance=Fal
         scheme_account_entry.scheme_account.delete_cached_balance()
         scheme_account_entry.scheme_account.delete_saved_balance()
 
-    scheme_account_entry.scheme_account.get_cached_balance(scheme_account_entry)
+    scheme_account_entry.scheme_account.get_balance(scheme_account_entry)
 
 
 @shared_task
 def async_balance_with_updated_credentials(
     instance_id: int,
-    user_id: int,
     scheme_account_entry: SchemeAccountEntry,
     payment_cards_to_link: list,
     relink_pll: bool = False,
@@ -108,19 +107,9 @@ def async_balance_with_updated_credentials(
     scheme_account = SchemeAccount.objects.get(id=instance_id)
     scheme_account.delete_cached_balance()
     scheme_account.delete_saved_balance()
-    cache_key = "scheme_{}".format(scheme_account.pk)
 
     logger.debug(f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})")
-    balance, _, dw_event = scheme_account.update_cached_balance(
-        scheme_account_entry=scheme_account_entry, cache_key=cache_key
-    )
-
-    # data warehouse event could be success or failed (depends on midas response etc.)
-
-    # @todo: trusted channels removal -delete if happy
-    #  if dw_event:
-    #    success, _ = dw_event
-    #    auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry)
+    balance, _ = scheme_account.get_balance(scheme_account_entry=scheme_account_entry)
 
     if balance:
         logger.debug(
@@ -134,35 +123,16 @@ def async_balance_with_updated_credentials(
 
         if relink_pll and payment_cards_to_link:
             PllUserAssociation.link_users_payment_cards(scheme_account_entry, payment_cards_to_link)
-            # auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
     else:
         logger.debug(
             f"No balance returned from balance call with updated credentials - SchemeAccount (id={scheme_account.id}) -"
             " Unauthorising user."
         )
 
-        """
-        scheme_account_entry.auth_provided = False
-        scheme_account_entry.save()
-        """
         if send_auth_outcome:
             auth_outcome_task(success=False, scheme_account_entry=scheme_account_entry)
         scheme_account_entry.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
         PllUserAssociation.update_user_pll_by_scheme_account(scheme_account=scheme_account)
-
-        """
-        # todo: changed from - if all saes linked to sa are ap=false then delete all non-manual creds. This logic will
-        #  change, but we need to decide upon how/why based on status, perhaps. This is more P2/P3 so will leave for
-        #  now.
-        if scheme_account_entry.auth_provided is False:
-            scheme_account_entry.schemeaccountcredentialanswer_set.filter(
-                question__auth_field=True,
-                question__manual_question=False,
-            ).delete()
-        else:
-            # Call balance to correctly reset the scheme account balance using the stored credentials
-            scheme_account.get_cached_balance(scheme_account_entry=scheme_account_entry)
-        """
 
 
 @shared_task
@@ -241,7 +211,7 @@ def async_join_journey_fetch_balance_and_update_status(scheme_account_id: int, s
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
     scheme_account_entry = SchemeAccountEntry.objects.get(id=scheme_account_entry_id)
     scheme_account_entry.set_link_status(AccountLinkStatus.PENDING)
-    scheme_account.get_cached_balance(scheme_account_entry)
+    scheme_account.get_balance(scheme_account_entry)
 
 
 def _format_info(scheme_account: SchemeAccount, user_id: int) -> dict:
