@@ -73,7 +73,7 @@ class ScriptResultAdmin(admin.ModelAdmin):
         "apply",
         "correction",
     )
-    readonly_fields = ("script_name", "item_id", "data", "results", "correction", "apply", "done")
+    readonly_fields = ("script_run_uid", "script_name", "item_id", "data", "results", "correction", "apply", "done")
     search_fields = ("script_run_uid", "script_name", "done", "data", "results")
     list_per_page = 500
     actions = [apply_correction, apply_correction_in_background]

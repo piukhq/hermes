@@ -233,7 +233,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("hermes.vop_tasks.send_activation", autospec=True)
-    @patch.object(SchemeAccount, "_get_balance")
+    @patch.object(SchemeAccount, "_get_balance_request")
     def test_angelia_background_refresh(self, mock_get_midas_response, _):
         """
         Using angelia background request to refresh balance for a user and bundle_id
@@ -384,7 +384,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         self.assertEqual(user_pll.slug, WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch.object(SchemeAccount, "_get_balance")
+    @patch.object(SchemeAccount, "_get_balance_request")
     @patch("api_messaging.midas_messaging.to_midas", autospec=True)
     def test_payment_card_pending_and_loyalty_card_join_valid(self, mock_midas_send, mock_get_midas_response):
         """
@@ -446,7 +446,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("hermes.vop_tasks.send_activation", autospec=True)
-    @patch.object(SchemeAccount, "_get_balance")
+    @patch.object(SchemeAccount, "_get_balance_request")
     @patch("api_messaging.midas_messaging.to_midas", autospec=True)
     def test_payment_card_active_and_loyalty_card_join_valid(self, mock_midas_send, mock_get_midas_response, _):
         """
@@ -502,7 +502,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         self.assertEqual(user_pll.slug, "")
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch.object(SchemeAccount, "_get_balance")
+    @patch.object(SchemeAccount, "_get_balance_request")
     @patch("api_messaging.midas_messaging.to_midas", autospec=True)
     @patch.object(PaymentCardSchemeEntry, "vop_activate_check", autospec=True)
     def test_payment_card_active_and_loyalty_card_register_valid(
@@ -569,7 +569,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         self.assertEqual(user_pll.slug, "")
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch.object(SchemeAccount, "_get_balance")
+    @patch.object(SchemeAccount, "_get_balance_request")
     @patch("api_messaging.midas_messaging.to_midas", autospec=True)
     @patch.object(PaymentCardSchemeEntry, "vop_activate_check", autospec=True)
     def test_payment_card_pending_and_loyalty_card_register_valid(
@@ -641,7 +641,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
     # todo: test needs fixing but commenting out for now to release hotfix
     # @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True,
     # BROKER_BACKEND="memory")
-    # @patch.object(SchemeAccount, "_get_balance")
+    # @patch.object(SchemeAccount, "_get_balance_request")
     # def test_duplicate_cards_in_2_wallets(self, mock_get_midas_response):
     #     """
     #     This test uses angelia background calls to loyalty_card_add and loyalty_card_add and tests the wallet
@@ -750,7 +750,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
     # todo: test needs fixing but commenting out for now to release hotfix
     # @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True,
     # BROKER_BACKEND="memory")
-    # @patch.object(SchemeAccount, "_get_balance")
+    # @patch.object(SchemeAccount, "_get_balance_request")
     # def test_duplicate_cards_in_pay_last_2_wallets(self, mock_get_midas_response):
     #     """
     #     This test uses angelia background calls to loyalty_card_add and post_payment_account and tests the wallet
@@ -892,7 +892,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
     # todo: test needs fixing but commenting out for now to release hotfix
     # @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True,
     # BROKER_BACKEND="memory")
-    # @patch.object(SchemeAccount, "_get_balance")
+    # @patch.object(SchemeAccount, "_get_balance_request")
     # def test_auth_request_deletes_merchant_identifier(self, mock_get_midas_response):
     #     # Question setup
     #     card_number_q = SchemeCredentialQuestionFactory(

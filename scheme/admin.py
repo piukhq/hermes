@@ -6,7 +6,9 @@ from django.db.models import Q
 from django.forms import BaseInlineFormSet, ModelForm
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from redis import Redis
 
 from common.admin import InputFilter
@@ -320,7 +322,7 @@ class BarcodeFilter(InputFilter):
 class SchemeAccountEntryInline(admin.TabularInline):
     model = SchemeAccountEntry
     extra = 0
-    readonly_fields = ("scheme_account", "user")
+    readonly_fields = ("scheme_account_to_user_association", "user")
 
     def has_change_permission(self, request, obj=None):
         return False
@@ -330,6 +332,11 @@ class SchemeAccountEntryInline(admin.TabularInline):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    def scheme_account_to_user_association(self, obj):
+        return mark_safe(
+            '<a href="{}">{}</a>'.format(reverse("admin:scheme_schemeuserassociation_change", args=(obj.pk,)), obj.pk)
+        )
 
 
 @admin.register(SchemeAccount)
@@ -359,7 +366,7 @@ class SchemeAccountAdmin(HistoryAdmin):
             scheme_account.delete_cached_balance()
             for entry in SchemeAccountEntry.objects.filter(scheme_account=scheme_account.id):
                 if entry.link_status == AccountLinkStatus.ACTIVE:
-                    scheme_account.get_cached_balance(entry)
+                    scheme_account.get_balance(entry)
         messages.add_message(request, messages.INFO, "Refreshed balance, vouchers and transactions information.")
 
     def get_readonly_fields(self, request, obj=None):
@@ -480,7 +487,7 @@ class SchemeUserAssociationAdmin(HistoryAdmin):
         # directly from Midas, which will also push transactions from Midas (via Hades), to Hermes.
         for scheme_account_entry in queryset:
             scheme_account_entry.scheme_account.delete_cached_balance()
-            scheme_account_entry.scheme_account.get_cached_balance(scheme_account_entry=scheme_account_entry)
+            scheme_account_entry.scheme_account.get_balance(scheme_account_entry=scheme_account_entry)
         messages.add_message(request, messages.INFO, "Refreshed balance, vouchers and transactions information.")
 
     def scheme_account_link(self, obj):

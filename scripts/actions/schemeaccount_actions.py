@@ -4,7 +4,7 @@ from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
 
 def do_refresh_balance(entry):
     sact_entry = SchemeAccountEntry.objects.get(id=entry.data["schemeaccountentry_id"])
-    sact_entry.scheme_account.get_midas_balance(JourneyTypes.UPDATE, sact_entry)
+    sact_entry.scheme_account.get_balance(journey=JourneyTypes.UPDATE, scheme_account_entry=sact_entry)
     return True
 
 

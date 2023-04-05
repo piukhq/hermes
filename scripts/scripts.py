@@ -3,7 +3,7 @@ from enum import IntEnum, auto
 from .find_errors.barclays_hash_uploads import BarclaysDeleteUpload, BarclaysHashCorrectionsUpload
 from .find_errors.cards_stuck_in_pending import FindCardsStuckInPending
 from .find_errors.deleted_vop_cards_with_activations import FindDeletedVopCardsWithActivations
-from .find_errors.scheme_accounts_invalid_creds import FindSchemeAccountsStuckInInvalidCreds
+from .find_errors.scheme_accounts_invalid_creds import FindIcelandSchemeAccountsStuckInInvalidCreds
 from .find_errors.vop_activations_stuck_in_activating import FindVOPActivationsStuckInActivating
 from .find_errors.vop_activations_stuck_in_deactivating import FindVOPActivationsStuckInDeactivating
 from .find_errors.vop_cards_in_duplicate_card_status import FindVOPCardsInDuplicateCardStatus
@@ -21,7 +21,7 @@ class DataScripts(IntEnum):
     FIX_STUCK_IN_ACTIVATING = auto()
     FIX_STUCK_IN_DEACTIVATING = auto()
     VISA_DUPLICATE_CARDS = auto()
-    SCHEMEACCOUNT_INVALIDCREDS = auto()
+    ICELAND_SCHEME_ACCOUNT_INVALID_CREDS = auto()
     BARCLAYS_HASH_UPLOAD = auto()
     DELETE_LISTED_PAYMENT_ACCOUNTS = auto()
 
@@ -34,7 +34,9 @@ SCRIPT_TITLES = {
     DataScripts.FIX_STUCK_IN_ACTIVATING: "VOP Activations stuck in activating",
     DataScripts.FIX_STUCK_IN_DEACTIVATING: "VOP Activations stuck in deactivating",
     DataScripts.VISA_DUPLICATE_CARDS: "Visa card accounts in 'duplicate card' status",
-    DataScripts.SCHEMEACCOUNT_INVALIDCREDS: "SchemeAccounts stuck in Invalid Credentials status",
+    DataScripts.ICELAND_SCHEME_ACCOUNT_INVALID_CREDS: (
+        "Iceland SchemeAccounts added via Join stuck in Invalid Credentials status"
+    ),
     DataScripts.BARCLAYS_HASH_UPLOAD: "Barclays hash replacement using Azure upload files",
     DataScripts.DELETE_LISTED_PAYMENT_ACCOUNTS: "Remove Payment Accounts in supplied CSV File",
 }
@@ -46,7 +48,7 @@ SCRIPT_CLASSES = {
     DataScripts.FIX_STUCK_IN_ACTIVATING: FindVOPActivationsStuckInActivating,
     DataScripts.FIX_STUCK_IN_DEACTIVATING: FindVOPActivationsStuckInDeactivating,
     DataScripts.VISA_DUPLICATE_CARDS: FindVOPCardsInDuplicateCardStatus,
-    DataScripts.SCHEMEACCOUNT_INVALIDCREDS: FindSchemeAccountsStuckInInvalidCreds,
+    DataScripts.ICELAND_SCHEME_ACCOUNT_INVALID_CREDS: FindIcelandSchemeAccountsStuckInInvalidCreds,
     DataScripts.BARCLAYS_HASH_UPLOAD: BarclaysHashCorrectionsUpload,
     DataScripts.DELETE_LISTED_PAYMENT_ACCOUNTS: BarclaysDeleteUpload,
 }
