@@ -1028,7 +1028,9 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
     def test_get_balance_dw_event(self, mock_request):
         mock_request.return_value.status_code = 200
         mock_request.return_value.json.return_value = {"points": 500}
-        entry = SchemeAccountEntryFactory(link_status=AccountLinkStatus.AUTH_PENDING, scheme_account__scheme=self.scheme)
+        entry = SchemeAccountEntryFactory(
+            link_status=AccountLinkStatus.AUTH_PENDING, scheme_account__scheme=self.scheme
+        )
         scheme_account = entry.scheme_account
         points, dw_event = scheme_account.get_balance(journey=JourneyTypes.UPDATE, scheme_account_entry=entry)
 
@@ -1056,7 +1058,9 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         scheme_account_entry = SchemeAccountEntryFactory(
             scheme_account=scheme_account, link_status=AccountLinkStatus.PENDING
         )
-        points, dw_event = scheme_account.get_balance(journey=JourneyTypes.UPDATE, scheme_account_entry=scheme_account_entry)
+        points, dw_event = scheme_account.get_balance(
+            journey=JourneyTypes.UPDATE, scheme_account_entry=scheme_account_entry
+        )
 
         # check this status hasn't been added to scheme account status
         self.assertNotIn(invalid_status, [status[0] for status in AccountLinkStatus.extended_statuses()])
@@ -1072,7 +1076,9 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory()
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
-        points, dw_event = scheme_account.get_balance(journey=JourneyTypes.UPDATE, scheme_account_entry=scheme_account_entry)
+        points, dw_event = scheme_account.get_balance(
+            journey=JourneyTypes.UPDATE, scheme_account_entry=scheme_account_entry
+        )
 
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
@@ -1086,7 +1092,9 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory()
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
-        points, dw_event = scheme_account.get_balance(journey=JourneyTypes.UPDATE, scheme_account_entry=scheme_account_entry)
+        points, dw_event = scheme_account.get_balance(
+            journey=JourneyTypes.UPDATE, scheme_account_entry=scheme_account_entry
+        )
 
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
@@ -1100,7 +1108,9 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory()
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
-        points, dw_event = scheme_account.get_balance(journey=JourneyTypes.UPDATE, scheme_account_entry=scheme_account_entry)
+        points, dw_event = scheme_account.get_balance(
+            journey=JourneyTypes.UPDATE, scheme_account_entry=scheme_account_entry
+        )
 
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
@@ -1114,7 +1124,9 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory()
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
-        points, dw_event = scheme_account.get_balance(journey=JourneyTypes.UPDATE, scheme_account_entry=scheme_account_entry)
+        points, dw_event = scheme_account.get_balance(
+            journey=JourneyTypes.UPDATE, scheme_account_entry=scheme_account_entry
+        )
 
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
@@ -1131,7 +1143,9 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
             scheme_account=scheme_account, link_status=AccountLinkStatus.PENDING
         )
 
-        points, dw_event = scheme_account.get_balance(journey=JourneyTypes.UPDATE, scheme_account_entry=scheme_account_entry)
+        points, dw_event = scheme_account.get_balance(
+            journey=JourneyTypes.UPDATE, scheme_account_entry=scheme_account_entry
+        )
 
         scheme_account_entry.refresh_from_db()
 
@@ -1147,7 +1161,9 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory()
         scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
-        points, dw_event = scheme_account.get_balance(journey=JourneyTypes.UPDATE, scheme_account_entry=scheme_account_entry)
+        points, dw_event = scheme_account.get_balance(
+            journey=JourneyTypes.UPDATE, scheme_account_entry=scheme_account_entry
+        )
 
         self.assertIsNone(dw_event)
         self.assertIsNone(points)
