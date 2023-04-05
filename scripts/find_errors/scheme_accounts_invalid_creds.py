@@ -4,9 +4,21 @@ from ..actions.corrections import Correction
 from .base_script import BaseScript
 
 
-class FindSchemeAccountsStuckInInvalidCreds(BaseScript):
+class FindIcelandSchemeAccountsStuckInInvalidCreds(BaseScript):
+    """
+    This script is to resolve issues with Iceland's batch Join process where an attempt to get balance immediately
+    after a successful Join may result in a VALIDATION error from the Iceland balance endpoint. This ends up
+    setting the account to an INVALID_CREDENTIALS status.
+
+    Manually refreshing the balance for these accounts via this script can resolve the issue.
+    """
+
     def script(self):
-        scheme_account_entries = SchemeAccountEntry.objects.filter(link_status=AccountLinkStatus.INVALID_CREDENTIALS)
+        scheme_account_entries = SchemeAccountEntry.objects.filter(
+            scheme_account__scheme__slug="iceland-bonus-card",
+            scheme_account__join_date__isnull=False,
+            link_status=AccountLinkStatus.INVALID_CREDENTIALS
+        )
 
         for entry in scheme_account_entries:
             self.set_correction(Correction.MARK_AS_UNKNOWN)
