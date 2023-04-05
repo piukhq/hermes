@@ -359,7 +359,7 @@ class SchemeAccountAdmin(HistoryAdmin):
             scheme_account.delete_cached_balance()
             for entry in SchemeAccountEntry.objects.filter(scheme_account=scheme_account.id):
                 if entry.link_status == AccountLinkStatus.ACTIVE:
-                    scheme_account.get_cached_balance(entry)
+                    scheme_account.get_balance(entry)
         messages.add_message(request, messages.INFO, "Refreshed balance, vouchers and transactions information.")
 
     def get_readonly_fields(self, request, obj=None):
@@ -480,7 +480,7 @@ class SchemeUserAssociationAdmin(HistoryAdmin):
         # directly from Midas, which will also push transactions from Midas (via Hades), to Hermes.
         for scheme_account_entry in queryset:
             scheme_account_entry.scheme_account.delete_cached_balance()
-            scheme_account_entry.scheme_account.get_cached_balance(scheme_account_entry=scheme_account_entry)
+            scheme_account_entry.scheme_account.get_balance(scheme_account_entry=scheme_account_entry)
         messages.add_message(request, messages.INFO, "Refreshed balance, vouchers and transactions information.")
 
     def scheme_account_link(self, obj):

@@ -738,7 +738,6 @@ class MembershipCardView(
         # todo: we should be able to replace this with async_balance but will need to consider event handling.
         async_balance_with_updated_credentials.delay(
             instance_id=account.id,
-            user_id=user_id,
             scheme_account_entry=scheme_account_entry,
             payment_cards_to_link=payment_cards_to_link,
             relink_pll=relink_pll,
@@ -948,7 +947,6 @@ class MembershipCardView(
         # todo: we should be able to replace this with async_balance but will need to consider event handling.
         async_balance_with_updated_credentials.delay(
             instance_id=account.id,
-            user_id=user_id,
             scheme_account_entry=scheme_acc_entry,
             payment_cards_to_link=payment_cards_to_link,
             relink_pll=relink_pll,

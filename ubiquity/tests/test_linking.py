@@ -475,7 +475,7 @@ class TestSoftLinking(GlobalMockAPITestCase):
                 "balance": 5
             })
         )
-        self.scheme_account_c2_s2.get_cached_balance(JourneyTypes.UPDATE)
+        self.scheme_account_c2_s2.get_balance(JourneyTypes.UPDATE)
         linked = LinkAnalyst(PaymentCardSchemeEntry.objects.filter(payment_card_account_id=payment_card_id))
         self.assertEqual(linked.count_soft_links, 0)
         self.assertEqual(linked.count_active_links, 3)
@@ -485,7 +485,7 @@ class TestSoftLinking(GlobalMockAPITestCase):
             uri,
             body=self.failed_midas_callback
         )
-        self.scheme_account_c2_s2.get_cached_balance(JourneyTypes.UPDATE)
+        self.scheme_account_c2_s2.get_balance(JourneyTypes.UPDATE)
         linked = LinkAnalyst(PaymentCardSchemeEntry.objects.filter(payment_card_account_id=payment_card_id))
         self.assertEqual(linked.count_soft_links, 1)
         self.assertEqual(linked.count_active_links, 2)
