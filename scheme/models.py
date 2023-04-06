@@ -763,7 +763,7 @@ class SchemeAccount(models.Model):
             update_fields.append("balances")
 
         if voucher_resp and voucher_resp != self.vouchers:
-            self.vouchers = vouchers
+            self.vouchers = voucher_resp
             update_fields.append("vouchers")
 
         return update_fields
