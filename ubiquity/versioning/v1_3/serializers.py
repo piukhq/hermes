@@ -59,4 +59,6 @@ class MembershipPlanSerializer(v1_2_serializers.MembershipPlanSerializer):
         plan = super().to_representation(instance)
         plan["card"]["secondary_colour"] = instance.secondary_colour
         plan["slug"] = instance.slug
+        if instance.go_live:
+            plan["go_live"] = instance.go_live.isoformat()
         return plan
