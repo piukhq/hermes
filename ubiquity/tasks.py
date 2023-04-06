@@ -328,7 +328,7 @@ def deleted_membership_card_cleanup(
         scheme_account_id=scheme_account_entry.scheme_account.id
     ).prefetch_related("scheme_account", "payment_card_account", "payment_card_account__paymentcardschemeentry_set")
 
-    remove_loyalty_card_event(scheme_account_entry)
+    remove_loyalty_card_event(scheme_account_entry, date_time=delete_date)
 
     # @todo consider if the next line is redundant - deleting base_pll cascades delete PLLAssociation on foreign key
     #  also pll_links.delete() does this with a post delete signal.

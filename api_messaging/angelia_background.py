@@ -1,7 +1,6 @@
 import logging
 from enum import Enum
 
-import arrow
 from rest_framework.exceptions import ValidationError as RestValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.settings import api_settings
@@ -336,13 +335,13 @@ def loyalty_card_join(message: dict) -> None:
             if payment_cards_to_link:
                 PllUserAssociation.link_user_scheme_account_to_payment_cards(account, payment_cards_to_link, user)
             # send event to data warehouse
-            join_request_lc_event(entry, ac.channel_slug)
+            join_request_lc_event(entry, ac.channel_slug, ac.date_time)
             # @todo we may need to modify join_outcome to accept a different origin as it is not "merchant call back"
             # however need to agree this with data team.
-            join_outcome(success=False, scheme_account_entry=entry)
+            join_outcome(success=False, scheme_account_entry=entry, date_time=None)  # outcome must have now time
         else:
             # send event to data warehouse
-            join_request_lc_event(entry, ac.channel_slug)
+            join_request_lc_event(entry, ac.channel_slug, ac.date_time)
             async_join(
                 scheme_account_id=account.id,
                 user_id=user.id,
@@ -359,7 +358,7 @@ def delete_loyalty_card(message: dict) -> None:
         scheme_account_entry = SchemeAccountEntry.objects.get(
             scheme_account_id=message.get("loyalty_card_id"), user_id=ac.user_id
         )
-        deleted_membership_card_cleanup(scheme_account_entry, arrow.utcnow().format())
+        deleted_membership_card_cleanup(scheme_account_entry, ac.date_time)
 
 
 def delete_user(message: dict) -> None:
