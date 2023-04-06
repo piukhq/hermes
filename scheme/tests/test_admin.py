@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 
+import arrow
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
@@ -61,6 +62,7 @@ class TestSchemeValidation(TestCase):
                 "max_points_value_length": 2,
                 "status": 0,
                 "balance_renew_period": 1200,
+                "go_live": arrow.utcnow().format("YYYY-MM-DD"),
             },
         )
         self.assertTrue(form.is_valid(), msg=repr(form.errors))
