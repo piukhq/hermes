@@ -274,7 +274,7 @@ class Scheme(models.Model):
     balance_renew_period = models.IntegerField(
         default=60 * 20, help_text="Time, in seconds, to allow before calling the merchant to refresh a balance"
     )  # 20 minute default
-    go_live = models.DateField(null=True)
+    go_live = models.DateField(null=True, blank=True)
 
     @cached_property
     def manual_question(self):

@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="scheme",
             name="go_live",
-            field=models.DateField(null=True),
+            field=models.DateField(null=True, blank=True),
         ),
     ]
