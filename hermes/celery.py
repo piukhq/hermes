@@ -31,10 +31,10 @@ below
 """
 app.conf.task_queues = (
     Queue(
-        "delayed-ubiquity-async-midas",
+        "delayed-70-ubiquity-async-midas",
         exchange=Exchange("ubiquity-async-midas", type="direct"),
         routing_key="ubiquity-async-midas",
-        message_ttl=0.05,
+        message_ttl=0.07,
         queue_arguments=dead_letter_queue_option,
     ),
 )

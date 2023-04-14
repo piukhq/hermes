@@ -36,7 +36,6 @@ def record_history(model_name: str, **kwargs) -> None:
 
 @shared_task
 def join_outcome_event(success: bool, scheme_account_entry: "SchemeAccountEntry") -> None:
-
     join_outcome(success, scheme_account_entry)
 
 
