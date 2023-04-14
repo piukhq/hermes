@@ -703,7 +703,7 @@ RABBIT_DSN = env_var("RABBIT_DSN", "amqp://guest:guest@localhost/")
 
 # Celery
 CELERY_BROKER_URL = RABBIT_DSN
-CELERY_TASK_DEFAULT_QUEUE = env_var("CELERY_TASK_DEFAULT_QUEUE", "delayed-ubiquity-async-midas")
+CELERY_TASK_DEFAULT_QUEUE = env_var("CELERY_TASK_DEFAULT_QUEUE", "delayed-70-ubiquity-async-midas")
 CELERY_TASK_SERIALIZER = "pickle"
 CELERY_ACCEPT_CONTENT = ["pickle", "json"]
 CELERY_RESULT_SERIALIZER = "pickle"
