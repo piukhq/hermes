@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import arrow
+
 from api_messaging import angelia_background, route
 from api_messaging.exceptions import InvalidMessagePath
 from history.utils import GlobalMockAPITestCase
@@ -28,6 +30,7 @@ class TestPaymentAccountMessaging(GlobalMockAPITestCase):
         cls.scheme_account = SchemeAccountFactory()
         cls.scheme_account.user_set.add(cls.payment_card_account_entry.user)
         cls.post_payment_account_message = {
+            "utc_adjusted": arrow.utcnow().isoformat(),
             "payment_account_id": cls.payment_card_account_entry.payment_card_account.id,
             "user_id": cls.payment_card_account_entry.user.id,
             "channel_slug": "com.bink.wallet",
@@ -35,6 +38,7 @@ class TestPaymentAccountMessaging(GlobalMockAPITestCase):
             "auto_link": False,
         }
         cls.post_payment_account_auto_link_message = {
+            "utc_adjusted": arrow.utcnow().isoformat(),
             "payment_account_id": cls.payment_card_account_entry.payment_card_account.id,
             "user_id": cls.payment_card_account_entry.user.id,
             "channel_slug": "com.bink.wallet",
@@ -42,6 +46,7 @@ class TestPaymentAccountMessaging(GlobalMockAPITestCase):
             "auto_link": True,
         }
         cls.delete_payment_account_message = {
+            "utc_adjusted": arrow.utcnow().isoformat(),
             "payment_account_id": cls.payment_card_account_entry.payment_card_account.id,
             "user_id": cls.payment_card_account_entry.user.id,
             "channel_slug": "com.bink.wallet",
@@ -122,6 +127,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             {"credential_slug": "email", "value": "007@mi5.com"},
         ]
         cls.loyalty_card_auth_autolink_message = {
+            "utc_adjusted": arrow.utcnow().isoformat(),
             "loyalty_card_id": cls.scheme_account.id,
             "user_id": cls.scheme_account_entry.user.id,
             "entry_id": cls.scheme_account_entry.id,
@@ -131,6 +137,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             "authorise_fields": cls.auth_fields,
         }
         cls.loyalty_card_auth_no_autolink_message = {
+            "utc_adjusted": arrow.utcnow().isoformat(),
             "loyalty_card_id": cls.scheme_account.id,
             "user_id": cls.scheme_account_entry.user.id,
             "entry_id": cls.scheme_account_entry.id,
@@ -141,6 +148,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         }
 
         cls.loyalty_card_register_message = {
+            "utc_adjusted": arrow.utcnow().isoformat(),
             "loyalty_card_id": cls.scheme_account.id,
             "user_id": cls.scheme_account_entry.user.id,
             "entry_id": cls.scheme_account_entry.id,
@@ -153,6 +161,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         }
 
         cls.loyalty_card_join_message = {
+            "utc_adjusted": arrow.utcnow().isoformat(),
             "loyalty_card_id": cls.scheme_account.id,
             "user_id": cls.scheme_account_entry.user.id,
             "channel_slug": "com.bink.wallet",
@@ -163,6 +172,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         }
 
         cls.delete_loyalty_card_message = {
+            "utc_adjusted": arrow.utcnow().isoformat(),
             "loyalty_card_id": cls.scheme_account.id,
             "user_id": cls.scheme_account_entry.user.id,
             "channel_slug": "com.bink.wallet",
@@ -253,7 +263,11 @@ class TestUserMessaging(GlobalMockAPITestCase):
     def setUpTestData(cls):
         cls.user = UserFactory()
         cls.delete_user_headers = {"X-http-path": "delete_user"}
-        cls.delete_user_message = {"user_id": cls.user.id, "channel_slug": "com.bink.wallet"}
+        cls.delete_user_message = {
+            "utc_adjusted": arrow.utcnow().isoformat(),
+            "user_id": cls.user.id,
+            "channel_slug": "com.bink.wallet",
+        }
 
     @patch("api_messaging.angelia_background.deleted_service_cleanup")
     def test_delete_user(self, mock_delete_cleanup):

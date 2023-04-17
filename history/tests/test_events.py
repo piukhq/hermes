@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import arrow
 from django.test import TransactionTestCase, override_settings
 
 from history.data_warehouse import (
@@ -202,11 +203,12 @@ class TestAAALCEventHandlers(TransactionTestCase):
         SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE)
 
         cls.mcard = SchemeAccountFactory(scheme=cls.scheme)
+        cls.date_time = arrow.utcnow().isoformat()
         super().setUpClass()
 
     @patch("history.data_warehouse.to_data_warehouse")
     def test_addauth_request_lc_event(self, mock_to_warehouse):
-        addauth_request_lc_event(self.user, self.mcard, "test.auth.fake")
+        addauth_request_lc_event(self.user, self.mcard, "test.auth.fake", date_time=self.date_time)
 
         self.assertTrue(mock_to_warehouse.called)
         data = mock_to_warehouse.call_args.args[0]
@@ -251,11 +253,12 @@ class TestAuthRequestEventHandlers(TransactionTestCase):
         SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE)
 
         cls.mcard = SchemeAccountFactory(scheme=cls.scheme)
+        cls.date_time = arrow.utcnow().isoformat()
         super().setUpClass()
 
     @patch("history.data_warehouse.to_data_warehouse")
     def test_auth_request_lc_event(self, mock_to_warehouse):
-        auth_request_lc_event(self.user, self.mcard, "test.auth.fake")
+        auth_request_lc_event(self.user, self.mcard, "test.auth.fake", date_time=self.date_time)
 
         self.assertTrue(mock_to_warehouse.called)
         data = mock_to_warehouse.call_args.args[0]
