@@ -36,18 +36,17 @@ def record_history(model_name: str, **kwargs) -> None:
 
 @shared_task
 def join_outcome_event(success: bool, scheme_account_entry: "SchemeAccountEntry") -> None:
-
     join_outcome(success, scheme_account_entry)
 
 
 @shared_task
-def add_auth_outcome_task(success: bool, scheme_account_entry: "SchemeAccountEntry") -> None:
-    add_auth_outcome(success, scheme_account_entry)
+def add_auth_outcome_task(success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None) -> None:
+    add_auth_outcome(success, scheme_account_entry, date_time)
 
 
 @shared_task
-def auth_outcome_task(success: bool, scheme_account_entry: "SchemeAccountEntry") -> None:
-    auth_outcome(success, scheme_account_entry)
+def auth_outcome_task(success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None) -> None:
+    auth_outcome(success, scheme_account_entry, date_time)
 
 
 @shared_task
