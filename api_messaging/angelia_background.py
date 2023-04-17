@@ -1,8 +1,6 @@
 import logging
-from datetime import datetime
 from enum import Enum
 
-import arrow
 from rest_framework.exceptions import ValidationError as RestValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.settings import api_settings
@@ -73,6 +71,7 @@ class AngeliaContext:
         self.channel_slug = message.get("channel_slug")
         self.entry_id = message.get("entry_id")
         self.add_fields = message.get("add_fields")
+        self.date_time = message.get("utc_adjusted")
         # auto_link was only sent for payment and not membership cards. Now use self.auto_link as it is True by default
         # ie unless a message with specific entry auto_link=False must be sent
         self.auto_link = message.get("auto_link", True)
@@ -82,6 +81,10 @@ class AngeliaContext:
             raise ValueError(err)
         if not self.channel_slug:
             err = "An Angelia Background message exception channel_slug was not sent"
+            logger.error(err)
+            raise ValueError(err)
+        if not self.date_time:
+            err = "An Angelia Background message exception utc_adjusted was not sent"
             logger.error(err)
             raise ValueError(err)
         self.history_kwargs = {
@@ -191,7 +194,7 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
 
         if path in [LoyaltyCardPath.REGISTER, LoyaltyCardPath.ADD_AND_REGISTER]:
-            register_lc_event(scheme_account_entry, ac.channel_slug)
+            register_lc_event(scheme_account_entry, ac.channel_slug, ac.date_time)
 
         link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link)
         """
@@ -332,13 +335,13 @@ def loyalty_card_join(message: dict) -> None:
             if payment_cards_to_link:
                 PllUserAssociation.link_user_scheme_account_to_payment_cards(account, payment_cards_to_link, user)
             # send event to data warehouse
-            join_request_lc_event(entry, ac.channel_slug)
+            join_request_lc_event(entry, ac.channel_slug, ac.date_time)
             # @todo we may need to modify join_outcome to accept a different origin as it is not "merchant call back"
             # however need to agree this with data team.
-            join_outcome(success=False, scheme_account_entry=entry)
+            join_outcome(success=False, scheme_account_entry=entry, date_time=None)  # outcome must have now time
         else:
             # send event to data warehouse
-            join_request_lc_event(entry, ac.channel_slug)
+            join_request_lc_event(entry, ac.channel_slug, ac.date_time)
             async_join(
                 scheme_account_id=account.id,
                 user_id=user.id,
@@ -355,7 +358,7 @@ def delete_loyalty_card(message: dict) -> None:
         scheme_account_entry = SchemeAccountEntry.objects.get(
             scheme_account_id=message.get("loyalty_card_id"), user_id=ac.user_id
         )
-        deleted_membership_card_cleanup(scheme_account_entry, arrow.utcnow().format())
+        deleted_membership_card_cleanup(scheme_account_entry, ac.date_time)
 
 
 def delete_user(message: dict) -> None:
@@ -386,7 +389,7 @@ def refresh_balances(message: dict) -> None:
 
 def user_session(message: dict) -> None:
     user = CustomUser.objects.get(id=message.get("user_id"))
-    user.last_accessed = message.get("time")
+    user.last_accessed = message.get("utc_adjusted")
     user.save()
     payload = {
         "event_type": "user.session.start",
@@ -444,7 +447,6 @@ def record_mapper_history(model_name: str, ac: AngeliaContext, message: dict):
             payload[rk] = None
 
     extra = {"user_id": ac.user_id, "channel": ac.channel_slug}
-    event_time = datetime.strptime(message["event_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
     required_extra_fields = get_required_extra_fields(model_name)
 
     if "body" in required_extra_fields:
@@ -460,7 +462,7 @@ def record_mapper_history(model_name: str, ac: AngeliaContext, message: dict):
 
     record_history(
         model_name,
-        event_time=event_time,
+        event_time=ac.date_time,
         change_type=message["event"],
         change_details=change_details,
         instance_id=payload.get("id", None),
@@ -470,7 +472,7 @@ def record_mapper_history(model_name: str, ac: AngeliaContext, message: dict):
 
 def mapper_history(message: dict) -> None:
     """This message assumes Angelia logged history via mapper database event ie an ORM based where the
-    data was know to Angelia and can be passed to Hermes to update History
+    data was known to Angelia and can be passed to Hermes to update History
     """
     model_name = table_to_model.get(message.get("table", ""), False)
     if message.get("payload") and model_name:
@@ -483,26 +485,28 @@ def mapper_history(message: dict) -> None:
 def add_auth_outcome_event(message: dict) -> None:
     success = message.get("success")
     journey = message.get("journey")
+    date_time = message.get("utc_adjusted")
     scheme_account_entry = SchemeAccountEntry.objects.get(pk=message.get("entry_id"))
 
     if journey == "ADD_AND_AUTH":
-        add_auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry)
+        add_auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry, date_time=date_time)
     elif journey == "AUTH":
-        auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry)
+        auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry, date_time=date_time)
 
 
 def add_auth_request_event(message: dict) -> None:
     journey = message.get("journey")
     user_id = message.get("user_id")
+    date_time = message.get("utc_adjusted")
     loyalty_card_id = message.get("loyalty_card_id")
     channel_slug = message.get("channel_slug")
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(pk=loyalty_card_id)
 
     if journey == "ADD_AND_AUTH":
-        addauth_request_lc_event(user, scheme_account, channel_slug)
+        addauth_request_lc_event(user, scheme_account, channel_slug, date_time)
     elif journey == "AUTH":
-        auth_request_lc_event(user, scheme_account, channel_slug)
+        auth_request_lc_event(user, scheme_account, channel_slug, date_time)
 
 
 def sql_history(message: dict) -> None:
@@ -511,7 +515,6 @@ def sql_history(message: dict) -> None:
     postgres which did not
     """
     with AngeliaContext(message) as ac:
-        event_time = datetime.strptime(message["event_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
         model_name = table_to_model.get(message.get("table", ""), False)
 
         if model_name == "CustomUser":
@@ -520,7 +523,7 @@ def sql_history(message: dict) -> None:
             serializer = HistoryUserSerializer(user)
             record_history(
                 model_name,
-                event_time=event_time,
+                event_time=ac.date_time,
                 change_type=message["event"],
                 change_details=message["change"],
                 channel=ac.channel_slug,

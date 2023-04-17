@@ -3,10 +3,42 @@ import os
 from celery import Celery
 from celery.schedules import crontab
 from django.conf import settings
+from kombu import Exchange, Queue
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "hermes.settings")
 
 app = Celery("async_tasks")
+dead_letter_queue_option = {
+    "x-dead-letter-exchange": "ubiquity-async-midas",
+    "x-dead-letter-routing-key": "ubiquity-async-midas",
+}
+
+"""
+******* Warning *******
+do not change any parameter in dead letter options above or below especially the
+message_ttl etc.  This also applies to other Queues set up in the same way.
+
+If you do Celery will not write to the Queue if it already been created on the server
+and the parameters are not an exact match.
+
+If you need to do change the Queue parameter the existing Queue could be deleted just before roll out
+or better still set up another dead-letter queue under a new name.
+Make sure it is linked like this example to write to the non-delayed processing Queue. After deployment
+the old dead-letter Queue may be deleted.   The new dead-letter queue name must replace the old one check
+and update where necessary the celery default queue config in settings and the app.conf.task_routes set up
+below
+
+"""
+app.conf.task_queues = (
+    Queue(
+        "delayed-70-ubiquity-async-midas",
+        exchange=Exchange("ubiquity-async-midas", type="direct"),
+        routing_key="ubiquity-async-midas",
+        message_ttl=0.07,
+        queue_arguments=dead_letter_queue_option,
+    ),
+)
+
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks(
     [
@@ -22,6 +54,7 @@ app.autodiscover_tasks(
         "ubiquity.migrations.0018_migrate_pll_data",
     ]
 )
+
 
 app.conf.beat_schedule = {
     "retry_tasks": {
