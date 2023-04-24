@@ -92,6 +92,7 @@ def get_sftp_client(
             return password_and_key_sftp_client(host, port, host_keys, username, password, pkey)
     except paramiko.AuthenticationException:
         logger.exception("Authentication failed.")
+        raise
 
     logger.exception("Password or private not provided.")
     raise ValueError("Password and or private key must be provided")
