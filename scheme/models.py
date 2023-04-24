@@ -1025,6 +1025,7 @@ class SchemeCredentialQuestion(models.Model):
 
     # ubiquity fields
     validation = models.TextField(default="", blank=True, max_length=250)
+    validation_description = models.TextField(default="", blank=True, max_length=250)
     description = models.CharField(default="", blank=True, max_length=250)
     # common_name = models.CharField(default='', blank=True, max_length=50)
     answer_type = models.IntegerField(default=0, choices=ANSWER_TYPE_CHOICES)
@@ -1033,6 +1034,7 @@ class SchemeCredentialQuestion(models.Model):
     auth_field = models.BooleanField(default=False)
     register_field = models.BooleanField(default=False)
     enrol_field = models.BooleanField(default=False)
+
 
     @property
     def required(self):
