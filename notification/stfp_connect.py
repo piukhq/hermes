@@ -1,9 +1,12 @@
 import base64
+import logging
 import threading
 from typing import List, NamedTuple, Optional
 
 import paramiko
 import paramiko.auth_handler
+
+logger = logging.getLogger(__name__)
 
 
 class HostKey(NamedTuple):
@@ -33,6 +36,7 @@ def password_and_key_sftp_client(host, port, host_keys, username, password, pkey
     remote_key = transport.get_remote_server_key()
 
     if not host_key_collection.check(server_hostkey_name, remote_key):
+        logger.exception("Bad host key")
         raise paramiko.BadHostKeyException(server_hostkey_name, remote_key, host_keys[0].parsed_key)
 
     transport.auth_publickey(username, pkey, event=None)
@@ -60,6 +64,7 @@ def password_and_key_sftp_client(host, port, host_keys, username, password, pkey
     pw_auth_handler.wait_for_response(pw_auth_event)
 
     if not transport.is_authenticated():
+        logger.exception("Failed to authenticate with multi-factor auth")
         raise ValueError("Failed to authenticate with multi-factor auth")
     return transport.open_sftp_client()
 
@@ -73,16 +78,20 @@ def get_sftp_client(
     pkey: Optional[paramiko.RSAKey] = None,
 ) -> paramiko.SFTPClient:
 
-    if (pkey and not password) or (password and not pkey):
-        ssh_client = paramiko.SSHClient()
-        for host_key in host_keys:
-            ssh_client.get_host_keys().add(host_key.host, host_key.keytype, host_key.parsed_key)
-        if pkey:
-            ssh_client.connect(hostname=host, port=port, username=username, pkey=pkey)
-        else:
-            ssh_client.connect(hostname=host, port=port, username=username, password=password)
-        return ssh_client.open_sftp()
-    elif pkey and password:
-        return password_and_key_sftp_client(host, port, host_keys, username, password, pkey)
+    try:
+        if (pkey and not password) or (password and not pkey):
+            ssh_client = paramiko.SSHClient()
+            for host_key in host_keys:
+                ssh_client.get_host_keys().add(host_key.host, host_key.keytype, host_key.parsed_key)
+            if pkey:
+                ssh_client.connect(hostname=host, port=port, username=username, pkey=pkey)
+            else:
+                ssh_client.connect(hostname=host, port=port, username=username, password=password)
+            return ssh_client.open_sftp()
+        elif pkey and password:
+            return password_and_key_sftp_client(host, port, host_keys, username, password, pkey)
+    except paramiko.AuthenticationException:
+        logger.exception("Authentication failed.")
 
-    raise ValueError("password and or private key must be provided")
+    logger.exception("Password or private not provided.")
+    raise ValueError("Password and or private key must be provided")
