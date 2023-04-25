@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0113_scheme_go_live'),
+        ("scheme", "0113_scheme_go_live"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='schemecredentialquestion',
-            name='validation_description',
-            field=models.TextField(blank=True, default='', max_length=250),
+            model_name="schemecredentialquestion",
+            name="validation_description",
+            field=models.TextField(blank=True, default="", max_length=250),
         ),
     ]
