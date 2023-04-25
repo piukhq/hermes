@@ -1035,7 +1035,6 @@ class SchemeCredentialQuestion(models.Model):
     register_field = models.BooleanField(default=False)
     enrol_field = models.BooleanField(default=False)
 
-
     @property
     def required(self):
         return self.options is not self.OPTIONAL_JOIN
