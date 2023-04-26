@@ -8,6 +8,7 @@ from .find_errors.vop_activations_stuck_in_activating import FindVOPActivationsS
 from .find_errors.vop_activations_stuck_in_deactivating import FindVOPActivationsStuckInDeactivating
 from .find_errors.vop_cards_in_duplicate_card_status import FindVOPCardsInDuplicateCardStatus
 from .find_errors.vop_cards_needing_activations import FindVopCardsNeedingActivation
+from .find_errors.pll_incorrect_state import FindIncorrectPLL
 
 # New scripts which find records to correct should be imported above and mapped in script functions
 # Define name and title here.  Only Scripts names in SCRIPT_CLASSES will have a link on /admin/scripts/ page
@@ -24,6 +25,7 @@ class DataScripts(IntEnum):
     ICELAND_SCHEME_ACCOUNT_INVALID_CREDS = auto()
     BARCLAYS_HASH_UPLOAD = auto()
     DELETE_LISTED_PAYMENT_ACCOUNTS = auto()
+    FIX_FALSE_ACTIVE_PLL_LINK = auto()
 
 
 SCRIPT_TITLES = {
@@ -39,6 +41,7 @@ SCRIPT_TITLES = {
     ),
     DataScripts.BARCLAYS_HASH_UPLOAD: "Barclays hash replacement using Azure upload files",
     DataScripts.DELETE_LISTED_PAYMENT_ACCOUNTS: "Remove Payment Accounts in supplied CSV File",
+    DataScripts.FIX_FALSE_ACTIVE_PLL_LINK: "Update PLL links that are marked incorrectly as True",
 }
 
 SCRIPT_CLASSES = {
@@ -51,6 +54,7 @@ SCRIPT_CLASSES = {
     DataScripts.ICELAND_SCHEME_ACCOUNT_INVALID_CREDS: FindIcelandSchemeAccountsStuckInInvalidCreds,
     DataScripts.BARCLAYS_HASH_UPLOAD: BarclaysHashCorrectionsUpload,
     DataScripts.DELETE_LISTED_PAYMENT_ACCOUNTS: BarclaysDeleteUpload,
+    DataScripts.FIX_FALSE_ACTIVE_PLL_LINK: FindIncorrectPLL,
 }
 # End of new script definition - you do not need to do anything else to add a new find script
 # But you may need to add one or more corrective actions see actions/corrections.py
