@@ -143,6 +143,7 @@ class CredentialQuestionInline(admin.StackedInline):
         ("third_party_identifier", "manual_question", "scan_question", "one_question_link"),
         "options",
         "validation",
+        "validation_description",
         "description",
         "answer_type",
         "choice",
