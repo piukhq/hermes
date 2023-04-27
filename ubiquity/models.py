@@ -893,46 +893,55 @@ class PllUserAssociation(models.Model):
             raise ValueError(f'Invalid slug value: "{slug}" sent to PllUserAssociation.get_slug_description')
 
     @staticmethod
-    def update_link(link: "PllUserAssociation"):
+    def update_link(link: "PllUserAssociation", wallet_pll_records: list):
         link.save()
         if link.state == WalletPLLStatus.ACTIVE:
             # Set the generic pll link to active if not already set
             if not link.pll.active_link:
                 link.pll.activate()
         else:
-            # Update base link
-            link.pll.active_link = False
-            link.pll.save()
+            update_base_link = True
+            for pll in wallet_pll_records:
+                if pll.state == WalletPLLStatus.ACTIVE:
+                    update_base_link = False
+                    break
+
+            if update_base_link:
+                link.pll.active_link = False
+                link.pll.save()
 
     @classmethod
     def update_user_pll_by_both(cls, payment_card_account: "PaymentCardAccount", scheme_account: "SchemeAccount"):
         wallet_pll_data = WalletPLLData(payment_card_account=payment_card_account, scheme_account=scheme_account)
         # these are pll user links to all wallets which have this payment_card_account
-        for link in wallet_pll_data.all_except_collision():
+        wallet_pll_records = wallet_pll_data.all_except_collision()
+        for link in wallet_pll_records:
             link.state, link.slug = cls.get_state_and_slug(
                 link.pll.payment_card_account, wallet_pll_data.scheme_account_status(link)
             )
-            cls.update_link(link)
+            cls.update_link(link, wallet_pll_records)
 
     @classmethod
     def update_user_pll_by_pay_account(cls, payment_card_account: "PaymentCardAccount"):
         wallet_pll_data = WalletPLLData(payment_card_account=payment_card_account)
         # these are pll user links to all wallets which have this payment_card_account
-        for link in wallet_pll_data.all_except_collision():
+        wallet_pll_records = wallet_pll_data.all_except_collision()
+        for link in wallet_pll_records:
             link.state, link.slug = cls.get_state_and_slug(
                 link.pll.payment_card_account, wallet_pll_data.scheme_account_status(link)
             )
-            cls.update_link(link)
+            cls.update_link(link, wallet_pll_records)
 
     @classmethod
     def update_user_pll_by_scheme_account(cls, scheme_account: "SchemeAccount"):
         wallet_pll_data = WalletPLLData(scheme_account=scheme_account)
         # these are pll user links to all wallets which have this scheme_account
-        for link in wallet_pll_data.all_except_collision():
+        wallet_pll_records = wallet_pll_data.all_except_collision()
+        for link in wallet_pll_records:
             wallet_scheme_account_status = wallet_pll_data.scheme_account_status(link)
             link.state, link.slug = cls.get_state_and_slug(link.pll.payment_card_account, wallet_scheme_account_status)
 
-            cls.update_link(link)
+            cls.update_link(link, wallet_pll_records)
 
     @classmethod
     def link_users_scheme_accounts(
