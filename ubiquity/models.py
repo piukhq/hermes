@@ -894,15 +894,12 @@ class PllUserAssociation(models.Model):
 
     @staticmethod
     def update_link(link: "PllUserAssociation"):
+        # update_link = False
         link.save()
         if link.state == WalletPLLStatus.ACTIVE:
             # Set the generic pll link to active if not already set
             if not link.pll.active_link:
                 link.pll.activate()
-        else:
-            # Update base link
-            link.pll.active_link = False
-            link.pll.save()
 
     @classmethod
     def update_user_pll_by_both(cls, payment_card_account: "PaymentCardAccount", scheme_account: "SchemeAccount"):
