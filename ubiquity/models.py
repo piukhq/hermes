@@ -904,6 +904,7 @@ class PllUserAssociation(models.Model):
             for pll in wallet_pll_records:
                 if pll.state == WalletPLLStatus.ACTIVE:
                     update_base_link = False
+                    break
 
             if update_base_link:
                 link.pll.active_link = False

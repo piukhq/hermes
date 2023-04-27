@@ -1,8 +1,8 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from scheme.models import SchemeAccount, SchemeAccountEntry
-from ubiquity.models import AccountLinkStatus, PaymentCardSchemeEntry, PllUserAssociation
+from scheme.models import SchemeAccountEntry
+from ubiquity.models import PllUserAssociation
 
 
 @receiver(post_save, sender=SchemeAccountEntry)
