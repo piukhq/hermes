@@ -2,13 +2,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from payment_card.models import PaymentCardAccount
-from ubiquity.models import PaymentCardSchemeEntry, PllUserAssociation
-
-
-def check_base_link_payment_card(payment_card_account: PaymentCardAccount):
-    # Update base link for all relating objects if payment card is not active
-    if not payment_card_account.status:
-        PaymentCardSchemeEntry.objects.filter(payment_card_account_id=payment_card_account.id).update(active_link=False)
+from ubiquity.models import PllUserAssociation
 
 
 @receiver(post_save, sender=PaymentCardAccount)
@@ -22,4 +16,3 @@ def update_pll_active_link(sender, instance, created, update_fields=None, **kwar
         # todo: PLL stuff - remove next line when happy - change sender from PaymentCard
         # PaymentCardSchemeEntry.update_active_link_status({"payment_card_account": instance})
         PllUserAssociation.update_user_pll_by_pay_account(payment_card_account=instance)
-        check_base_link_payment_card(payment_card_account=instance)
