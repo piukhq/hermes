@@ -3,7 +3,7 @@ import logging
 import re
 import sre_constants
 from enum import Enum, IntEnum
-from typing import TYPE_CHECKING, Iterable, Type, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Type, Union
 
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
@@ -808,7 +808,9 @@ class WalletPLLData:
                             "scheme_count": self.scheme_count[pay_id][scheme_id],
                         }
 
-    def get_link_data(self, link: "PllUserAssociation"):
+    def get_link_data(
+        self, link: "PllUserAssociation"
+    ) -> dict[[str, Optional[str]], [str, Optional["PllUserAssociation"]], [str, int]]:
         self.process_links()
         sas = self.scheme_account_data.get(link.pll.scheme_account.id)
         if sas:

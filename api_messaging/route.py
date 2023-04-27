@@ -19,10 +19,11 @@ def retry(headers: dict, message: dict, route: dict) -> None:
     for retry_count in range(settings.API_MESSAGING_RETRY_LIMIT):
         try:
             route[headers["X-http-path"]](message)
+            logger.info(f"Angelia background message processed successfully: {headers['X-http-path']}")
             break
         except ObjectDoesNotExist as e:
             sleep(1)
-            if retry_count == settings.API_MESSAGING_RETRY_LIMIT:
+            if retry_count + 1 == settings.API_MESSAGING_RETRY_LIMIT:
                 logger.exception(f"An Angelia Background exception occurred. Traceback: {e}")
                 break
             else:

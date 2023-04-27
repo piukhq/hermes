@@ -1073,11 +1073,6 @@ class MembershipCardView(
         self, user: CustomUser, scheme: Scheme, auth_fields: dict, add_fields: dict, payment_cards_to_link: list
     ) -> t.Tuple[SchemeAccount, SchemeAccountEntry, int, MembershipCardAddRoute]:
         HISTORY_CONTEXT.journey = journey = SchemeAccountJourney.ADD.value
-        link_consents = add_fields.get("consents", []) + auth_fields.get("consents", [])
-        if add_fields:
-            add_fields["consents"] = link_consents
-        if auth_fields:
-            auth_fields["consents"] = link_consents
 
         serializer = self.get_serializer(data={"scheme": scheme.id, "order": 0, **add_fields})
         serializer.is_valid(raise_exception=True)
@@ -1093,16 +1088,6 @@ class MembershipCardView(
             sch_acc_entry_created,
         ) = self.create_account_with_valid_data(serializer, user, scheme)
 
-        # Create or retrieve scheme_account_entry and create main answer creds for this entry if necessary
-
-        # Seems not to do anything now:
-        # if not sch_acc_entry:
-        #    sch_acc_entry, sch_acc_entry_created = SchemeAccountEntry.create_or_retrieve_link(
-        #        user=user, scheme_account=scheme_account
-        #    )
-        # else:
-        #    sch_acc_entry_created = True
-
         if sch_acc_entry_created:
             self.create_main_answer_credential(
                 answer_type=answer_type, scheme_account_entry=sch_acc_entry, main_answer=main_answer
@@ -1110,8 +1095,8 @@ class MembershipCardView(
 
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
-        if account_created and auth_fields:
-            # scheme account created & auth fields
+        if account_created and (auth_fields or not scheme.authorisation_required):
+            # scheme account created & auth fields provided or the scheme does not require authorisation
 
             history_kwargs = {
                 "user_info": user_info(
@@ -1132,10 +1117,10 @@ class MembershipCardView(
             addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
 
-        elif not auth_fields:
+        elif not auth_fields and scheme.authorisation_required:
             # no auth provided, new scheme account created
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
-            self._handle_add_fields_only_link(sch_acc_entry, sch_acc_entry_created)
+            self._handle_wallet_only_link(sch_acc_entry, sch_acc_entry_created)
         else:
             # auth fields provided, new scheme account not created (linking to existing scheme account)
             if not sch_acc_entry_created:
@@ -1143,8 +1128,7 @@ class MembershipCardView(
                 sch_acc_entry.set_link_status(AccountLinkStatus.AUTH_PENDING)
             else:
                 addauth_request_lc_event(user, scheme_account, self.request.channels_permit.bundle_id)
-                sch_acc_entry.link_status = AccountLinkStatus.ADD_AUTH_PENDING
-            sch_acc_entry.save(update_fields=["link_status"])
+                sch_acc_entry.set_link_status(AccountLinkStatus.ADD_AUTH_PENDING)
 
             metrics_route = MembershipCardAddRoute.MULTI_WALLET
             async_link.delay(
@@ -1362,19 +1346,13 @@ class MembershipCardView(
         ]
 
     @staticmethod
-    def _handle_add_fields_only_link(
+    def _handle_wallet_only_link(
         scheme_account_entry: "SchemeAccountEntry",
         sch_acc_entry_created: bool,
     ):
         """Handles scheme accounts for when only add fields are provided."""
         if sch_acc_entry_created:
             scheme_account_entry.link_status = AccountLinkStatus.WALLET_ONLY
-
-            # todo: this is just until we remove the auth_provided flag
-            # scheme_account_entry.auth_provided = False
-
-            scheme_account_entry.scheme_account.status = AccountLinkStatus.WALLET_ONLY
-            scheme_account_entry.scheme_account.save()
 
             scheme_account_entry.save(update_fields=["link_status"])
             logger.info(
@@ -1448,8 +1426,12 @@ class ListMembershipCardView(MembershipCardView):
                 request.user, request.channels_permit, scheme, enrol_fields, payment_cards_to_link
             )
         else:
+            link_consents = add_fields.get("consents", []) + auth_fields.get("consents", [])
+            if add_fields:
+                add_fields["consents"] = link_consents
             if auth_fields:
                 auth_fields = detect_and_handle_escaped_unicode(auth_fields)
+                auth_fields["consents"] = link_consents
 
             account, sch_acc_entry, status_code, metrics_route = self._handle_create_link_route(
                 request.user, scheme, auth_fields, add_fields, payment_cards_to_link
