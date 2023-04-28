@@ -1013,7 +1013,7 @@ class TestResources(GlobalMockAPITestCase):
         payload = {
             "membership_plan": self.scheme.id,
             "account": {
-                "add_fields": [{"column": self.scheme.manual_question.label, "value": "3038401022657083"}],
+                "add_fields": [{"column": self.scheme.manual_question.label, "value": "99875323455212345"}],
                 "authorise_fields": [{"column": self.secondary_question.label, "value": "Test"}],
             },
         }
@@ -1043,41 +1043,66 @@ class TestResources(GlobalMockAPITestCase):
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
 
-    # todo: fix as part of TC phase 3+
-    # @patch("ubiquity.influx_audit.InfluxDBClient")
-    # @patch("ubiquity.views.async_link", autospec=True)
-    # @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    # def test_wallet_only_mcard_creation(self, mock_async_balance, mock_async_link, *_):
-    #     payload = {
-    #         "membership_plan": self.scheme.id,
-    #         "account": {"add_fields": [{"column": self.scheme.manual_question.label, "value": "3038401022657083"}]},
-    #     }
-    #     resp = self.client.post(
-    #         reverse("membership-cards"), data=json.dumps(payload), content_type="application/json",
-    #         **self.auth_headers
-    #     )
-    #     self.assertEqual(resp.status_code, 201)
-    #     self.assertEqual(
-    #         {"state": "unauthorised", "reason_codes": ["X103"], "error_text": "Wallet only card"}, resp.data["status"]
-    #     )
-    #     create_data = resp.data
-    #
-    #     sa = SchemeAccount.objects.get(pk=create_data["id"])
-    #     self.assertEqual(sa.barcode, payload["account"]["add_fields"][0]["value"])
-    #     self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
-    #
-    #     # replay and check same data with 200 response
-    #     resp = self.client.post(
-    #         reverse("membership-cards"), data=json.dumps(payload), content_type="application/json",
-    #         **self.auth_headers
-    #     )
-    #     self.assertEqual(resp.status_code, 200)
-    #     self.assertDictEqual(resp.data, create_data)
-    #     self.assertEqual(
-    #         {"state": "unauthorised", "reason_codes": ["X103"], "error_text": "Wallet only card"}, resp.data["status"]
-    #     )
-    #     self.assertFalse(mock_async_link.delay.called)
-    #     self.assertFalse(mock_async_balance.delay.called)
+    @patch("ubiquity.influx_audit.InfluxDBClient")
+    @patch("ubiquity.views.addauth_request_lc_event", autospec=True)
+    @patch("ubiquity.views.async_link", autospec=True)
+    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
+    def test_auth_not_required_add_only_mcard_creation(self, mock_async_balance, mock_async_link, mock_event, *_):
+        # auth_required=False calls async_link when only providing an add field
+        self.scheme.authorisation_required = False
+        self.scheme.save(update_fields=["authorisation_required"])
+
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account": {"add_fields": [{"column": self.scheme.manual_question.label, "value": "45678765433456"}]},
+        }
+        resp = self.client.post(
+            reverse("membership-cards"), data=json.dumps(payload), content_type="application/json", **self.auth_headers
+        )
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(
+            {"error_text": "Add Auth Pending", "reason_codes": ["X100"], "state": "pending"}, resp.data["status"]
+        )
+        create_data = resp.data
+        sa = SchemeAccount.objects.get(pk=create_data["id"])
+        self.assertEqual(sa.barcode, payload["account"]["add_fields"][0]["value"])
+        self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
+        self.assertTrue(mock_async_link.delay.called)
+        self.assertTrue(mock_event.called)
+        # for some reason changes aren't reverted between tests, so we need to set this back to True
+        # until we have a solution
+        self.scheme.authorisation_required = True
+        self.scheme.save(update_fields=["authorisation_required"])
+
+    @patch("ubiquity.influx_audit.InfluxDBClient")
+    @patch("ubiquity.views.async_link", autospec=True)
+    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
+    def test_wallet_only_mcard_creation(self, mock_async_balance, mock_async_link, *_):
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account": {"add_fields": [{"column": self.scheme.manual_question.label, "value": "3038401022657083"}]},
+        }
+        resp = self.client.post(
+            reverse("membership-cards"), data=json.dumps(payload), content_type="application/json", **self.auth_headers
+        )
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(
+            {"state": "unauthorised", "reason_codes": ["X103"], "error_text": "Wallet only card"}, resp.data["status"]
+        )
+        create_data = resp.data
+
+        sa = SchemeAccount.objects.get(pk=create_data["id"])
+        self.assertEqual(sa.barcode, payload["account"]["add_fields"][0]["value"])
+        self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
+
+        # replay and check ALREADY_EXISTS error response
+        resp = self.client.post(
+            reverse("membership-cards"), data=json.dumps(payload), content_type="application/json", **self.auth_headers
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual({"detail": "Card already exists in your wallet"}, resp.json())
+        self.assertFalse(mock_async_link.delay.called)
+        self.assertFalse(mock_async_balance.delay.called)
 
     @patch("ubiquity.influx_audit.InfluxDBClient")
     @patch("ubiquity.views.async_link", autospec=True)
@@ -1205,7 +1230,6 @@ class TestResources(GlobalMockAPITestCase):
 
         linked_users = [link.user_id for link in user_links]
         self.assertIn(self.user.id, linked_users)
-        # self.assertTrue(all([link.auth_provided for link in user_links]))
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("ubiquity.influx_audit.InfluxDBClient")
@@ -1215,7 +1239,7 @@ class TestResources(GlobalMockAPITestCase):
 
         payload = {
             "membership_plan": self.scheme.id,
-            "account": {"add_fields": [{"column": self.scheme.manual_question.label, "value": "3038401022657083"}]},
+            "account": {"add_fields": [{"column": self.scheme.manual_question.label, "value": "456789876543456"}]},
         }
 
         resp = self.client.post(
@@ -1320,7 +1344,7 @@ class TestResources(GlobalMockAPITestCase):
         payload = {
             "membership_plan": self.scheme.id,
             "account": {
-                "add_fields": [{"column": "barcode", "value": "3038401022657083"}],
+                "add_fields": [{"column": "barcode", "value": "998763345676522122"}],
                 "authorise_fields": [{"column": "last_name", "value": "Test"}],
             },
         }
@@ -1870,7 +1894,7 @@ class TestResources(GlobalMockAPITestCase):
 
         payload = {
             "membership_plan": self.scheme.id,
-            "account": {"add_fields": [{"column": "barcode", "value": "3038401022657083"}]},
+            "account": {"add_fields": [{"column": "barcode", "value": "77665323456788"}]},
         }
         resp = self.client.post(
             reverse("membership-cards"),
