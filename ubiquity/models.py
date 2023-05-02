@@ -895,22 +895,24 @@ class PllUserAssociation(models.Model):
             raise ValueError(f'Invalid slug value: "{slug}" sent to PllUserAssociation.get_slug_description')
 
     @staticmethod
-    def update_link(link: "PllUserAssociation", wallet_pll_records: list):
+    def update_link(link: "PllUserAssociation"):
         link.save()
         if link.state == WalletPLLStatus.ACTIVE:
             # Set the generic pll link to active if not already set
             if not link.pll.active_link:
                 link.pll.activate()
-        else:
-            update_base_link = True
-            for pll in wallet_pll_records:
-                if pll.state == WalletPLLStatus.ACTIVE:
-                    update_base_link = False
-                    break
 
-            if update_base_link:
-                link.pll.active_link = False
-                link.pll.save()
+        # Reverting back for further investigation
+        # else:
+        #     update_base_link = True
+        #     for pll in wallet_pll_records:
+        #         if pll.state == WalletPLLStatus.ACTIVE:
+        #             update_base_link = False
+        #             break
+        #
+        #     if update_base_link:
+        #         link.pll.active_link = False
+        #         link.pll.save()
 
     @classmethod
     def update_user_pll_by_both(cls, payment_card_account: "PaymentCardAccount", scheme_account: "SchemeAccount"):
@@ -921,7 +923,9 @@ class PllUserAssociation(models.Model):
             link.state, link.slug = cls.get_state_and_slug(
                 link.pll.payment_card_account, wallet_pll_data.scheme_account_status(link)
             )
-            cls.update_link(link, wallet_pll_records)
+            # Revert change for further investigation
+            # cls.update_link(link, wallet_pll_records)
+            cls.update_link(link)
 
     @classmethod
     def update_user_pll_by_pay_account(cls, payment_card_account: "PaymentCardAccount"):
@@ -932,7 +936,9 @@ class PllUserAssociation(models.Model):
             link.state, link.slug = cls.get_state_and_slug(
                 link.pll.payment_card_account, wallet_pll_data.scheme_account_status(link)
             )
-            cls.update_link(link, wallet_pll_records)
+            # Revert change for further investigation
+            # cls.update_link(link, wallet_pll_records)
+            cls.update_link(link)
 
     @classmethod
     def update_user_pll_by_scheme_account(cls, scheme_account: "SchemeAccount"):
@@ -943,7 +949,9 @@ class PllUserAssociation(models.Model):
             wallet_scheme_account_status = wallet_pll_data.scheme_account_status(link)
             link.state, link.slug = cls.get_state_and_slug(link.pll.payment_card_account, wallet_scheme_account_status)
 
-            cls.update_link(link, wallet_pll_records)
+            # Revert change for further investigation
+            # cls.update_link(link, wallet_pll_records)
+            cls.update_link(link)
 
     @classmethod
     def link_users_scheme_accounts(
