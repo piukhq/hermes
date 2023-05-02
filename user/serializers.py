@@ -51,7 +51,6 @@ class RegisterSerializer(serializers.Serializer):
     external_id = serializers.CharField(required=False, max_length=255)
 
     def create(self, validated_data):
-
         email = validated_data["email"]
         password = validated_data.get("password", None)
         external_id = validated_data.get("external_id")
@@ -136,36 +135,6 @@ class NewLoginSerializer(ClientAppSerializerMixin, LoginSerializer):
 
 class OrganisationTermsAndConditionsSerializer(serializers.Serializer):
     terms_and_conditions = serializers.CharField()
-
-
-class ResetPasswordSerializer(serializers.Serializer):
-    password = serializers.CharField(write_only=True)
-
-    def validate_password(self, value):
-        validate_pass(value)
-        return value
-
-    def update(self, instance, validated_data):
-        instance.set_password(validated_data["password"])
-        instance.save()
-        return instance
-
-
-class TokenResetPasswordSerializer(serializers.Serializer):
-    password = serializers.CharField(write_only=True)
-
-    def validate_password(self, value):
-        validate_pass(value)
-        return value
-
-    def update(self, instance, validated_data):
-        if instance.reset_token is None:
-            raise ValueError
-        else:
-            instance.set_password(validated_data["password"])
-            instance.reset_token = None
-            instance.save()
-            return instance
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -259,8 +228,6 @@ class HistoryUserSerializer(serializers.ModelSerializer):
             "apple",
             "email",
             "client",
-            "twitter",
-            "facebook",
             "is_staff",
             "password",
             "is_active",
@@ -268,7 +235,6 @@ class HistoryUserSerializer(serializers.ModelSerializer):
             "last_login",
             "date_joined",
             "external_id",
-            "reset_token",
             "delete_token",
             "is_superuser",
             "marketing_code",
@@ -299,19 +265,6 @@ class SchemeAccountSerializer(serializers.Serializer):
     credentials = serializers.CharField(max_length=300)
 
 
-class FacebookRegisterSerializer(serializers.Serializer):
-    user_id = serializers.CharField(max_length=600)
-    access_token = serializers.CharField(max_length=120)
-    email = serializers.CharField(max_length=600, required=False, write_only=True)
-    client_id = serializers.CharField(max_length=128, required=False, write_only=True)
-
-
-class TwitterRegisterSerializer(serializers.Serializer):
-    access_token_secret = serializers.CharField(max_length=600)
-    access_token = serializers.CharField(max_length=120)
-    client_id = serializers.CharField(max_length=128, required=False, write_only=True)
-
-
 class AppleRegisterSerializer(serializers.Serializer):
     authorization_code = serializers.CharField(max_length=120)
     client_id = serializers.CharField(max_length=128, required=False, write_only=True)
@@ -321,16 +274,6 @@ class ResponseAuthSerializer(serializers.Serializer):
     email = serializers.CharField(max_length=600)
     api_key = serializers.CharField()
     uid = serializers.CharField(read_only=True)
-
-
-class ResetTokenSerializer(serializers.Serializer):
-    token = serializers.CharField(write_only=True)
-    password = serializers.CharField(write_only=True)
-
-    def update(self, instance, validated_data):
-        instance.set_password(validated_data["password"])
-        instance.save()
-        return instance
 
 
 class SettingSerializer(serializers.ModelSerializer):
