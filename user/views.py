@@ -15,7 +15,6 @@ from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from requests_oauthlib import OAuth1Session
 from rest_framework import exceptions
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import AuthenticationFailed
@@ -32,14 +31,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 from rest_framework.views import APIView
 
-from errors import (
-    FACEBOOK_CANT_VALIDATE,
-    FACEBOOK_GRAPH_ACCESS,
-    FACEBOOK_INVALID_USER,
-    INCORRECT_CREDENTIALS,
-    REGISTRATION_FAILED,
-    error_response,
-)
+from errors import INCORRECT_CREDENTIALS, REGISTRATION_FAILED, error_response
 from history.signals import HISTORY_CONTEXT
 from history.utils import user_info
 from magic_link.tasks import send_magic_link
@@ -56,7 +48,6 @@ from user.serializers import (
     AppleRegisterSerializer,
     ApplicationKitSerializer,
     ApplyPromoCodeSerializer,
-    FacebookRegisterSerializer,
     LoginSerializer,
     MakeMagicLinkSerializer,
     NewLoginSerializer,
@@ -64,7 +55,6 @@ from user.serializers import (
     RegisterSerializer,
     ResponseAuthSerializer,
     SettingSerializer,
-    TwitterRegisterSerializer,
     UserSerializer,
     UserSettingSerializer,
 )
@@ -261,52 +251,6 @@ class NewLogin(Login):
         return credentials
 
 
-class FaceBookLogin(CreateAPIView):
-    authentication_classes = (OpenAuthentication,)
-    permission_classes = (AllowAny,)
-
-    serializer_class = FacebookRegisterSerializer
-
-    def post(self, request, *args, **kwargs):
-        """
-        Login using a Facebook account.
-        ---
-        responseMessages:
-            - code: 403
-              message: Cannot validate user_id & access_token.
-            - code: 403
-              message: user_id is invalid for given access token.
-            - code: 403
-              message: Can not access facebook social graph.
-        response_serializer: ResponseAuthSerializer
-        """
-        access_token = request.data["access_token"]
-        user_id = request.data["user_id"]
-        email = request.data.get("email", "")
-        client_id = request.data.get("client_id", BINK_APP_ID)
-        r = requests.get("https://graph.facebook.com/me?access_token={0}".format(access_token))
-        if not r.ok:
-            return error_response(FACEBOOK_CANT_VALIDATE)
-        if r.json()["id"] != user_id.strip():
-            return error_response(FACEBOOK_INVALID_USER)
-        return facebook_login(access_token, email, client_id)
-
-
-class TwitterLogin(CreateAPIView):
-    authentication_classes = (OpenAuthentication,)
-    permission_classes = (AllowAny,)
-
-    serializer_class = TwitterRegisterSerializer
-
-    def post(self, request, *args, **kwargs):
-        """
-        Login using a Twitter account.
-        ---
-        response_serializer: ResponseAuthSerializer
-        """
-        return twitter_login(request.data["access_token"], request.data["access_token_secret"])
-
-
 class AppleLogin(GenericAPIView):
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
@@ -352,47 +296,6 @@ class Logout(APIView):
         request.user.generate_salt()
         request.user.save()
         return Response({"logged_out": True})
-
-
-def facebook_login(access_token, user_email=None, client_id=BINK_APP_ID):
-    params = {"access_token": access_token, "fields": "email,name,id"}
-    # Retrieve information about the current user.
-    r = requests.get("https://graph.facebook.com/me", params=params)
-    if not r.ok:
-        return error_response(FACEBOOK_GRAPH_ACCESS)
-    profile = r.json()
-    # Email from client over-rides the facebook one
-    if not user_email:
-        user_email = profile.get("email", "")
-    return social_response(profile["id"], user_email, "facebook", client_id)
-
-
-def twitter_login(access_token, access_token_secret, client_id=BINK_APP_ID):
-    """
-    https://dev.twitter.com/web/sign-in/implementing
-    https://dev.twitter.com/rest/reference/get/account/verify_credentials
-    """
-    oauth_session = OAuth1Session(
-        settings.TWITTER_CONSUMER_KEY,
-        client_secret=settings.TWITTER_CONSUMER_SECRET,
-        resource_owner_key=access_token,
-        resource_owner_secret=access_token_secret,
-    )
-
-    params = {
-        "skip_status": "true",
-        "include_entities": "false",
-        "include_email": "true",
-    }
-    request = oauth_session.get("https://api.twitter.com/1.1/account/verify_credentials.json", params=params)
-
-    if not request.ok:
-        # TODO: add logging
-        return Response(request.json()["errors"], status=request.status_code)
-    profile = request.json()
-
-    email = profile.get("email", "")
-    return social_response(profile["id_str"], email, "twitter", client_id)
 
 
 def generate_apple_client_secret():

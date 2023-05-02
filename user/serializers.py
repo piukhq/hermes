@@ -51,7 +51,6 @@ class RegisterSerializer(serializers.Serializer):
     external_id = serializers.CharField(required=False, max_length=255)
 
     def create(self, validated_data):
-
         email = validated_data["email"]
         password = validated_data.get("password", None)
         external_id = validated_data.get("external_id")
@@ -229,8 +228,6 @@ class HistoryUserSerializer(serializers.ModelSerializer):
             "apple",
             "email",
             "client",
-            "twitter",
-            "facebook",
             "is_staff",
             "password",
             "is_active",
@@ -266,19 +263,6 @@ class SchemeAccountSerializer(serializers.Serializer):
     status_name = serializers.CharField()
     display_status = serializers.IntegerField()
     credentials = serializers.CharField(max_length=300)
-
-
-class FacebookRegisterSerializer(serializers.Serializer):
-    user_id = serializers.CharField(max_length=600)
-    access_token = serializers.CharField(max_length=120)
-    email = serializers.CharField(max_length=600, required=False, write_only=True)
-    client_id = serializers.CharField(max_length=128, required=False, write_only=True)
-
-
-class TwitterRegisterSerializer(serializers.Serializer):
-    access_token_secret = serializers.CharField(max_length=600)
-    access_token = serializers.CharField(max_length=120)
-    client_id = serializers.CharField(max_length=128, required=False, write_only=True)
 
 
 class AppleRegisterSerializer(serializers.Serializer):

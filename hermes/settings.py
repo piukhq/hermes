@@ -264,12 +264,6 @@ MY360_SCHEME_API_URL = "https://rewards.api.mygravity.co/v3/reward_scheme/{}/sch
 
 MIDAS_QUEUE_NAME = env_var("MIDAS_QUEUE_NAME", "loyalty-request")
 
-FACEBOOK_CLIENT_SECRET = env_var("FACEBOOK_CLIENT_SECRET", "5da7b80e9e0e25d24097515eb7d506da")
-
-TWITTER_CONSUMER_KEY = env_var("TWITTER_CONSUMER_KEY", "XhCHpBxJg4YdM5raN2z2GoyAR")
-TWITTER_CONSUMER_SECRET = env_var("TWITTER_CONSUMER_SECRET", "aLnsRBVGrDxdy0oOFbA7pQtjJgzPhrCyLfrcjANkCMqktlV3m5")
-TWITTER_CALLBACK_URL = env_var("TWITTER_CALLBACK_URL", "http://local.chingweb.chingrewards.com:8000/")
-
 APPLE_APP_ID = env_var("APPLE_APP_ID", "com.bink.wallet")
 APPLE_CLIENT_SECRET = env_var("APPLE_CLIENT_SECRET", "")
 APPLE_KEY_ID = env_var("APPLE_KEY_ID", "6H3RLHRVGC")

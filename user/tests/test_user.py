@@ -40,7 +40,7 @@ from user.tests.factories import (
     UserSettingFactory,
     fake,
 )
-from user.views import apple_login, facebook_login, generate_apple_client_secret, social_login, twitter_login
+from user.views import apple_login, generate_apple_client_secret, social_login
 
 BINK_CLIENT_ID = "MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd"
 BINK_BUNDLE_ID = "com.bink.wallet"
@@ -1018,118 +1018,6 @@ class TestAuthenticationViews(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 401)
         content = json.loads(response.content.decode())
         self.assertEqual(content["detail"], "Authentication credentials were not provided.")
-
-
-class TestTwitterLogin(GlobalMockAPITestCase):
-    @mock.patch("user.views.twitter_login", autospec=True)
-    def test_twitter_login_app(self, twitter_login_mock):
-        twitter_login_mock.return_value = HttpResponse()
-        self.client.post("/users/auth/twitter", {"access_token": "23452345", "access_token_secret": "235489234"})
-        self.assertEqual(twitter_login_mock.call_args[0], ("23452345", "235489234"))
-
-    @mock.patch("user.views.social_login", autospec=True)
-    @httpretty.activate
-    def test_twitter_login(self, mock_social_login):
-        twitter_id = "omsr4k7yta"
-        user = UserFactory(twitter=twitter_id)
-        mock_social_login.return_value = (201, user)
-        httpretty.register_uri(
-            httpretty.GET,
-            "https://api.twitter.com/1.1/account/verify_credentials.json",
-            body=json.dumps({"id_str": twitter_id}),
-            content_type="application/json",
-        )
-        response = twitter_login("V7UoKuG529N3L92386ZdF0TE2kUGnzAp", "2ghMHZux2o02Xd47X7hsP6UH897fDmBb")
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data["email"], user.email)
-
-
-class TestFacebookLogin(GlobalMockAPITestCase):
-    @mock.patch("user.views.facebook_login", autospec=True)
-    @httpretty.activate
-    def test_facebook_login_view(self, mock_facebook_login):
-        mock_facebook_login.return_value = HttpResponse()
-        httpretty.register_uri(
-            httpretty.GET,
-            "https://graph.facebook.com/me",
-            body=json.dumps({"id": "12"}),
-            content_type="application/json",
-        )
-        response = self.client.post("/users/auth/facebook", data={"access_token": "25232345", "user_id": "12"})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(mock_facebook_login.call_args[0][0], "25232345")
-
-    @httpretty.activate
-    def test_facebook_login_view_bad_id(self):
-        httpretty.register_uri(
-            httpretty.GET,
-            "https://graph.facebook.com/me",
-            body=json.dumps({"id": "1122"}),
-            content_type="application/json",
-        )
-        response = self.client.post("/users/auth/facebook", data={"access_token": "25232345", "user_id": "12"})
-        self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.data["message"], "user_id is invalid for given access token")
-        self.assertEqual(response.data["name"], "FACEBOOK_INVALID_USER")
-        self.assertEqual(response.data["code"], 403)
-
-    @mock.patch("user.views.social_login", autospec=True)
-    @httpretty.activate
-    def test_facebook_login(self, mock_social_login):
-        facebook_id = "O7bz6vG60Y"
-        user = UserFactory(facebook=facebook_id)
-        mock_social_login.return_value = (200, user)
-        httpretty.register_uri(
-            httpretty.GET,
-            "https://graph.facebook.com/me",
-            body=json.dumps({"email": "", "id": facebook_id}),
-            content_type="application/json",
-        )
-        response = facebook_login("Ju76xER1A5")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["email"], user.email)
-
-    @httpretty.activate
-    def test_facebook_login_no_email_available(self):
-        facebook_id = "O7bz6vG60Y"
-        UserFactory(facebook=facebook_id, email="")
-        httpretty.register_uri(
-            httpretty.GET,
-            "https://graph.facebook.com/me",
-            body=json.dumps({"email": "", "id": facebook_id}),
-            content_type="application/json",
-        )
-        response = facebook_login("Ju76xER1A5")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["email"], "")
-
-    @httpretty.activate
-    def test_facebook_login_no_email_twitter_email(self):
-        facebook_id = "O7bz6vG60Y"
-        UserFactory(facebook=facebook_id, email="")
-        httpretty.register_uri(
-            httpretty.GET,
-            "https://graph.facebook.com/me",
-            body=json.dumps({"email": "twitter_email", "id": facebook_id}),
-            content_type="application/json",
-        )
-        response = facebook_login("Ju76xER1A5")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["email"], "twitter_email")
-
-    @httpretty.activate
-    def test_facebook_login_no_email_app_email_priority(self):
-        facebook_id = "O7bz6vG60Y"
-        UserFactory(facebook=facebook_id, email="")
-        httpretty.register_uri(
-            httpretty.GET,
-            "https://graph.facebook.com/me",
-            body=json.dumps({"email": "twitter_email", "id": facebook_id}),
-            content_type="application/json",
-        )
-        response = facebook_login("Ju76xER1A5", "app_email")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["email"], "app_email")
 
 
 class TestAppleLogin(GlobalMockAPITestCase):
