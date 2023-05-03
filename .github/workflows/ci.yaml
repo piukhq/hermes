@@ -191,6 +191,46 @@ jobs:
             --source binkcore.azurecr.io/${{ github.event.repository.name }}:${{ github.event.release.tag_name }} \
             --tag retail
 
+  release_barclays:
+    if: github.event_name == 'release' && github.event.action == 'published'
+    name: release_barclays
+    environment: Barclays
+    needs: [release_staging]
+    runs-on: ubuntu-latest
+    container: ghcr.io/binkhq/tagbot:latest
+    steps:
+      - run: |-
+          tagbot \
+            --username binkcore \
+            --password ${{ secrets.ACR_BINKCORE_PASSWORD }} \
+            --source binkcore.azurecr.io/${{ github.event.repository.name }}:${{ github.event.release.tag_name }} \
+            --tag barclays-${{ github.event.release.tag_name }}
+          tagbot \
+            --username binkcore \
+            --password ${{ secrets.ACR_BINKCORE_PASSWORD }} \
+            --source binkcore.azurecr.io/${{ github.event.repository.name }}:${{ github.event.release.tag_name }} \
+            --tag barclays
+
+  release_lloyds:
+    if: github.event_name == 'release' && github.event.action == 'published'
+    name: release_lloyds
+    environment: Lloyds
+    needs: [release_staging]
+    runs-on: ubuntu-latest
+    container: ghcr.io/binkhq/tagbot:latest
+    steps:
+      - run: |-
+          tagbot \
+            --username binkcore \
+            --password ${{ secrets.ACR_BINKCORE_PASSWORD }} \
+            --source binkcore.azurecr.io/${{ github.event.repository.name }}:${{ github.event.release.tag_name }} \
+            --tag lloyds-${{ github.event.release.tag_name }}
+          tagbot \
+            --username binkcore \
+            --password ${{ secrets.ACR_BINKCORE_PASSWORD }} \
+            --source binkcore.azurecr.io/${{ github.event.repository.name }}:${{ github.event.release.tag_name }} \
+            --tag lloyds
+
   release_production:
     if: github.event_name == 'release' && github.event.action == 'published'
     name: release_production
