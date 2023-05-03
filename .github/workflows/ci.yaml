@@ -105,26 +105,6 @@ jobs:
           tags: |
             binkcore.azurecr.io/${{ github.event.repository.name }}:perf-${{ env.container_tag }}
 
-  release_trusted_channels:
-    if: github.ref == 'refs/heads/trusted_channels_master' && github.event_name == 'push'
-    name: release_trusted_channels
-    environment: Trusted Channels
-    runs-on: ubuntu-latest
-    needs: [tests]
-    steps:
-      - uses: actions/checkout@v3
-      - run: echo "container_tag=$(date +'%FT%H%M%SZ')" >> $GITHUB_ENV
-      - uses: docker/login-action@v2
-        with:
-          registry: binkcore.azurecr.io
-          username: binkcore
-          password: ${{ secrets.ACR_BINKCORE_PASSWORD }}
-      - uses: docker/build-push-action@v3
-        with:
-          push: true
-          tags: |
-            binkcore.azurecr.io/${{ github.event.repository.name }}:tc-${{ env.container_tag }}
-
   release_staging:
     if: github.event_name == 'release' && github.event.action == 'published'
     name: release_staging
@@ -150,26 +130,6 @@ jobs:
             binkcore.azurecr.io/${{ github.event.repository.name }}:${{ github.event.release.tag_name }}
             binkcore.azurecr.io/${{ github.event.repository.name }}:staging-${{ github.event.release.tag_name }}
             binkcore.azurecr.io/${{ github.event.repository.name }}:staging
-
-  release_banking:
-    if: github.event_name == 'release' && github.event.action == 'published'
-    name: release_banking
-    environment: Banking
-    needs: [release_staging]
-    runs-on: ubuntu-latest
-    container: ghcr.io/binkhq/tagbot:latest
-    steps:
-      - run: |-
-          tagbot \
-            --username binkcore \
-            --password ${{ secrets.ACR_BINKCORE_PASSWORD }} \
-            --source binkcore.azurecr.io/${{ github.event.repository.name }}:${{ github.event.release.tag_name }} \
-            --tag banking-${{ github.event.release.tag_name }}
-          tagbot \
-            --username binkcore \
-            --password ${{ secrets.ACR_BINKCORE_PASSWORD }} \
-            --source binkcore.azurecr.io/${{ github.event.repository.name }}:${{ github.event.release.tag_name }} \
-            --tag banking
 
   release_retail:
     if: github.event_name == 'release' && github.event.action == 'published'
