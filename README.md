@@ -38,7 +38,7 @@
 ## Installation (MacOS)
  * Install Python 3 virtual environment and Postgres dependencies required for C bindings to PsycoPG2 driver
      * Install Xcode from the Mac App Store
-     * Install [Python 3](https://www.python.org/downloads/mac-osx/) 
+     * Install [Python 3](https://www.python.org/downloads/mac-osx/)
      * Install [`homebrew`](https://brew.sh) if not already installed
      * Install correct Postgres version but do not run from homebrew: `brew install postgres@9.5`
  * Install requirements for librabbitmq
@@ -48,8 +48,8 @@
    * cd ~/code_dir/hermes
    * pip install -r requirements.txt
  * Install Azure-CLI for keyvault access (or alternatively you are able to use a local secrets file)
-   * `brew install azure-cli`    
-   * Then: `az login` will take you to a browser to sign into Azure. 
+   * `brew install azure-cli`
+   * Then: `az login` will take you to a browser to sign into Azure.
    * When trying to run an application in Pycharm it may abort when trying to load secrets
    - if you have this issue especially after just rebooting run az login before running PyCharm
  * Install Docker and Postgres
@@ -59,7 +59,7 @@
      * `docker run --name hermes-postgres -p 127.0.0.1:5432:5432 -d postgres`
  * Create Hermes Database
      * `psql -h localhost -U postgres`
-     * `create database hermes;` 
+     * `create database hermes;`
  * Run DB Migrations - ./manage.py migrate
  * Run application - ./manage.py runserver
 
@@ -91,8 +91,6 @@
   - String Value, URL to access Lethe
 - `METIS_URL`
   - String Value, URL to access Metis
-- `FACEBOOK_CLIENT_SECRET`
-  - String Value, Facebook Client Secret
 - `ENVIRONMENT_NAME`
   - String Value, text of django admin environment message
 - `ENVIRONMENT_COLOR`
@@ -112,7 +110,7 @@ Note: In all settings add environment variables:
 and refer to the correct python interpreter ie in the virtualenv.
 
 Under **Django Server** create config:
-    
+
     hermes api 1.x/admin
         host: 127:0:0:1  port: 8000
 
@@ -121,7 +119,7 @@ Under Python create configs:
     celery
         Module Name: celery
         Parameters: -A hermes worker --loglevel=INFO --concurrency=1 -Q ubiquity-async-midas,record-history,retry-tasks
-        
+
 
     celery beat:
         Module Name: celery
@@ -131,8 +129,8 @@ Under Python create configs:
         script path: /Users/mmarsh/PycharmProjects/hermes/api_messaging/run.py
 
 To start the select each config above on the drop down and click on either the
-run or debug icon. You should then have under the run or debug window all 4 
-services running. 
+run or debug icon. You should then have under the run or debug window all 4
+services running.
 
 Note celery will consume 3 task queues ubiquity-async-midas, record-history, retry-tasks
 If you have installed manage version of rabbitMQ the queues can be seen on

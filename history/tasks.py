@@ -23,6 +23,8 @@ def record_history(model_name: str, **kwargs) -> None:
 
     serializer = get_historical_serializer(model_name)(data=kwargs)
     serializer.is_valid(raise_exception=True)
+    # Todo: Angelia is sending the model name without the app name
+    #  i.e CustomUser but the following is expecting user.CustomUser
     if model_name == HistoryModel.CUSTOM_USER.value:
         if HistoricalCustomUser.objects.filter(
             instance_id=kwargs["instance"], change_type=HistoricalBase.CREATE

@@ -406,19 +406,6 @@ def create_user_detail(sender, instance, created, **kwargs):
         UserDetail.objects.create(user=instance)
 
 
-def valid_reset_code(reset_token):
-    try:
-        user = CustomUser.objects.get(reset_token=reset_token)
-    except CustomUser.DoesNotExist:
-        return False
-    except CustomUser.MultipleObjectsReturned:
-        return False
-
-    token_payload = jwt.decode(reset_token, user.client.secret, algorithms=["HS512", "HS256"])
-    expiry_date = arrow.get(token_payload["expiry_date"])
-    return expiry_date > arrow.utcnow()
-
-
 class Setting(models.Model):
     NUMBER = 0
     STRING = 1

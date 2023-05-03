@@ -390,7 +390,7 @@ def refresh_balances(message: dict) -> None:
 def user_session(message: dict) -> None:
     user = CustomUser.objects.get(id=message.get("user_id"))
     user.last_accessed = message.get("utc_adjusted")
-    user.save()
+    user.save(update_fields=["last_accessed"])
     payload = {
         "event_type": "user.session.start",
         "origin": "channel",
