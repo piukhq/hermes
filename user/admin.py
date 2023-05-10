@@ -3,13 +3,13 @@ import typing
 
 from django import forms
 from django.contrib import admin, messages
-from django.contrib.admin import SimpleListFilter, StackedInline
+from django.contrib.admin import SimpleListFilter
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
 
 from scheme.admin import CacheResetAdmin, check_active_scheme
 from scheme.models import SchemeBundleAssociation
-from ubiquity.models import ServiceConsent
+from ubiquity.models import PaymentCardAccountEntry, PllUserAssociation, SchemeAccountEntry, ServiceConsent
 from ubiquity.tasks import bulk_deleted_membership_card_cleanup
 from user.models import (
     ClientApplication,
@@ -35,12 +35,6 @@ class UserDetailInline(admin.StackedInline):
     extra = 0
 
 
-class UserSchemeAccountsInline(StackedInline):
-    model = CustomUser.scheme_account_set.through
-    exclude = ("membership_card_data",)
-    extra = 0
-
-
 class ServiceConsentInline(admin.StackedInline):
     model = ServiceConsent
     readonly_fields = ("latitude", "longitude", "timestamp")
@@ -48,11 +42,25 @@ class ServiceConsentInline(admin.StackedInline):
     extra = 0
 
 
-class UserPaymentCardAccountInline(StackedInline):
-    model = CustomUser.payment_card_account_set.through
-    exclude = ("payment_card_data",)
+class PllUserAssociationInline(admin.TabularInline):
+    can_delete = False
+    model = PllUserAssociation
     extra = 0
-    # readonly_fields = ('token', 'psp_token', )
+    raw_id_fields = ["pll", "user"]
+
+
+class PaymentCardAccountEntryInline(admin.TabularInline):
+    can_delete = False
+    model = PaymentCardAccountEntry
+    extra = 0
+    raw_id_fields = ["payment_card_account", "user"]
+
+
+class SchemeAccountEntryInline(admin.TabularInline):
+    can_delete = False
+    model = SchemeAccountEntry
+    extra = 0
+    raw_id_fields = ["scheme_account", "user"]
 
 
 class CustomUserModelForm(forms.ModelForm):
@@ -94,7 +102,13 @@ class CustomUserDetail(UserAdmin):
     last_name.admin_order_field = "profile__last_name"
 
     form = CustomUserModelForm
-    inlines = (ServiceConsentInline, UserDetailInline)
+    inlines = (
+        ServiceConsentInline,
+        UserDetailInline,
+        PllUserAssociationInline,
+        PaymentCardAccountEntryInline,
+        SchemeAccountEntryInline,
+    )
     ordering = ()
     fieldsets = ()
     add_fieldsets = ()
