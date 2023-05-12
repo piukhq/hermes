@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.8/ref/settings/
 """
 
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
 import sys
@@ -18,17 +19,15 @@ from enum import Enum
 
 import dj_database_url
 import sentry_sdk
+from decouple import Choices, config
 from redis import ConnectionPool as Redis_ConnectionPool
 from sentry_sdk.integrations import celery, django
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
 
-from environment import env_var, read_env
 from hermes.sentry import _make_celery_event_processor, _make_django_event_processor, strip_sensitive_data
 from hermes.version import __version__
-
-read_env()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -39,7 +38,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = "*is3^%seh_2=sgc$8dw+vcd)5cwrecvy%cxiv69^q8hz3q%=fo"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env_var("HERMES_DEBUG", True)
+DEBUG = config("HERMES_DEBUG", default=True, cast=bool)
 
 CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1",
@@ -161,7 +160,7 @@ class Version(str, Enum):
             return major < other_major
 
 
-DEFAULT_API_VERSION = env_var("DEFAULT_API_VERSION", max(Version).value)
+DEFAULT_API_VERSION = config("DEFAULT_API_VERSION", default=max(Version).value)
 
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
@@ -180,7 +179,7 @@ APPEND_SLASH = False
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
-if env_var("HERMES_DATABASE_URL"):
+if config("HERMES_DATABASE_URL", default=None):
     DATABASES = {
         "default": dj_database_url.config(
             env="HERMES_DATABASE_URL",
@@ -193,11 +192,11 @@ else:
         "default": {
             # "ENGINE": "django.db.backends.postgresql_psycopg2",
             "ENGINE": "hermes.traced_db_wrapper",
-            "NAME": env_var("HERMES_DATABASE_NAME", "hermes"),
-            "USER": env_var("HERMES_DATABASE_USER", "postgres"),
-            "PASSWORD": env_var("HERMES_DATABASE_PASS"),
-            "HOST": env_var("HERMES_DATABASE_HOST", "postgres"),
-            "PORT": env_var("HERMES_DATABASE_PORT", "5432"),
+            "NAME": config("HERMES_DATABASE_NAME", default="hermes"),
+            "USER": config("HERMES_DATABASE_USER", default="postgres"),
+            "PASSWORD": config("HERMES_DATABASE_PASS", default=""),
+            "HOST": config("HERMES_DATABASE_HOST", default="postgres"),
+            "PORT": config("HERMES_DATABASE_PORT", default="5432"),
         }
     }
 
@@ -227,24 +226,24 @@ AUTHENTICATION_BACKENDS = [
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
-NO_AZURE_STORAGE = env_var("NO_AZURE_STORAGE", True)
-UPLOAD_CONTAINER_NAME = env_var("UPLOAD_CONTAINER_NAME", "hermes-imports")
-ARCHIVE_CONTAINER_NAME = env_var("ARCHIVE_CONTAINER_NAME", "hermes-archive")
+NO_AZURE_STORAGE = config("NO_AZURE_STORAGE", default=True, cast=bool)
+UPLOAD_CONTAINER_NAME = config("UPLOAD_CONTAINER_NAME", default="hermes-imports")
+ARCHIVE_CONTAINER_NAME = config("ARCHIVE_CONTAINER_NAME", default="hermes-archive")
 
 if not NO_AZURE_STORAGE:
     DEFAULT_FILE_STORAGE = "hermes.storage.CustomAzureStorage"
-    AZURE_CONTAINER = env_var("HERMES_BLOB_STORAGE_CONTAINER", "media/hermes")
-    AZURE_CONNECTION_STRING = env_var("HERMES_BLOB_STORAGE_DSN", "")
+    AZURE_CONTAINER = config("HERMES_BLOB_STORAGE_CONTAINER", default="media/hermes")
+    AZURE_CONNECTION_STRING = config("HERMES_BLOB_STORAGE_DSN", default="")
     # For generating image urls with a custom domain
-    HERMES_CUSTOM_DOMAIN = env_var("HERMES_CUSTOM_DOMAIN", "https://api.dev.gb.bink.com")
+    HERMES_CUSTOM_DOMAIN = config("HERMES_CUSTOM_DOMAIN", default="https://api.dev.gb.bink.com")
     CONTENT_URL = f"{HERMES_CUSTOM_DOMAIN}/content"
     MAGIC_LINK_TEMPLATE = "email/magic_link_email.txt"
 
 
-MEDIA_URL = env_var("HERMES_MEDIA_URL", "/media/")
+MEDIA_URL = config("HERMES_MEDIA_URL", default="/media/")
 MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
 
-STATIC_URL = env_var("HERMES_STATIC_URL", "/admin/static/")
+STATIC_URL = config("HERMES_STATIC_URL", default="/admin/static/")
 STATIC_ROOT = "/tmp/static/"
 
 AUTH_USER_MODEL = "user.CustomUser"
@@ -254,43 +253,49 @@ SERVICE_API_METRICS_BUNDLE = "internal_service"
 
 HASH_ID_SALT = "95429791eee6a6e12d11a5a23d920969f7b1a94d"
 
-MIDAS_URL = env_var("MIDAS_URL", "http://dev.midas.loyaltyangels.local")
-LETHE_URL = env_var("LETHE_URL", "http://dev.lethe.loyaltyangels.local")
-HECATE_URL = env_var("HECATE_URL", "http://dev.hecate.loyaltyangels.local")
-METIS_URL = env_var("METIS_URL", "http://dev.metis.loyaltyangels.local")
-HADES_URL = env_var("HADES_URL", "http://dev.hades.loyaltyangels.local")
+MIDAS_URL = config("MIDAS_URL", default="http://dev.midas.loyaltyangels.local")
+LETHE_URL = config("LETHE_URL", default="http://dev.lethe.loyaltyangels.local")
+HECATE_URL = config("HECATE_URL", default="http://dev.hecate.loyaltyangels.local")
+METIS_URL = config("METIS_URL", default="http://dev.metis.loyaltyangels.local")
+HADES_URL = config("HADES_URL", default="http://dev.hades.loyaltyangels.local")
 MY360_SCHEME_URL = "https://mygravity.co/my360/"
 MY360_SCHEME_API_URL = "https://rewards.api.mygravity.co/v3/reward_scheme/{}/schemes"
 
-MIDAS_QUEUE_NAME = env_var("MIDAS_QUEUE_NAME", "loyalty-request")
+MIDAS_QUEUE_NAME = config("MIDAS_QUEUE_NAME", default="loyalty-request")
 
-APPLE_APP_ID = env_var("APPLE_APP_ID", "com.bink.wallet")
-APPLE_CLIENT_SECRET = env_var("APPLE_CLIENT_SECRET", "")
-APPLE_KEY_ID = env_var("APPLE_KEY_ID", "6H3RLHRVGC")
-APPLE_TEAM_ID = env_var("APPLE_TEAM_ID", "HC34M8YE55")
+APPLE_APP_ID = config("APPLE_APP_ID", default="com.bink.wallet")
+APPLE_CLIENT_SECRET = config("APPLE_CLIENT_SECRET", default="")
+APPLE_KEY_ID = config("APPLE_KEY_ID", default="6H3RLHRVGC")
+APPLE_TEAM_ID = config("APPLE_TEAM_ID", default="HC34M8YE55")
 
-DEBUG_PROPAGATE_EXCEPTIONS = env_var("HERMES_PROPAGATE_EXCEPTIONS", False)
+DEBUG_PROPAGATE_EXCEPTIONS = config("HERMES_PROPAGATE_EXCEPTIONS", default=False, cast=bool)
 
 TESTING = (len(sys.argv) > 1 and sys.argv[1] == "test") or any("pytest" in arg for arg in sys.argv)
 INIT_RUNTIME_APPS = TESTING is False and not any(x in sys.argv for x in ["migrate", "makemigrations", "collectstatic"])
-LOCAL = env_var("HERMES_LOCAL", False)
+LOCAL = config("HERMES_LOCAL", default=False, cast=bool)
 
-ROOT_LOG_LEVEL = env_var("ROOT_LOG_LEVEL", "WARNING")
-MASTER_LOG_LEVEL = env_var("MASTER_LOG_LEVEL", "DEBUG")
-UBIQUITY_LOG_LEVEL = env_var("UBIQUITY_LOG_LEVEL", "DEBUG")
-PROMETHEUS_LOG_LEVEL = env_var("PROMETHEUS_LOG_LEVEL", "INFO")
-QUERY_LOG_LEVEL = env_var("QUERY_LOG_LEVEL", "CRITICAL")
+LOG_LEVEL_CHOICES = Choices(["DEBUG", "INFO", "WARN", "WARNING", "ERROR", "EXCEPTION", "CRITICAL"])
+
+JSON_LOGGING = config("JSON_LOGGING", default=True, cast=bool)
+ROOT_LOG_LEVEL = config("ROOT_LOG_LEVEL", default="WARNING", cast=LOG_LEVEL_CHOICES)
+MASTER_LOG_LEVEL = config("MASTER_LOG_LEVEL", default="DEBUG", cast=LOG_LEVEL_CHOICES)
+UBIQUITY_LOG_LEVEL = config("UBIQUITY_LOG_LEVEL", default="DEBUG", cast=LOG_LEVEL_CHOICES)
+PROMETHEUS_LOG_LEVEL = config("PROMETHEUS_LOG_LEVEL", default="INFO", cast=LOG_LEVEL_CHOICES)
+QUERY_LOG_LEVEL = config("QUERY_LOG_LEVEL", default="CRITICAL", cast=LOG_LEVEL_CHOICES)
+
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {"format": "%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s"},
+        "json": {"()": "hermes.reporting.JSONFormatter"},
     },
     "handlers": {
         "console": {
             "level": MASTER_LOG_LEVEL,
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
+            "formatter": "json" if JSON_LOGGING else "verbose",
         },
     },
     "filters": {
@@ -339,9 +344,10 @@ LOGGING = {
     },
 }
 
-HERMES_SENTRY_DSN = env_var("HERMES_SENTRY_DSN", None)
-HERMES_SENTRY_ENV = env_var("HERMES_SENTRY_ENV", None)
-SENTRY_SAMPLE_RATE = float(env_var("SENTRY_SAMPLE_RATE", "0.0"))
+
+HERMES_SENTRY_DSN = config("HERMES_SENTRY_DSN", default=None)
+HERMES_SENTRY_ENV = config("HERMES_SENTRY_ENV", default=None)
+SENTRY_SAMPLE_RATE = config("SENTRY_SAMPLE_RATE", default=0.0, cast=float)
 if HERMES_SENTRY_DSN:
     sentry_sdk.init(
         dsn=HERMES_SENTRY_DSN,
@@ -370,7 +376,7 @@ DEFAULT_FROM_EMAIL = "Bink Support <support@bink.com>"
 DEFAULT_MAGIC_LINK_FROM_EMAIL = "{external_name}@bink.com"
 
 SILENCED_SYSTEM_CHECKS = ["urls.W002"]
-if env_var("HERMES_NO_DB_TEST", False):
+if config("HERMES_NO_DB_TEST", default=False, cast=bool):
     # If you want to use this for fast tests in your test class inherit from:
     # from django.test import SimpleTestCase
     TEST_RUNNER = "hermes.runners.DBLessTestRunner"
@@ -625,23 +631,28 @@ BARCLAYS_BINS = [
     "426510",
 ]
 
-ENVIRONMENT_NAME = env_var("ENVIRONMENT_NAME", None)
-ENVIRONMENT_COLOR = env_var("ENVIRONMENT_COLOR", None)
+ENVIRONMENT_NAME = config("ENVIRONMENT_NAME", default=None)
+ENVIRONMENT_COLOR = config("ENVIRONMENT_COLOR", default=None)
 
 # how many seconds leeway is allowed to account for clock skew in JWT validation
-CLOCK_SKEW_LEEWAY = env_var("CLOCK_SKEW_LEEWAY", 180)
+CLOCK_SKEW_LEEWAY = config("CLOCK_SKEW_LEEWAY", default=180, cast=int)
 
-REDIS_HOST = env_var("REDIS_HOST", "localhost")
-REDIS_PASSWORD = env_var("REDIS_PASSWORD", "")
-REDIS_PORT = env_var("REDIS_PORT", 6379)
-REDIS_DB = env_var("REDIS_DB", 1)
-REDIS_URL = env_var("REDIS_URL", f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
+REDIS_HOST = config("REDIS_HOST", default="localhost")
+REDIS_PASSWORD = config("REDIS_PASSWORD", default="")
+REDIS_PORT = config("REDIS_PORT", default=6379, cast=int)
+REDIS_DB = config("REDIS_DB", default=1, cast=int)
+REDIS_URL = config("REDIS_URL", default=f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
 
-REDIS_API_CACHE_DB = env_var("REDIS_API_CACHE_DB", 2)
-REDIS_MPLANS_CACHE_EXPIRY = int(env_var("REDIS_MPLANS_CACHE_EXPIRY", 60 * 60 * 24))  # 60*60*24  # 24 hrs in seconds
+REDIS_API_CACHE_DB = config("REDIS_API_CACHE_DB", default=2, cast=int)
+REDIS_MPLANS_CACHE_EXPIRY = config(
+    "REDIS_MPLANS_CACHE_EXPIRY",
+    default=60 * 60 * 24,  # 60*60*24 is 24 hrs in seconds
+    cast=int,
+)
 
-REDIS_READ_TIMEOUT = float(env_var("REDIS_READ_TIMEOUT", 0.3))
-REDIS_WRITE_TIMEOUT = float(env_var("REDIS_WRITE_TIMEOUT", 20))
+
+REDIS_READ_TIMEOUT = config("REDIS_READ_TIMEOUT", default=0.3, cast=float)
+REDIS_WRITE_TIMEOUT = config("REDIS_WRITE_TIMEOUT", default=20.0, cast=float)
 REDIS_RETRY_COUNT = 3
 REDIS_READ_HEALTH_CHECK_INTERVAL = 1
 REDIS_WRITE_HEALTH_CHECK_INTERVAL = 1
@@ -682,45 +693,45 @@ CACHES = {
 
 TOKEN_SECRET = "8vA/fjVA83(n05LWh7R4'$3dWmVCU"
 
-USE_INFLUXDB = env_var("USE_INFLUXDB", False)
-INFLUX_DB_NAME = env_var("INFLUX_DB_NAME", "active_card_audit")
+USE_INFLUXDB = config("USE_INFLUXDB", default=False, cast=bool)
+INFLUX_DB_NAME = config("INFLUX_DB_NAME", "default=active_card_audit")
 INFLUX_DB_CONFIG = {
-    "host": env_var("INFLUX_HOST", "localhost"),
-    "port": int(env_var("INFLUX_PORT", 8086)),
-    "username": env_var("INFLUX_USER", ""),
-    "password": env_var("INFLUX_PASSWORD", ""),
+    "host": config("INFLUX_HOST", default="localhost"),
+    "port": config("INFLUX_PORT", default=8086, cast=int),
+    "username": config("INFLUX_USER", default=""),
+    "password": config("INFLUX_PASSWORD", default=""),
 }
 
 # RABBIT
-TIME_OUT = env_var("TIMEOUT", 4)
-RABBIT_DSN = env_var("RABBIT_DSN", "amqp://guest:guest@localhost/")
+TIME_OUT = config("TIMEOUT", default=4, cast=int)
+RABBIT_DSN = config("RABBIT_DSN", default="amqp://guest:guest@localhost/")
 
 # Celery
 CELERY_BROKER_URL = RABBIT_DSN
-CELERY_TASK_DEFAULT_QUEUE = env_var("CELERY_TASK_DEFAULT_QUEUE", "delayed-70-ubiquity-async-midas")
+CELERY_TASK_DEFAULT_QUEUE = config("CELERY_TASK_DEFAULT_QUEUE", default="delayed-70-ubiquity-async-midas")
 CELERY_TASK_SERIALIZER = "pickle"
 CELERY_ACCEPT_CONTENT = ["pickle", "json"]
 CELERY_RESULT_SERIALIZER = "pickle"
 CELERY_WORKER_ENABLE_REMOTE_CONTROL = False
 
-SPREEDLY_BASE_URL = env_var("SPREEDLY_BASE_URL", "")
+SPREEDLY_BASE_URL = config("SPREEDLY_BASE_URL", default="")
 
 # Time in seconds for periodic corrections to be called by celery beats
-PERIODIC_CORRECTIONS_PERIOD = env_var("PERIODIC_CORRECTIONS_PERIOD", "600")
-RETAIN_FROM_MINUTES = int(env_var("RETAIN_FROM_MINUTES", "-720"))
-RETAIN_TO_MINUTES = int(env_var("RETAIN_TO_MINUTES", "-5"))
+PERIODIC_CORRECTIONS_PERIOD = config("PERIODIC_CORRECTIONS_PERIOD", default=600, cast=int)
+RETAIN_FROM_MINUTES = config("RETAIN_FROM_MINUTES", default=-720, cast=int)
+RETAIN_TO_MINUTES = config("RETAIN_TO_MINUTES", default=-5, cast=int)
 
 # Time in seconds for the interval between retry tasks called by celery beats
-RETRY_PERIOD = env_var("RETRY_PERIOD", "900")
+RETRY_PERIOD = config("RETRY_PERIOD", default=900, cast=int)
 # Time in seconds for interval of checking if payments have not been updated and require voiding
-PAYMENT_EXPIRY_CHECK_INTERVAL = env_var("PAYMENT_EXPIRY_CHECK_INTERVAL", "600")
+PAYMENT_EXPIRY_CHECK_INTERVAL = config("PAYMENT_EXPIRY_CHECK_INTERVAL", default=600, cast=int)
 
 # Time in seconds of how long is required before a payment is deemed to be expired
-PAYMENT_EXPIRY_TIME = env_var("PAYMENT_EXPIRY_TIME", "120")
+PAYMENT_EXPIRY_TIME = config("PAYMENT_EXPIRY_TIME", default=120, cast=int)
 
-ATLAS_URL = env_var("ATLAS_URL")
+ATLAS_URL = config("ATLAS_URL", default=None)
 
-SCHEMES_COLLECTING_METRICS = env_var("SCHEMES_COLLECTING_METRICS", "cooperative").split(",")
+SCHEMES_COLLECTING_METRICS = config("SCHEMES_COLLECTING_METRICS", default="cooperative", cast=lambda x: x.split(","))
 
 BinMatch = namedtuple("BinMatch", "type len value")
 BIN_TO_PROVIDER = {
@@ -731,39 +742,39 @@ BIN_TO_PROVIDER = {
     "mastercard": [BinMatch(type="range", len=2, value=(51, 55)), BinMatch(type="range", len=4, value=(2221, 2720))],
 }
 
-INTERNAL_SERVICE_BUNDLE = env_var("INTERNAL_SERVICE_BUNDLE", "com.bink.daedalus")
-JWT_EXPIRY_TIME = env_var("JWT_EXPIRY_TIME", 600)
+INTERNAL_SERVICE_BUNDLE = config("INTERNAL_SERVICE_BUNDLE", default="com.bink.daedalus")
+JWT_EXPIRY_TIME = config("JWT_EXPIRY_TIME", default=600, cast=int)
 
 
 VAULT_CONFIG = dict(
     # Hashicorp vault settings for secrets retrieval
-    VAULT_URL=env_var("VAULT_URL", ""),
+    VAULT_URL=config("VAULT_URL", default=""),
     # SET Signing secrets for JWT authentication
     # For deployment set LOCAL_SECRETS to False and set up Vault envs
     # For local use without Vault, set LOCAL_SECRETS to True
     # and set LOCAL_SECRETS_PATH to your json file. See example_local_secrets.json for format
     # (Do not commit your local_secrets json which might contain real secrets or edit example_local_secrets.json)
-    LOCAL_SECRETS=env_var("LOCAL_SECRETS", False),
-    LOCAL_SECRETS_PATH=env_var("LOCAL_SECRETS_PATH", "example_local_secrets.json"),
-    BUNDLE_SECRETS_NAME=env_var("BUNDLE_SECRETS_NAME", "channels"),
-    SECRET_KEYS_NAME=env_var("SECRET_KEYS_NAME", "secret-keys"),
-    AES_KEYS_NAME=env_var("AES_KEYS_NAME", "aes-keys"),
-    BARCLAYS_SFTP_SECRETS_NAME=env_var("BARCLAYS_SFTP_SECRETS_NAME", "barclays-hermes-sftp"),
+    LOCAL_SECRETS=config("LOCAL_SECRETS", default=False, cast=bool),
+    LOCAL_SECRETS_PATH=config("LOCAL_SECRETS_PATH", default="example_local_secrets.json"),
+    BUNDLE_SECRETS_NAME=config("BUNDLE_SECRETS_NAME", default="channels"),
+    SECRET_KEYS_NAME=config("SECRET_KEYS_NAME", default="secret-keys"),
+    AES_KEYS_NAME=config("AES_KEYS_NAME", default="aes-keys"),
+    BARCLAYS_SFTP_SECRETS_NAME=config("BARCLAYS_SFTP_SECRETS_NAME", default="barclays-hermes-sftp"),
 )
 
-CSRF_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")
-CSRF_COOKIE_SECURE = env_var("SECURE_COOKIES", "False")
-SESSION_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")
-SESSION_COOKIE_SECURE = env_var("SECURE_COOKIES", "False")
+CSRF_COOKIE_HTTPONLY = config("SECURE_COOKIES", default=False, cast=bool)
+CSRF_COOKIE_SECURE = config("SECURE_COOKIES", default=False, cast=bool)
+SESSION_COOKIE_HTTPONLY = config("SECURE_COOKIES", default=False, cast=bool)
+SESSION_COOKIE_SECURE = config("SECURE_COOKIES", default=False, cast=bool)
 
 # OIDC SSO
-SSO_OFF = env_var("SSO_OFF", "False")
+SSO_OFF = config("SSO_OFF", default=False, cast=bool)
 LOGIN_REDIRECT_URL = "/admin/"
 LOGIN_REDIRECT_URL_FAILURE = "/admin/error/403"
-OIDC_RP_REPLY_URL = env_var("OIDC_RP_REPLY_URL", "https://api.dev.gb.bink.com/admin/oidc/callback/")
+OIDC_RP_REPLY_URL = config("OIDC_RP_REPLY_URL", default="https://api.dev.gb.bink.com/admin/oidc/callback/")
 OIDC_AUTHENTICATE_CLASS = "sso.auth.CustomOIDCAuthenticationRequestView"
-OIDC_RP_CLIENT_ID = env_var("OIDC_CLIENT_ID", "1a5d83f3-da1f-401c-ac5f-d41c3fa0d9ef")
-OIDC_RP_CLIENT_SECRET = env_var("OIDC_CLIENT_SECRET", "-NGSjpWWx_1w-6~.NkIl3lf~DC3Rg-.CMz")
+OIDC_RP_CLIENT_ID = config("OIDC_CLIENT_ID", default="1a5d83f3-da1f-401c-ac5f-d41c3fa0d9ef")
+OIDC_RP_CLIENT_SECRET = config("OIDC_CLIENT_SECRET", default="-NGSjpWWx_1w-6~.NkIl3lf~DC3Rg-.CMz")
 OIDC_RP_SIGN_ALGO = "RS256"
 OIDC_OP_JWKS_ENDPOINT = "https://login.microsoftonline.com/a6e2367a-92ea-4e5a-b565-723830bcc095/discovery/v2.0/keys"
 OIDC_OP_AUTHORIZATION_ENDPOINT = (
@@ -796,25 +807,25 @@ PROMETHEUS_LATENCY_BUCKETS = (
     30.0,
     float("inf"),
 )
-PROMETHEUS_PUSH_GATEWAY = env_var("PROMETHEUS_PUSH_GATEWAY", "http://localhost:9100")
+PROMETHEUS_PUSH_GATEWAY = config("PROMETHEUS_PUSH_GATEWAY", default="http://localhost:9100")
 PROMETHEUS_JOB = "hermes"
 
-ENCRYPTED_VALUES_LENGTH_CONTROL = int(env_var("ENCRYPTED_VALUES_LENGTH_CONTROL", "255"))
+ENCRYPTED_VALUES_LENGTH_CONTROL = config("ENCRYPTED_VALUES_LENGTH_CONTROL", default=255, cast=int)
 
-WAREHOUSE_QUEUE_NAME = env_var("WAREHOUSE_QUEUE_NAME", "clickhouse_hermes")
+WAREHOUSE_QUEUE_NAME = config("WAREHOUSE_QUEUE_NAME", default="clickhouse_hermes")
 
 # SFTP DETAILS
-SFTP_DIRECTORY = env_var("SFTP_DIRECTORY", "uploads")
+SFTP_DIRECTORY = config("SFTP_DIRECTORY", default="uploads")
 
 # 2 hours
-NOTIFICATION_RUN_TIME = env_var("NOTIFICATION_RUN_TIME", "10, 12, 14, 16, 18")
-NOTIFICATION_PERIOD = int(env_var("NOTIFICATION_PERIOD", 7200))
-NOTIFICATION_ERROR_THRESHOLD = int(env_var("NOTIFICATION_ERROR_THRESHOLD", 5))
+NOTIFICATION_RUN_TIME = config("NOTIFICATION_RUN_TIME", default="10, 12, 14, 16, 18")
+NOTIFICATION_PERIOD = config("NOTIFICATION_PERIOD", default=7200, cast=int)
+NOTIFICATION_ERROR_THRESHOLD = config("NOTIFICATION_ERROR_THRESHOLD", default=5, cast=int)
 # 2 minutes
-NOTIFICATION_RETRY_TIMER = int(env_var("NOTIFICATION_RETRY_TIMER", 120))
-NOTIFICATION_RUN = env_var("NOTIFICATION_RUN", False)
+NOTIFICATION_RETRY_TIMER = config("NOTIFICATION_RETRY_TIMER", default=120, cast=int)
+NOTIFICATION_RUN = config("NOTIFICATION_RUN", default=False, cast=bool)
 # Barclays notification file suffix
-BARCLAYS_SFTP_FILE_SUFFIX = env_var("BARCLAYS_SFTP_FILE_SUFFIX", "_DTUIL05787")
+BARCLAYS_SFTP_FILE_SUFFIX = config("BARCLAYS_SFTP_FILE_SUFFIX", default="_DTUIL05787")
 
 # DJango 3/4 change
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
@@ -824,4 +835,4 @@ STATIC_URL = "/admin/static/"
 STATIC_ROOT = "/tmp/static/"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-API_MESSAGING_RETRY_LIMIT = env_var("API_MESSAGING_RETRY_LIMIT", 3)
+API_MESSAGING_RETRY_LIMIT = config("API_MESSAGING_RETRY_LIMIT", default=3, cast=int)
