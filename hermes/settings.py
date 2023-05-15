@@ -637,12 +637,7 @@ ENVIRONMENT_COLOR = config("ENVIRONMENT_COLOR", default=None)
 # how many seconds leeway is allowed to account for clock skew in JWT validation
 CLOCK_SKEW_LEEWAY = config("CLOCK_SKEW_LEEWAY", default=180, cast=int)
 
-REDIS_HOST = config("REDIS_HOST", default="localhost")
-REDIS_PASSWORD = config("REDIS_PASSWORD", default="")
-REDIS_PORT = config("REDIS_PORT", default=6379, cast=int)
-REDIS_DB = config("REDIS_DB", default=1, cast=int)
-REDIS_URL = config("REDIS_URL", default=f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
-
+REDIS_URL = config("REDIS_URL", default="redis://localhost:6379/1")
 REDIS_API_CACHE_DB = config("REDIS_API_CACHE_DB", default=2, cast=int)
 REDIS_MPLANS_CACHE_EXPIRY = config(
     "REDIS_MPLANS_CACHE_EXPIRY",
