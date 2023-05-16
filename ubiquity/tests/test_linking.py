@@ -372,105 +372,201 @@ class TestUserPLL(testcases.TestCase):
 
         self.assertEqual(activate_check.call_count, 1, "PLL should be activated")
 
-    # @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
-    # def test_updating_base_link_when_link_status_changes(self, activate_check):
-    #     scheme_account, scheme_account_entry = set_up_membership_card(self.user_wallet_1, self.scheme1)
-    #     add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
-    #     PllUserAssociation.link_user_scheme_account_to_payment_cards(
-    #         scheme_account, [self.payment_card_account_1], self.user_wallet_1
-    #     )
-    #     user_pll, base_pll = self.get_user_and_base_pll(
-    #         payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
-    #     )
-    #     self.assertTrue(base_pll.active_link)
-    #     self.assertEqual(user_pll.state, WalletPLLStatus.ACTIVE)
-    #     self.assertEqual(user_pll.slug, "")
-    #     self.assertEqual(activate_check.call_count, 1)
-    #
-    #     scheme_account_entry.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
-    #
-    #     user_pll, base_pll = self.get_user_and_base_pll(
-    #         payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
-    #     )
-    #
-    #     # Check base link has been update when SchemeAccountEntry link_status has changed
-    #     self.assertFalse(base_pll.active_link)
-    #     self.assertEqual(user_pll.state, WalletPLLStatus.INACTIVE)
-    #     self.assertEqual(user_pll.slug, WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
+    @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
+    def test_updating_base_link_when_link_status_changes(self, activate_check):
+        scheme_account, scheme_account_entry = set_up_membership_card(self.user_wallet_1, self.scheme1)
+        add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account, [self.payment_card_account_1], self.user_wallet_1
+        )
+        user_pll, base_pll = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
+        )
+        self.assertTrue(base_pll.active_link)
+        self.assertEqual(user_pll.state, WalletPLLStatus.ACTIVE)
+        self.assertEqual(user_pll.slug, "")
+        self.assertEqual(activate_check.call_count, 1)
 
-    # @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
-    # def test_updating_base_link_when_link_status_changes_multi_wallet(self, activate_check):
-    #     scheme_account, scheme_account_entry = set_up_membership_card(self.user_wallet_1, self.scheme1)
-    #     scheme_account_entry_2 = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user_wallet_2)
-    #
-    #     add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
-    #     add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_2)
-    #
-    #     PllUserAssociation.link_user_scheme_account_to_payment_cards(
-    #         scheme_account, [self.payment_card_account_1], self.user_wallet_1
-    #     )
-    #     PllUserAssociation.link_user_scheme_account_to_payment_cards(
-    #         scheme_account, [self.payment_card_account_1], self.user_wallet_2
-    #     )
-    #     user_pll, base_pll = self.get_user_and_base_pll(
-    #         payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
-    #     )
-    #     user_pll2, base_pll2 = self.get_user_and_base_pll(
-    #         payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_2
-    #     )
-    #
-    #     self.assertTrue(base_pll.active_link)
-    #     self.assertEqual(user_pll.state, WalletPLLStatus.ACTIVE)
-    #     self.assertEqual(user_pll.slug, "")
-    #     self.assertEqual(activate_check.call_count, 1)
-    #     self.assertTrue(base_pll2.active_link)
-    #     self.assertEqual(user_pll2.state, WalletPLLStatus.ACTIVE)
-    #     self.assertEqual(user_pll2.slug, "")
-    #
-    #     scheme_account_entry.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
-    #
-    #     user_pll, base_pll = self.get_user_and_base_pll(
-    #         payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
-    #     )
-    #
-    #     # base link remains active
-    #     self.assertTrue(base_pll.active_link)
-    #
-    #     scheme_account_entry_2.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
-    #
-    #     user_pll, base_pll = self.get_user_and_base_pll(
-    #         payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
-    #     )
-    #
-    #     # Both now not active so base link should be False
-    #     self.assertFalse(base_pll.active_link)
+        scheme_account_entry.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
 
-    # @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
-    # def test_updating_base_link_when_pcard_status_changes(self, activate_check):
-    #     scheme_account, scheme_account_entry = set_up_membership_card(self.user_wallet_1, self.scheme1)
-    #     add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
-    #     PllUserAssociation.link_user_scheme_account_to_payment_cards(
-    #         scheme_account, [self.payment_card_account_1], self.user_wallet_1
-    #     )
-    #     user_pll, base_pll = self.get_user_and_base_pll(
-    #         payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
-    #     )
-    #     self.assertTrue(base_pll.active_link)
-    #     self.assertEqual(user_pll.state, WalletPLLStatus.ACTIVE)
-    #     self.assertEqual(user_pll.slug, "")
-    #     self.assertEqual(activate_check.call_count, 1)
-    #
-    #     base_pll.payment_card_account.status = PaymentCardAccount.INVALID_CARD_DETAILS
-    #     base_pll.payment_card_account.save(update_fields=["status"])
-    #
-    #     user_pll, base_pll = self.get_user_and_base_pll(
-    #         payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
-    #     )
-    #
-    #     # Check base link has changed when payment card status has changed.
-    #     self.assertFalse(base_pll.active_link)
-    #     self.assertEqual(user_pll.state, WalletPLLStatus.INACTIVE)
-    #     self.assertEqual(user_pll.slug, WalletPLLSlug.PAYMENT_ACCOUNT_INACTIVE.value)
+        user_pll, base_pll = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
+        )
+
+        # Check base link has been update when SchemeAccountEntry link_status has changed
+        self.assertFalse(base_pll.active_link)
+        self.assertEqual(user_pll.state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_pll.slug, WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
+
+    @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
+    def test_updating_base_link_when_link_status_changes_multi_wallet(self, activate_check):
+        scheme_account, scheme_account_entry = set_up_membership_card(self.user_wallet_1, self.scheme1)
+        scheme_account_entry_2 = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user_wallet_2)
+
+        add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
+        add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_2)
+
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account, [self.payment_card_account_1], self.user_wallet_1
+        )
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account, [self.payment_card_account_1], self.user_wallet_2
+        )
+        user_pll, base_pll = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
+        )
+        user_pll2, base_pll2 = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_2
+        )
+
+        self.assertTrue(base_pll.active_link)
+        self.assertEqual(user_pll.state, WalletPLLStatus.ACTIVE)
+        self.assertEqual(user_pll.slug, "")
+        self.assertEqual(activate_check.call_count, 1)
+        self.assertTrue(base_pll2.active_link)
+        self.assertEqual(user_pll2.state, WalletPLLStatus.ACTIVE)
+        self.assertEqual(user_pll2.slug, "")
+
+        scheme_account_entry.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
+
+        user_pll, base_pll = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
+        )
+
+        # base link remains active
+        self.assertTrue(base_pll.active_link)
+
+        scheme_account_entry_2.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
+
+        user_pll, base_pll = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
+        )
+
+        # Both now not active so base link should be False
+        self.assertFalse(base_pll.active_link)
+
+    @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
+    def test_updating_base_link_when_pcard_status_changes(self, activate_check):
+        scheme_account, scheme_account_entry = set_up_membership_card(self.user_wallet_1, self.scheme1)
+        add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account, [self.payment_card_account_1], self.user_wallet_1
+        )
+        user_pll, base_pll = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
+        )
+        self.assertTrue(base_pll.active_link)
+        self.assertEqual(user_pll.state, WalletPLLStatus.ACTIVE)
+        self.assertEqual(user_pll.slug, "")
+        self.assertEqual(activate_check.call_count, 1)
+
+        base_pll.payment_card_account.status = PaymentCardAccount.INVALID_CARD_DETAILS
+        base_pll.payment_card_account.save(update_fields=["status"])
+
+        user_pll, base_pll = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
+        )
+
+        # Check base link has changed when payment card status has changed.
+        self.assertFalse(base_pll.active_link)
+        self.assertEqual(user_pll.state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_pll.slug, WalletPLLSlug.PAYMENT_ACCOUNT_INACTIVE.value)
+
+    @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
+    def test_active_base_pll_multi_wallet_is_not_updated(self, activate_check):
+        """
+        This test a multi wallet scenario where the base link is already active and adding the same loyalty card but
+        with a link_status of INVALID_CREDENTIALS and payment card to another wallet does not change the base link.
+        """
+
+        scheme_account, scheme_account_entry = set_up_membership_card(self.user_wallet_1, self.scheme1)
+        add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account, [self.payment_card_account_1], self.user_wallet_1
+        )
+        user_pll, base_pll = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
+        )
+
+        self.assertTrue(base_pll.active_link)
+        self.assertEqual(user_pll.state, WalletPLLStatus.ACTIVE)
+        self.assertEqual(user_pll.slug, "")
+        self.assertEqual(activate_check.call_count, 1)
+
+        # Second Wallet with invalid loyalty card
+        SchemeAccountEntryFactory(
+            scheme_account=scheme_account, user=self.user_wallet_2, link_status=AccountLinkStatus.INVALID_CREDENTIALS
+        )
+        # Add same payment card to wallet 2
+        add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_2)
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account, [self.payment_card_account_1], self.user_wallet_2
+        )
+
+        # Get user pll associations
+        user_pll, base_pll = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
+        )
+        user_pll_2, base_pll_2 = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_2
+        )
+
+        # base link should still be active even though wallet 2 has an inactive loyalty card
+        self.assertTrue(base_pll.active_link)
+        self.assertTrue(base_pll_2.active_link)
+        self.assertEqual(user_pll.state, WalletPLLStatus.ACTIVE)
+        self.assertEqual(user_pll_2.state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_pll.slug, "")
+        self.assertEqual(user_pll_2.slug, WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
+
+    @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
+    def test_user_pll_changes_after_base_link_goes_active(self, activate_check):
+        """
+        This test a multi wallet scenario where the base link is already active and adding the same loyalty card but
+        with a link_status of INVALID_CREDENTIALS and payment card to another wallet does not change the base link.
+        """
+        add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
+        scheme_account, scheme_account_entry = set_up_membership_card(
+            self.user_wallet_1, self.scheme1, link_status=AccountLinkStatus.INVALID_CREDENTIALS
+        )
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account, [self.payment_card_account_1], self.user_wallet_1
+        )
+        user_pll, base_pll = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
+        )
+
+        self.assertFalse(base_pll.active_link)
+        self.assertEqual(user_pll.state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_pll.slug, WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
+
+        # Second wallet
+        add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_2)
+        scheme_account_2 = SchemeAccountEntryFactory(
+            scheme_account=scheme_account, user=self.user_wallet_2, link_status=AccountLinkStatus.ADD_AUTH_PENDING
+        )
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account, [self.payment_card_account_1], self.user_wallet_2
+        )
+        # Active loyalty card after add_auth
+        scheme_account_2.set_link_status(AccountLinkStatus.ACTIVE)
+
+        # Get user pll associations
+        user_pll, base_pll = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_1
+        )
+        user_pll_2, base_pll_2 = self.get_user_and_base_pll(
+            payment_card_account=self.payment_card_account_1, scheme_account=scheme_account, user=self.user_wallet_2
+        )
+
+        # base link should still be active even though wallet 2 has an inactive loyalty card
+        self.assertTrue(base_pll.active_link)
+        self.assertTrue(base_pll_2.active_link)
+        self.assertEqual(user_pll.state, WalletPLLStatus.INACTIVE)
+        self.assertEqual(user_pll_2.state, WalletPLLStatus.ACTIVE)
+        self.assertEqual(user_pll.slug, WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
+        self.assertEqual(user_pll_2.slug, "")
+        self.assertEqual(activate_check.call_count, 1)
 
 
 class TestSoftLinking(GlobalMockAPITestCase):
