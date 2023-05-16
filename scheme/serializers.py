@@ -458,7 +458,7 @@ class IdentifyCardSerializer(serializers.Serializer):
 
 
 class JoinSerializer(SchemeAnswerSerializer):
-    save_user_information = serializers.NullBooleanField(required=True)
+    save_user_information = serializers.BooleanField(required=True, allow_null=True)
     order = serializers.IntegerField(required=True)
     consents = UserConsentSerializer(many=True, write_only=True, required=False)
 
@@ -515,7 +515,7 @@ class JoinSerializer(SchemeAnswerSerializer):
 
 
 class UbiquityJoinSerializer(JoinSerializer):
-    save_user_information = serializers.NullBooleanField(required=False)
+    save_user_information = serializers.BooleanField(required=False, allow_null=True)
     order = serializers.IntegerField(required=False)
 
     def validate(self, data):
@@ -524,8 +524,8 @@ class UbiquityJoinSerializer(JoinSerializer):
 
 
 class DeleteCredentialSerializer(serializers.Serializer):
-    all = serializers.NullBooleanField(default=False)
-    keep_card_number = serializers.NullBooleanField(default=False)
+    all = serializers.BooleanField(default=False, allow_null=True)
+    keep_card_number = serializers.BooleanField(default=False, allow_null=True)
     property_list = serializers.ListField(default=[])
     type_list = serializers.ListField(default=[])
 

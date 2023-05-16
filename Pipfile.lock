@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "f677c509aacf6920212ae2cc1aac973efb1cfaf873d5444a37f7ea3c69061fc5"
+            "sha256": "857217e294107e0d13e0b926ea3ab017bf705f66bb448842a583f08d16508ae7"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -391,11 +391,11 @@
         },
         "django": {
             "hashes": [
-                "sha256:2c2f73c16b11cb272c6d5e3b063f0d1be06f378d8dc6005fbe8542565db659cc",
-                "sha256:4496eb4f65071578b703fdc6e6f29302553c7440e3f77baf4cefa4a4e091fc3d"
+                "sha256:066b6debb5ac335458d2a713ed995570536c8b59a580005acb0732378d5eb1ee",
+                "sha256:7efa6b1f781a6119a10ac94b4794ded90db8accbe7802281cd26f8664ffed59c"
             ],
             "index": "bink-pypi",
-            "version": "==4.0.10"
+            "version": "==4.2.1"
         },
         "django-admin-env-notice": {
             "hashes": [
@@ -481,11 +481,11 @@
         },
         "djangorestframework": {
             "hashes": [
-                "sha256:0c33407ce23acc68eca2a6e46424b008c9c02eceb8cf18581921d0092bc1f2ee",
-                "sha256:24c4bf58ed7e85d1fe4ba250ab2da926d263cd57d64b03e8dcef0ac683f8b1aa"
+                "sha256:579a333e6256b09489cbe0a067e66abe55c6595d8926be6b99423786334350c8",
+                "sha256:eb63f58c9f218e1a7d064d17a70751f528ed4e1d35547fdade9aaf4cd103fd08"
             ],
             "index": "bink-pypi",
-            "version": "==3.13.1"
+            "version": "==3.14.0"
         },
         "factory-boy": {
             "hashes": [
@@ -1066,11 +1066,11 @@
         },
         "sentry-sdk": {
             "hashes": [
-                "sha256:5932c092c6e6035584eb74d77064e4bce3b7935dfc4a331349719a40db265840",
-                "sha256:cf89a5063ef84278d186aceaed6fb595bfe67d099298e537634a323664265669"
+                "sha256:01b56a276642d31cf9b4aaf0b55938677265d7006be4785a10ef6330d0f5bba9",
+                "sha256:58f4ff9e76c21bc7172eeec9f1bccb3ff2247c74c71d5590438ce36c803f46ea"
             ],
             "index": "bink-pypi",
-            "version": "==1.22.2"
+            "version": "==1.23.0"
         },
         "setuptools": {
             "hashes": [
