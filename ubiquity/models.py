@@ -895,14 +895,13 @@ class PllUserAssociation(models.Model):
             raise ValueError(f'Invalid slug value: "{slug}" sent to PllUserAssociation.get_slug_description')
 
     @staticmethod
-    def update_link(link: "PllUserAssociation", wallet_pll_records: list):
+    def update_link(link: "PllUserAssociation", wallet_pll_records: list["PllUserAssociation"]):
         link.save()
         if link.state == WalletPLLStatus.ACTIVE:
             # Set the generic pll link to active if not already set
             if not link.pll.active_link:
                 link.pll.activate()
 
-        # Reverting back for further investigation
         else:
             update_base_link = True
             for pll in wallet_pll_records:
