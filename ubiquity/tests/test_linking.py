@@ -522,8 +522,8 @@ class TestUserPLL(testcases.TestCase):
     @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
     def test_user_pll_changes_after_base_link_goes_active(self, activate_check):
         """
-        This test a multi wallet scenario where the base link is already active and adding the same loyalty card but
-        with a link_status of INVALID_CREDENTIALS and payment card to another wallet does not change the base link.
+        This test a multi wallet scenario where the base link is not active and adding the same loyalty card
+        with a link_state of ACTIVE and payment card to another wallet changes the base link/user pll.
         """
         add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
         scheme_account, scheme_account_entry = set_up_membership_card(
