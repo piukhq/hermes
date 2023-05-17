@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from gunicorn.glogging import Logger as GLogger
 
@@ -34,8 +34,18 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(fmt_record)
 
 
+class GunicornAccessFiltering(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+
+        if request_info := cast(str, record.args.get("r")):
+            return not any(endpoint in request_info for endpoint in ("/livez", "/readyz", "/metrics"))
+
+        return True
+
+
 class CustomGunicornLogger(GLogger):
-    def setup(self, cfg: "Config"):
+    def setup(self, cfg: "Config") -> None:
         super().setup(cfg)
         self._set_handler(self.error_log, cfg.errorlog, JSONFormatter())
         self._set_handler(self.access_log, cfg.accesslog, JSONFormatter())
+        self.access_log.addFilter(GunicornAccessFiltering())
