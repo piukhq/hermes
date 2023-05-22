@@ -3,7 +3,7 @@ import logging
 import re
 import sre_constants
 from enum import Enum, IntEnum
-from typing import TYPE_CHECKING, Iterable, Optional, Type, Union
+from typing import TYPE_CHECKING, Iterable
 
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
@@ -222,6 +222,7 @@ class SchemeAccountEntry(models.Model):
     )
     user = models.ForeignKey("user.CustomUser", on_delete=models.CASCADE, verbose_name="Associated User")
     link_status = models.IntegerField(default=AccountLinkStatus.PENDING, choices=AccountLinkStatus.statuses())
+    first_auth_ok = models.BooleanField(default=False, verbose_name="First authorisation succeeded.")
 
     class Meta:
         unique_together = ("scheme_account", "user")
@@ -417,7 +418,7 @@ class SchemeAccountEntry(models.Model):
                 except IndexError:
                     pass
 
-    def set_link_status(self, new_status: [int, "AccountLinkStatus"], commit_change=True):
+    def set_link_status(self, new_status: "int | AccountLinkStatus", commit_change=True):
         """
         Do not confuse the status of the scheme account set on the user association (link) and hence called
         link_status with pll linking status on  either PaymentCardSchemeEntry or  PllUserAssociation
@@ -432,8 +433,14 @@ class SchemeAccountEntry(models.Model):
             status_to_set = AccountLinkStatus.WALLET_ONLY
         """
         self.link_status = int(new_status)
+        update_fields = ["link_status"]
+
+        if self.link_status == AccountLinkStatus.ACTIVE and not self.first_auth_ok:
+            self.first_auth_ok = True
+            update_fields.append("first_auth_ok")
+
         if commit_change:
-            self.save(update_fields=["link_status"])
+            self.save(update_fields=update_fields)
 
     def missing_credentials(self, credential_types):
         """
@@ -808,9 +815,7 @@ class WalletPLLData:
                             "scheme_count": self.scheme_count[pay_id][scheme_id],
                         }
 
-    def get_link_data(
-        self, link: "PllUserAssociation"
-    ) -> dict[[str, Optional[str]], [str, Optional["PllUserAssociation"]], [str, int]]:
+    def get_link_data(self, link: "PllUserAssociation") -> dict[str, "str | int | PllUserAssociation | None"]:
         self.process_links()
         sas = self.scheme_account_data.get(link.pll.scheme_account.id)
         if sas:
@@ -1284,7 +1289,7 @@ def _remove_pll_link(instance: PaymentCardSchemeEntry) -> None:
     logger.info("payment card scheme entry of id %s has been deleted or deactivated", instance.id)
 
     def _remove_deleted_link_from_card(
-        card_to_update: Union["PaymentCardAccount", "SchemeAccount"], linked_card_id: Type[int]
+        card_to_update: "PaymentCardAccount | SchemeAccount", linked_card_id: type[int]
     ) -> None:
         model = card_to_update.__class__
         card_id = card_to_update.id
@@ -1311,9 +1316,7 @@ def update_pll_links_on_save(instance: PaymentCardSchemeEntry, created: bool, **
     logger.info("payment card scheme entry of id %s updated", instance.id)
     if instance.active_link:
 
-        def _add_new_link_to_card(
-            card: Union["PaymentCardAccount", "SchemeAccount"], linked_card_id: Type[int]
-        ) -> None:
+        def _add_new_link_to_card(card: "PaymentCardAccount | SchemeAccount", linked_card_id: type[int]) -> None:
             model = card.__class__
             card_id = card.id
             logger.debug("checking pll links for %s of id %s", model.__name__, card_id)
