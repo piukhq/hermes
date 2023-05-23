@@ -5,7 +5,6 @@ from ubiquity.models import PaymentCardSchemeEntry
 
 def do_update_active_link_to_false(entry: dict) -> bool:
     try:
-        import pdb; pdb.set_trace()
         payment_scheme_entry = PaymentCardSchemeEntry.objects.select_for_update().filter(
             id=entry.data["paymentcardschemeentry_id"]
         )
