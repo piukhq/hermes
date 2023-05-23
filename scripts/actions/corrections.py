@@ -5,6 +5,7 @@ from .paymentaccount_actions import (  # do_delete_payment_account,
     do_update_hash,
 )
 from .schemeaccount_actions import do_mark_as_unknown, do_refresh_balance
+from .ubiquity_actions import do_update_active_link_to_false
 from .vop_actions import (
     do_activation,
     do_deactivate,
@@ -42,6 +43,8 @@ class Correction:
     DELETE_PAYMENT_ACCOUNT = 2003
     REMOVE_UN_ENROLL_DELETE_PAYMENT_ACCOUNT = 2004
     UN_ENROLL_CARD = 2005
+    # PLL corrections
+    UPDATE_ACTIVE_LINK = 3001
 
     CORRECTION_SCRIPTS = (
         (NO_CORRECTION, "No correction available"),
@@ -68,6 +71,7 @@ class Correction:
         (DELETE_PAYMENT_ACCOUNT, "Delete Payment Card Account"),
         (REMOVE_UN_ENROLL_DELETE_PAYMENT_ACCOUNT, "Remove, Un_enroll, Delete Payment Card Account"),
         (UN_ENROLL_CARD, "UNENROLL Payment Card Account"),
+        (UPDATE_ACTIVE_LINK, "Update PLL Active Link"),
     )
 
     COMPOUND_CORRECTION_SCRIPTS = {
@@ -105,6 +109,7 @@ class Correction:
             cls.UPDATE_CARD_HASH: do_update_hash,
             cls.REMOVE_PAYMENT_ACCOUNT: do_remove_payment_account,
             cls.UN_ENROLL_CARD: do_un_enroll_card,
+            cls.UPDATE_ACTIVE_LINK: do_update_active_link_to_false,
         }
         if entry.apply not in actions.keys():
             return False
