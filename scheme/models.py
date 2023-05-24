@@ -15,6 +15,7 @@ from colorful.fields import RGBColorField
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models import F, JSONField, Q, signals
@@ -595,7 +596,6 @@ class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
 
 
 class SchemeAccount(models.Model):
-
     # Journey types
     JOURNEYS = (
         (JourneyTypes.UNKNOWN, "Unknown"),
@@ -826,7 +826,6 @@ class SchemeAccount(models.Model):
         return [self.make_single_voucher(voucher_fields) for voucher_fields in vouchers]
 
     def make_single_voucher(self, voucher_fields):
-
         # this can fail with a VoucherScheme.DoesNotExist if the configuration is incorrect
         # i let this exception go as this is something we would want to know about & fix in the database.
         voucher_scheme = VoucherScheme.objects.get(scheme=self.scheme)
@@ -1034,6 +1033,13 @@ class SchemeCredentialQuestion(models.Model):
     auth_field = models.BooleanField(default=False)
     register_field = models.BooleanField(default=False)
     enrol_field = models.BooleanField(default=False)
+    is_optional = models.BooleanField(
+        default=False, help_text="Whether this field is optional for Enrol & Register credentials"
+    )
+
+    def clean(self):
+        if self.is_optional and not self.enrol_field and not self.register_field:
+            raise ValidationError({"is_optional": _("This field can only be used for enrol & register credentials.")})
 
     @property
     def required(self):
