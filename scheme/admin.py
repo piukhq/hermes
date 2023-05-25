@@ -148,6 +148,7 @@ class CredentialQuestionInline(admin.StackedInline):
         "answer_type",
         "choice",
         ("add_field", "auth_field", "register_field", "enrol_field"),
+        "is_optional",
     )
     extra = 0
 
@@ -184,7 +185,6 @@ class SchemeOverrideErrorInline(admin.StackedInline):
 
 @admin.register(Scheme)
 class SchemeAdmin(CacheResetAdmin):
-
     inlines = (
         SchemeContentInline,
         SchemeFeeInline,
@@ -572,7 +572,6 @@ class SchemeOverrideErrorAdmin(admin.ModelAdmin):
     list_filter = ("channel", "error_code", "reason_code", "scheme")
 
     def copy_to_channel(self, request, queryset):
-
         if "apply" in request.POST:
             # The user clicked submit on the intermediate form.
             # So do the copy for every item:
