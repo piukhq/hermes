@@ -27,12 +27,7 @@ from ubiquity.tasks import (
     deleted_payment_card_cleanup,
     deleted_service_cleanup,
 )
-from ubiquity.tests.factories import (
-    PaymentCardAccountEntryFactory,
-    PaymentCardSchemeEntryFactory,
-    SchemeAccountEntryFactory,
-    ServiceConsentFactory,
-)
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from user.tests.factories import (
     ClientApplicationBundleFactory,
     ClientApplicationFactory,
@@ -431,14 +426,18 @@ class TestTasks(GlobalMockAPITestCase):
         payment_card = PaymentCardAccountFactory()
         PaymentCardAccountEntryFactory(user=self.user, payment_card_account=payment_card)
 
-        for entry in linked_mcard_entries:
-            PaymentCardSchemeEntryFactory(payment_card_account=payment_card, scheme_account=entry.scheme_account)
+        PllUserAssociation.link_users_scheme_accounts(payment_card, linked_mcard_entries)
+        assert PllUserAssociation.objects.filter(user=self.user).count() == 3
 
         # TEST
         deleted_service_cleanup(self.user.id, {})
 
         self.assertTrue(mock_atlas_request.called)
         self.assertTrue(mock_delete_payment_card)
+
+        # PLL User Associations deleted
+        pll_user_assoc_count = PllUserAssociation.objects.filter(user=self.user).count()
+        self.assertEqual(0, pll_user_assoc_count)
 
         # PLL links deleted
         for entry in linked_mcard_entries:
@@ -470,16 +469,26 @@ class TestTasks(GlobalMockAPITestCase):
         PaymentCardAccountEntryFactory(user=self.user, payment_card_account=payment_card)
         PaymentCardAccountEntryFactory(user=user2, payment_card_account=payment_card)
 
+        PllUserAssociation.link_users_scheme_accounts(payment_card, linked_mcard_entries)
+        assert PllUserAssociation.objects.filter(user=self.user).count() == 3
+
         for entry in linked_mcard_entries:
-            SchemeAccountEntryFactory(scheme_account=entry.scheme_account, user=user2)
-            PaymentCardSchemeEntryFactory(payment_card_account=payment_card, scheme_account=entry.scheme_account)
+            mcard_entry = SchemeAccountEntryFactory(scheme_account=entry.scheme_account, user=user2)
+            PllUserAssociation.link_users_scheme_account_entry_to_payment(mcard_entry, payment_card)
 
         # TEST
         deleted_service_cleanup(self.user.id, {})
 
         self.assertTrue(mock_atlas_request.called)
 
-        # PLL links deleted
+        # PLL User Associations deleted for user 1
+        pll_user_assoc_count = PllUserAssociation.objects.filter(user=self.user).count()
+        self.assertEqual(0, pll_user_assoc_count)
+
+        pll_user_assoc_count = PllUserAssociation.objects.filter(user=user2).count()
+        self.assertEqual(3, pll_user_assoc_count)
+
+        # PLL link not deleted since user 2 still has both cards
         for entry in linked_mcard_entries:
             pll_link = entry.scheme_account.paymentcardschemeentry_set.count()
             self.assertEqual(pll_link, 1)
