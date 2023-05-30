@@ -99,6 +99,8 @@ class AngeliaContext:
 
     def __exit__(self, exc_type, exc_value, exc_tb):
         clean_history_kwargs(self.history_kwargs)
+        if exc_type:
+            logger.exception("Error occurred when processing Angelia background task")
 
 
 def credentials_to_key_pairs(cred_list: list) -> dict:
@@ -106,14 +108,6 @@ def credentials_to_key_pairs(cred_list: list) -> dict:
     for item in cred_list:
         ret[item["credential_slug"]] = item["value"]
     return ret
-
-
-"""
-def set_auth_provided(scheme_account: SchemeAccount, user_id: int, new_value: bool) -> None:
-    link = SchemeAccountEntry.objects.get(scheme_account_id=scheme_account.id, user_id=user_id)
-    link.auth_provided = new_value
-    link.save(update_fields=["auth_provided"])
-"""
 
 
 # @todo we must use API method of linking here:
@@ -365,7 +359,7 @@ def delete_user(message: dict) -> None:
     consent_data = None
     with AngeliaContext(message) as ac:
         try:
-            user = CustomUser.objects.get(pk=ac.user_id)
+            user = CustomUser.all_objects.get(pk=ac.user_id)
         except CustomUser.DoesNotExist:
             logger.exception(f"Could not delete user {ac.user_id} - account not found.")
         else:
@@ -373,10 +367,15 @@ def delete_user(message: dict) -> None:
                 consent = ServiceConsent.objects.get(pk=ac.user_id)
                 consent_data = {"email": user.email, "timestamp": consent.timestamp}
             except ServiceConsent.DoesNotExist:
-                logger.exception(f"Service Consent data could not be found whilst deleting user {ac.user_id} .")
-            user.soft_delete()
-            deleted_service_cleanup(user_id=ac.user_id, consent=consent_data)
-            logger.info(f"User {ac.user_id} successfully deleted. ")
+                logger.error(f"Service Consent data could not be found whilst deleting user {ac.user_id} .")
+
+            if user.is_active:
+                user.soft_delete()
+                deleted_service_cleanup(user_id=ac.user_id, consent=consent_data)
+                logger.info(f"User {ac.user_id} successfully deleted.")
+            else:
+                deleted_service_cleanup(user_id=ac.user_id, consent=consent_data)
+                logger.info(f"User {ac.user_id} already deleted, but delete cleanup has run successfully")
 
 
 def refresh_balances(message: dict) -> None:
