@@ -821,12 +821,13 @@ class WalletPLLData:
                         }
 
     def get_link_data(self, link: "PllUserAssociation") -> dict[str, "str | int | PllUserAssociation | None"]:
+        default_link_data = {"status": None, "link": None, "scheme_count": 0}
         self.process_links()
         sas = self.scheme_account_data.get(link.pll.scheme_account.id)
         if sas:
-            sa = sas.get(link.user_id, None)
+            sa = sas.get(link.user_id, default_link_data)
             return sa
-        return {"status": None, "link": None, "scheme_count": 0}
+        return default_link_data
 
     def scheme_account_status(self, link: "PllUserAssociation"):
         data = self.get_link_data(link)
@@ -837,7 +838,7 @@ class WalletPLLData:
         scheme_more_than_once = data.get("scheme_count", 0) > 1
 
         # if the link slug is not marked as collision it must be the link before the collision occurred so false
-        if data["link"].slug != WalletPLLSlug.UBIQUITY_COLLISION.value and scheme_more_than_once:
+        if data.get("link") and data["link"].slug != WalletPLLSlug.UBIQUITY_COLLISION.value and scheme_more_than_once:
             return False
         # returns true for other scheme linked more than once to a payment card and false otherwise even if slug
         # says it was a collision
@@ -1309,8 +1310,8 @@ def _remove_pll_link(instance: PaymentCardSchemeEntry) -> None:
                     card_needs_update = True
 
         if card_needs_update:
-            logger.debug("deleting link to %s", linked_card_id)
             model.objects.filter(pk=card_id).update(pll_links=existing_pll_links)
+            logger.debug(f"Updated {model.__name__}(id={card_id}) pll_links - deleted link to {linked_card_id}")
 
     _remove_deleted_link_from_card(instance.scheme_account, instance.payment_card_account_id)
     _remove_deleted_link_from_card(instance.payment_card_account, instance.scheme_account_id)
@@ -1327,9 +1328,9 @@ def update_pll_links_on_save(instance: PaymentCardSchemeEntry, created: bool, **
             logger.debug("checking pll links for %s of id %s", model.__name__, card_id)
             existing_pll_links = model.objects.values_list("pll_links", flat=True).get(pk=card_id)
             if linked_card_id not in [link["id"] for link in existing_pll_links]:
-                logger.debug("adding new link to %s", linked_card_id)
                 existing_pll_links.append({"id": linked_card_id, "active_link": True})
                 model.objects.filter(pk=card_id).update(pll_links=existing_pll_links)
+                logger.debug(f"Updated {model.__name__}(id={card_id}) pll_links - added new link to {linked_card_id}")
 
         _add_new_link_to_card(instance.scheme_account, instance.payment_card_account_id)
         _add_new_link_to_card(instance.payment_card_account, instance.scheme_account_id)

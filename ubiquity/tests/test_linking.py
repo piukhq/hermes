@@ -161,7 +161,7 @@ class TestUserPLL(testcases.TestCase):
             cls.payload_1,
         ) = set_up_payment_card(name_on_card="Card 1")
 
-        # senario 1 mcards 1 cards 1 mplan
+        # scenario 1 mcards 1 cards 1 mplan
 
         external_id1 = "test1@user.com"
         cls.user_wallet_1 = UserFactory(external_id=external_id1, client=cls.client_app, email=external_id1)
@@ -222,7 +222,7 @@ class TestUserPLL(testcases.TestCase):
         self.assertEqual(user_pll.slug, WalletPLLSlug.LOYALTY_CARD_PENDING.value)
         self.assertEqual(activate_check.call_count, 0)
 
-    def test_ppl_linking_duplicate_cards_in_2_wallets(self):
+    def test_pll_linking_duplicate_cards_in_2_wallets(self):
         """
         This tests the PllUserAssociation logic when duplicate payment and scheme accounts are
         linked in two wallets.
@@ -303,6 +303,66 @@ class TestUserPLL(testcases.TestCase):
         self.assertEqual(user_pll_1.slug, WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value)
         self.assertEqual(user_pll_2.state, WalletPLLStatus.INACTIVE.value)
         self.assertEqual(user_pll_2.slug, WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
+
+    def test_pll_update_by_both_delete_shared_card(self):
+        """
+        Tests PllUserAssociation.update_user_pll_by_both does not impact users that have an Active link
+        when deleting a shared card. This test was added as a sanity check since the logic would raise
+        a None type exception in this scenario.
+        """
+        # Add mcard1 and pcard1 to wallet1 and link cards
+        shared_scheme_account = SchemeAccountFactory(scheme=self.scheme1)
+        scheme_account_entry1 = SchemeAccountEntryFactory(
+            scheme_account=shared_scheme_account, user=self.user_wallet_1, link_status=AccountLinkStatus.ACTIVE
+        )
+
+        shared_payment_card_account = set_up_payment_card_account(
+            self.payment_card, issuer=self.issuer, payload=self.payload_1, status=PaymentCardAccount.ACTIVE
+        )
+        PaymentCardAccountEntryFactory(user=self.user_wallet_1, payment_card_account=shared_payment_card_account)
+
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            payment_card_accounts=[shared_payment_card_account],
+            scheme_account=shared_scheme_account,
+            user=self.user_wallet_1,
+        )
+        user_pll_1 = PllUserAssociation.objects.get(pll__scheme_account=shared_scheme_account, user=self.user_wallet_1)
+
+        self.assertEqual(user_pll_1.state, WalletPLLStatus.ACTIVE.value)
+        self.assertEqual(user_pll_1.slug, "")
+
+        # Add same mcard1 and pcard1 to wallet2 and link cards
+        SchemeAccountEntryFactory.create(
+            scheme_account=shared_scheme_account, user=self.user_wallet_2, link_status=AccountLinkStatus.ACTIVE.value
+        )
+        PaymentCardAccountEntryFactory(user=self.user_wallet_2, payment_card_account=shared_payment_card_account)
+
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            payment_card_accounts=[shared_payment_card_account],
+            scheme_account=shared_scheme_account,
+            user=self.user_wallet_2,
+        )
+
+        user_pll_2 = PllUserAssociation.objects.get(pll__scheme_account=shared_scheme_account, user=self.user_wallet_2)
+
+        self.assertEqual(user_pll_2.state, WalletPLLStatus.ACTIVE.value)
+        self.assertEqual(user_pll_2.slug, "")
+
+        # Delete mcard1 for user1 and pll user association as currently done by deleting a user
+        scheme_account_entry1.delete()
+        user_pll_1.delete()
+
+        # Update via base link as this is how the _delete_user_payment_cards task does it
+        base_links = PaymentCardSchemeEntry.objects.filter(payment_card_account=shared_payment_card_account)
+
+        self.assertEqual(1, len(base_links))
+
+        # Update the user pll for the payment card and scheme account. This scenario should not change
+        # the user pll status for the user still linked to the card.
+        PllUserAssociation.update_user_pll_by_both(base_links[0].payment_card_account, base_links[0].scheme_account)
+
+        self.assertEqual(WalletPLLStatus.ACTIVE.value, user_pll_2.state)
+        self.assertEqual(user_pll_2.slug, "")
 
     @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
     def test_link_accounts_ubiquity_collision(self, activate_check):
