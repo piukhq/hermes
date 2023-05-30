@@ -1,6 +1,8 @@
 import json
+from typing import NamedTuple
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from rest_framework.exceptions import ErrorDetail
 
 from history.utils import GlobalMockAPITestCase
@@ -23,6 +25,11 @@ from user.tests.factories import (
     OrganisationFactory,
     UserFactory,
 )
+
+
+class OptionalJourneyFieldsTestData(NamedTuple):
+    test_case: str
+    data: dict[str, bool]
 
 
 class TestCredentials(GlobalMockAPITestCase):
@@ -158,3 +165,126 @@ class TestCredentials(GlobalMockAPITestCase):
                 )
                 self.assertEqual(200, resp.status_code)
                 self.assertEqual({"updated": [field]}, resp.data)
+
+    def test_clean_credential_questions_optional_failures(self):
+        journey_fields_data: list[OptionalJourneyFieldsTestData] = [
+            OptionalJourneyFieldsTestData(
+                test_case="Both Add & Auth fields are selected to be optional",
+                data={
+                    "add_field": True,
+                    "auth_field": True,
+                    "register_field": False,
+                    "enrol_field": False,
+                },
+            ),
+            OptionalJourneyFieldsTestData(
+                test_case="Both Add & Auth and also register field are selected to be optional",
+                data={
+                    "add_field": True,
+                    "auth_field": True,
+                    "register_field": True,
+                    "enrol_field": False,
+                },
+            ),
+            OptionalJourneyFieldsTestData(
+                test_case="All journey fields are selected to be optional",
+                data={
+                    "add_field": True,
+                    "auth_field": True,
+                    "register_field": True,
+                    "enrol_field": True,
+                },
+            ),
+            OptionalJourneyFieldsTestData(
+                test_case="Add field and also Enrol and Register fields are selected to be optional",
+                data={
+                    "add_field": True,
+                    "auth_field": False,
+                    "register_field": True,
+                    "enrol_field": True,
+                },
+            ),
+            OptionalJourneyFieldsTestData(
+                test_case="Auth field and also Enrol and Register fields are selected to be optional",
+                data={
+                    "add_field": False,
+                    "auth_field": True,
+                    "register_field": True,
+                    "enrol_field": True,
+                },
+            ),
+            OptionalJourneyFieldsTestData(
+                test_case="None of the journey fields are selected to be optional",
+                data={
+                    "add_field": False,
+                    "auth_field": False,
+                    "register_field": False,
+                    "enrol_field": False,
+                },
+            ),
+        ]
+
+        for journey_fields in journey_fields_data:
+            question = SchemeCredentialQuestionFactory(
+                type=CARD_NUMBER,
+                label=CARD_NUMBER,
+                manual_question=True,
+                add_field=journey_fields.data["add_field"],
+                auth_field=journey_fields.data["auth_field"],
+                register_field=journey_fields.data["enrol_field"],
+                enrol_field=journey_fields.data["enrol_field"],
+                is_optional=True,
+            )
+            with self.assertRaises(ValidationError) as e:
+                question.clean()
+
+            self.assertEqual(len(e.exception.message_dict.keys()), 1)
+            self.assertEqual(list(e.exception.message_dict.keys())[0], "is_optional")
+            self.assertEqual(
+                e.exception.message_dict["is_optional"],
+                ["This field can only be used for enrol & register credentials."],
+            )
+
+    def test_clean_credential_questions_optional_success(self):
+        journey_fields_data: list[OptionalJourneyFieldsTestData] = [
+            OptionalJourneyFieldsTestData(
+                test_case="Both Enrol & Register are selected to be optional",
+                data={
+                    "add_field": False,
+                    "auth_field": False,
+                    "register_field": True,
+                    "enrol_field": True,
+                },
+            ),
+            OptionalJourneyFieldsTestData(
+                test_case="Only register field is selected to be optional",
+                data={
+                    "add_field": False,
+                    "auth_field": False,
+                    "register_field": True,
+                    "enrol_field": False,
+                },
+            ),
+            OptionalJourneyFieldsTestData(
+                test_case="Only enrol field is selected to be optional",
+                data={
+                    "add_field": False,
+                    "auth_field": False,
+                    "register_field": False,
+                    "enrol_field": True,
+                },
+            ),
+        ]
+
+        for journey_fields in journey_fields_data:
+            question = SchemeCredentialQuestionFactory(
+                type=CARD_NUMBER,
+                label=CARD_NUMBER,
+                manual_question=True,
+                add_field=journey_fields.data["add_field"],
+                auth_field=journey_fields.data["auth_field"],
+                register_field=journey_fields.data["enrol_field"],
+                enrol_field=journey_fields.data["enrol_field"],
+                is_optional=True,
+            )
+        question.clean()
