@@ -1038,7 +1038,9 @@ class SchemeCredentialQuestion(models.Model):
     )
 
     def clean(self):
-        if self.is_optional and not self.enrol_field and not self.register_field:
+        if self.is_optional and (
+            not (self.enrol_field or self.register_field) or any([self.add_field, self.auth_field])
+        ):
             raise ValidationError({"is_optional": _("This field can only be used for enrol & register credentials.")})
 
     @property
