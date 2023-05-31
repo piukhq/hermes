@@ -8,6 +8,7 @@ import requests
 import sentry_sdk
 from celery import shared_task
 from django.conf import settings
+from django.db.models import Q
 from rest_framework import serializers
 
 from hermes.vop_tasks import activate, deactivate
@@ -401,9 +402,11 @@ def _send_data_to_atlas(consent: dict) -> None:
     requests.post(url=url, headers=headers, json=data)
 
 
-def _delete_user_membership_cards(user: "CustomUser", send_deactivation: bool = True) -> None:
+def _delete_user_membership_cards(
+    user: "CustomUser", m_cards: list[SchemeAccount], send_deactivation: bool = True
+) -> None:
     cards_to_delete = []
-    for card in user.scheme_account_set.prefetch_related("user_set").all():
+    for card in m_cards:
         if card.user_set.count() == 1:
             card.is_deleted = True
             cards_to_delete.append(card)
@@ -425,9 +428,9 @@ def _delete_user_membership_cards(user: "CustomUser", send_deactivation: bool = 
     user_card_entries.delete()
 
 
-def _delete_user_payment_cards(user: "CustomUser", run_async: bool = True) -> None:
+def _delete_user_payment_cards(user: "CustomUser", p_cards: list[PaymentCardAccount], run_async: bool = True) -> None:
     cards_to_delete = []
-    for card in user.payment_card_account_set.prefetch_related("user_set", "paymentcardschemeentry_set").all():
+    for card in p_cards:
         if card.user_set.count() == 1:
             card.is_deleted = True
             cards_to_delete.append(card)
@@ -436,7 +439,6 @@ def _delete_user_payment_cards(user: "CustomUser", run_async: bool = True) -> No
             # Updates any ubiquity collisions linked to this payment card
             for entry in card.paymentcardschemeentry_set.all():
                 PllUserAssociation.update_user_pll_by_both(entry.payment_card_account, entry.scheme_account)
-                # entry.update_soft_links({"payment_card_account": card})
 
     PaymentCardSchemeEntry.objects.filter(payment_card_account_id__in=[card.id for card in cards_to_delete]).delete()
 
@@ -470,12 +472,22 @@ def _delete_user_payment_cards(user: "CustomUser", run_async: bool = True) -> No
 def deleted_service_cleanup(user_id: int, consent: dict, history_kwargs: dict = None) -> None:
     set_history_kwargs(history_kwargs)
     user = CustomUser.all_objects.get(id=user_id)
-    user.serviceconsent.delete()
+    # A user should always have a consent in normal circumstances but this is just in case one doesn't so
+    # the rest of the cleanup is still completed.
+    if hasattr(user, "serviceconsent"):
+        user.serviceconsent.delete()
+
+    m_cards = user.scheme_account_set.prefetch_related("user_set").all()
+    p_cards = user.payment_card_account_set.prefetch_related("user_set", "paymentcardschemeentry_set").all()
+    PllUserAssociation.objects.filter(
+        Q(user__id=user.id), Q(pll__scheme_account_id__in=m_cards) | Q(pll__payment_card_account_id__in=p_cards)
+    ).delete()
+
     # Don't deactivate when removing membership card as it will race with delete payment card
-    # Deleting all payment cards causes an unenrol for each card which also deactivates all linked activations
+    # Deleting all payment cards causes an un-enrol for each card which also deactivates all linked activations
     # if a payment card was linked to 2 accounts its activations will not be deleted
-    _delete_user_membership_cards(user, send_deactivation=False)
-    _delete_user_payment_cards(user, run_async=False)
+    _delete_user_membership_cards(user, m_cards, send_deactivation=False)
+    _delete_user_payment_cards(user, p_cards, run_async=False)
     clean_history_kwargs(history_kwargs)
 
     try:  # send user info to be persisted in Atlas
