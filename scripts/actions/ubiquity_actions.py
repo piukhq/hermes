@@ -1,9 +1,18 @@
+import logging
+import typing
+
 from django.db import transaction
 
 from ubiquity.models import PaymentCardSchemeEntry
+from ubiquity.tasks import deleted_service_cleanup
+
+if typing.TYPE_CHECKING:
+    from scripts.models import ScriptResult
+
+logger = logging.getLogger(__name__)
 
 
-def do_update_active_link_to_false(entry: dict) -> bool:
+def do_update_active_link_to_false(entry: "ScriptResult") -> bool:
     try:
 
         with transaction.atomic():
@@ -17,3 +26,20 @@ def do_update_active_link_to_false(entry: dict) -> bool:
 
     except Exception:
         return False
+
+
+def do_delete_user_cleanup(entry: "ScriptResult") -> bool:
+    success = False
+    try:
+        # This script is to just do the deletion cleanup of card links. There would have already been
+        # a delete request which would have deleted the consent data so there's no point in looking it
+        # up to delete and send to atlas.
+        deleted_service_cleanup(user_id=entry.data["user_id"], consent={})
+        success = True
+
+    except KeyError:
+        logger.exception(f"The script result data is missing the user_id for ScriptResult(id={entry.id})")
+    except Exception:
+        logger.exception(f"An unexpected error occurred when running correction script for ScriptResult(id={entry.id})")
+
+    return success
