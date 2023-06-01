@@ -2,6 +2,7 @@ from enum import IntEnum, auto
 
 from .find_errors.barclays_hash_uploads import BarclaysDeleteUpload, BarclaysHashCorrectionsUpload
 from .find_errors.cards_stuck_in_pending import FindCardsStuckInPending
+from .find_errors.deleted_users_with_links import FindDeletedUsersWithCardLinks
 from .find_errors.deleted_vop_cards_with_activations import FindDeletedVopCardsWithActivations
 from .find_errors.pll_incorrect_state import FindIncorrectPLL
 from .find_errors.scheme_accounts_invalid_creds import FindIcelandSchemeAccountsStuckInInvalidCreds
@@ -26,8 +27,10 @@ class DataScripts(IntEnum):
     BARCLAYS_HASH_UPLOAD = auto()
     DELETE_LISTED_PAYMENT_ACCOUNTS = auto()
     FIX_FALSE_ACTIVE_PLL_LINK = auto()
+    DELETED_USERS_WITH_CARD_LINKS = auto()
 
 
+# Titles displayed in Django Admin. Should make sense in the format "Find records for: [SCRIPT TITLE]"
 SCRIPT_TITLES = {
     DataScripts.METIS_CALLBACK: "Metis Callback (results container)",
     DataScripts.DEL_VOP_WITH_ACT: "Deleted VOP cards with remaining activations",
@@ -42,6 +45,7 @@ SCRIPT_TITLES = {
     DataScripts.BARCLAYS_HASH_UPLOAD: "Barclays hash replacement using Azure upload files",
     DataScripts.DELETE_LISTED_PAYMENT_ACCOUNTS: "Remove Payment Accounts in supplied CSV File",
     DataScripts.FIX_FALSE_ACTIVE_PLL_LINK: "Update PLL links that are marked incorrectly as True",
+    DataScripts.DELETED_USERS_WITH_CARD_LINKS: "Deleted Users with Loyalty/Payment card links",
 }
 
 SCRIPT_CLASSES = {
@@ -55,6 +59,7 @@ SCRIPT_CLASSES = {
     DataScripts.BARCLAYS_HASH_UPLOAD: BarclaysHashCorrectionsUpload,
     DataScripts.DELETE_LISTED_PAYMENT_ACCOUNTS: BarclaysDeleteUpload,
     DataScripts.FIX_FALSE_ACTIVE_PLL_LINK: FindIncorrectPLL,
+    DataScripts.DELETED_USERS_WITH_CARD_LINKS: FindDeletedUsersWithCardLinks,
 }
 # End of new script definition - you do not need to do anything else to add a new find script
 # But you may need to add one or more corrective actions see actions/corrections.py
