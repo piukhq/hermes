@@ -346,7 +346,7 @@ def history_event(model_name: str, data: dict):
                 to_data_warehouse(payload)
 
 
-def user_pll_status_change_event(old_state: None | int, user_pll: "PllUserAssociation") -> None:
+def user_pll_status_change_event(user_pll: "PllUserAssociation", old_state: int = None) -> None:
     # Only trigger an event when the state changes
     if old_state != user_pll.state:
         payload = {

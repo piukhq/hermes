@@ -936,7 +936,7 @@ class PllUserAssociation(models.Model):
                 link.pll.payment_card_account, wallet_pll_data.scheme_account_status(link)
             )
 
-            user_pll_status_change_event(old_link_state, link)
+            user_pll_status_change_event(link, old_link_state)
 
             cls.update_link(link, wallet_pll_records)
 
@@ -951,7 +951,7 @@ class PllUserAssociation(models.Model):
                 link.pll.payment_card_account, wallet_pll_data.scheme_account_status(link)
             )
 
-            user_pll_status_change_event(old_link_state, link)
+            user_pll_status_change_event(link, old_link_state)
 
             cls.update_link(link, wallet_pll_records)
 
@@ -965,7 +965,7 @@ class PllUserAssociation(models.Model):
             wallet_scheme_account_status = wallet_pll_data.scheme_account_status(link)
             link.state, link.slug = cls.get_state_and_slug(link.pll.payment_card_account, wallet_scheme_account_status)
 
-            user_pll_status_change_event(old_link_state, link)
+            user_pll_status_change_event(link, old_link_state)
 
             cls.update_link(link, wallet_pll_records)
 
@@ -1066,7 +1066,7 @@ class PllUserAssociation(models.Model):
             user_link.slug = slug
             user_link.save()
 
-        user_pll_status_change_event(None, user_link)
+        user_pll_status_change_event(user_link, None)
 
         return user_link
 
