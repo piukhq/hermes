@@ -12,7 +12,7 @@ from django.db.models import Q
 from rest_framework import serializers
 
 from hermes.vop_tasks import activate, deactivate
-from history.data_warehouse import remove_loyalty_card_event, to_data_warehouse
+from history.data_warehouse import remove_loyalty_card_event, to_data_warehouse, user_pll_delete_event
 from history.tasks import auth_outcome_task
 from history.utils import clean_history_kwargs, history_bulk_update, set_history_kwargs, user_info
 from payment_card import metis
@@ -479,9 +479,15 @@ def deleted_service_cleanup(user_id: int, consent: dict, history_kwargs: dict = 
 
     m_cards = user.scheme_account_set.prefetch_related("user_set").all()
     p_cards = user.payment_card_account_set.prefetch_related("user_set", "paymentcardschemeentry_set").all()
-    PllUserAssociation.objects.filter(
+
+    user_pll = PllUserAssociation.objects.filter(
         Q(user__id=user.id), Q(pll__scheme_account_id__in=m_cards) | Q(pll__payment_card_account_id__in=p_cards)
-    ).delete()
+    )
+
+    # user pll event
+    user_pll_delete_event(user_pll)
+
+    user_pll.delete()
 
     # Don't deactivate when removing membership card as it will race with delete payment card
     # Deleting all payment cards causes an un-enrol for each card which also deactivates all linked activations
