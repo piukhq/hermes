@@ -346,7 +346,7 @@ def history_event(model_name: str, data: dict):
                 to_data_warehouse(payload)
 
 
-def user_pll_status_change_event(user_pll: "PllUserAssociation", old_state: int = None) -> None:
+def user_pll_status_change_event(user_pll: "PllUserAssociation", old_state: int = None, delete=False) -> None:
     # Only trigger an event when the state changes
     if old_state != user_pll.state:
         payload = {
@@ -361,25 +361,11 @@ def user_pll_status_change_event(user_pll: "PllUserAssociation", old_state: int 
             "scheme_account_id": user_pll.pll.scheme_account_id,
             "slug": user_pll.slug,
             "from_state": old_state,
-            "to_state": user_pll.state,
+            "to_state": user_pll.state if not delete else None,
         }
         to_data_warehouse(payload)
 
 
-def user_pll_delete_event(user_plls: list["PllUserAssociation"]) -> None:
-    for user_pll in user_plls:
-        payload = {
-            "event_type": "pll_link.statuschange",
-            "origin": "channel",
-            "channel": user_pll.user.client_id,
-            "event_date_time": arrow.utcnow().isoformat(),
-            "event_user_ref": user_pll.user.external_id,
-            "internal_user_ref": user_pll.user_id,
-            "email": user_pll.user.email,
-            "payment_account_id": user_pll.pll.payment_card_account_id,
-            "scheme_account_id": user_pll.pll.scheme_account_id,
-            "slug": user_pll.slug,
-            "from_state": user_pll.state,
-            "to_state": None,
-        }
+def user_pll_delete_event(payloads: list[dict]) -> None:
+    for payload in payloads:
         to_data_warehouse(payload)
