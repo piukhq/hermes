@@ -935,10 +935,8 @@ class PllUserAssociation(models.Model):
             link.state, link.slug = cls.get_state_and_slug(
                 link.pll.payment_card_account, wallet_pll_data.scheme_account_status(link)
             )
-
-            user_pll_status_change_event(link, old_link_state)
-
             cls.update_link(link, wallet_pll_records)
+            user_pll_status_change_event(link, old_link_state)
 
     @classmethod
     def update_user_pll_by_pay_account(cls, payment_card_account: "PaymentCardAccount"):
@@ -950,10 +948,8 @@ class PllUserAssociation(models.Model):
             link.state, link.slug = cls.get_state_and_slug(
                 link.pll.payment_card_account, wallet_pll_data.scheme_account_status(link)
             )
-
-            user_pll_status_change_event(link, old_link_state)
-
             cls.update_link(link, wallet_pll_records)
+            user_pll_status_change_event(link, old_link_state)
 
     @classmethod
     def update_user_pll_by_scheme_account(cls, scheme_account: "SchemeAccount"):
@@ -964,10 +960,8 @@ class PllUserAssociation(models.Model):
             old_link_state = link.state
             wallet_scheme_account_status = wallet_pll_data.scheme_account_status(link)
             link.state, link.slug = cls.get_state_and_slug(link.pll.payment_card_account, wallet_scheme_account_status)
-
-            user_pll_status_change_event(link, old_link_state)
-
             cls.update_link(link, wallet_pll_records)
+            user_pll_status_change_event(link, old_link_state)
 
     @classmethod
     def link_users_scheme_accounts(
