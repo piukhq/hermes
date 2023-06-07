@@ -480,14 +480,34 @@ def deleted_service_cleanup(user_id: int, consent: dict, history_kwargs: dict = 
     m_cards = user.scheme_account_set.prefetch_related("user_set").all()
     p_cards = user.payment_card_account_set.prefetch_related("user_set", "paymentcardschemeentry_set").all()
 
-    user_pll = PllUserAssociation.objects.filter(
+    user_plls = PllUserAssociation.objects.filter(
         Q(user__id=user.id), Q(pll__scheme_account_id__in=m_cards) | Q(pll__payment_card_account_id__in=p_cards)
     )
 
-    # user pll event
-    user_pll_delete_event(user_pll)
+    delete_user_pll_event_payloads = []
 
-    user_pll.delete()
+    for user_pll in user_plls:
+        delete_user_pll_event_payloads.append(
+            {
+                "event_type": "pll_link.statuschange",
+                "origin": "channel",
+                "channel": user_pll.user.client_id,
+                "event_date_time": arrow.utcnow().isoformat(),
+                "event_user_ref": user_pll.user.external_id,
+                "internal_user_ref": user_pll.user_id,
+                "email": user_pll.user.email,
+                "payment_account_id": user_pll.pll.payment_card_account_id,
+                "scheme_account_id": user_pll.pll.scheme_account_id,
+                "slug": user_pll.slug,
+                "from_state": user_pll.state,
+                "to_state": None,
+            }
+        )
+
+    user_plls.delete()
+
+    # user pll event
+    user_pll_delete_event(delete_user_pll_event_payloads)
 
     # Don't deactivate when removing membership card as it will race with delete payment card
     # Deleting all payment cards causes an un-enrol for each card which also deactivates all linked activations
