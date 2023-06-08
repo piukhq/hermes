@@ -8,7 +8,7 @@ from api_messaging.message_broker import SendingService
 
 if t.TYPE_CHECKING:
     from scheme.models import SchemeAccount
-    from ubiquity.models import SchemeAccountEntry
+    from ubiquity.models import PllUserAssociation, SchemeAccountEntry
     from user.models import CustomUser
 
 logger = logging.getLogger("messaging")
@@ -344,3 +344,28 @@ def history_event(model_name: str, data: dict):
                     **extra_data,
                 }
                 to_data_warehouse(payload)
+
+
+def user_pll_status_change_event(user_pll: "PllUserAssociation", old_state: int = None, delete=False) -> None:
+    # Only trigger an event when the state changes
+    if old_state != user_pll.state:
+        payload = {
+            "event_type": "pll_link.statuschange",
+            "origin": "channel",
+            "channel": user_pll.user.client_id,
+            "event_date_time": arrow.utcnow().isoformat(),
+            "event_user_ref": user_pll.user.external_id,
+            "internal_user_ref": user_pll.user_id,
+            "email": user_pll.user.email,
+            "payment_account_id": user_pll.pll.payment_card_account_id,
+            "scheme_account_id": user_pll.pll.scheme_account_id,
+            "slug": user_pll.slug,
+            "from_state": old_state,
+            "to_state": user_pll.state if not delete else None,
+        }
+        to_data_warehouse(payload)
+
+
+def user_pll_delete_event(payloads: list[dict]) -> None:
+    for payload in payloads:
+        to_data_warehouse(payload)
