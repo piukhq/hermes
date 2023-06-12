@@ -493,7 +493,7 @@ def deleted_service_cleanup(user_id: int, consent: dict, history_kwargs: dict = 
                 "origin": "channel",
                 "channel": user_pll.user.client_id,
                 "event_date_time": arrow.utcnow().isoformat(),
-                "event_user_ref": user_pll.user.external_id,
+                "external_user_ref": user_pll.user.external_id,
                 "internal_user_ref": user_pll.user_id,
                 "email": user_pll.user.email,
                 "payment_account_id": user_pll.pll.payment_card_account_id,
