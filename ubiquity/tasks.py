@@ -491,7 +491,7 @@ def deleted_service_cleanup(user_id: int, consent: dict, history_kwargs: dict = 
             {
                 "event_type": "pll_link.statuschange",
                 "origin": "channel",
-                "channel": user_pll.user.client.clientapplicationbundle_set.all()[0].bundle_id,
+                "channel": user_pll.user.client_id,
                 "event_date_time": arrow.utcnow().isoformat(),
                 "external_user_ref": user_pll.user.external_id,
                 "internal_user_ref": user_pll.user_id,
