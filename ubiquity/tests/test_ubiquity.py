@@ -2498,6 +2498,7 @@ class TestResources(GlobalMockAPITestCase):
     @patch.object(SchemeAccount, "_get_midas_balance")
     def test_get_balance_link(self, mock_get_midas_balance, *_):
         test_scheme_account = SchemeAccountFactory(scheme=self.scheme)
+        self.scheme_account_entry.link_status = AccountLinkStatus.PENDING
         mock_get_midas_balance.return_value = (
             {
                 "value": Decimal("10"),
@@ -3728,7 +3729,6 @@ class TestHistoryResources(GlobalMockAPIHistoryTestCase):
         self.assertEqual(response_success_count, 2)
 
     def add_to_wallet(self, card_number, email, mock_get_midas_response, mock_to_data_warehouse):
-
         user1, scheme, card_num_question, email_question = setup_user_and_email_scheme(
             self.client_app, self.bundle, email
         )

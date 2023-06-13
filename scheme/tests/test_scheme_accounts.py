@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from requests.exceptions import ConnectionError as RequestConnectionError
 from rest_framework.utils.serializer_helpers import ReturnDict
 
 from history.utils import GlobalMockAPITestCase
@@ -566,7 +567,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertNotIn(scheme_2.id, scheme_ids)
 
     def test_get_scheme_accounts_credentials(self):
-
         response = self.client.get(
             f"/schemes/accounts/{self.scheme_account.id}/credentials?bink_user_id={self.user.id}",
             **self.auth_service_headers,
@@ -632,7 +632,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(self.scheme_account_entry1.third_party_identifier, self.scheme_account_answer_barcode.answer)
 
     def test_scheme_account_encrypted_credentials(self):
-
         decrypted_credentials = json.loads(
             AESCipher(AESKeyNames.AES_KEY).decrypt(self.scheme_account_entry.credentials())
         )
@@ -748,7 +747,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
     @patch("api_messaging.midas_messaging.to_midas", autospec=True, return_value=MagicMock())
     def test_register_join_endpoint_create_scheme_account(self, _mock_message):
-
         scheme = SchemeFactory()
         link_question = SchemeCredentialQuestionFactory(
             scheme=scheme, type=USER_NAME, manual_question=True, options=SchemeCredentialQuestion.LINK_AND_JOIN
@@ -796,7 +794,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
     @patch("api_messaging.midas_messaging.to_midas", autospec=True, return_value=MagicMock())
     def test_register_join_endpoint_optional_join_not_required(self, _mock_message):
-
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
@@ -812,7 +809,6 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
     @patch("api_messaging.midas_messaging.to_midas", autospec=True, return_value=MagicMock())
     def test_register_join_endpoint_saves_user_profile(self, _mock_message):
-
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
@@ -1039,7 +1035,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertEqual(points[0]["value"], 500)
         self.assertEqual(entry.link_status, AccountLinkStatus.ACTIVE)
 
-    @patch("requests.get", autospec=True, side_effect=ConnectionError)
+    @patch("requests.get", autospec=True, side_effect=RequestConnectionError)
     def test_get_balance_connection_error(self, mock_request):
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
@@ -1523,7 +1519,6 @@ class TestSchemeAccountCredentials(GlobalMockAPITestCase):
         }
 
     def send_delete_credential_request(self, data):
-
         response = self.client.delete(
             f"/schemes/accounts/{self.scheme_account.id}/credentials",
             data=json.dumps(data),
