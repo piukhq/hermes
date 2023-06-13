@@ -6,7 +6,7 @@ import uuid
 from decimal import ROUND_HALF_UP, Decimal
 from enum import IntEnum
 from functools import lru_cache
-from typing import TYPE_CHECKING, Dict, Iterable, Optional, Type, Union
+from typing import TYPE_CHECKING, Dict, Iterable, Type, Union
 
 import arrow
 import requests
