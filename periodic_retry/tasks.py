@@ -155,7 +155,8 @@ class PeriodicRetryHandler:
             logger.debug(msg)
             raise RetryError(msg)
 
-    def _set_task(self, retry_info: PeriodicRetry, module_name: str, function_name: str, data: dict) -> None:
+    def set_task(self, retry_info: PeriodicRetry, module_name: str, function_name: str, data: dict) -> None:
+        """Push the retry to the queue"""
         data["task_id"] = retry_info.id
         data["_module"] = module_name
         data["_function"] = function_name
@@ -191,7 +192,7 @@ class PeriodicRetryHandler:
         )
 
         if retry_task.status == PeriodicRetryStatus.REQUIRED:
-            self._set_task(retry_task, module_name, function_name, data)
+            self.set_task(retry_task, module_name, function_name, data)
 
         return retry_task
 
@@ -201,7 +202,7 @@ class PeriodicRetryHandler:
 
     def retry(self, retry_obj: PeriodicRetry) -> None:
         """Adds an existing PeriodicRetry object to the retry queue"""
-        self._set_task(retry_obj, retry_obj.module, retry_obj.function, retry_obj.data)
+        self.set_task(retry_obj, retry_obj.module, retry_obj.function, retry_obj.data)
 
     def call_next_task(self):
         data = json.loads(self.storage.rpop(self.task_list))

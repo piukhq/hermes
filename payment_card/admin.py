@@ -1,10 +1,19 @@
+from typing import TYPE_CHECKING
+
 import arrow
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.utils import timezone
 from django.utils.html import format_html
 
 from history.utils import HistoryAdmin
 from payment_card import models
+from periodic_retry.models import PeriodicRetry, PeriodicRetryStatus, RetryTaskList
+from periodic_retry.tasks import PeriodicRetryHandler
 from ubiquity.models import PaymentCardAccountEntry
+
+if TYPE_CHECKING:
+    from django.db.models import QuerySet
+    from django.http import HttpRequest
 
 
 @admin.register(models.PaymentCard)
@@ -43,6 +52,8 @@ def titled_filter(title):
 
 @admin.register(models.PaymentCardAccount)
 class PaymentCardAccountAdmin(HistoryAdmin):
+    actions = ["retry_enrolment"]
+
     def obfuscated_hash(self, obj):
         if obj.hash:
             obf_hash = "*" * (len(obj.hash) - 4) + obj.hash[-4:]
@@ -89,7 +100,98 @@ class PaymentCardAccountAdmin(HistoryAdmin):
 
     def PLL_consent(self, obj):
         when = arrow.get(obj.consent["timestamp"]).format("HH:mm DD/MM/YYYY")
-        return "Date Time: {} \nCoordinates: {}, {}".format(when, obj.consent["latitude"], obj.consent["longitude"])
+        return f'Date Time: {when} \nCoordinates: {obj.consent["latitude"]}, {obj.consent["longitude"]}'
+
+    def _process_valid_payment_card_accounts(
+        self, request: "HttpRequest", pcas: "QuerySet", retry_handler: PeriodicRetryHandler
+    ) -> tuple[int, list[int]]:
+        requeued: int = 0
+        non_failed_retries: list[int] = []
+        pca: models.PaymentCardAccount
+        for pca in pcas:
+            try:
+                periodic_retry = PeriodicRetry.objects.get(
+                    task_group=RetryTaskList.METIS_REQUESTS,
+                    data__context__card_id=pca.id,
+                )
+            except PeriodicRetry.DoesNotExist:
+                retry_handler.new(
+                    "payment_card.metis",
+                    "retry_enrol",
+                    context={"card_id": int(pca.id)},
+                    retry_kwargs={
+                        "max_retry_attempts": 10,
+                        "results": [{"caused_by": "Manual retry"}],
+                        "status": PeriodicRetryStatus.REQUIRED,
+                    },
+                )
+                requeued += 1
+            except PeriodicRetry.MultipleObjectsReturned:
+                self.message_user(
+                    request,
+                    f"Found multiple PeriodicRetryObjects objecs for PaymentCardAccount with id: {pca.id}",
+                    level=messages.ERROR,
+                )
+            else:
+                if periodic_retry.status != PeriodicRetryStatus.FAILED:
+                    non_failed_retries.append(pca.id)
+                    continue
+
+                periodic_retry.max_retry_attempts += 10
+                periodic_retry.next_retry_after = timezone.now()
+                periodic_retry.status = PeriodicRetryStatus.REQUIRED
+                periodic_retry.save(update_fields=["max_retry_attempts", "next_retry_after", "status"])
+                retry_handler.set_task(
+                    periodic_retry,
+                    module_name="payment_card.metis",
+                    function_name="retry_enrol",
+                    data=periodic_retry.data,
+                )
+                requeued += 1
+        return requeued, non_failed_retries
+
+    @admin.action(description="Retry enrolment")
+    def retry_enrolment(self: admin.ModelAdmin, request: "HttpRequest", queryset: "QuerySet") -> None:
+        allowed_group_names = ["Scripts Run and Correct", "Scripts Run Only"]
+        if not request.user.is_superuser and all(
+            group_name not in request.user.groups.all().values_list("name", flat=True)
+            for group_name in allowed_group_names
+        ):
+            self.message_user(
+                request,
+                f"Only super users and members of the following Groups can use this tool: {allowed_group_names}",
+                level=messages.ERROR,
+            )
+            return
+
+        valid_statuses = {models.PaymentCardAccount.PROVIDER_SERVER_DOWN, models.PaymentCardAccount.UNKNOWN}
+        valid_status_descs = {
+            f"{desc}" for status, desc in models.PaymentCardAccount.STATUSES if status in valid_statuses
+        }
+        if invalid_pcas := queryset.exclude(status__in=valid_statuses):
+            self.message_user(
+                request,
+                f"PaymentCardAccounts with invalid status submitted: "
+                f"{', '.join([str(ipca.id) for ipca in invalid_pcas])}. "
+                f"Only PaymentCardAccounts with the following statuses can be attempted: "
+                f"{valid_status_descs}",
+                level=messages.ERROR,
+            )
+        valid_pcas = queryset.filter(status__in=valid_statuses)
+        retry_handler = PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS)
+        requeued: int = 0
+        non_failed_retries: list[int] = []
+        requeued, non_failed_retries = self._process_valid_payment_card_accounts(request, valid_pcas, retry_handler)
+
+        if requeued:
+            self.message_user(request, f"Requeued {requeued} PaymentCardAccount enrolments")
+        if non_failed_retries:
+            self.message_user(
+                request,
+                "The following PaymentCardAccounts where found to have PeriodicRetrys in non-FAILED state: "
+                f"{non_failed_retries}. Ignoring these.",
+                level=messages.WARNING,
+            )
 
 
 @admin.register(models.PaymentCardAccountImage)
