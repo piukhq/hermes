@@ -68,7 +68,10 @@ class BaseLinkMixin(object):
 
     @staticmethod
     def _link_account(
-        data: dict, scheme_account: "SchemeAccount", user: "CustomUser", scheme_account_entry: "SchemeAccountEntry"
+        data: dict,
+        scheme_account: "SchemeAccount",
+        user: "CustomUser",
+        scheme_account_entry: "SchemeAccountEntry",
     ) -> dict:
         user_consents = []
 
@@ -149,7 +152,6 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             raise serializers.ValidationError("This scheme is temporarily unavailable.")
 
         if scheme.url == settings.MY360_SCHEME_URL:
-
             raise serializers.ValidationError(
                 {
                     "non_field_errors": [
@@ -246,7 +248,6 @@ class SchemeAccountJoinMixin:
         join_scheme: Scheme,
         serializer_class=UbiquityJoinSerializer,
     ):
-
         if permit and permit.is_scheme_suspended(join_scheme.id):
             raise serializers.ValidationError("This scheme is temporarily unavailable.")
 
@@ -282,7 +283,6 @@ class SchemeAccountJoinMixin:
         serializer: "Serializer",
         channel: str,
     ) -> t.Tuple[dict, int, SchemeAccount]:
-
         scheme_account_entry = scheme_account.schemeaccountentry_set.get(user=user)
         scheme_account_entry.update_scheme_account_key_credential_fields()
         try:
