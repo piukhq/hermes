@@ -6,7 +6,7 @@ import uuid
 from decimal import ROUND_HALF_UP, Decimal
 from enum import IntEnum
 from functools import lru_cache
-from typing import TYPE_CHECKING, Dict, Iterable, Optional, Type, Union
+from typing import TYPE_CHECKING, Dict, Iterable, Type, Union
 
 import arrow
 import requests
@@ -650,7 +650,7 @@ class SchemeAccount(models.Model):
     @staticmethod
     def _process_midas_response(
         response, scheme_account_entry: "SchemeAccountEntry"
-    ) -> tuple[Optional[bool], int, Optional[tuple[bool, AccountLinkStatus]]]:
+    ) -> tuple[dict | None, AccountLinkStatus, tuple[bool, AccountLinkStatus] | None]:
         # todo: liaise with Merchant to work out how we parse credentials back in.
         points = None
         previous_status = scheme_account_entry.link_status
@@ -701,7 +701,7 @@ class SchemeAccount(models.Model):
 
     def _get_midas_balance(
         self, journey, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None
-    ) -> (Optional[dict], AccountLinkStatus, Optional[tuple[bool, int]]):
+    ) -> tuple[dict | None, AccountLinkStatus, tuple[bool, AccountLinkStatus] | None]:
         points = None
         account_status = scheme_account_entry.link_status
         dw_event = None
@@ -715,7 +715,7 @@ class SchemeAccount(models.Model):
             response = self._get_balance_request(credentials, journey, scheme_account_entry)
             points, account_status, dw_event = self._process_midas_response(response, scheme_account_entry)
             self._received_balance_checks(scheme_account_entry)
-        except ConnectionError:
+        except requests.exceptions.ConnectionError:
             account_status = AccountLinkStatus.MIDAS_UNREACHABLE
 
         return points, account_status, dw_event
@@ -748,10 +748,8 @@ class SchemeAccount(models.Model):
         response = requests.get(midas_balance_uri, params=parameters, headers=headers)
         return response
 
-    def get_journey_type(self):
-        # Todo: This needs changing since it's incorrect for multi-wallet where one user is Active and the other
-        #  has invalid credentials
-        if self.balances:
+    def get_journey_type(self, is_scheme_account_entry_authorised: bool):
+        if is_scheme_account_entry_authorised:
             return JourneyTypes.UPDATE
         else:
             return JourneyTypes.LINK
@@ -770,10 +768,13 @@ class SchemeAccount(models.Model):
         return update_fields
 
     def get_balance(
-        self, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None, journey: JourneyTypes = None
-    ) -> (Optional[dict], Optional[tuple[bool, int]]):
+        self,
+        scheme_account_entry: SchemeAccountEntry,
+        credentials_override: dict = None,
+        journey: JourneyTypes = None,
+    ) -> tuple[list[dict], tuple[bool, AccountLinkStatus] | None]:
         old_status = scheme_account_entry.link_status
-        journey = journey or self.get_journey_type()
+        journey = journey or self.get_journey_type(scheme_account_entry.authorised)
 
         balance, account_status, dw_event = self._get_midas_balance(
             journey=journey, credentials_override=credentials_override, scheme_account_entry=scheme_account_entry
@@ -786,7 +787,7 @@ class SchemeAccount(models.Model):
                 del balance["vouchers"]
 
             balance.update({"updated_at": arrow.utcnow().int_timestamp, "scheme_id": self.scheme.id})
-            balance = UbiquityBalanceHandler(balance).data
+            balance: list[dict] = UbiquityBalanceHandler(balance).data
 
         update_fields = self.check_balance_and_vouchers(balance=balance, voucher_resp=voucher_resp)
 
