@@ -772,7 +772,7 @@ class SchemeAccount(models.Model):
         scheme_account_entry: SchemeAccountEntry,
         credentials_override: dict = None,
         journey: JourneyTypes = None,
-    ) -> tuple[list[dict | None], tuple[bool, AccountLinkStatus] | None]:
+    ) -> tuple[list[dict], tuple[bool, AccountLinkStatus] | None]:
         old_status = scheme_account_entry.link_status
         journey = journey or self.get_journey_type(scheme_account_entry.authorised)
 
@@ -787,7 +787,7 @@ class SchemeAccount(models.Model):
                 del balance["vouchers"]
 
             balance.update({"updated_at": arrow.utcnow().int_timestamp, "scheme_id": self.scheme.id})
-            balance: list[dict | None] = UbiquityBalanceHandler(balance).data
+            balance: list[dict] = UbiquityBalanceHandler(balance).data
 
         update_fields = self.check_balance_and_vouchers(balance=balance, voucher_resp=voucher_resp)
 

@@ -14,7 +14,8 @@ from django.utils.functional import cached_property
 
 from hermes import settings
 from hermes.vop_tasks import send_deactivation, vop_activate_request
-from history.data_warehouse import user_pll_status_change_event
+
+# from history.data_warehouse import user_pll_status_change_event
 from history.signals import HISTORY_CONTEXT
 from scheme.credentials import BARCODE, CARD_NUMBER, ENCRYPTED_CREDENTIALS, MERCHANT_IDENTIFIER, PASSWORD, PASSWORD_2
 from scheme.encryption import AESCipher
@@ -931,12 +932,12 @@ class PllUserAssociation(models.Model):
         # these are pll user links to all wallets which have this payment_card_account
         wallet_pll_records = wallet_pll_data.all_except_collision()
         for link in wallet_pll_data.all_except_collision():
-            old_link_state = link.state
+            # old_link_state = link.state
             link.state, link.slug = cls.get_state_and_slug(
                 link.pll.payment_card_account, wallet_pll_data.scheme_account_status(link)
             )
             cls.update_link(link, wallet_pll_records)
-            user_pll_status_change_event(link, old_link_state)
+            # user_pll_status_change_event(link, old_link_state)
 
     @classmethod
     def update_user_pll_by_pay_account(cls, payment_card_account: "PaymentCardAccount"):
@@ -944,12 +945,12 @@ class PllUserAssociation(models.Model):
         # these are pll user links to all wallets which have this payment_card_account
         wallet_pll_records = wallet_pll_data.all_except_collision()
         for link in wallet_pll_data.all_except_collision():
-            old_link_state = link.state
+            # old_link_state = link.state
             link.state, link.slug = cls.get_state_and_slug(
                 link.pll.payment_card_account, wallet_pll_data.scheme_account_status(link)
             )
             cls.update_link(link, wallet_pll_records)
-            user_pll_status_change_event(link, old_link_state)
+            # user_pll_status_change_event(link, old_link_state)
 
     @classmethod
     def update_user_pll_by_scheme_account(cls, scheme_account: "SchemeAccount"):
@@ -957,11 +958,11 @@ class PllUserAssociation(models.Model):
         # these are pll user links to all wallets which have this scheme_account
         wallet_pll_records = wallet_pll_data.all_except_collision()
         for link in wallet_pll_data.all_except_collision():
-            old_link_state = link.state
+            # old_link_state = link.state
             wallet_scheme_account_status = wallet_pll_data.scheme_account_status(link)
             link.state, link.slug = cls.get_state_and_slug(link.pll.payment_card_account, wallet_scheme_account_status)
             cls.update_link(link, wallet_pll_records)
-            user_pll_status_change_event(link, old_link_state)
+            # user_pll_status_change_event(link, old_link_state)
 
     @classmethod
     def link_users_scheme_accounts(
@@ -1060,7 +1061,7 @@ class PllUserAssociation(models.Model):
             user_link.slug = slug
             user_link.save()
 
-        user_pll_status_change_event(user_link, None)
+        # user_pll_status_change_event(user_link, None)
 
         return user_link
 

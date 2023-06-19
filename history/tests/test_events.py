@@ -1,4 +1,3 @@
-from copy import deepcopy
 from unittest.mock import patch
 
 import arrow
@@ -18,15 +17,8 @@ from history.data_warehouse import (
 from history.utils import clean_history_kwargs, set_history_kwargs, user_info
 from scheme.models import SchemeAccount, SchemeBundleAssociation
 from scheme.tests.factories import SchemeAccountFactory, SchemeBundleAssociationFactory, SchemeFactory, fake
-from ubiquity.models import AccountLinkStatus, PllUserAssociation, WalletPLLSlug, WalletPLLStatus
+from ubiquity.models import AccountLinkStatus
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
-from ubiquity.tests.test_linking import (
-    add_payment_card_account_to_wallet,
-    set_up_membership_card,
-    set_up_payment_card,
-    set_up_payment_card_account,
-    set_up_scheme,
-)
 from user.tests.factories import (
     ClientApplicationBundleFactory,
     ClientApplicationFactory,
@@ -875,61 +867,62 @@ class TestHistoryEvents(TransactionTestCase):
         )
 
 
-class TestUserPllAssociationEvent(TransactionTestCase):
-    @classmethod
-    def setUpClass(cls):
-        (
-            cls.client_app,
-            cls.bundle,
-            cls.issuer,
-            cls.payment_card,
-            cls.version_header,
-            cls.payload_1,
-        ) = set_up_payment_card(name_on_card="Card 1")
-
-        external_id1 = "test1@user.com"
-        cls.user_wallet_1 = UserFactory(external_id=external_id1, client=cls.client_app, email=external_id1)
-        external_id2 = "test2@user.com"
-        cls.user_wallet_2 = UserFactory(external_id=external_id2, client=cls.client_app, email=external_id2)
-
-        cls.scheme1, cls.scheme_bundle_association1 = set_up_scheme(cls.bundle)
-        cls.scheme2, cls.scheme_bundle_association1 = set_up_scheme(cls.bundle)
-        cls.payment_card_account_1 = set_up_payment_card_account(
-            cls.payment_card, issuer=cls.issuer, payload=cls.payload_1
-        )
-        cls.payload_2 = deepcopy(cls.payload_1)
-        cls.payload_2["card"]["token"] = "ABCdKWKPOPhepzxS4MfUuvTDHxr"
-        cls.payload_2["card"]["name_on_card"] = "Card 2"
-        cls.payload_2["card"]["fingerprint"] = "abce350d5135ab64a8f3c1097fadefd9effb"
-        cls.payload_2["card"]["last_four_digits"] = 9876
-        cls.payment_card_account_2 = set_up_payment_card_account(
-            cls.payment_card, issuer=cls.issuer, payload=cls.payload_2
-        )
-
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("history.data_warehouse.to_data_warehouse")
-    @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
-    def test_user_pll_event_call(self, mock_vop_check, mock_to_warehouse):
-        scheme_account, scheme_account_entry = set_up_membership_card(self.user_wallet_1, self.scheme1)
-        add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
-        PllUserAssociation.link_user_scheme_account_to_payment_cards(
-            scheme_account, [self.payment_card_account_1], self.user_wallet_1
-        )
-
-        args = mock_to_warehouse.call_args[0][0]
-
-        self.assertTrue(mock_to_warehouse.called)
-        self.assertEqual(args.get("event_type"), "pll_link.statuschange")
-        self.assertEqual(args.get("from_state"), None)
-        self.assertEqual(args.get("to_state"), WalletPLLStatus.ACTIVE)
-        self.assertEqual(args.get("slug"), "")
-
-        # test event after status has changed
-        scheme_account_entry.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
-        args = mock_to_warehouse.mock_calls[1][1][0]
-
-        self.assertTrue(mock_to_warehouse.called)
-        self.assertEqual(args.get("event_type"), "pll_link.statuschange")
-        self.assertEqual(args.get("from_state"), WalletPLLStatus.ACTIVE)
-        self.assertEqual(args.get("to_state"), WalletPLLStatus.INACTIVE)
-        self.assertEqual(args.get("slug"), WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
+# class TestUserPllAssociationEvent(TransactionTestCase):
+#     @classmethod
+#     def setUpClass(cls):
+#         (
+#             cls.client_app,
+#             cls.bundle,
+#             cls.issuer,
+#             cls.payment_card,
+#             cls.version_header,
+#             cls.payload_1,
+#         ) = set_up_payment_card(name_on_card="Card 1")
+#
+#         external_id1 = "test1@user.com"
+#         cls.user_wallet_1 = UserFactory(external_id=external_id1, client=cls.client_app, email=external_id1)
+#         external_id2 = "test2@user.com"
+#         cls.user_wallet_2 = UserFactory(external_id=external_id2, client=cls.client_app, email=external_id2)
+#
+#         cls.scheme1, cls.scheme_bundle_association1 = set_up_scheme(cls.bundle)
+#         cls.scheme2, cls.scheme_bundle_association1 = set_up_scheme(cls.bundle)
+#         cls.payment_card_account_1 = set_up_payment_card_account(
+#             cls.payment_card, issuer=cls.issuer, payload=cls.payload_1
+#         )
+#         cls.payload_2 = deepcopy(cls.payload_1)
+#         cls.payload_2["card"]["token"] = "ABCdKWKPOPhepzxS4MfUuvTDHxr"
+#         cls.payload_2["card"]["name_on_card"] = "Card 2"
+#         cls.payload_2["card"]["fingerprint"] = "abce350d5135ab64a8f3c1097fadefd9effb"
+#         cls.payload_2["card"]["last_four_digits"] = 9876
+#         cls.payment_card_account_2 = set_up_payment_card_account(
+#             cls.payment_card, issuer=cls.issuer, payload=cls.payload_2
+#         )
+#
+#     @override_settings(
+#     CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+#     @patch("history.data_warehouse.to_data_warehouse")
+#     @patch("ubiquity.models.PaymentCardSchemeEntry.vop_activate_check")
+#     def test_user_pll_event_call(self, mock_vop_check, mock_to_warehouse):
+#         scheme_account, scheme_account_entry = set_up_membership_card(self.user_wallet_1, self.scheme1)
+#         add_payment_card_account_to_wallet(self.payment_card_account_1, self.user_wallet_1)
+#         PllUserAssociation.link_user_scheme_account_to_payment_cards(
+#             scheme_account, [self.payment_card_account_1], self.user_wallet_1
+#         )
+#
+#         args = mock_to_warehouse.call_args[0][0]
+#
+#         self.assertTrue(mock_to_warehouse.called)
+#         self.assertEqual(args.get("event_type"), "pll_link.statuschange")
+#         self.assertEqual(args.get("from_state"), None)
+#         self.assertEqual(args.get("to_state"), WalletPLLStatus.ACTIVE)
+#         self.assertEqual(args.get("slug"), "")
+#
+#         # test event after status has changed
+#         scheme_account_entry.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
+#         args = mock_to_warehouse.mock_calls[1][1][0]
+#
+#         self.assertTrue(mock_to_warehouse.called)
+#         self.assertEqual(args.get("event_type"), "pll_link.statuschange")
+#         self.assertEqual(args.get("from_state"), WalletPLLStatus.ACTIVE)
+#         self.assertEqual(args.get("to_state"), WalletPLLStatus.INACTIVE)
+#         self.assertEqual(args.get("slug"), WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
