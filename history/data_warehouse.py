@@ -23,6 +23,21 @@ def get_main_answer(scheme_account: "SchemeAccount") -> str:
     return scheme_account.card_number or scheme_account.barcode or scheme_account.alt_main_answer
 
 
+def get_user_consents(user: "CustomUser", scheme_account: "SchemeAccount") -> list | None:
+    user_consents = user.userconsent_set.filter(scheme_account=scheme_account).all()
+    formatted_consents = [
+        {
+            "slug": consent.slug,
+            "response": consent.value,
+        }
+        for consent in user_consents
+    ]
+
+    # WAL-2852 requirement is to return null value if there are no consents, so it makes more sense
+    # to return None instead of an empty list here.
+    return formatted_consents or None
+
+
 def to_data_warehouse(payload: dict) -> None:
     headers = {}
     if payload:
@@ -123,6 +138,7 @@ def join_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", date
     if success:
         event_type = "lc.join.success"
         extra_data["main_answer"] = get_main_answer(scheme_account_entry.scheme_account)
+        extra_data["consents"] = get_user_consents(scheme_account_entry.user, scheme_account_entry.scheme_account)
     else:
         event_type = "lc.join.failed"
 
@@ -200,6 +216,7 @@ def register_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", 
     if success:
         event_type = "lc.register.success"
         extra_data["main_answer"] = get_main_answer(scheme_account_entry.scheme_account)
+        extra_data["consents"] = get_user_consents(scheme_account_entry.user, scheme_account_entry.scheme_account)
     else:
         event_type = "lc.register.failed"
 
