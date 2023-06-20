@@ -169,28 +169,28 @@ def get_bundle_key(bundle_id, key_type: str):
         raise VaultError(f"Unable to locate {key_type} in vault for bundle {bundle_id}") from e
 
 
-def get_secret_key(secret: str):
+def get_secret_key(secret_key_name: str):
     try:
-        return _secret_keys[secret]
-    except KeyError as e:
-        err_msg = f"{e} not found in vault"
+        return _secret_keys[secret_key_name]
+    except KeyError as exc:
+        err_msg = f"{secret_key_name} not found in vault"
         logger.exception(err_msg)
-        raise VaultError(err_msg)
+        raise VaultError(err_msg) from exc
 
 
 def get_aes_key(key_type: str):
     try:
         return _aes_keys[key_type]
-    except KeyError as e:
-        err_msg = f"{e} not found in _aes_keys: ({_aes_keys})."
+    except KeyError as exc:
+        err_msg = f"{key_type} not found in _aes_keys."
         logger.exception(err_msg)
-        raise VaultError(err_msg)
+        raise VaultError(err_msg) from exc
 
 
 def get_barclays_sftp_key(key_type: str):
     try:
         return _barclays_hermes_sftp[key_type]
-    except KeyError as e:
-        err_msg = f"{e} not found in _barclays_sftp_keys: ({_barclays_hermes_sftp})."
+    except KeyError as exc:
+        err_msg = f"{key_type} not found in _barclays_sftp_keys."
         logger.exception(err_msg)
-        raise VaultError(err_msg)
+        raise VaultError(err_msg) from exc
