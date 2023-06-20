@@ -423,7 +423,7 @@ class Consent(models.Model):
     journey = models.IntegerField(choices=journeys)
     slug = models.SlugField(
         max_length=50,
-        help_text="Slug must match the opt-in field name in the request" " sent to the merchant e.g marketing_opt_in",
+        help_text="Slug must match the opt-in field name in the request sent to the merchant e.g marketing_opt_in",
     )
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
