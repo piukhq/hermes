@@ -22,13 +22,12 @@ def do_re_enroll(entry: dict) -> bool:
             "payment_token": entry.data["payment_token"],
             "id": entry.data["card_id"],
             "card_token": entry.data["card_token"],
-            "partner_slug": entry.data["partner_slug"],
         }
         reply = metis_foundation_request(
             RequestMethod.POST, f"/foundation/spreedly/{entry.data['partner_slug']}/add", data
         )
         if (
-            data["partner_slug"] == "visa"
+            entry.data["partner_slug"] == "visa"
             and reply.get("agent_response_code") == "Add:SUCCESS"
             and reply.get("status_code") == 201
         ):
@@ -50,7 +49,7 @@ def do_un_enroll(entry: dict) -> bool:
         }
         reply = metis_foundation_request(RequestMethod.POST, f"/foundation/{entry.data['partner_slug']}/remove", data)
         if (
-            data["partner_slug"] == "visa"
+            entry.data["partner_slug"] == "visa"
             and reply.get("agent_response_code") == "Delete:SUCCESS"
             and reply.get("status_code") == 201
         ):
