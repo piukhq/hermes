@@ -138,7 +138,6 @@ def async_balance_with_updated_credentials(
         if send_auth_outcome:
             auth_outcome_task(success=False, scheme_account_entry=scheme_account_entry)
         scheme_account_entry.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
-        PllUserAssociation.update_user_pll_by_scheme_account(scheme_account=scheme_account)
 
 
 @shared_task
