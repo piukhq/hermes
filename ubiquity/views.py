@@ -1095,13 +1095,6 @@ class MembershipCardView(
 
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
-        logger.debug(
-            f"scheme_account_id: {scheme_account.id}, "
-            f"scheme_id: {scheme.id} "
-            f"account_created: {account_created}, "
-            f"auth_fields: {bool(auth_fields)}, "
-            f"authorisation_required: {scheme.authorisation_required}"
-        )
         if account_created and (auth_fields or not scheme.authorisation_required):
             # scheme account created & auth fields provided or the scheme does not require authorisation
 
@@ -1129,11 +1122,6 @@ class MembershipCardView(
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
 
         elif not auth_fields and scheme.authorisation_required:
-            logger.debug(
-                f"scheme_account_id: {scheme_account.id}, "
-                f"scheme_id: {scheme.id} "
-                f"- Setting link_status as WALLET_ONLY"
-            )
             # no auth provided, new scheme account created
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
             self._handle_wallet_only_link(sch_acc_entry, sch_acc_entry_created)
