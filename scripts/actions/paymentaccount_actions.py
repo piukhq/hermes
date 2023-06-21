@@ -13,9 +13,7 @@ def do_retain(entry: dict) -> bool:
     card = PaymentCardAccount.objects.get(id=entry.data["card_id"])
     data = {"payment_token": entry.data["payment_token"], "id": entry.data["card_id"]}
     reply = metis_foundation_request(RequestMethod.POST, f"/foundation/spreedly/{card.payment_card.slug}/retain", data)
-    if reply.get("status_code") == 200 and reply.get("reason") == "OK":
-        return True
-    return False
+    return reply.get("status_code") == 200 and reply.get("reason") == "OK"
 
 
 def do_re_enroll(entry: dict) -> bool:
@@ -29,7 +27,13 @@ def do_re_enroll(entry: dict) -> bool:
         reply = metis_foundation_request(
             RequestMethod.POST, f"/foundation/spreedly/{entry.data['partner_slug']}/add", data
         )
-        if reply.get("agent_response_code") == "Add:SUCCESS" and reply.get("status_code") == 201:
+        if (
+            data["partner_slug"] == "visa"
+            and reply.get("agent_response_code") == "Add:SUCCESS"
+            and reply.get("status_code") == 201
+        ):
+            return True
+        elif 200 <= reply["status_code"] < 300:
             return True
         return False
     except Exception as ex:
