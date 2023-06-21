@@ -12,7 +12,12 @@ from django.db.models import Q
 from rest_framework import serializers
 
 from hermes.vop_tasks import activate, deactivate
-from history.data_warehouse import remove_loyalty_card_event, to_data_warehouse, user_pll_delete_event
+from history.data_warehouse import (
+    generate_pll_delete_payload,
+    remove_loyalty_card_event,
+    to_data_warehouse,
+    user_pll_delete_event,
+)
 from history.tasks import auth_outcome_task
 from history.utils import clean_history_kwargs, history_bulk_update, set_history_kwargs, user_info
 from payment_card import metis
@@ -263,7 +268,14 @@ def deleted_payment_card_cleanup(
     p_card_users = payment_card_account.user_set.values_list("id", flat=True).all()
     pll_links = payment_card_account.paymentcardschemeentry_set.all()
 
-    PllUserAssociation.objects.filter(pll__in=pll_links, user__id=user_id).delete()
+    user_plls = PllUserAssociation.objects.filter(pll__in=pll_links, user__id=user_id)
+
+    # Generate event payload for pll_link.status_change
+    delete_user_pll_payloads = generate_pll_delete_payload(user_plls)
+
+    user_plls.delete()
+
+    user_pll_delete_event(delete_user_pll_payloads)
 
     if not p_card_users:
         payment_card_account.is_deleted = True
@@ -304,7 +316,13 @@ def deleted_membership_card_cleanup(
     # @todo consider if the next line is redundant - deleting base_pll cascades delete PLLAssociation on foreign key
     #  also pll_links.delete() does this with a post delete signal.
 
-    PllUserAssociation.objects.filter(pll__in=pll_links, user=user).delete()
+    user_plls = PllUserAssociation.objects.filter(pll__in=pll_links, user=user)
+
+    # Generate payload for event pll_link.statuschange
+    delete_user_pll_payloads = generate_pll_delete_payload(user_plls)
+
+    user_plls.delete()
+    user_pll_delete_event(delete_user_pll_payloads)
 
     other_scheme_account_entries = SchemeAccountEntry.objects.filter(
         scheme_account=scheme_account_entry.scheme_account
@@ -484,30 +502,13 @@ def deleted_service_cleanup(user_id: int, consent: dict, history_kwargs: dict = 
         Q(user__id=user.id), Q(pll__scheme_account_id__in=m_cards) | Q(pll__payment_card_account_id__in=p_cards)
     )
 
-    delete_user_pll_event_payloads = []
-
-    for user_pll in user_plls:
-        delete_user_pll_event_payloads.append(
-            {
-                "event_type": "pll_link.statuschange",
-                "origin": "channel",
-                "channel": user_pll.user.client_id,
-                "event_date_time": arrow.utcnow().isoformat(),
-                "external_user_ref": user_pll.user.external_id,
-                "internal_user_ref": user_pll.user_id,
-                "email": user_pll.user.email,
-                "payment_account_id": user_pll.pll.payment_card_account_id,
-                "scheme_account_id": user_pll.pll.scheme_account_id,
-                "slug": user_pll.slug,
-                "from_state": user_pll.state,
-                "to_state": None,
-            }
-        )
+    # Generate payload for event pll_link.statuschange
+    delete_user_pll_payloads = generate_pll_delete_payload(user_plls)
 
     user_plls.delete()
 
     # user pll event
-    user_pll_delete_event(delete_user_pll_event_payloads)
+    user_pll_delete_event(delete_user_pll_payloads)
 
     # Don't deactivate when removing membership card as it will race with delete payment card
     # Deleting all payment cards causes an un-enrol for each card which also deactivates all linked activations

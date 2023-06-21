@@ -30,7 +30,7 @@ class VaultError(Exception):
 
 def retry_session(backoff_factor: float = 0.3) -> requests.Session:
     session = requests.Session()
-    retry = Retry(total=3, backoff_factor=backoff_factor, method_whitelist=False, status_forcelist=[500, 502, 503, 504])
+    retry = Retry(total=3, backoff_factor=backoff_factor, status_forcelist=[500, 502, 503, 504])
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
@@ -101,7 +101,6 @@ def load_secrets(config):
         loaded = True
 
     else:
-
         secrets_to_load = [
             (config["SECRET_KEYS_NAME"], _secret_keys),
             (config["AES_KEYS_NAME"], _aes_keys),
@@ -144,7 +143,6 @@ def load_secrets(config):
 
 
 def get_azure_client(config: dict) -> SecretClient:
-
     credential = DefaultAzureCredential(
         exclude_environment_credential=True,
         exclude_shared_token_cache_credential=True,

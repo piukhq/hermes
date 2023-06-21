@@ -16,6 +16,7 @@ from history.data_warehouse import (
     remove_loyalty_card_event,
 )
 from history.utils import clean_history_kwargs, set_history_kwargs, user_info
+from payment_card.models import PaymentCardAccount
 from scheme.models import SchemeAccount, SchemeBundleAssociation
 from scheme.tests.factories import SchemeAccountFactory, SchemeBundleAssociationFactory, SchemeFactory, fake
 from ubiquity.models import AccountLinkStatus, PllUserAssociation, WalletPLLSlug, WalletPLLStatus
@@ -928,8 +929,18 @@ class TestUserPllAssociationEvent(TransactionTestCase):
         scheme_account_entry.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
         args = mock_to_warehouse.mock_calls[1][1][0]
 
-        self.assertTrue(mock_to_warehouse.called)
         self.assertEqual(args.get("event_type"), "pll_link.statuschange")
         self.assertEqual(args.get("from_state"), WalletPLLStatus.ACTIVE)
         self.assertEqual(args.get("to_state"), WalletPLLStatus.INACTIVE)
         self.assertEqual(args.get("slug"), WalletPLLSlug.LOYALTY_CARD_NOT_AUTHORISED.value)
+
+        # test event gets call when slug changes
+        self.payment_card_account_1.status = PaymentCardAccount.INVALID_CARD_DETAILS
+        self.payment_card_account_1.save(update_fields=["status"])
+
+        args = mock_to_warehouse.mock_calls[3][1][0]
+
+        self.assertEqual(args.get("event_type"), "pll_link.statuschange")
+        self.assertEqual(args.get("from_state"), WalletPLLStatus.INACTIVE)
+        self.assertEqual(args.get("to_state"), WalletPLLStatus.INACTIVE)
+        self.assertEqual(args.get("slug"), WalletPLLSlug.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE.value)
