@@ -45,7 +45,13 @@ def do_un_enroll(entry: dict) -> bool:
             "partner_slug": entry.data["partner_slug"],
         }
         reply = metis_foundation_request(RequestMethod.POST, f"/foundation/{entry.data['partner_slug']}/remove", data)
-        if reply.get("agent_response_code") == "Delete:SUCCESS" and reply.get("status_code") == 201:
+        if (
+            data["partner_slug"] == "visa"
+            and reply.get("agent_response_code") == "Delete:SUCCESS"
+            and reply.get("status_code") == 201
+        ):
+            return True
+        elif 200 <= reply["status_code"] < 300:
             return True
         return False
     except Exception as ex:
