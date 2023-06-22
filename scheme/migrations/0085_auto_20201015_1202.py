@@ -43,7 +43,7 @@ class Migration(migrations.Migration):
                 max_length=7,
                 validators=[
                     django.core.validators.RegexValidator(
-                        re.compile("^#((?:[0-F]{3}){1,2})$", 2),
+                        re.compile("^#((?:[0-9a-fA-F]{3}){1,2})$", 2),
                         "Enter a valid 'colour' in hexadecimal format e.g \"#112233\"",
                     )
                 ],

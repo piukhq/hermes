@@ -54,7 +54,7 @@ BARCODE_TYPES = (
 )
 
 slug_regex = re.compile(r"^[a-z0-9\-]+$")
-hex_colour_re = re.compile("^#((?:[0-F]{3}){1,2})$", re.IGNORECASE)
+hex_colour_re = re.compile("^#((?:[0-9a-fA-F]{3}){1,2})$")
 validate_hex_colour = RegexValidator(hex_colour_re, _("Enter a valid 'colour' in hexadecimal format e.g \"#112233\""))
 
 
