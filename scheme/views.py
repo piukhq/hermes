@@ -33,7 +33,7 @@ from scheme.serializers import (
     StatusSerializer,
     UpdateUserConsentSerializer,
 )
-from ubiquity.models import AccountLinkStatus, PaymentCardSchemeEntry, PllUserAssociation, SchemeAccountEntry
+from ubiquity.models import AccountLinkStatus, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import async_join_journey_fetch_balance_and_update_status, send_merchant_metrics_for_link_delete
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin, TransactionSerializer
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
@@ -340,19 +340,8 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         scheme_account_entry.link_status = new_status_code
         scheme_account_entry.save(update_fields=["link_status"])
 
-        # @todo trusted channels comment to update
-        """
-        I don't think this is required anymore because we set link status by user and do not need to set
-        wallet only status ie it can remain pending until user enters correct details
-            UpdateSchemeAccountStatus.set_user_authorisations_and_status(
-            new_status_code, scheme_account, scheme_account_entry
-        )
-        """
         if update_fields:
             scheme_account.save(update_fields=update_fields)
-
-        # @todo trusted channels comment - scheme_account_entry also calls this:
-        PllUserAssociation.update_user_pll_by_scheme_account(scheme_account=scheme_account)
 
     def process_active_accounts(self, scheme_account, journey, new_status_code, scheme_account_entry_id):
         if journey in ["join", "join-with-balance"] and new_status_code == AccountLinkStatus.ACTIVE:

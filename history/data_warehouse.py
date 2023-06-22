@@ -23,6 +23,21 @@ def get_main_answer(scheme_account: "SchemeAccount") -> str:
     return scheme_account.card_number or scheme_account.barcode or scheme_account.alt_main_answer
 
 
+def get_user_consents(user: "CustomUser", scheme_account: "SchemeAccount") -> list | None:
+    user_consents = user.userconsent_set.filter(scheme_account=scheme_account).all()
+    formatted_consents = [
+        {
+            "slug": consent.slug,
+            "response": consent.value,
+        }
+        for consent in user_consents
+    ]
+
+    # WAL-2852 requirement is to return null value if there are no consents, so it makes more sense
+    # to return None instead of an empty list here.
+    return formatted_consents or None
+
+
 def to_data_warehouse(payload: dict) -> None:
     headers = {}
     if payload:
@@ -123,6 +138,7 @@ def join_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", date
     if success:
         event_type = "lc.join.success"
         extra_data["main_answer"] = get_main_answer(scheme_account_entry.scheme_account)
+        extra_data["consents"] = get_user_consents(scheme_account_entry.user, scheme_account_entry.scheme_account)
     else:
         event_type = "lc.join.failed"
 
@@ -200,6 +216,7 @@ def register_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", 
     if success:
         event_type = "lc.register.success"
         extra_data["main_answer"] = get_main_answer(scheme_account_entry.scheme_account)
+        extra_data["consents"] = get_user_consents(scheme_account_entry.user, scheme_account_entry.scheme_account)
     else:
         event_type = "lc.register.failed"
 
@@ -346,9 +363,11 @@ def history_event(model_name: str, data: dict):
                 to_data_warehouse(payload)
 
 
-def user_pll_status_change_event(user_pll: "PllUserAssociation", old_state: int = None, delete=False) -> None:
-    # Only trigger an event when the state changes
-    if old_state != user_pll.state:
+def user_pll_status_change_event(
+    user_pll: "PllUserAssociation", previous_slug: str, previous_state: int = None
+) -> None:
+    # Only trigger an event when there's a state change or slug change
+    if previous_state != user_pll.state or previous_slug != user_pll.slug:
         payload = {
             "event_type": "pll_link.statuschange",
             "origin": "channel",
@@ -360,10 +379,34 @@ def user_pll_status_change_event(user_pll: "PllUserAssociation", old_state: int 
             "payment_account_id": user_pll.pll.payment_card_account_id,
             "scheme_account_id": user_pll.pll.scheme_account_id,
             "slug": user_pll.slug,
-            "from_state": old_state,
-            "to_state": user_pll.state if not delete else None,
+            "from_state": previous_state,
+            "to_state": user_pll.state,
         }
         to_data_warehouse(payload)
+
+
+def generate_pll_delete_payload(user_plls: list["PllUserAssociation"]):
+    event_payloads = []
+
+    for user_pll in user_plls:
+        event_payloads.append(
+            {
+                "event_type": "pll_link.statuschange",
+                "origin": "channel",
+                "channel": user_pll.user.client_id,
+                "event_date_time": arrow.utcnow().isoformat(),
+                "external_user_ref": user_pll.user.external_id,
+                "internal_user_ref": user_pll.user_id,
+                "email": user_pll.user.email,
+                "payment_account_id": user_pll.pll.payment_card_account_id,
+                "scheme_account_id": user_pll.pll.scheme_account_id,
+                "slug": user_pll.slug,
+                "from_state": user_pll.state,
+                "to_state": None,
+            }
+        )
+
+    return event_payloads
 
 
 def user_pll_delete_event(payloads: list[dict]) -> None:
