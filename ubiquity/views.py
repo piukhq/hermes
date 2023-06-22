@@ -378,8 +378,8 @@ class PaymentCardView(
             try:
                 data = PaymentCardUpdateSerializer(request.data["card"]).data
                 PaymentCardAccount.objects.filter(pk=kwargs["pk"]).update(**data)
-            except ValueError as e:
-                raise ParseError(str(e))
+            except ValueError:
+                raise ParseError("Invalid card data") from None
 
         if "account" in request.data and "consents" in request.data["account"]:
             self._update_payment_card_consent(request.data["account"]["consents"], kwargs["pk"])
