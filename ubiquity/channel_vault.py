@@ -150,16 +150,14 @@ def get_azure_client(config: dict) -> SecretClient:
         exclude_interactive_browser_credential=True,
     )
 
-    client = SecretClient(vault_url=config["VAULT_URL"], credential=credential)
-
-    return client
+    return SecretClient(vault_url=config["VAULT_URL"], credential=credential)
 
 
 def get_jwt_secret(bundle_id):
     try:
         return _bundle_secrets[bundle_id]["jwt_secret"]
     except KeyError as e:
-        raise exceptions.AuthenticationFailed(f"JWT is invalid: {e}") from e
+        raise exceptions.AuthenticationFailed("JWT is invalid") from e
 
 
 def get_bundle_key(bundle_id, key_type: str):
