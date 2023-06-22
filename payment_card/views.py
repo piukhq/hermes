@@ -25,13 +25,7 @@ from periodic_retry.models import PeriodicRetryStatus, RetryTaskList
 from periodic_retry.tasks import PeriodicRetryHandler
 from prometheus.metrics import payment_card_processing_seconds_histogram, payment_card_status_change_counter
 from scheme.models import Scheme
-from ubiquity.models import (
-    PaymentCardAccountEntry,
-    PaymentCardSchemeEntry,
-    PllUserAssociation,
-    SchemeAccountEntry,
-    VopActivation,
-)
+from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, VopActivation
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import ClientApplication, Organisation
 
@@ -464,15 +458,6 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             payment_card_status_change_counter.labels(
                 provider=payment_card_account.payment_card.system_name, status=payment_card_account.status_name
             ).inc()
-
-            # Update soft link status
-            # old code updated soft links when active
-            # if new_status_code == payment_card_account.ACTIVE:
-            #   PaymentCardSchemeEntry.update_soft_links({"payment_card_account": payment_card_account})
-            #
-            # Always update status even if an error as we need to set the error states correctly also on active
-            # make any soft links active and send any activations
-            PllUserAssociation.update_user_pll_by_pay_account(payment_card_account)
 
             # Now report state change events for all owners of the payment card
             wallets = PaymentCardAccountEntry.objects.filter(payment_card_account=payment_card_account)

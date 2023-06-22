@@ -5,9 +5,10 @@ from payment_card.enums import RequestMethod
 from payment_card.metis import enrol_existing_payment_card
 from payment_card.models import PaymentCardAccount
 from scheme.models import Scheme
-from ubiquity.models import PaymentCardSchemeEntry, VopActivation
+from ubiquity.models import VopActivation
 
 from .metis_foundation import metis_foundation_request
+from .paymentaccount_actions import do_un_enroll
 
 
 def do_fix_enroll(entry):
@@ -24,19 +25,6 @@ def do_fix_enroll(entry):
     return False
 
 
-def do_vop_un_enroll(entry):
-    """Un-enrolls the Payment Card via the Foundational Metis endpoint"""
-    data = {
-        "payment_token": entry.data["payment_token"],
-        "id": entry.data["card_id"],
-        "partner_slug": entry.data["partner_slug"],
-    }
-    reply = metis_foundation_request(RequestMethod.POST, "/foundation/visa/remove", data)
-    if reply.get("agent_response_code") == "Delete:SUCCESS" and reply.get("status_code") == 201:
-        return True
-    return False
-
-
 def do_deactivate(entry):
     data = {
         "payment_token": entry.data["payment_token"],
@@ -46,19 +34,6 @@ def do_deactivate(entry):
     reply = metis_foundation_request(RequestMethod.POST, "/visa/deactivate", data)
     if reply.get("agent_response_code") == "Deactivate:SUCCESS":
         do_mark_as_deactivated(entry)
-        return True
-    return False
-
-
-def do_re_enroll(entry):
-    """Re-enrolls the card via the Foundation base Metis endpoint, which has no callback."""
-    data = {
-        "payment_token": entry.data["payment_token"],
-        "card_token": entry.data["card_token"],
-        "id": entry.data["card_id"],
-    }
-    reply = metis_foundation_request(RequestMethod.POST, "/foundation/spreedly/visa/add", data)
-    if reply.get("agent_response_code") == "Add:SUCCESS" and reply.get("status_code") == 200:
         return True
     return False
 
@@ -96,15 +71,6 @@ def do_mark_as_deactivated(entry):
     return True
 
 
-def do_set_account_and_links_active(entry):
-
-    pca = PaymentCardAccount.objects.get(pk=entry.data["card_id"])
-    pca.status = PaymentCardAccount.ACTIVE
-    pca.save()
-    PaymentCardSchemeEntry.update_soft_links({"payment_card_account": pca})
-    return True
-
-
 def do_multiple_deactivate(entry: dict) -> bool:
     """Sets removes list of activations and sets each to deactivated if found.  This is not as controllable
     as doing one at a time so it will do best endeavours to deactivate but will return True in any case.
@@ -129,4 +95,4 @@ def do_multiple_deactivate_unenroll(entry: dict) -> bool:
     deactivate_list = entry.get("deactivations")
     for deactivate in deactivate_list:
         do_deactivate(deactivate)
-    return do_vop_un_enroll(entry)
+    return do_un_enroll(entry)

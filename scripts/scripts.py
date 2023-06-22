@@ -1,6 +1,11 @@
 from enum import IntEnum, auto
 
 from .find_errors.barclays_hash_uploads import BarclaysDeleteUpload, BarclaysHashCorrectionsUpload
+from .find_errors.cards_in_provider_server_down_unknown import (
+    FindAmexCardsInProviderServerDownUnknownStatus,
+    FindMastercardCardsInProviderServerDownUnknownStatus,
+    FindVOPCardsInProviderServerDownUnknownStatus,
+)
 from .find_errors.cards_stuck_in_pending import FindCardsStuckInPending
 from .find_errors.deleted_users_with_links import FindDeletedUsersWithCardLinks
 from .find_errors.deleted_vop_cards_with_activations import FindDeletedVopCardsWithActivations
@@ -23,11 +28,14 @@ class DataScripts(IntEnum):
     FIX_STUCK_IN_ACTIVATING = auto()
     FIX_STUCK_IN_DEACTIVATING = auto()
     VISA_DUPLICATE_CARDS = auto()
+    VISA_PSD_UNKNOWN_CARDS = auto()
     ICELAND_SCHEME_ACCOUNT_INVALID_CREDS = auto()
     BARCLAYS_HASH_UPLOAD = auto()
     DELETE_LISTED_PAYMENT_ACCOUNTS = auto()
     FIX_FALSE_ACTIVE_PLL_LINK = auto()
     DELETED_USERS_WITH_CARD_LINKS = auto()
+    AMEX_PSD_UNKNOWN_CARDS = auto()
+    MASTERCARD_PSD_UNKNOWN_CARDS = auto()
 
 
 # Titles displayed in Django Admin. Should make sense in the format "Find records for: [SCRIPT TITLE]"
@@ -39,6 +47,11 @@ SCRIPT_TITLES = {
     DataScripts.FIX_STUCK_IN_ACTIVATING: "VOP Activations stuck in activating",
     DataScripts.FIX_STUCK_IN_DEACTIVATING: "VOP Activations stuck in deactivating",
     DataScripts.VISA_DUPLICATE_CARDS: "Visa card accounts in 'duplicate card' status",
+    DataScripts.VISA_PSD_UNKNOWN_CARDS: "Visa card accounts in 'provider server down' or 'unknown' status",
+    DataScripts.AMEX_PSD_UNKNOWN_CARDS: ("AMEX card accounts in 'provider server down' or 'unknown' status"),
+    DataScripts.MASTERCARD_PSD_UNKNOWN_CARDS: (
+        "Mastercard card accounts in 'provider server down' or 'unknown' status"
+    ),
     DataScripts.ICELAND_SCHEME_ACCOUNT_INVALID_CREDS: (
         "Iceland SchemeAccounts added via Join stuck in Invalid Credentials status"
     ),
@@ -55,6 +68,9 @@ SCRIPT_CLASSES = {
     DataScripts.FIX_STUCK_IN_ACTIVATING: FindVOPActivationsStuckInActivating,
     DataScripts.FIX_STUCK_IN_DEACTIVATING: FindVOPActivationsStuckInDeactivating,
     DataScripts.VISA_DUPLICATE_CARDS: FindVOPCardsInDuplicateCardStatus,
+    DataScripts.VISA_PSD_UNKNOWN_CARDS: FindVOPCardsInProviderServerDownUnknownStatus,
+    DataScripts.AMEX_PSD_UNKNOWN_CARDS: FindAmexCardsInProviderServerDownUnknownStatus,
+    DataScripts.MASTERCARD_PSD_UNKNOWN_CARDS: FindMastercardCardsInProviderServerDownUnknownStatus,
     DataScripts.ICELAND_SCHEME_ACCOUNT_INVALID_CREDS: FindIcelandSchemeAccountsStuckInInvalidCreds,
     DataScripts.BARCLAYS_HASH_UPLOAD: BarclaysHashCorrectionsUpload,
     DataScripts.DELETE_LISTED_PAYMENT_ACCOUNTS: BarclaysDeleteUpload,
