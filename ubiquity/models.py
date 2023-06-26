@@ -875,6 +875,17 @@ class PllUserAssociation(models.Model):
         unique_together = ("pll", "user")
 
     @classmethod
+    def get_pll_previous_state_and_slug(cls, created: bool, user_link: "PllUserAssociation") -> tuple[str, int]:
+        previous_slug = ""
+        previous_state = None
+
+        if not created:
+            previous_slug = user_link.slug
+            previous_state = user_link.state
+
+        return previous_slug, previous_state
+
+    @classmethod
     def get_state_and_slug(cls, payment_card_account: "PaymentCardAccount", scheme_account_status: int):
         pay_index = 2
         scheme_index = 2
@@ -1022,9 +1033,6 @@ class PllUserAssociation(models.Model):
         Unlike the update methods this does not need to unset Ubiquity collision as it is for new PLL relationships
 
         """
-        previous_slug = ""
-        previous_state = None
-
         scheme_account = scheme_account_entry.scheme_account
         user = scheme_account_entry.user
         status, slug = cls.get_state_and_slug(payment_card_account, scheme_account_entry.link_status)
@@ -1066,9 +1074,7 @@ class PllUserAssociation(models.Model):
             pll=base_link, user=user, defaults={"slug": slug, "state": status}
         )
 
-        if not link_created:
-            previous_slug = user_link.slug
-            previous_state = user_link.state
+        previous_slug, previous_state = cls.get_pll_previous_state_and_slug(link_created, user_link)
 
         # update existing user link but don't change if had a UBIQUITY_COLLISION
         if not link_created and user_link.slug != WalletPLLSlug.UBIQUITY_COLLISION.value:
