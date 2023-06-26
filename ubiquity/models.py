@@ -966,6 +966,7 @@ class PllUserAssociation(models.Model):
             )
             cls.update_link(link, wallet_pll_records)
 
+            logger.info("Sending pll_link.statuschange event from payment account.")
             user_pll_status_change_event(link, previous_slug, previous_state)
 
     @classmethod
@@ -981,6 +982,7 @@ class PllUserAssociation(models.Model):
             link.state, link.slug = cls.get_state_and_slug(link.pll.payment_card_account, wallet_scheme_account_status)
             cls.update_link(link, wallet_pll_records)
 
+            logger.info("Sending pll_link.statuschange event from scheme account.")
             user_pll_status_change_event(link, previous_slug, previous_state)
 
     @classmethod
