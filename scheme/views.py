@@ -1,6 +1,7 @@
 import csv
 import json
 import logging
+import time
 from io import StringIO
 
 from django.conf import settings
@@ -219,6 +220,9 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
+        # Temporary - testing for suspected race condition with link status
+        # update from sync call to midas and this async call back from midas
+        time.sleep(2)
 
         scheme_account_id = int(kwargs["pk"])
         user_id = int(request.data["user_info"]["bink_user_id"])
