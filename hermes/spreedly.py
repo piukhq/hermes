@@ -53,8 +53,10 @@ class Spreedly:
 
             self.purchase_resp = resp.json()
             if not self.purchase_resp["transaction"]["succeeded"]:
-                message = f'Payment error - Spreedly response: {self.purchase_resp["transaction"]["response"]}'
-                logging.exception(message)
+                resp_msg = self.purchase_resp["transaction"]["response"].get(
+                    "message", "no 'message' key present in response"
+                )
+                logging.exception(f"Payment error - Spreedly response message: {resp_msg}")
                 raise SpreedlyError(SpreedlyError.UNSUCCESSFUL_RESPONSE)
 
             self.transaction_token = self.purchase_resp["transaction"]["token"]
