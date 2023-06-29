@@ -831,3 +831,5 @@ STATIC_ROOT = "/tmp/static/"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 API_MESSAGING_RETRY_LIMIT = config("API_MESSAGING_RETRY_LIMIT", default=3, cast=int)
+
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 2000
