@@ -17,7 +17,6 @@ def revert_default_blank_text_colour(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0099_schemeaccount_originating_journey"),
     ]

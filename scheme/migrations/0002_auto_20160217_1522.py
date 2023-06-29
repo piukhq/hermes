@@ -7,7 +7,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0001_squashed_0049_auto_20160118_1112"),
     ]

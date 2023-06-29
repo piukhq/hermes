@@ -10,7 +10,6 @@ from django.utils import timezone
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("payment_card", "0016_remove_paymentcard_image"),
     ]

@@ -15,7 +15,6 @@ def populate_scheme_statuses(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0048_auto_20181106_1149"),
     ]

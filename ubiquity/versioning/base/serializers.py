@@ -665,7 +665,6 @@ class MembershipCardImageSerializer(UbiquityImageSerializer):
 
 
 class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
-
     image_serializer_class = MembershipCardImageSerializer
 
     @staticmethod
@@ -783,7 +782,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 voucher["conversion_date"] = None
 
     def to_representation(self, instance: "SchemeAccount") -> dict:
-
         scheme_account_entry = instance.schemeaccountentry_set.get(user_id=self.context["user_id"])
 
         if scheme_account_entry.link_status not in AccountLinkStatus.exclude_balance_statuses():

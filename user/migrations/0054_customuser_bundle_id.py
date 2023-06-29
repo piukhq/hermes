@@ -20,7 +20,6 @@ def reverse_bundle_id(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("user", "0053_clientapplicationbundle_email_required"),
     ]

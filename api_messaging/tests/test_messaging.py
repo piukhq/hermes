@@ -271,7 +271,6 @@ class TestUserMessaging(GlobalMockAPITestCase):
 
     @patch("api_messaging.angelia_background.deleted_service_cleanup")
     def test_delete_user(self, mock_delete_cleanup):
-
         user_pre = CustomUser.objects.filter(id=self.user.id, is_active=True)
 
         self.assertTrue(user_pre)

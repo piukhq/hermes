@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0112_voucherscheme_body_text_pending_and_more"),
     ]

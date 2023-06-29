@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0007_remove_schemeaccountimagecriteria_payment_image"),
     ]

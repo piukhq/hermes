@@ -13,7 +13,6 @@ def copy_tokens(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("payment_card", "0020_auto_20160916_1628"),
     ]

@@ -6,7 +6,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("user", "0019_data_existing_users_bink_clientapp"),
     ]

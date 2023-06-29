@@ -7,7 +7,6 @@ import payment_card.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("payment_card", "0003_auto_20150923_1044"),
     ]

@@ -21,7 +21,6 @@ class Spreedly:
         currency_code: str = "GBP",
         base_url: str = settings.SPREEDLY_BASE_URL,
     ):
-
         self.base_url = base_url
         self.environment_key = environment_key
         self.access_secret = access_secret
@@ -32,7 +31,6 @@ class Spreedly:
         self.transaction_token = ""
 
     def purchase(self, payment_token: str, amount: int, order_id: str, gateway_token: str = None) -> None:
-
         if gateway_token is None:
             gateway_token = get_secret_key(SecretKeyName.SPREEDLY_GATEWAY_TOKEN)
 

@@ -20,7 +20,6 @@ def retry_tasks():
 
 class RetryTaskStore:
     def __init__(self, task_list=RetryTaskList.DEFAULT, retry_name="retries", retry_results="errors"):
-
         self.task_list = task_list
         self.retry_name = retry_name
         self.retry_results = retry_results

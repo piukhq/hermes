@@ -31,7 +31,6 @@ def loop_through_record(delete_recs, payment_scheme_entry_recs, user_links_recs)
 
 
 def fix_duplcate_cards(apps, schema_editor):
-
     # Do nothing - pending investigation on what to do with VOP activations on duplicate cards
     pass
 

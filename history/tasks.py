@@ -53,7 +53,6 @@ def auth_outcome_task(success: bool, scheme_account_entry: "SchemeAccountEntry",
 
 @shared_task
 def register_outcome_event(success: bool, scheme_account_entry: "SchemeAccountEntry") -> None:
-
     register_outcome(success, scheme_account_entry)
 
 

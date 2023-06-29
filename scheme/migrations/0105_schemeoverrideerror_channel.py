@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("user", "0055_alter_customuser_bundle_id"),
         ("scheme", "0104_alter_schemeaccount_status_and_more"),

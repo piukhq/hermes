@@ -18,7 +18,6 @@ def undo_bink_bundle(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("user", "0020_auto_20170327_1640"),
     ]

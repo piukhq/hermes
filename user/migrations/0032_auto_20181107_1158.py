@@ -8,7 +8,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("payment_card", "0038_auto_20181107_1158"),
         ("scheme", "0052_auto_20181107_1158"),

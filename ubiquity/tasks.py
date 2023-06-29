@@ -94,7 +94,6 @@ def async_link(
 
 @shared_task
 def async_balance(scheme_account_entry: "SchemeAccountEntry", delete_balance=False) -> None:
-
     if delete_balance:
         scheme_account_entry.scheme_account.delete_cached_balance()
         scheme_account_entry.scheme_account.delete_saved_balance()

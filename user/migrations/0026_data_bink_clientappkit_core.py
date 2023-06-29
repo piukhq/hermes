@@ -18,7 +18,6 @@ def unapply_bink_app_core_kit(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("user", "0025_clientapplicationkit"),
     ]

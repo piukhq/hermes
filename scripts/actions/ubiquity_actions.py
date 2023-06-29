@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 def do_update_active_link_to_false(entry: "ScriptResult") -> bool:
     try:
-
         with transaction.atomic():
             payment_scheme_entry = PaymentCardSchemeEntry.objects.select_for_update().get(
                 id=entry.data["paymentcardschemeentry_id"]

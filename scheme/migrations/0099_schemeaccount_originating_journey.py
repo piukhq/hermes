@@ -6,7 +6,6 @@ import scheme.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0098_scheme_text_colour"),
     ]

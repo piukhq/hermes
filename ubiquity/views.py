@@ -640,7 +640,6 @@ class MembershipCardView(
     def _create_and_link_to_new_account_from_main_answer(
         self, scheme_account_entry: "SchemeAccountEntry", main_answer_field: str, main_answer_value: str
     ):
-
         # Create a new account and link to this
         new_account = SchemeAccount.objects.create(
             scheme=scheme_account_entry.scheme_account.scheme,
@@ -725,7 +724,6 @@ class MembershipCardView(
             and main_answer_value
             != scheme_account_entry.scheme_account.get_key_cred_value_from_question_type(main_answer_type)
         ):
-
             account = self._create_and_link_to_new_account_from_main_answer(
                 scheme_account_entry=scheme_account_entry,
                 main_answer_field=main_answer_field,
@@ -1051,7 +1049,6 @@ class MembershipCardView(
         return {**out_fields["add_fields"], **out_fields["authorise_fields"]}, None
 
     def _collect_fields_and_determine_route(self) -> t.Tuple[Scheme, dict, dict, dict]:
-
         try:
             if not self.request.channels_permit.is_scheme_available(int(self.request.data["membership_plan"])):
                 raise ParseError("membership plan not allowed for this user.")

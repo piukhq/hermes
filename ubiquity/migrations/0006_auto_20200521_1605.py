@@ -29,7 +29,6 @@ def update_active_status(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ubiquity", "0005_paymentcardschemeentry_vop_link"),
     ]

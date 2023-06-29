@@ -66,7 +66,6 @@ def activate_visa_user(modeladmin, request, queryset):
         payment_card_account__payment_card__slug="visa", active_link=True
     )
     for link in linked_visa_cards:
-
         try:
             vop_activation, created = VopActivation.objects.get_or_create(
                 payment_card_account=link.payment_card_account,

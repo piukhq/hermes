@@ -13,7 +13,6 @@ def revert_make_staff_superusers(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("user", "0043_auto_20200804_0919"),
     ]

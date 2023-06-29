@@ -215,7 +215,6 @@ def populate_link_status(apps, *stuff):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ubiquity", "0015_schemeaccountentry_link_status"),
         ("scheme", "0109_alter_schemeaccountcredentialanswer_unique_together_and_more"),

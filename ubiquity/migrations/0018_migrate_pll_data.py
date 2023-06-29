@@ -194,7 +194,6 @@ def populate_pll(apps, *_):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ("ubiquity", "0017_plluserassociation"),

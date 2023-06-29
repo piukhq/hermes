@@ -6,7 +6,6 @@ import scheme.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0088_delete_main_answer_duplicate_accounts"),
     ]

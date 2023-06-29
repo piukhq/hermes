@@ -16,7 +16,6 @@ def calculate_and_update_authorised(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ubiquity", "0019_remove_paymentcardschemeentry_description_and_more"),
     ]

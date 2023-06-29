@@ -7,7 +7,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("user", "0034_auto_20190109_1026"),
         ("scheme", "0058_scheme_linking_support"),

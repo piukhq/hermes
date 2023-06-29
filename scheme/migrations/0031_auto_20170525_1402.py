@@ -9,7 +9,6 @@ import scheme.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0030_auto_20170406_1401"),
     ]

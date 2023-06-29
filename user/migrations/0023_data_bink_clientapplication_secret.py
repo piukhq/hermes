@@ -13,7 +13,6 @@ def set_bink_secret(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("user", "0022_clientapplication_secret"),
     ]

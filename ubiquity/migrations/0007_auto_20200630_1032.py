@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("payment_card", "0049_auto_20200501_0929"),
         ("scheme", "0076_format_stored_balance"),

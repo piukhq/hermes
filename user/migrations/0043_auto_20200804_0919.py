@@ -48,7 +48,6 @@ def revert_migration(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("user", "0042_auto_20200610_0933"),
     ]

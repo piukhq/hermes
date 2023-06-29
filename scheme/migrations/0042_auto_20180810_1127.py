@@ -13,7 +13,6 @@ import scheme.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ("scheme", "0041_auto_20180504_1519"),

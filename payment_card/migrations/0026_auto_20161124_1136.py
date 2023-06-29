@@ -13,7 +13,6 @@ def update_pan_end(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("payment_card", "0025_auto_20161123_1628"),
     ]

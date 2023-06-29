@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0060_auto_20190627_1122"),
         ("user", "0035_customuserconsent"),

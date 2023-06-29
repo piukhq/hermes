@@ -97,7 +97,6 @@ def do_mark_as_deactivated(entry):
 
 
 def do_set_account_and_links_active(entry):
-
     pca = PaymentCardAccount.objects.get(pk=entry.data["card_id"])
     pca.status = PaymentCardAccount.ACTIVE
     pca.save()

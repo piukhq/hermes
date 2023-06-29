@@ -26,7 +26,6 @@ class FindVopCardsNeedingActivation(BaseScript):
             if vop_object.count() >= 1:
                 pass
             elif vop_object.count() == 0:
-
                 self.result.append(
                     f"payment card id: {pca.id}, "
                     f"payment card token: {pca.psp_token},"

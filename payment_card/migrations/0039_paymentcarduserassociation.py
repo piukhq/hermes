@@ -6,7 +6,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ubiquity", "0002_auto_20181205_1640"),
         ("payment_card", "0038_auto_20181107_1158"),

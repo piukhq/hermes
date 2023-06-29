@@ -27,7 +27,6 @@ def reverse_lowercase_email_main_answers(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0086_auto_20201005_1408"),
     ]
