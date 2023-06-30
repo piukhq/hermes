@@ -15,7 +15,6 @@ def update_link_dates(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0031_auto_20170525_1402"),
     ]

@@ -19,7 +19,6 @@ def revert_empty_tx_dicts_to_list(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0085_auto_20201015_1202"),
     ]

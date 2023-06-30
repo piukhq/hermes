@@ -9,7 +9,6 @@ BINK_APP_ID = "MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd"
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("user", "0017_data_bink_org_and_clientapp"),
     ]

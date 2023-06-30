@@ -14,7 +14,6 @@ def generate_dummy_fingerprints(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("payment_card", "0010_paymentcardaccount_fingerprint"),
     ]

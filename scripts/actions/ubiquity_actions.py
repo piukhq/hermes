@@ -3,6 +3,7 @@ import typing
 
 from django.db import transaction
 
+from payment_card.models import PaymentCardAccount
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.tasks import deleted_service_cleanup
 
@@ -14,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 def do_update_active_link_to_false(entry: "ScriptResult") -> bool:
     try:
-
         with transaction.atomic():
             payment_scheme_entry = PaymentCardSchemeEntry.objects.select_for_update().get(
                 id=entry.data["paymentcardschemeentry_id"]
@@ -43,3 +43,10 @@ def do_delete_user_cleanup(entry: "ScriptResult") -> bool:
         logger.exception(f"An unexpected error occurred when running correction script for ScriptResult(id={entry.id})")
 
     return success
+
+
+def do_set_account_and_links_active(entry):
+    pca = PaymentCardAccount.objects.get(pk=entry.data["card_id"])
+    pca.status = PaymentCardAccount.ACTIVE
+    pca.save(update_fields=["status"])
+    return True

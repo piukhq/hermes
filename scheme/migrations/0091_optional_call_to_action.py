@@ -15,7 +15,6 @@ def add_cta_placeholders(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0090_auto_20201118_1357"),
     ]

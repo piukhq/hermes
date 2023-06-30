@@ -10,7 +10,6 @@ from django.utils import timezone
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0025_scheme_join_t_and_c"),
     ]

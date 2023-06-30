@@ -358,7 +358,6 @@ class TestNotificationTask(GlobalMockAPITestCase):
             ).save()
 
         with mock.patch("django.utils.timezone.now", mock.Mock(return_value=self.mocked_datetime)):
-
             HistoricalSchemeAccount(
                 change_type=HistoricalSchemeAccount.UPDATE,
                 instance_id=self.scheme_account.id,

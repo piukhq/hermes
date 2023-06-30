@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("payment_card", "0001_squashed_0009_paymentcardaccount_is_deleted"),
     ]

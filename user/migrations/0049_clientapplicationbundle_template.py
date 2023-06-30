@@ -6,7 +6,6 @@ import user.forms
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("user", "0048_auto_20210419_1533"),
     ]

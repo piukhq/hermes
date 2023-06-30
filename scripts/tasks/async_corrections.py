@@ -5,7 +5,6 @@ from ..actions.corrections import Correction
 
 @shared_task()
 def background_corrections(queryset: object):
-
     for entry in queryset:
         if not entry.done:
             title = Correction.TITLES[entry.apply]

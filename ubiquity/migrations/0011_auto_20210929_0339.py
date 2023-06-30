@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ubiquity", "0010_schemeaccountentry_auth_provided"),
     ]

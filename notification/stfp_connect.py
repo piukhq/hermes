@@ -77,7 +77,6 @@ def get_sftp_client(
     password: Optional[str] = None,
     pkey: Optional[paramiko.RSAKey] = None,
 ) -> paramiko.SFTPClient:
-
     try:
         if (pkey and not password) or (password and not pkey):
             ssh_client = paramiko.SSHClient()

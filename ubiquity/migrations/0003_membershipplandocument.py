@@ -8,7 +8,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0056_auto_20190228_1356"),
         ("ubiquity", "0002_auto_20181205_1640"),

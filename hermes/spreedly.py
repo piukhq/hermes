@@ -21,7 +21,6 @@ class Spreedly:
         currency_code: str = "GBP",
         base_url: str = settings.SPREEDLY_BASE_URL,
     ):
-
         self.base_url = base_url
         self.environment_key = environment_key
         self.access_secret = access_secret
@@ -32,7 +31,6 @@ class Spreedly:
         self.transaction_token = ""
 
     def purchase(self, payment_token: str, amount: int, order_id: str, gateway_token: str = None) -> None:
-
         if gateway_token is None:
             gateway_token = get_secret_key(SecretKeyName.SPREEDLY_GATEWAY_TOKEN)
 
@@ -55,8 +53,10 @@ class Spreedly:
 
             self.purchase_resp = resp.json()
             if not self.purchase_resp["transaction"]["succeeded"]:
-                message = f'Payment error - Spreedly response: {self.purchase_resp["transaction"]["response"]}'
-                logging.exception(message)
+                resp_msg = self.purchase_resp["transaction"]["response"].get(
+                    "message", "no 'message' key present in response"
+                )
+                logging.exception(f"Payment error - Spreedly response message: {resp_msg}")
                 raise SpreedlyError(SpreedlyError.UNSUCCESSFUL_RESPONSE)
 
             self.transaction_token = self.purchase_resp["transaction"]["token"]

@@ -29,7 +29,6 @@ def apply_barclays_images(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("payment_card", "0029_auto_20170113_1136"),
     ]

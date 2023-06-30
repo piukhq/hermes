@@ -24,7 +24,6 @@ def unset_bink_client_on_users(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("user", "0018_customuser_client"),
     ]

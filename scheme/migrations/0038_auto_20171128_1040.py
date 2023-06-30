@@ -14,7 +14,6 @@ def define_link_questions(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0037_auto_20171128_1040"),
     ]

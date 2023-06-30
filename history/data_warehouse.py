@@ -112,7 +112,6 @@ def join_request_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id:
 
 
 def remove_loyalty_card_event(scheme_account_entry: "SchemeAccountEntry", date_time: object = None):
-
     user = scheme_account_entry.user
     scheme_account = scheme_account_entry.scheme_account
     cabs = user.client.clientapplicationbundle_set.all()

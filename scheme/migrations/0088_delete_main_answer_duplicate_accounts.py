@@ -101,7 +101,6 @@ def revert(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0087_lowercase_email_main_answers"),
     ]

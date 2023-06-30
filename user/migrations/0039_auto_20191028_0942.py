@@ -15,7 +15,6 @@ def create_service_client_app(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("user", "0038_auto_20191014_1121"),
     ]

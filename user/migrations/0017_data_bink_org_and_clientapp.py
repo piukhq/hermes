@@ -22,7 +22,6 @@ def uncreate_bink_models(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("user", "0016_add_org_to_clientapp__create_clientappbundle"),
     ]

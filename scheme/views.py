@@ -438,7 +438,6 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
     serializer_class = SchemeAccountCredentialsSerializer
 
     def get(self, request, *args, **kwargs):
-
         try:
             account = self.request.channels_permit.scheme_account_query(
                 SchemeAccount.objects,

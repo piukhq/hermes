@@ -85,7 +85,6 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
     @patch("hermes.vop_tasks.send_activation", autospec=True)
     @patch("payment_card.tasks.metis_request", autospec=True)
     def test_delete_payment_card_with_pll(self, mock_metis_request, _):
-
         PllUserAssociation.link_user_scheme_account_to_payment_cards(
             payment_card_accounts=[self.payment_card_account], scheme_account=self.scheme_account, user=self.user
         )

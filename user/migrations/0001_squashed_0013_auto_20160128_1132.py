@@ -11,7 +11,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     replaces = [
         ("user", "0001_initial"),
         ("user", "0002_customuser_is_staff"),

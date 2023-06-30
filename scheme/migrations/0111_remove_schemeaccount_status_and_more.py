@@ -6,7 +6,6 @@ import ubiquity.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0110_remove_schemeaccountcredentialanswer_scheme_account"),
         ("ubiquity", "0016_alter_schemeaccountentry_link_status"),

@@ -7,7 +7,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0084_scheme_secondary_colour"),
     ]
@@ -43,7 +42,7 @@ class Migration(migrations.Migration):
                 max_length=7,
                 validators=[
                     django.core.validators.RegexValidator(
-                        re.compile("^#((?:[0-F]{3}){1,2})$", 2),
+                        re.compile("^#((?:[0-9a-fA-F]{3}){1,2})$", 2),
                         "Enter a valid 'colour' in hexadecimal format e.g \"#112233\"",
                     )
                 ],

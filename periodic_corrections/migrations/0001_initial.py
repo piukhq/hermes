@@ -7,7 +7,6 @@ import periodic_corrections.models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [

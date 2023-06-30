@@ -13,7 +13,6 @@ class JSONFormatter(logging.Formatter):
         pass
 
     def format(self, record: logging.LogRecord) -> str:  # noqa: A003
-
         fmt_record = {
             "timestamp": record.created,
             "level": record.levelno,
@@ -36,7 +35,6 @@ class JSONFormatter(logging.Formatter):
 
 class GunicornAccessFiltering(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-
         if request_info := cast(str, record.args.get("r")):
             return not any(endpoint in request_info for endpoint in ("/livez", "/readyz", "/metrics"))
 

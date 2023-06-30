@@ -8,7 +8,6 @@ import user.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("user", "0021_data_bink_clientappbundle"),
     ]

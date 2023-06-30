@@ -17,7 +17,6 @@ def revert_unauthorise_wallet_only_links(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ubiquity", "0009_auto_20201007_1552"),
     ]

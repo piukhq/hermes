@@ -21,7 +21,6 @@ def to_midas(message: Message) -> None:
 def send_midas_join_request(
     channel: str, bink_user_id: int, request_id: int, loyalty_plan: str, account_id: str, encrypted_credentials: str
 ) -> None:
-
     message = JoinApplication(
         channel=channel,
         transaction_id=str(uuid.uuid1()),

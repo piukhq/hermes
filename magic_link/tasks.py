@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 def populate_template(magic_link_data: MagicLinkData) -> str:
-
     template = Template(magic_link_data.template)
 
     plan = Scheme.objects.get(slug=magic_link_data.slug)

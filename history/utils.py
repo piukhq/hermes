@@ -247,7 +247,6 @@ def _history_bulk(
 
         change_type, change_details = _get_change_type_and_details(update_fields, is_deleted)
     else:
-
         if ignore_conflicts:
             objs = _bulk_create_with_id(model, objs, batch_size)
         else:
