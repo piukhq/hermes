@@ -2,7 +2,6 @@ import base64
 import os
 import random
 import uuid
-from functools import lru_cache
 from string import ascii_letters, digits
 
 import arrow
@@ -18,7 +17,7 @@ from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from hashids import Hashids
 
-from scheme.models import Scheme
+from hermes.redis import redis_cache
 from user.forms import MagicLinkTemplateFileField
 from user.managers import CustomUserManager, IgnoreDeletedUserManager
 from user.validators import validate_boolean, validate_number
@@ -176,7 +175,7 @@ class ClientApplicationBundle(models.Model):
         return True
 
     @classmethod
-    @lru_cache(maxsize=32)
+    @redis_cache
     def get_bundle_by_bundle_id_and_org_name(cls, bundle_id: str, organisation_name: str) -> "ClientApplicationBundle":
         return cls.objects.select_related("client").get(
             bundle_id=bundle_id, client__organisation__name=organisation_name
@@ -186,12 +185,12 @@ class ClientApplicationBundle(models.Model):
         return "{} ({})".format(self.bundle_id, self.client)
 
 
-def clear_bundle_lru_cache(sender, **kwargs):
+def clear_bundle_cache(sender, **kwargs):
     sender.get_bundle_by_bundle_id_and_org_name.cache_clear()
 
 
-signals.post_save.connect(clear_bundle_lru_cache, sender=ClientApplicationBundle)
-signals.post_delete.connect(clear_bundle_lru_cache, sender=ClientApplicationBundle)
+signals.post_save.connect(clear_bundle_cache, sender=ClientApplicationBundle)
+signals.post_delete.connect(clear_bundle_cache, sender=ClientApplicationBundle)
 
 
 class ClientApplicationKit(models.Model):
@@ -430,7 +429,7 @@ class Setting(models.Model):
     slug = models.SlugField(unique=True)
     value_type = models.IntegerField(choices=VALUE_TYPES)
     default_value = models.CharField(max_length=255)
-    scheme = models.ForeignKey(Scheme, null=True, blank=True, on_delete=models.CASCADE)
+    scheme = models.ForeignKey("scheme.Scheme", null=True, blank=True, on_delete=models.CASCADE)
     label = models.CharField(max_length=255, null=True, blank=True)
     category = models.IntegerField(choices=CATEGORIES, null=True, blank=True)
 

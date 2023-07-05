@@ -423,17 +423,7 @@ class SchemeAccountEntry(models.Model):
         """
         Do not confuse the status of the scheme account set on the user association (link) and hence called
         link_status with pll linking status on  either PaymentCardSchemeEntry or  PllUserAssociation
-
         """
-        """
-        We should not force WALLET_ONLY STATUS now that credentials are by user
-        Wallet only should be reserved for cards where the user has not entered credentials
-        if self.auth_provided is True:
-            status_to_set = new_status
-        else:
-            status_to_set = AccountLinkStatus.WALLET_ONLY
-        """
-
         new_status = int(new_status)
         if self.link_status == new_status:
             return

@@ -4,16 +4,14 @@ from json import dumps, loads
 from time import monotonic
 
 from django.conf import settings
-from redis import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 from rest_framework.response import Response
 
+from hermes.redis import r_read, r_write
 from ubiquity.versioning import get_api_version
 
 logger = logging.getLogger(__name__)
-r_write = Redis(connection_pool=settings.REDIS_WRITE_API_CACHE_POOL)
-r_read = Redis(connection_pool=settings.REDIS_READ_API_CACHE_POOL)
 
 
 class CacheMissedError(Exception):
