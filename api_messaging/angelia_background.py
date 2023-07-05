@@ -19,6 +19,7 @@ from history.models import get_required_extra_fields
 from history.serializers import get_body_serializer
 from history.tasks import add_auth_outcome_task, auth_outcome_task, record_history
 from history.utils import clean_history_kwargs, set_history_kwargs, user_info
+from magic_link.tasks import send_magic_link as _send_magic_link
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from scheme.credentials import MERCHANT_IDENTIFIER
@@ -43,6 +44,7 @@ from ubiquity.tasks import (  # auto_link_membership_to_payments,
 from ubiquity.views import MembershipCardView
 from user.models import CustomUser
 from user.serializers import HistoryUserSerializer
+from user.utils import MagicLinkData
 
 logger = logging.getLogger("messaging")
 
@@ -400,6 +402,12 @@ def user_session(message: dict) -> None:
         "email": user.email,
     }
     to_data_warehouse(payload)
+
+
+def send_magic_link(message: dict) -> None:
+    message.pop("utc_adjusted", None)
+    message["expiry_date"] = None  # this is not used
+    _send_magic_link(MagicLinkData(**message))
 
 
 table_to_model = {
