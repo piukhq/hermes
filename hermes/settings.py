@@ -272,7 +272,6 @@ DEBUG_PROPAGATE_EXCEPTIONS = config("HERMES_PROPAGATE_EXCEPTIONS", default=False
 
 TESTING = (len(sys.argv) > 1 and sys.argv[1] == "test") or any("pytest" in arg for arg in sys.argv)
 INIT_RUNTIME_APPS = TESTING is False and not any(x in sys.argv for x in ["migrate", "makemigrations", "collectstatic"])
-LOCAL = config("HERMES_LOCAL", default=False, cast=bool)
 
 LOG_LEVEL_CHOICES = Choices(["DEBUG", "INFO", "WARN", "WARNING", "ERROR", "EXCEPTION", "CRITICAL"])
 

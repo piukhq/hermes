@@ -13,6 +13,7 @@ class Test:
     Test class used for testing caching of a function
     which takes a class as an argument
     """
+
     pass
 
 
