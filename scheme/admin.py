@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.admin.actions import delete_selected
 from django.core.exceptions import ValidationError
@@ -9,9 +8,9 @@ from django.shortcuts import render
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from redis import Redis
 
 from common.admin import InputFilter
+from hermes import redis
 from history.utils import HistoryAdmin
 from scheme.forms import ConsentForm, SchemeForm
 from scheme.models import (
@@ -40,7 +39,7 @@ from scheme.models import (
 from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
 from user.models import ClientApplicationBundle
 
-r = Redis(connection_pool=settings.REDIS_WRITE_API_CACHE_POOL)
+r = redis.r_write
 
 
 def delete_membership_plans_cache():
