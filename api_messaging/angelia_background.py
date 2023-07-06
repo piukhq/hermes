@@ -42,7 +42,7 @@ from ubiquity.tasks import (  # auto_link_membership_to_payments,
     deleted_service_cleanup,
 )
 from ubiquity.views import MembershipCardView
-from user.models import CustomUser
+from user.models import ClientApplicationBundle, CustomUser
 from user.serializers import HistoryUserSerializer
 from user.utils import MagicLinkData
 
@@ -407,6 +407,7 @@ def user_session(message: dict) -> None:
 def send_magic_link(message: dict) -> None:
     message.pop("utc_adjusted", None)
     message["expiry_date"] = None  # this is not used
+    message["template"] = ClientApplicationBundle.objects.get(bundle_id=message["bundle_id"]).template.read().decode()
     _send_magic_link(MagicLinkData(**message))
 
 
