@@ -86,7 +86,7 @@ def redis_cache(user_function: Any) -> Callable:
     :param user_function: function to be decorated
     """
     lock = RLock()
-    user_fn_hash = hash(user_function)
+    user_fn_id = f"{user_function.__module__}.{user_function.__code__.co_qualname}"
     json_hits = pickle_hits = misses = 0
 
     @functools.wraps(user_function)
@@ -95,7 +95,7 @@ def redis_cache(user_function: Any) -> Callable:
 
         # add a prefix to allow easier clearing of the function cache without affecting
         # other items stored in redis
-        key = f"fn_cache:{user_fn_hash}:{hash(_make_key(args, kwargs, typed=False))}"
+        key = f"fn_cache:{user_fn_id}:{hash(_make_key(args, kwargs, typed=False))}"
 
         try:
             raw_result = r_read.get(key)
@@ -133,7 +133,7 @@ def redis_cache(user_function: Any) -> Callable:
         """Clear the cache"""
         nonlocal json_hits, pickle_hits, misses
         with lock:
-            for key in r_write.scan_iter(f"fn_cache:{user_fn_hash}:*"):
+            for key in r_write.scan_iter(f"fn_cache:{user_fn_id}:*"):
                 r_write.delete(key)
 
             json_hits = pickle_hits = misses = 0

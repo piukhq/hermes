@@ -1,3 +1,6 @@
+import multiprocessing
+import os
+from time import sleep
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -25,6 +28,13 @@ class TestCache(TestCase):
     @staticmethod
     def _test_function2(arg) -> Any:
         return arg
+
+    def tearDown(self) -> None:
+        wrapped = redis_cache(self._test_function)
+        wrapped.cache_clear()
+
+        wrapped2 = redis_cache(self._test_function2)
+        wrapped2.cache_clear()
 
     def test_cache_decorator_pickle(self):
         # no list, dict, or set because they're un-hashable
@@ -165,3 +175,55 @@ class TestCache(TestCase):
 
         self.assertEqual(_CacheInfo(json_hits=1, pickle_hits=0, misses=1), fn1_cache_info_3)
         self.assertEqual(_CacheInfo(json_hits=0, pickle_hits=0, misses=0), fn2_cache_info_3)
+
+    @staticmethod
+    def multiprocess_test_fn(arg, return_dict, cache_clear: bool, delay: int | float = 0):
+        # avoid data race when calling with multiple processes
+        sleep(delay)
+
+        wrapped = redis_cache(TestCache._test_function)
+        wrapped(arg)
+        wrapped(arg)
+
+        json_hits, pickle_hits, misses = wrapped.cache_info()
+        return_dict[os.getpid()] = json_hits, pickle_hits, misses
+
+        if cache_clear:
+            wrapped.cache_clear()
+
+    def test_cache_decorator_multiprocess(self):
+        """
+        Test to ensure that multiple processes share the same cache and that clearing one will clear
+        for all processes.
+
+        This test is done by calling the wrapped function twice in 2 processes which will result in
+        1 cache miss and 3 hits.
+
+        process 1: 1 hit + 1 miss
+        process 2: 2 hits
+
+        One process then clears the cache and the wrapped function is called twice for each
+        process again.
+
+        The expected output is that the cache has been reset for both processes and so will result in
+        1 cache miss and 3 hits again. If the cache is not shared then there will be more cache hits
+        in the process where the cache was not cleared.
+        """
+        manager = multiprocessing.Manager()
+        return_dict = manager.dict()
+
+        pool = multiprocessing.Pool(processes=2)
+        pool.starmap(self.multiprocess_test_fn, [(1, return_dict, False), (1, return_dict, True, 0.1)])
+
+        cache_info1, cache_info2 = return_dict.values()
+
+        return_dict2 = manager.dict()
+        pool.starmap(self.multiprocess_test_fn, [(1, return_dict2, False), (1, return_dict2, False, 0.1)])
+
+        cache_info3, cache_info4 = return_dict.values()
+
+        pool.close()
+
+        # (json_hits, pickle_hits, misses)
+        self.assertListEqual([(1, 0, 1), (2, 0, 0)], sorted([cache_info1, cache_info2]))
+        self.assertListEqual([(1, 0, 1), (2, 0, 0)], sorted([cache_info3, cache_info4]))
