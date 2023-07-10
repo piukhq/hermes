@@ -371,7 +371,7 @@ class Scheme(models.Model):
 
 
 def clear_scheme_cache(sender, **kwargs):
-    logger.info("A scheme was updated, deleted, or created, invalidating schemes' lru cache.")
+    logger.info("A scheme was updated, deleted, or created, invalidating schemes' cache.")
     sender.get_scheme_and_questions_by_scheme_id.cache_clear()
     sender.get_scheme_slug_by_scheme_id.cache_clear()
 
