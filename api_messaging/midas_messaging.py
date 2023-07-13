@@ -2,9 +2,11 @@ import logging
 import uuid
 
 from django.conf import settings
-from olympus_messaging import JoinApplication, Message
+from olympus_messaging import JoinApplication, LoyaltyCardRemovedBink, Message
 
 from api_messaging.message_broker import SendingService
+from history.data_warehouse import get_main_answer
+from ubiquity.models import SchemeAccountEntry
 
 logger = logging.getLogger("messaging")
 
@@ -31,4 +33,19 @@ def send_midas_join_request(
         join_data={"encrypted_credentials": encrypted_credentials},
     )
 
+    to_midas(message)
+
+
+def send_midas_last_loyalty_card_removed(scheme_account_entry: SchemeAccountEntry):
+    message = LoyaltyCardRemovedBink(
+        # message header data
+        channel=scheme_account_entry.user.bundle_id,
+        transaction_id=str(uuid.uuid1()),
+        bink_user_id=str(scheme_account_entry.user.id),
+        request_id=str(scheme_account_entry.scheme_account.id),
+        account_id=get_main_answer(scheme_account_entry.scheme_account),
+        loyalty_plan=scheme_account_entry.scheme_account.scheme.slug,
+        # message body data
+        message_data={"status": str(scheme_account_entry.link_status)},
+    )
     to_midas(message)

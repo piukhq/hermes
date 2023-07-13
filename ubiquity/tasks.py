@@ -11,6 +11,7 @@ from django.conf import settings
 from django.db.models import Q
 from rest_framework import serializers
 
+from api_messaging.midas_messaging import send_midas_last_loyalty_card_removed
 from hermes.vop_tasks import activate, deactivate
 from history.data_warehouse import (
     generate_pll_delete_payload,
@@ -328,6 +329,7 @@ def deleted_membership_card_cleanup(
 
     if other_scheme_account_entries.count() <= 0:
         # Last man standing
+        send_midas_last_loyalty_card_removed(scheme_account_entry)
         scheme_account_entry.scheme_account.is_deleted = True
         scheme_account_entry.scheme_account.save(update_fields=["is_deleted"])
 
