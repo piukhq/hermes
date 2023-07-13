@@ -6,7 +6,7 @@ from olympus_messaging import JoinApplication, LoyaltyCardRemovedBink, Message
 
 from api_messaging.message_broker import SendingService
 from history.data_warehouse import get_main_answer
-from ubiquity.models import SchemeAccountEntry, AccountLinkStatus
+from ubiquity.models import SchemeAccountEntry
 
 logger = logging.getLogger("messaging")
 
