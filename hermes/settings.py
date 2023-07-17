@@ -19,6 +19,7 @@ from enum import Enum
 
 import dj_database_url
 import sentry_sdk
+from bink_logging_utils import init_loguru_root_sink
 from decouple import Choices, config
 from redis import ConnectionPool as Redis_ConnectionPool
 from sentry_sdk.integrations import celery, django
@@ -284,19 +285,15 @@ PROMETHEUS_LOG_LEVEL = config("PROMETHEUS_LOG_LEVEL", default="INFO", cast=LOG_L
 QUERY_LOG_LEVEL = config("QUERY_LOG_LEVEL", default="CRITICAL", cast=LOG_LEVEL_CHOICES)
 
 
+init_loguru_root_sink(json_logging=JSON_LOGGING, sink_log_level=MASTER_LOG_LEVEL, show_pid=True)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {"format": "%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s"},
-        "json": {"()": "hermes.reporting.JSONFormatter"},
-    },
     "handlers": {
         "console": {
-            "level": MASTER_LOG_LEVEL,
-            "class": "logging.StreamHandler",
-            "formatter": "json" if JSON_LOGGING else "verbose",
-        },
+            "()": "hermes.reporting.InterceptHandler",
+        }
     },
     "filters": {
         "require_debug_true": {"()": "django.utils.log.RequireDebugTrue"},
