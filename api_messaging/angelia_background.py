@@ -283,7 +283,14 @@ def loyalty_card_add_authorise(message: dict) -> None:
             scheme_account_entry.schemeaccountcredentialanswer_set.filter(
                 question__type=MERCHANT_IDENTIFIER,
             ).delete()
-            scheme_account_entry.set_link_status(AccountLinkStatus.AUTH_PENDING)
+            scheme_account_entry.set_link_status(AccountLinkStatus.AUTH_PENDING, commit_change=False)
+            update_fields = ["link_status"]
+
+            if scheme_account_entry.authorised:
+                scheme_account_entry.authorised = False
+                update_fields.append("authorised")
+
+            scheme_account_entry.save(update_fields=update_fields)
 
         async_link(
             auth_fields=all_credentials_and_consents,

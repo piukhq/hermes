@@ -160,7 +160,7 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertFalse(mock_midas_balance.called)
 
     @patch("requests.get")
-    def test_async_link_success(self, mock_midas_balance):
+    def test_async_link_add_and_auth_journey_success(self, mock_midas_balance):
         # Setup db tables
         scheme_account = SchemeAccountFactory()
         card_number = SchemeCredentialQuestionFactory(
@@ -293,6 +293,109 @@ class TestTasks(GlobalMockAPITestCase):
         mock_request_params_2 = mock_midas_balance.call_args_list[1][1]
         self.assertEqual(
             mock_request_params_2["params"]["journey_type"],
+            JourneyTypes.LINK,
+        )
+
+    @patch("requests.get")
+    def test_async_link_auth_journey_success(self, mock_midas_balance):
+        """
+        For AUTH request journey, we should always send LINK JourneyType to Midas.
+        """
+        scheme_account = SchemeAccountFactory()
+        card_number = SchemeCredentialQuestionFactory(
+            scheme=scheme_account.scheme,
+            type=CARD_NUMBER,
+            options=SchemeCredentialQuestion.LINK_AND_JOIN,
+            manual_question=True,
+        )
+        SchemeCredentialQuestionFactory(
+            scheme=scheme_account.scheme,
+            type=POSTCODE,
+            options=SchemeCredentialQuestion.LINK_AND_JOIN,
+            auth_field=True,
+        )
+        entry_pending = SchemeAccountEntryFactory(
+            user=self.user,
+            scheme_account=scheme_account,
+            link_status=AccountLinkStatus.AUTH_PENDING,
+        )
+        SchemeCredentialAnswerFactory(question=card_number, answer="1234567", scheme_account_entry=entry_pending)
+
+        user_id = entry_pending.user.id
+
+        # Mock Midas response
+        mock_midas_balance.return_value.status_code = 200
+        mock_midas_balance.return_value.json.return_value = {
+            "points": 21.21,
+            "value": 21.21,
+            "value_label": "£21.21",
+            "reward_tier": 0,
+            "scheme_account_id": scheme_account.id,
+            "user_set": f"{user_id}",
+            "points_label": "21",
+        }
+
+        self.assertEqual(entry_pending.link_status, AccountLinkStatus.AUTH_PENDING)
+        self.assertEqual(entry_pending.authorised, False)
+
+        auth_fields = {"postcode": "SL5 5TD"}
+
+        async_link(auth_fields, scheme_account.id, user_id, payment_cards_to_link=[])
+        entry_pending.refresh_from_db()
+
+        # Check AccountLinkStatus and correct JourneyType sent to Midas
+        self.assertEqual(entry_pending.link_status, AccountLinkStatus.ACTIVE)
+        self.assertEqual(entry_pending.authorised, True)
+        mock_request_params = mock_midas_balance.call_args[1]
+        self.assertEqual(
+            mock_request_params["params"]["journey_type"],
+            JourneyTypes.LINK,
+        )
+
+    @patch("requests.get")
+    def test_async_link_auth_journey_invalid_creds(self, mock_midas_balance):
+        """
+        For AUTH request journey, we should always send LINK JourneyType to Midas.
+        """
+        scheme_account = SchemeAccountFactory()
+        card_number = SchemeCredentialQuestionFactory(
+            scheme=scheme_account.scheme,
+            type=CARD_NUMBER,
+            options=SchemeCredentialQuestion.LINK_AND_JOIN,
+            manual_question=True,
+        )
+        SchemeCredentialQuestionFactory(
+            scheme=scheme_account.scheme,
+            type=POSTCODE,
+            options=SchemeCredentialQuestion.LINK_AND_JOIN,
+            auth_field=True,
+        )
+        entry_pending = SchemeAccountEntryFactory(
+            user=self.user,
+            scheme_account=scheme_account,
+            link_status=AccountLinkStatus.AUTH_PENDING,
+        )
+        SchemeCredentialAnswerFactory(question=card_number, answer="1234567", scheme_account_entry=entry_pending)
+
+        user_id = entry_pending.user.id
+
+        # Mock Midas response
+        mock_midas_balance.return_value.status_code = 403
+
+        self.assertEqual(entry_pending.link_status, AccountLinkStatus.AUTH_PENDING)
+        self.assertEqual(entry_pending.authorised, False)
+
+        auth_fields = {"postcode": "wrong"}
+
+        async_link(auth_fields, scheme_account.id, user_id, payment_cards_to_link=[])
+        entry_pending.refresh_from_db()
+
+        # Check AccountLinkStatus and correct JourneyType sent to Midas
+        self.assertEqual(entry_pending.link_status, AccountLinkStatus.INVALID_CREDENTIALS)
+        self.assertEqual(entry_pending.authorised, False)
+        mock_request_params = mock_midas_balance.call_args[1]
+        self.assertEqual(
+            mock_request_params["params"]["journey_type"],
             JourneyTypes.LINK,
         )
 
