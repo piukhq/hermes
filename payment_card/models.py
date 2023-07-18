@@ -1,7 +1,6 @@
 import base64
 import uuid
 from enum import IntEnum
-from functools import lru_cache
 
 from django.db import models
 from django.db.models import F, JSONField, Q, signals
@@ -9,7 +8,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 from common.models import Image
-from scheme.models import SchemeAccount
+from hermes.redis import redis_cache
 
 
 class Issuer(models.Model):
@@ -20,17 +19,17 @@ class Issuer(models.Model):
         return self.name
 
     @classmethod
-    @lru_cache(maxsize=1)
+    @redis_cache
     def get_barclays_issuer(cls):
         return cls.objects.get(name="Barclays")
 
 
-def clear_issuer_lru_cache(sender, **kwargs):
+def clear_issuer_cache(sender, **kwargs):
     sender.get_barclays_issuer.cache_clear()
 
 
-signals.post_save.connect(clear_issuer_lru_cache, sender=Issuer)
-signals.post_delete.connect(clear_issuer_lru_cache, sender=Issuer)
+signals.post_save.connect(clear_issuer_cache, sender=Issuer)
+signals.post_delete.connect(clear_issuer_cache, sender=Issuer)
 
 
 class ActivePaymentCardImageManager(models.Manager):
@@ -188,17 +187,17 @@ class PaymentCard(models.Model):
         return PaymentCardImage.objects.filter(payment_card=self.id)
 
     @classmethod
-    @lru_cache(maxsize=32)
+    @redis_cache
     def get_by_slug(cls, slug: str) -> int:
         return cls.objects.get(slug=slug)
 
 
-def clear_payment_card_lru_cache(sender, **kwargs):
+def clear_payment_card_cache(sender, **kwargs):
     sender.get_by_slug.cache_clear()
 
 
-signals.post_save.connect(clear_payment_card_lru_cache, sender=PaymentCard)
-signals.post_delete.connect(clear_payment_card_lru_cache, sender=PaymentCard)
+signals.post_save.connect(clear_payment_card_cache, sender=PaymentCard)
+signals.post_delete.connect(clear_payment_card_cache, sender=PaymentCard)
 
 
 class PaymentCardAccountManager(models.Manager):
@@ -350,7 +349,7 @@ def _generate_tx_ref() -> str:
 
 class PaymentAudit(models.Model):
     user_id = models.CharField(max_length=255)
-    scheme_account = models.ForeignKey(SchemeAccount, null=True, on_delete=models.SET_NULL)
+    scheme_account = models.ForeignKey("scheme.SchemeAccount", null=True, on_delete=models.SET_NULL)
     payment_card_hash = models.CharField(max_length=255)
     payment_card_id = models.IntegerField(null=True, blank=True)
     transaction_ref = models.CharField(max_length=255, default=_generate_tx_ref)
