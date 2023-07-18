@@ -19,7 +19,6 @@ from history.models import get_required_extra_fields
 from history.serializers import get_body_serializer
 from history.tasks import add_auth_outcome_task, auth_outcome_task, record_history
 from history.utils import clean_history_kwargs, set_history_kwargs, user_info
-from magic_link.tasks import send_magic_link as _send_magic_link
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from scheme.credentials import MERCHANT_IDENTIFIER
@@ -42,9 +41,8 @@ from ubiquity.tasks import (  # auto_link_membership_to_payments,
     deleted_service_cleanup,
 )
 from ubiquity.views import MembershipCardView
-from user.models import ClientApplicationBundle, CustomUser
+from user.models import CustomUser
 from user.serializers import HistoryUserSerializer
-from user.utils import MagicLinkData
 
 logger = logging.getLogger("messaging")
 
@@ -283,7 +281,14 @@ def loyalty_card_add_authorise(message: dict) -> None:
             scheme_account_entry.schemeaccountcredentialanswer_set.filter(
                 question__type=MERCHANT_IDENTIFIER,
             ).delete()
-            scheme_account_entry.set_link_status(AccountLinkStatus.AUTH_PENDING)
+            scheme_account_entry.set_link_status(AccountLinkStatus.AUTH_PENDING, commit_change=False)
+            update_fields = ["link_status"]
+
+            if scheme_account_entry.authorised:
+                scheme_account_entry.authorised = False
+                update_fields.append("authorised")
+
+            scheme_account_entry.save(update_fields=update_fields)
 
         async_link(
             auth_fields=all_credentials_and_consents,
@@ -402,13 +407,6 @@ def user_session(message: dict) -> None:
         "email": user.email,
     }
     to_data_warehouse(payload)
-
-
-def send_magic_link(message: dict) -> None:
-    message.pop("utc_adjusted", None)
-    message["expiry_date"] = None  # this is not used
-    message["template"] = ClientApplicationBundle.objects.get(bundle_id=message["bundle_id"]).template.read().decode()
-    _send_magic_link(MagicLinkData(**message))
 
 
 table_to_model = {

@@ -29,17 +29,9 @@ def mock_redis_init(**kwargs):
 
 class TestReadyZ(APITestCase):
     def test_ok(self):
-        # We cannot test in our current deployment redis as it not available
-        # The pod will not run anyway if on deployment 200 id not returned
-        # To test on your PC ensure HERMES_LOCAL env is true
         resp = self.client.get("/readyz")
-        dict_resp = json.loads(resp.content)
-        if settings.LOCAL:
-            self.assertEqual(resp.status_code, 200)
-            self.assertEqual(resp.content, b"{}")
-        else:
-            self.assertEqual(resp.status_code, 500)
-            self.assertFalse(dict_resp["redis"])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.content, b"{}")
 
     @patch.object(connection, "cursor")
     def test_db_fail(self, mock_db_connect):
