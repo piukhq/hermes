@@ -70,3 +70,4 @@ whitenoise = "*"
 azure-storage-blob = "*"
 olympus-messaging = "*"
 python-decouple = "*"
+bink-logging-utils = {extras = ["gunicorn"], version = ">=1.3.0", index = "bink-pypi"}
