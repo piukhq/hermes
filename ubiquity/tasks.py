@@ -63,14 +63,23 @@ def retry_deactivation(data):
     retry_obj.results += [result]
 
 
-def _send_metrics_to_atlas(method: str, slug: str, payload: dict) -> None:
-    headers = {"Authorization": f"Token {settings.SERVICE_API_KEY}", "Content-Type": "application/json"}
+def _send_metrics_to_atlas(method: str, slug: str, payload: dict, x_azure_ref: str = None) -> None:
+    headers = {
+        "Authorization": f"Token {settings.SERVICE_API_KEY}",
+        "Content-Type": "application/json",
+        "X-azure-ref": x_azure_ref,
+    }
     requests.request(method, f"{settings.ATLAS_URL}/audit/metrics/{slug}", data=payload, headers=headers)
 
 
 @shared_task
 def async_link(
-    auth_fields: dict, scheme_account_id: int, user_id: int, payment_cards_to_link: list, history_kwargs: dict = None
+    auth_fields: dict,
+    scheme_account_id: int,
+    user_id: int,
+    payment_cards_to_link: list,
+    history_kwargs: dict = None,
+    headers: dict = None,
 ) -> None:
     set_history_kwargs(history_kwargs)
 
@@ -80,9 +89,11 @@ def async_link(
     try:
         serializer = LinkSchemeSerializer(data=auth_fields, context={"scheme_account_entry": scheme_account_entry})
         if payment_cards_to_link:
-            PllUserAssociation.link_user_scheme_account_to_payment_cards(scheme_account, payment_cards_to_link, user)
+            PllUserAssociation.link_user_scheme_account_to_payment_cards(
+                scheme_account, payment_cards_to_link, user, headers
+            )
             # auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
-        BaseLinkMixin.link_account(serializer, scheme_account, user, scheme_account_entry)
+        BaseLinkMixin.link_account(serializer, scheme_account, user, scheme_account_entry, headers)
         clean_history_kwargs(history_kwargs)
 
     except serializers.ValidationError as e:
@@ -94,12 +105,12 @@ def async_link(
 
 
 @shared_task
-def async_balance(scheme_account_entry: "SchemeAccountEntry", delete_balance=False) -> None:
+def async_balance(scheme_account_entry: "SchemeAccountEntry", delete_balance=False, headers: dict = None) -> None:
     if delete_balance:
         scheme_account_entry.scheme_account.delete_cached_balance()
         scheme_account_entry.scheme_account.delete_saved_balance()
 
-    scheme_account_entry.scheme_account.get_balance(scheme_account_entry)
+    scheme_account_entry.scheme_account.get_balance(scheme_account_entry, headers)
 
 
 @shared_task
@@ -141,7 +152,7 @@ def async_balance_with_updated_credentials(
 
 
 @shared_task
-def async_all_balance(user_id: int, channels_permit) -> None:
+def async_all_balance(user_id: int, channels_permit, headers: dict = None) -> None:
     query = {"user": user_id, "scheme_account__is_deleted": False}
     exclude_query = {"link_status__in": AccountLinkStatus.exclude_balance_statuses()}
     entries = channels_permit.related_model_query(
@@ -157,7 +168,7 @@ def async_all_balance(user_id: int, channels_permit) -> None:
         entries = entries.exclude(**exclude_query)
 
         for entry in entries.all():
-            async_balance.delay(entry)
+            async_balance.delay(entry, headers=headers)
 
 
 @shared_task
@@ -170,6 +181,7 @@ def async_join(
     channel: str,
     payment_cards_to_link: list,
     history_kwargs: dict = None,
+    headers: dict = None,
 ) -> None:
     set_history_kwargs(history_kwargs)
 
@@ -177,10 +189,14 @@ def async_join(
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
 
     if payment_cards_to_link:
-        PllUserAssociation.link_user_scheme_account_to_payment_cards(scheme_account, payment_cards_to_link, user)
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account, payment_cards_to_link, user, headers
+        )
         # auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
-    SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer, channel)
+    SchemeAccountJoinMixin().handle_join_request(
+        validated_data, user, scheme_id, scheme_account, serializer, channel, headers
+    )
 
     clean_history_kwargs(history_kwargs)
 
@@ -194,6 +210,7 @@ def async_registration(
     channel: str,
     history_kwargs: dict = None,
     delete_balance=False,
+    headers: dict = None,
 ) -> None:
     set_history_kwargs(history_kwargs)
     user = CustomUser.objects.get(id=user_id)
@@ -203,20 +220,22 @@ def async_registration(
         scheme_account.delete_saved_balance()
 
     SchemeAccountJoinMixin().handle_join_request(
-        validated_data, user, scheme_account.scheme_id, scheme_account, serializer, channel
+        validated_data, user, scheme_account.scheme_id, scheme_account, serializer, channel, headers
     )
 
     clean_history_kwargs(history_kwargs)
 
 
 @shared_task
-def async_join_journey_fetch_balance_and_update_status(scheme_account_id: int, scheme_account_entry_id: int) -> None:
+def async_join_journey_fetch_balance_and_update_status(
+    scheme_account_id: int, scheme_account_entry_id: int, headers: dict = None
+) -> None:
     # After successful join, keep scheme account entry as pending until we have fetched balance
     # Pending used rather than join pending to not re-trigger this logic
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
     scheme_account_entry = SchemeAccountEntry.objects.get(id=scheme_account_entry_id)
     scheme_account_entry.set_link_status(AccountLinkStatus.PENDING)
-    scheme_account.get_balance(scheme_account_entry)
+    scheme_account.get_balance(scheme_account_entry, headers)
 
 
 def _format_info(scheme_account: SchemeAccount, user_id: int) -> dict:
@@ -245,17 +264,23 @@ def send_merchant_metrics_for_new_account(user_id: int, scheme_account_id: int, 
 
 
 @shared_task
-def send_merchant_metrics_for_link_delete(scheme_account_id: int, scheme_slug: str, date: str, date_type: str) -> None:
+def send_merchant_metrics_for_link_delete(
+    scheme_account_id: int, scheme_slug: str, date: str, date_type: str, headers: dict = None
+) -> None:
     if date_type not in ("link", "delete"):
         raise ValueError(f"{date_type} in an invalid merchant metrics date_type")
 
     payload = {"scheme_account_id": scheme_account_id, f"{date_type}_date": date}
-    _send_metrics_to_atlas("PATCH", scheme_slug, payload)
+    _send_metrics_to_atlas("PATCH", scheme_slug, payload, headers.get("x-azure-ref", None) if headers else None)
 
 
 @shared_task
 def deleted_payment_card_cleanup(
-    payment_card_id: t.Optional[int], payment_card_hash: t.Optional[str], user_id: int, history_kwargs: dict = None
+    payment_card_id: t.Optional[int],
+    payment_card_hash: t.Optional[str],
+    user_id: int,
+    history_kwargs: dict = None,
+    headers: dict = None,
 ) -> None:
     set_history_kwargs(history_kwargs)
     if payment_card_id is not None:
@@ -274,12 +299,12 @@ def deleted_payment_card_cleanup(
 
     user_plls.delete()
 
-    user_pll_delete_event(delete_user_pll_payloads)
+    user_pll_delete_event(delete_user_pll_payloads, headers)
 
     if not p_card_users:
         payment_card_account.is_deleted = True
         payment_card_account.save(update_fields=["is_deleted"])
-        metis.delete_payment_card(payment_card_account, run_async=False)
+        metis.delete_payment_card(payment_card_account, run_async=False, headers=headers)
 
     else:
         pll_links = pll_links.exclude(scheme_account__user_set__id__in=p_card_users)
@@ -299,7 +324,7 @@ def deleted_payment_card_cleanup(
 
 @shared_task
 def deleted_membership_card_cleanup(
-    scheme_account_entry: SchemeAccountEntry, delete_date: str, history_kwargs: dict = None
+    scheme_account_entry: SchemeAccountEntry, delete_date: str, history_kwargs: dict = None, headers: dict = None
 ) -> None:
     set_history_kwargs(history_kwargs)
     scheme_slug = scheme_account_entry.scheme_account.scheme.slug
@@ -310,7 +335,7 @@ def deleted_membership_card_cleanup(
         scheme_account_id=scheme_account_entry.scheme_account.id
     ).prefetch_related("scheme_account", "payment_card_account", "payment_card_account__paymentcardschemeentry_set")
 
-    remove_loyalty_card_event(scheme_account_entry, date_time=delete_date)
+    remove_loyalty_card_event(scheme_account_entry, date_time=delete_date, headers=headers)
 
     # @todo consider if the next line is redundant - deleting base_pll cascades delete PLLAssociation on foreign key
     #  also pll_links.delete() does this with a post delete signal.
@@ -321,7 +346,7 @@ def deleted_membership_card_cleanup(
     delete_user_pll_payloads = generate_pll_delete_payload(user_plls)
 
     user_plls.delete()
-    user_pll_delete_event(delete_user_pll_payloads)
+    user_pll_delete_event(delete_user_pll_payloads, headers)
 
     other_scheme_account_entries = SchemeAccountEntry.objects.filter(
         scheme_account=scheme_account_entry.scheme_account
@@ -410,9 +435,13 @@ def bulk_deleted_membership_card_cleanup(
     )
 
 
-def _send_data_to_atlas(consent: dict) -> None:
+def _send_data_to_atlas(consent: dict, x_azure_ref: str = None) -> None:
     url = f"{settings.ATLAS_URL}/audit/ubiquity_user/save"
-    headers = {"Content-Type": "application/json", "Authorization": "Token {}".format(settings.SERVICE_API_KEY)}
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Token {}".format(settings.SERVICE_API_KEY),
+        "X-azure-ref": x_azure_ref,
+    }
     data = {
         "email": consent["email"],
         "ubiquity_join_date": arrow.get(consent["timestamp"]).format("YYYY-MM-DD hh:mm:ss"),
@@ -421,7 +450,7 @@ def _send_data_to_atlas(consent: dict) -> None:
 
 
 def _delete_user_membership_cards(
-    user: "CustomUser", m_cards: list[SchemeAccount], send_deactivation: bool = True
+    user: "CustomUser", m_cards: list[SchemeAccount], send_deactivation: bool = True, headers: dict = None
 ) -> None:
     cards_to_delete = []
     for card in m_cards:
@@ -432,27 +461,29 @@ def _delete_user_membership_cards(
     user_card_entries = user.schemeaccountentry_set.all()
 
     for user_card_entry in user_card_entries:
-        remove_loyalty_card_event(user_card_entry)
+        remove_loyalty_card_event(user_card_entry, headers)
 
     # VOP deactivate
     links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account__in=cards_to_delete)
     if send_deactivation:
         vop_links = links_to_remove.filter(payment_card_account__payment_card__slug="visa")
         activations = VopActivation.find_activations_matching_links(vop_links)
-        PaymentCardSchemeEntry.deactivate_activations(activations)
+        PaymentCardSchemeEntry.deactivate_activations(activations, headers)
 
     links_to_remove.delete()
     history_bulk_update(SchemeAccount, cards_to_delete, ["is_deleted"])
     user_card_entries.delete()
 
 
-def _delete_user_payment_cards(user: "CustomUser", p_cards: list[PaymentCardAccount], run_async: bool = True) -> None:
+def _delete_user_payment_cards(
+    user: "CustomUser", p_cards: list[PaymentCardAccount], run_async: bool = True, headers: dict = None
+) -> None:
     cards_to_delete = []
     for card in p_cards:
         if card.user_set.count() == 1:
             card.is_deleted = True
             cards_to_delete.append(card)
-            metis.delete_payment_card(card, run_async=run_async)
+            metis.delete_payment_card(card, run_async=run_async, headers=headers)
         else:
             # Updates any ubiquity collisions linked to this payment card
             for entry in card.paymentcardschemeentry_set.all():
@@ -480,14 +511,14 @@ def _delete_user_payment_cards(user: "CustomUser", p_cards: list[PaymentCardAcco
                 "token": pay_card.token,
                 "status": pay_card.status,
             }
-            to_data_warehouse(payload)
+            to_data_warehouse(payload, headers)
 
         history_bulk_update(PaymentCardAccount, cards_to_delete, ["is_deleted"])
         user_card_entry.delete()
 
 
 @shared_task
-def deleted_service_cleanup(user_id: int, consent: dict, history_kwargs: dict = None) -> None:
+def deleted_service_cleanup(user_id: int, consent: dict, history_kwargs: dict = None, headers: dict = None) -> None:
     set_history_kwargs(history_kwargs)
     user = CustomUser.all_objects.get(id=user_id)
     # A user should always have a consent in normal circumstances but this is just in case one doesn't so
@@ -508,17 +539,17 @@ def deleted_service_cleanup(user_id: int, consent: dict, history_kwargs: dict = 
     user_plls.delete()
 
     # user pll event
-    user_pll_delete_event(delete_user_pll_payloads)
+    user_pll_delete_event(delete_user_pll_payloads, headers)
 
     # Don't deactivate when removing membership card as it will race with delete payment card
     # Deleting all payment cards causes an un-enrol for each card which also deactivates all linked activations
     # if a payment card was linked to 2 accounts its activations will not be deleted
-    _delete_user_membership_cards(user, m_cards, send_deactivation=False)
-    _delete_user_payment_cards(user, p_cards, run_async=False)
+    _delete_user_membership_cards(user, m_cards, send_deactivation=False, headers=headers)
+    _delete_user_payment_cards(user, p_cards, run_async=False, headers=headers)
     clean_history_kwargs(history_kwargs)
 
     try:  # send user info to be persisted in Atlas
-        _send_data_to_atlas(consent)
+        _send_data_to_atlas(consent, headers.get("x-azure-ref", None) if headers else None)
     except Exception:
         sentry_sdk.capture_exception()
 
@@ -675,6 +706,7 @@ def auto_link_payment_to_memberships(
     user_id: int,
     just_created: bool,
     history_kwargs: dict = None,
+    headers: dict = None,
 ) -> None:
     set_history_kwargs(history_kwargs)
 
@@ -683,10 +715,10 @@ def auto_link_payment_to_memberships(
 
     if just_created:
         scheme_account_entries = SchemeAccountEntry.objects.filter(user=user_id).all()
-        PllUserAssociation.link_users_scheme_accounts(payment_card_account, scheme_account_entries)
+        PllUserAssociation.link_users_scheme_accounts(payment_card_account, scheme_account_entries, headers)
 
     else:
-        PllUserAssociation.update_user_pll_by_pay_account(payment_card_account)
+        PllUserAssociation.update_user_pll_by_pay_account(payment_card_account, headers)
 
     """
 

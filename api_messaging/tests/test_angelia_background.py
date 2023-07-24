@@ -68,6 +68,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         cls.pcard_hash2 = "5ae741975b4db7bc80072fe8f88f233ef4a67e1e1d7e3bbf68a314dfc6691636"
 
         cls.auth_service_headers = {"HTTP_AUTHORIZATION": "Token " + settings.SERVICE_API_KEY}
+        cls.x_azure_ref_headers = {"X-azure-ref": "x-azure-ref"}
 
     def setUp(self) -> None:
         self.payment_card_account = PaymentCardAccountFactory(
@@ -102,7 +103,8 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
                 "channel_slug": self.bundle.bundle_id,
                 "user_id": self.user.id,
                 "payment_account_id": self.payment_card_account.id,
-            }
+            },
+            self.x_azure_ref_headers,
         )
         no_pll_users = PllUserAssociation.objects.filter(
             pll__scheme_account=self.scheme_account, user=self.user
@@ -154,7 +156,8 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
                 "channel_slug": self.bundle.bundle_id,
                 "user_id": self.user.id,
                 "payment_account_id": self.payment_card_account.id,
-            }
+            },
+            self.x_azure_ref_headers,
         )
         pll_users = PllUserAssociation.objects.filter(pll__scheme_account=self.scheme_account, user=self.user)
         self.assertEquals(1, len(pll_users))
@@ -209,7 +212,8 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
                 "channel_slug": self.bundle.bundle_id,
                 "user_id": self.user.id,
                 "payment_account_id": payment_card_account_2.id,
-            }
+            },
+            self.x_azure_ref_headers,
         )
         pll_users = PllUserAssociation.objects.filter(pll__scheme_account=self.scheme_account, user=self.user)
         self.assertEquals(1, len(pll_users))
@@ -270,7 +274,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         self.assertFalse(test_scheme_account.balances)
         self.assertFalse(self.scheme_account.balances)
 
-        refresh_balances(refresh_balance_message)
+        refresh_balances(refresh_balance_message, self.x_azure_ref_headers)
 
         test_scheme_account.refresh_from_db()
         self.scheme_account.refresh_from_db()
@@ -296,7 +300,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
             "channel_slug": self.bundle.bundle_id,
         }
 
-        refresh_balances(refresh_balance_message)
+        refresh_balances(refresh_balance_message, self.x_azure_ref_headers)
         test_scheme_account.refresh_from_db()
         self.scheme_account.refresh_from_db()
         test_scheme_account_entry.refresh_from_db()
@@ -341,7 +345,8 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
                 "auto_link": True,
                 "join_fields": [{"credential_slug": "email", "value": "qatest+testnp2join1201@bink.com"}],
                 "consents": [],
-            }
+            },
+            self.x_azure_ref_headers,
         )
 
         self.assertTrue(mock_midas_send.called)
@@ -380,7 +385,8 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
                 "auto_link": True,
                 "join_fields": [{"credential_slug": "email", "value": "qatest+testnp2join1201bink.com"}],
                 "consents": [],
-            }
+            },
+            self.x_azure_ref_headers,
         )
 
         self.assertFalse(mock_midas_send.called)
@@ -421,7 +427,8 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
                 "auto_link": True,
                 "join_fields": [{"credential_slug": "email", "value": "qatest+testnp2join1201@bink.com"}],
                 "consents": [],
-            }
+            },
+            self.x_azure_ref_headers,
         )
 
         self.assertTrue(mock_midas_send.called)
@@ -479,7 +486,8 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
                 "auto_link": True,
                 "join_fields": [{"credential_slug": "email", "value": "qatest+testnp2join1201@bink.com"}],
                 "consents": [],
-            }
+            },
+            self.x_azure_ref_headers,
         )
 
         self.assertTrue(mock_midas_send.called)
@@ -545,7 +553,8 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
                 "auto_link": True,
                 "register_fields": [{"credential_slug": "postcode", "value": "GU22TT"}],
                 "consents": [],
-            }
+            },
+            self.x_azure_ref_headers,
         )
 
         self.assertTrue(mock_midas_send.called)
@@ -616,7 +625,8 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
                 "auto_link": True,
                 "register_fields": [{"credential_slug": "postcode", "value": "GU22TT"}],
                 "consents": [],
-            }
+            },
+            self.x_azure_ref_headers,
         )
 
         self.assertTrue(mock_midas_send.called)
@@ -889,7 +899,8 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
                     "auto_link": True,
                     "created": True,
                     "supersede": True,
-                }
+                },
+                self.x_azure_ref_headers,
             )
 
             self.assertTrue(mock_metis_request.called)

@@ -927,7 +927,9 @@ class PllUserAssociation(models.Model):
                 link.pll.save()
 
     @classmethod
-    def update_user_pll_by_both(cls, payment_card_account: "PaymentCardAccount", scheme_account: "SchemeAccount"):
+    def update_user_pll_by_both(
+        cls, payment_card_account: "PaymentCardAccount", scheme_account: "SchemeAccount", headers: dict = None
+    ):
         wallet_pll_data = WalletPLLData(payment_card_account=payment_card_account, scheme_account=scheme_account)
         # these are pll user links to all wallets which have this payment_card_account
         wallet_pll_records = wallet_pll_data.all_except_collision()
@@ -940,10 +942,10 @@ class PllUserAssociation(models.Model):
             )
             cls.update_link(link, wallet_pll_records)
 
-            user_pll_status_change_event(link, previous_slug, previous_state)
+            user_pll_status_change_event(link, previous_slug, previous_state, headers)
 
     @classmethod
-    def update_user_pll_by_pay_account(cls, payment_card_account: "PaymentCardAccount"):
+    def update_user_pll_by_pay_account(cls, payment_card_account: "PaymentCardAccount", headers: dict = None):
         wallet_pll_data = WalletPLLData(payment_card_account=payment_card_account)
         # these are pll user links to all wallets which have this payment_card_account
         wallet_pll_records = wallet_pll_data.all_except_collision()
@@ -957,7 +959,7 @@ class PllUserAssociation(models.Model):
             cls.update_link(link, wallet_pll_records)
 
             logger.info("Sending pll_link.statuschange event from payment account.")
-            user_pll_status_change_event(link, previous_slug, previous_state)
+            user_pll_status_change_event(link, previous_slug, previous_state, headers)
 
     @classmethod
     def update_user_pll_by_scheme_account(cls, scheme_account: "SchemeAccount"):
@@ -977,30 +979,40 @@ class PllUserAssociation(models.Model):
 
     @classmethod
     def link_users_scheme_accounts(
-        cls, payment_card_account: "PaymentCardAccount", scheme_account_entries: list["SchemeAccountEntry"]
+        cls,
+        payment_card_account: "PaymentCardAccount",
+        scheme_account_entries: list["SchemeAccountEntry"],
+        headers: dict = None,
     ):
         for scheme_account_entry in scheme_account_entries:
-            cls.link_users_scheme_account_entry_to_payment(scheme_account_entry, payment_card_account)
+            cls.link_users_scheme_account_entry_to_payment(scheme_account_entry, payment_card_account, headers)
 
     @classmethod
     def link_user_scheme_account_to_payment_cards(
-        cls, scheme_account: "SchemeAccount", payment_card_accounts: list["PaymentCardAccount"], user: "CustomUser"
+        cls,
+        scheme_account: "SchemeAccount",
+        payment_card_accounts: list["PaymentCardAccount"],
+        user: "CustomUser",
+        headers: dict = None,
     ):
         scheme_user_entry = SchemeAccountEntry.objects.select_related("scheme_account").get(
             user=user, scheme_account=scheme_account, scheme_account__is_deleted=False
         )
-        cls.link_users_payment_cards(scheme_user_entry, payment_card_accounts)
+        cls.link_users_payment_cards(scheme_user_entry, payment_card_accounts, headers)
 
     @classmethod
     def link_users_payment_cards(
-        cls, scheme_account_entry: SchemeAccountEntry, payment_card_accounts: list["PaymentCardAccount"]
+        cls,
+        scheme_account_entry: SchemeAccountEntry,
+        payment_card_accounts: list["PaymentCardAccount"],
+        headers: dict = None,
     ):
         for payment_card_account in payment_card_accounts:
             if isinstance(payment_card_account, int):  # In background tasks a list of ids is sent rather than objects
                 from payment_card.models import PaymentCardAccount  # need to avoid circular import
 
                 payment_card_account = PaymentCardAccount.objects.get(id=payment_card_account)
-            cls.link_users_scheme_account_entry_to_payment(scheme_account_entry, payment_card_account)
+            cls.link_users_scheme_account_entry_to_payment(scheme_account_entry, payment_card_account, headers=headers)
 
     @classmethod
     def link_users_scheme_account_to_payment(
@@ -1013,7 +1025,7 @@ class PllUserAssociation(models.Model):
 
     @classmethod
     def link_users_scheme_account_entry_to_payment(
-        cls, scheme_account_entry: SchemeAccountEntry, payment_card_account: "PaymentCardAccount"
+        cls, scheme_account_entry: SchemeAccountEntry, payment_card_account: "PaymentCardAccount", headers: dict = None
     ) -> "PllUserAssociation":
         """
         This is called after a new scheme account entry or payment card is created and a user PLL
@@ -1074,7 +1086,7 @@ class PllUserAssociation(models.Model):
             user_link.slug = slug
             user_link.save()
 
-        user_pll_status_change_event(user_link, previous_slug, previous_state)
+        user_pll_status_change_event(user_link, previous_slug, previous_state, headers)
 
         return user_link
 
@@ -1137,7 +1149,7 @@ class PaymentCardSchemeEntry(models.Model):
                 )
 
     @classmethod
-    def deactivate_activations(cls, activations: dict):
+    def deactivate_activations(cls, activations: dict, headers: dict = None):
         """If an activation cannot be supported by an active link then deactivate it if activated"""
         for activation in activations.values():
             # check if any entries require the activation - deactivate if not used
@@ -1152,7 +1164,7 @@ class PaymentCardSchemeEntry(models.Model):
                 except AttributeError:
                     history_kwargs = None
 
-                send_deactivation.delay(activation, history_kwargs)
+                send_deactivation.delay(activation, history_kwargs, headers)
 
     # @todo pll stuff remove methods below this line -----------------------------------
 

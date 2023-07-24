@@ -700,7 +700,11 @@ class SchemeAccount(models.Model):
             return "alt_main_answer"
 
     def _get_midas_balance(
-        self, journey, scheme_account_entry: SchemeAccountEntry, credentials_override: dict = None
+        self,
+        journey,
+        scheme_account_entry: SchemeAccountEntry,
+        credentials_override: dict = None,
+        headers: dict = None,
     ) -> tuple[dict | None, AccountLinkStatus, tuple[bool, AccountLinkStatus] | None]:
         points = None
         account_status = scheme_account_entry.link_status
@@ -712,7 +716,9 @@ class SchemeAccount(models.Model):
             return points, account_status, dw_event
 
         try:
-            response = self._get_balance_request(credentials, journey, scheme_account_entry)
+            response = self._get_balance_request(
+                credentials, journey, scheme_account_entry, headers.get("x-azure-ref", None) if headers else None
+            )
             points, account_status, dw_event = self._process_midas_response(response, scheme_account_entry)
             self._received_balance_checks(scheme_account_entry)
         except requests.exceptions.ConnectionError:
@@ -732,7 +738,7 @@ class SchemeAccount(models.Model):
 
         return saved
 
-    def _get_balance_request(self, credentials, journey, scheme_account_entry):
+    def _get_balance_request(self, credentials, journey, scheme_account_entry, x_azure_ref: str = None):
         # todo: liaise with Midas to work out what we need to see here
         user_set = ",".join([str(u.id) for u in self.user_set.all()])
         parameters = {
@@ -744,7 +750,11 @@ class SchemeAccount(models.Model):
             "bink_user_id": scheme_account_entry.user.id,
         }
         midas_balance_uri = f"{settings.MIDAS_URL}/{self.scheme.slug}/balance"
-        headers = {"transaction": str(uuid.uuid1()), "User-agent": "Hermes on {0}".format(socket.gethostname())}
+        headers = {
+            "transaction": str(uuid.uuid1()),
+            "User-agent": "Hermes on {0}".format(socket.gethostname()),
+            "X-azure-ref": x_azure_ref,
+        }
         response = requests.get(midas_balance_uri, params=parameters, headers=headers)
         return response
 
@@ -772,12 +782,16 @@ class SchemeAccount(models.Model):
         scheme_account_entry: SchemeAccountEntry,
         credentials_override: dict = None,
         journey: JourneyTypes = None,
+        headers: dict = None,
     ) -> tuple[list[dict], tuple[bool, AccountLinkStatus] | None]:
         old_status = scheme_account_entry.link_status
         journey = journey or self.get_journey_type(scheme_account_entry.authorised)
 
         balance, account_status, dw_event = self._get_midas_balance(
-            journey=journey, credentials_override=credentials_override, scheme_account_entry=scheme_account_entry
+            journey=journey,
+            credentials_override=credentials_override,
+            scheme_account_entry=scheme_account_entry,
+            headers=headers,
         )
 
         voucher_resp = None

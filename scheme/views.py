@@ -240,55 +240,15 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             )
             return Response({"id": scheme_account.id, "status": previous_status}, status=200)
 
-        self.process_active_accounts(scheme_account, journey, new_status_code, scheme_account_entry.id)
+        self.process_active_accounts(scheme_account, journey, new_status_code, scheme_account_entry.id, request.headers)
 
         if new_status_code != previous_status:
-            self.process_new_status(new_status_code, previous_status, scheme_account_entry)
+            self.process_new_status(new_status_code, previous_status, scheme_account_entry, request.headers)
 
         return Response({"id": scheme_account.id, "status": new_status_code})
 
-    """
-    removed because not called anymore, was called from scheme views def process_new_status
     @staticmethod
-    def set_user_authorisations_and_status(
-        new_status_code: int, scheme_account: SchemeAccount, scheme_account_entry: SchemeAccountEntry
-    ) -> None:
-        mcard_entries = scheme_account.schemeaccountentry_set.all()
-
-        ---- removed:
-        we no longer need to consider auth provided
-        # Todo: LOY-1953 - will need rework when implementing multi-wallet add_and_register to update single user.
-        #  Might need Midas to differentiate join and register journeys?
-        if new_status_code in AccountLinkStatus.join_action_required():
-            logger.debug(
-                f"Failed Join - setting auth_provided to False for all users linked to "
-                f"Scheme Account (id={scheme_account.id})"
-            )
-            mcard_entries.update(auth_provided=False)
-        ---- remove end ---
-        if (
-            all(entry.auth_provided is False for entry in mcard_entries)
-            and new_status_code not in AccountLinkStatus.join_action_required()
-        ):
-            # There is a chance that a PATCH attempt to update creds will fail and set auth_provided to False
-            # for a user before this status update. This will set the card to Wallet only status instead of an
-            # error state when there are no authorised users linked to a card unless the card is in a join error state.
-            if scheme_account_entry.link_status != AccountLinkStatus.WALLET_ONLY:
-                status_dict = dict(AccountLinkStatus.statuses())
-                logger.debug(
-                    f"Status for Scheme Account Entry (id={scheme_account_entry.id}) set to "
-                    f"{status_dict.get(AccountLinkStatus.WALLET_ONLY)} due "
-                    f"to not having an authorised link - "
-                    f"Status being overwritten: {status_dict.get(new_status_code)}"
-                )
-
-                scheme_account_entry.set_link_status(AccountLinkStatus.WALLET_ONLY)
-        else:
-            scheme_account_entry.set_link_status(new_status_code)
-    """
-
-    @staticmethod
-    def process_new_status(new_status_code, previous_status, scheme_account_entry):
+    def process_new_status(new_status_code, previous_status, scheme_account_entry, headers: dict = None):
         update_fields = []
 
         pending_statuses = (
@@ -318,9 +278,9 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             update_fields.append("alt_main_answer")
             # status event join failed
             if previous_status == AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS:
-                join_outcome_event.delay(success=False, scheme_account_entry=scheme_account_entry)
+                join_outcome_event.delay(success=False, scheme_account_entry=scheme_account_entry, headers=headers)
             elif previous_status == AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS:
-                register_outcome_event.delay(success=False, scheme_account_entry=scheme_account_entry)
+                register_outcome_event.delay(success=False, scheme_account_entry=scheme_account_entry, headers=headers)
 
         if new_status_code == AccountLinkStatus.ACTIVE:
             # status event join success
@@ -328,9 +288,9 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             # test will fail for JOIN_ASYNC_IN_PROGRESS
             # @todo How will join_outcome ever be reported if balance is not obtained?
             if previous_status == AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS:
-                join_outcome_event.delay(success=True, scheme_account_entry=scheme_account_entry)
+                join_outcome_event.delay(success=True, scheme_account_entry=scheme_account_entry, headers=headers)
             elif previous_status == AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS:
-                register_outcome_event.delay(success=True, scheme_account_entry=scheme_account_entry)
+                register_outcome_event.delay(success=True, scheme_account_entry=scheme_account_entry, headers=headers)
 
             Payment.process_payment_success(scheme_account)
         elif new_status_code not in pending_statuses:
@@ -342,14 +302,18 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         if update_fields:
             scheme_account.save(update_fields=update_fields)
 
-    def process_active_accounts(self, scheme_account, journey, new_status_code, scheme_account_entry_id):
+    def process_active_accounts(
+        self, scheme_account, journey, new_status_code, scheme_account_entry_id, headers: dict = None
+    ):
         if journey in ["join", "join-with-balance"] and new_status_code == AccountLinkStatus.ACTIVE:
             join_date = timezone.now()
             scheme_account.join_date = join_date
             scheme_account.save(update_fields=["join_date"])
 
             if journey == "join":
-                async_join_journey_fetch_balance_and_update_status.delay(scheme_account.id, scheme_account_entry_id)
+                async_join_journey_fetch_balance_and_update_status.delay(
+                    scheme_account.id, scheme_account_entry_id, headers
+                )
 
         elif new_status_code == AccountLinkStatus.ACTIVE and not (scheme_account.link_date or scheme_account.join_date):
             date_time_now = timezone.now()
@@ -359,7 +323,9 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             scheme_account.save(update_fields=["link_date"])
 
             if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
-                send_merchant_metrics_for_link_delete.delay(scheme_account.id, scheme_slug, date_time_now, "link")
+                send_merchant_metrics_for_link_delete.delay(
+                    scheme_account.id, scheme_slug, date_time_now, "link", headers
+                )
 
 
 class UpdateSchemeAccountTransactions(GenericAPIView, MembershipTransactionsMixin):

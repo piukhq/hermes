@@ -65,24 +65,29 @@ def expired_payment_void_task() -> None:
 
 @shared_task
 def metis_delete_cards_and_activations(
-    method: RequestMethod, endpoint: str, payload: dict, status: object = VopActivation.ACTIVATED
+    method: RequestMethod, endpoint: str, payload: dict, status: object = VopActivation.ACTIVATED, headers: dict = None
 ) -> None:
     payload["activations"] = vop_deactivation_dict_by_payment_card_id(payload["id"], status)
     args = (
         method,
         endpoint,
         payload,
+        headers,
     )
     metis_request(*args)
 
 
 @shared_task
-def metis_request(method: RequestMethod, endpoint: str, payload: dict) -> None:
+def metis_request(method: RequestMethod, endpoint: str, payload: dict, headers: dict = None) -> None:
     response = request(
         method.value,
         settings.METIS_URL + endpoint,
         json=payload,
-        headers={"Authorization": "Token {}".format(settings.SERVICE_API_KEY), "Content-Type": "application/json"},
+        headers={
+            "Authorization": "Token {}".format(settings.SERVICE_API_KEY),
+            "Content-Type": "application/json",
+            "X-azure-ref": headers.get("x-azure-ref", None) if headers else None,
+        },
     )
     try:
         response.raise_for_status()

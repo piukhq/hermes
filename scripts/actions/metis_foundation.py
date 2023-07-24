@@ -9,6 +9,10 @@ def metis_foundation_request(method: RequestMethod, endpoint: str, payload: dict
         method.value,
         settings.METIS_URL + endpoint,
         json=payload,
-        headers={"Authorization": "Token {}".format(settings.SERVICE_API_KEY), "Content-Type": "application/json"},
+        headers={
+            "Authorization": "Token {}".format(settings.SERVICE_API_KEY),
+            "Content-Type": "application/json",
+            "X-azure-ref": None,
+        },
     )
     return response.json()
