@@ -111,7 +111,7 @@ def credentials_to_key_pairs(cred_list: list) -> dict:
 
 
 # @todo we must use API method of linking here:
-def post_payment_account(message: dict) -> None:
+def post_payment_account(message: dict, headers: dict) -> None:
     # Calls Metis to enrol payment card if account was just created.
     logger.info("Handling onward POST/payment_account journey from Angelia. ")
     with AngeliaContext(message) as ac:
@@ -131,18 +131,19 @@ def post_payment_account(message: dict) -> None:
                 just_created=True,  # The card may already exist in another wallet but it's just created in that it
                 # needs linking as if a new card
                 history_kwargs={"user_info": user_info(user_id=user.id, channel=ac.channel_slug)},
+                headers=headers,
             )
 
         if message.get("created"):
             # For when adding a previously deleted card. Unique logic required for MasterCard.
             if message.get("supersede"):
-                metis.enrol_existing_payment_card(payment_card_account, run_async=False)
+                metis.enrol_existing_payment_card(payment_card_account, run_async=False, headers=headers)
             else:
-                metis.enrol_new_payment_card(payment_card_account, run_async=False)
+                metis.enrol_new_payment_card(payment_card_account, run_async=False, headers=headers)
 
 
 # @todo we must use API method of linking here:
-def delete_payment_account(message: dict) -> None:
+def delete_payment_account(message: dict, headers: dict) -> None:
     logger.info("Handling DELETE/payment_account journey from Angelia.")
     with AngeliaContext(message) as ac:
         query = {"user_id": ac.user_id, "payment_card_account_id": message["payment_account_id"]}
@@ -152,26 +153,28 @@ def delete_payment_account(message: dict) -> None:
         )
 
 
-def loyalty_card_register(message: dict) -> None:
+def loyalty_card_register(message: dict, headers: dict) -> None:
     logger.info("Handling loyalty_card REGISTER journey")
-    _loyalty_card_register(message, path=LoyaltyCardPath.REGISTER)
+    _loyalty_card_register(message, path=LoyaltyCardPath.REGISTER, headers=headers)
 
 
-def loyalty_card_add_and_register(message: dict) -> None:
+def loyalty_card_add_and_register(message: dict, headers: dict) -> None:
     logger.info("Handling loyalty_card ADD and REGISTER journey")
-    _loyalty_card_register(message, path=LoyaltyCardPath.ADD_AND_REGISTER)
+    _loyalty_card_register(message, path=LoyaltyCardPath.ADD_AND_REGISTER, headers=headers)
 
 
-def link_payment_cards(user_id: int, scheme_account_entry: SchemeAccountEntry, auto_link: bool = True):
+def link_payment_cards(
+    user_id: int, scheme_account_entry: SchemeAccountEntry, auto_link: bool = True, headers: dict = None
+):
     if auto_link:
         payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=user_id).values_list(
             "payment_card_account_id", flat=True
         )
         if payment_cards_to_link:
-            PllUserAssociation.link_users_payment_cards(scheme_account_entry, payment_cards_to_link)
+            PllUserAssociation.link_users_payment_cards(scheme_account_entry, payment_cards_to_link, headers=headers)
 
 
-def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
+def _loyalty_card_register(message: dict, path: LoyaltyCardPath, headers: dict) -> None:
     with AngeliaContext(message, SchemeAccountJourney.REGISTER.value) as ac:
         all_credentials_and_consents = {}
         all_credentials_and_consents.update(credentials_to_key_pairs(message.get("register_fields")))
@@ -188,9 +191,9 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
 
         if path in [LoyaltyCardPath.REGISTER, LoyaltyCardPath.ADD_AND_REGISTER]:
-            register_lc_event(scheme_account_entry, ac.channel_slug, ac.date_time)
+            register_lc_event(scheme_account_entry, ac.channel_slug, ac.date_time, headers)
 
-        link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link)
+        link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link, headers=headers)
         """
         if message.get("auto_link"):
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=user.id).values_list(
@@ -208,23 +211,24 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath) -> None:
             scheme_questions=questions,
             registration_fields=all_credentials_and_consents,
             scheme=scheme,
+            headers=headers,
         )
 
 
-def loyalty_card_add(message: dict) -> None:
+def loyalty_card_add(message: dict, headers: dict) -> None:
     with AngeliaContext(message) as ac:
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
-        link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link)
+        link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link, headers)
         create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
 
 
-def loyalty_card_trusted_add(message: dict) -> None:
+def loyalty_card_trusted_add(message: dict, headers: dict) -> None:
     with AngeliaContext(message) as ac:
         scheme_account_id = message.get("loyalty_card_id")
         scheme_account_entry = SchemeAccountEntry.objects.select_related("scheme_account").get(
             user=ac.user_id, scheme_account_id=scheme_account_id, scheme_account__is_deleted=False
         )
-        link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link)
+        link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link, headers)
 
         # scheme_account_id = message.get("loyalty_card_id")
         # scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
@@ -254,7 +258,7 @@ def loyalty_card_trusted_add(message: dict) -> None:
         scheme_account_entry.update_scheme_account_key_credential_fields()
 
 
-def loyalty_card_add_authorise(message: dict) -> None:
+def loyalty_card_add_authorise(message: dict, headers: dict) -> None:
     with AngeliaContext(message) as ac:
         journey = message.get("journey")
 
@@ -295,10 +299,11 @@ def loyalty_card_add_authorise(message: dict) -> None:
             scheme_account_id=account.id,
             user_id=ac.user_id,
             payment_cards_to_link=payment_cards_to_link,
+            headers=headers,
         )
 
 
-def loyalty_card_join(message: dict) -> None:
+def loyalty_card_join(message: dict, headers: dict) -> None:
     logger.info("Handling loyalty_card join")
     with AngeliaContext(message, SchemeAccountJourney.ENROL.value) as ac:
         if message.get("auto_link"):
@@ -334,15 +339,19 @@ def loyalty_card_join(message: dict) -> None:
                     link_error = AccountLinkStatus.INVALID_CREDENTIALS
             entry.set_link_status(link_error)
             if payment_cards_to_link:
-                PllUserAssociation.link_user_scheme_account_to_payment_cards(account, payment_cards_to_link, user)
+                PllUserAssociation.link_user_scheme_account_to_payment_cards(
+                    account, payment_cards_to_link, user, headers
+                )
             # send event to data warehouse
-            join_request_lc_event(entry, ac.channel_slug, ac.date_time)
+            join_request_lc_event(entry, ac.channel_slug, ac.date_time, headers)
             # @todo we may need to modify join_outcome to accept a different origin as it is not "merchant call back"
             # however need to agree this with data team.
-            join_outcome(success=False, scheme_account_entry=entry, date_time=None)  # outcome must have now time
+            join_outcome(
+                success=False, scheme_account_entry=entry, date_time=None, headers=headers
+            )  # outcome must have now time
         else:
             # send event to data warehouse
-            join_request_lc_event(entry, ac.channel_slug, ac.date_time)
+            join_request_lc_event(entry, ac.channel_slug, ac.date_time, headers)
             async_join(
                 scheme_account_id=account.id,
                 user_id=user.id,
@@ -351,18 +360,19 @@ def loyalty_card_join(message: dict) -> None:
                 validated_data=validated_data,
                 channel=ac.channel_slug,
                 payment_cards_to_link=payment_cards_to_link,
+                headers=headers,
             )
 
 
-def delete_loyalty_card(message: dict) -> None:
+def delete_loyalty_card(message: dict, headers: dict) -> None:
     with AngeliaContext(message) as ac:
         scheme_account_entry = SchemeAccountEntry.objects.get(
             scheme_account_id=message.get("loyalty_card_id"), user_id=ac.user_id
         )
-        deleted_membership_card_cleanup(scheme_account_entry, ac.date_time)
+        deleted_membership_card_cleanup(scheme_account_entry, ac.date_time, headers)
 
 
-def delete_user(message: dict) -> None:
+def delete_user(message: dict, headers: dict) -> None:
     consent_data = None
     with AngeliaContext(message) as ac:
         try:
@@ -378,22 +388,22 @@ def delete_user(message: dict) -> None:
 
             if user.is_active:
                 user.soft_delete()
-                deleted_service_cleanup(user_id=ac.user_id, consent=consent_data)
+                deleted_service_cleanup(user_id=ac.user_id, consent=consent_data, headers=headers)
                 logger.info(f"User {ac.user_id} successfully deleted.")
             else:
-                deleted_service_cleanup(user_id=ac.user_id, consent=consent_data)
+                deleted_service_cleanup(user_id=ac.user_id, consent=consent_data, headers=headers)
                 logger.info(f"User {ac.user_id} already deleted, but delete cleanup has run successfully")
 
 
-def refresh_balances(message: dict) -> None:
+def refresh_balances(message: dict, headers: dict) -> None:
     with AngeliaContext(message) as ac:
         user = CustomUser.objects.get(pk=ac.user_id)
         permit = Permit(bundle_id=ac.channel_slug, user=user)
-        async_all_balance(ac.user_id, permit)
+        async_all_balance(ac.user_id, permit, headers)
         logger.info(f"User {ac.user_id} refresh balances called. ")
 
 
-def user_session(message: dict) -> None:
+def user_session(message: dict, headers: dict) -> None:
     user = CustomUser.objects.get(id=message.get("user_id"))
     user.last_accessed = message.get("utc_adjusted")
     user.save(update_fields=["last_accessed"])
@@ -406,7 +416,7 @@ def user_session(message: dict) -> None:
         "internal_user_ref": user.id,
         "email": user.email,
     }
-    to_data_warehouse(payload)
+    to_data_warehouse(payload, headers)
 
 
 table_to_model = {
@@ -442,7 +452,7 @@ class FakeRelatedModel:
         self.pk = object_id
 
 
-def record_mapper_history(model_name: str, ac: AngeliaContext, message: dict):
+def record_mapper_history(model_name: str, ac: AngeliaContext, message: dict, headers: dict = None):
     payload = message.get("payload", {})
     related = message.get("related", {})
     change_details = message.get("change", "")
@@ -468,6 +478,7 @@ def record_mapper_history(model_name: str, ac: AngeliaContext, message: dict):
 
     record_history(
         model_name,
+        headers,
         event_time=ac.date_time,
         change_type=message["event"],
         change_details=change_details,
@@ -476,31 +487,35 @@ def record_mapper_history(model_name: str, ac: AngeliaContext, message: dict):
     )
 
 
-def mapper_history(message: dict) -> None:
+def mapper_history(message: dict, headers: dict) -> None:
     """This message assumes Angelia logged history via mapper database event ie an ORM based where the
     data was known to Angelia and can be passed to Hermes to update History
     """
     model_name = table_to_model.get(message.get("table", ""), False)
     if message.get("payload") and model_name:
         with AngeliaContext(message) as ac:
-            record_mapper_history(model_name, ac, message)
+            record_mapper_history(model_name, ac, message, headers)
     else:
         logger.error(f"Failed to process history entry for {model_name}")
 
 
-def add_auth_outcome_event(message: dict) -> None:
+def add_auth_outcome_event(message: dict, headers: dict) -> None:
     success = message.get("success")
     journey = message.get("journey")
     date_time = message.get("utc_adjusted")
     scheme_account_entry = SchemeAccountEntry.objects.get(pk=message.get("entry_id"))
 
     if journey == "ADD_AND_AUTH":
-        add_auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry, date_time=date_time)
+        add_auth_outcome_task(
+            success=success, scheme_account_entry=scheme_account_entry, date_time=date_time, headers=headers
+        )
     elif journey == "AUTH":
-        auth_outcome_task(success=success, scheme_account_entry=scheme_account_entry, date_time=date_time)
+        auth_outcome_task(
+            success=success, scheme_account_entry=scheme_account_entry, date_time=date_time, headers=headers
+        )
 
 
-def add_auth_request_event(message: dict) -> None:
+def add_auth_request_event(message: dict, headers: dict) -> None:
     journey = message.get("journey")
     user_id = message.get("user_id")
     date_time = message.get("utc_adjusted")
@@ -510,12 +525,12 @@ def add_auth_request_event(message: dict) -> None:
     scheme_account = SchemeAccount.objects.get(pk=loyalty_card_id)
 
     if journey == "ADD_AND_AUTH":
-        addauth_request_lc_event(user, scheme_account, channel_slug, date_time)
+        addauth_request_lc_event(user, scheme_account, channel_slug, date_time, headers)
     elif journey == "AUTH":
-        auth_request_lc_event(user, scheme_account, channel_slug, date_time)
+        auth_request_lc_event(user, scheme_account, channel_slug, date_time, headers)
 
 
-def sql_history(message: dict) -> None:
+def sql_history(message: dict, headers: dict) -> None:
     """This message assumes Angelia logged history via sql and no event was raised ie the model data
     was not know to Angelia because a SqlAlchemy mapped the Model to the table name and then sent a SQL to
     postgres which did not
@@ -529,6 +544,7 @@ def sql_history(message: dict) -> None:
             serializer = HistoryUserSerializer(user)
             record_history(
                 model_name,
+                headers,
                 event_time=ac.date_time,
                 change_type=message["event"],
                 change_details=message["change"],

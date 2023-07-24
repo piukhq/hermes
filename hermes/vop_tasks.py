@@ -92,20 +92,24 @@ def send_activation(activation, data: dict, history_kwargs: dict = None):
     clean_history_kwargs(history_kwargs)
 
 
-def deactivate(activation, data: dict):
+def deactivate(activation, data: dict, headers: dict = None):
     activation.status = activation.DEACTIVATING
     activation.save(update_fields=["status"])
 
     rep = requests.post(
         settings.METIS_URL + "/visa/deactivate/",
         json=data,
-        headers={"Authorization": "Token {}".format(settings.SERVICE_API_KEY), "Content-Type": "application/json"},
+        headers={
+            "Authorization": "Token {}".format(settings.SERVICE_API_KEY),
+            "Content-Type": "application/json",
+            "X-azure-ref": headers.get("x-azure-ref", None) if headers else None,
+        },
     )
     return process_result(rep, activation, activation.DEACTIVATING)
 
 
 @shared_task
-def send_deactivation(activation, history_kwargs: dict = None):
+def send_deactivation(activation, history_kwargs: dict = None, headers: dict = None):
     set_history_kwargs(history_kwargs)
     data = {
         "payment_token": activation.payment_card_account.psp_token,
@@ -113,7 +117,7 @@ def send_deactivation(activation, history_kwargs: dict = None):
         "activation_id": activation.activation_id,
         "id": activation.payment_card_account.id,  # improves tracking via logs esp. in Metis
     }
-    status, result = deactivate(activation, data)
+    status, result = deactivate(activation, data, headers)
 
     if status == PeriodicRetryStatus.REQUIRED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(

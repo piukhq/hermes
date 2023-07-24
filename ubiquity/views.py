@@ -586,6 +586,7 @@ class MembershipCardView(
                 scheme,
                 registration_fields,
                 scheme_questions,
+                request.headers,
             )
             metrics_route = MembershipCardAddRoute.REGISTER
 
@@ -751,6 +752,7 @@ class MembershipCardView(
         scheme: Scheme,
         registration_fields: dict,
         scheme_questions: list,
+        headers: dict,
     ) -> SchemeAccount:
         journey = SchemeAccountJourney.REGISTER.value
         HISTORY_CONTEXT.journey = journey
@@ -781,6 +783,7 @@ class MembershipCardView(
                 "journey": journey,
             },
             delete_balance=True,
+            headers=headers,
         )
         return account
 

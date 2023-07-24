@@ -53,6 +53,7 @@ class TestPaymentAccountMessaging(GlobalMockAPITestCase):
         }
         cls.post_payment_account_headers = {"X-http-path": "post_payment_account"}
         cls.delete_payment_account_headers = {"X-http-path": "delete_payment_account"}
+        cls.x_azure_ref_headers = {"X-azure-ref": "x_azure_ref"}
         cls.fail_headers = {"X-http-path": "failing_test"}
 
     @patch("api_messaging.angelia_background.post_payment_account")
@@ -73,12 +74,12 @@ class TestPaymentAccountMessaging(GlobalMockAPITestCase):
 
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_process_post_payment_card_message(self, mock_metis_enrol):
-        angelia_background.post_payment_account(self.post_payment_account_message)
+        angelia_background.post_payment_account(self.post_payment_account_message, self.x_azure_ref_headers)
         self.assertTrue(mock_metis_enrol.called)
 
     @patch("payment_card.metis.enrol_new_payment_card")
     def test_process_post_payment_card_message_auto_link_created_false(self, mock_metis_enrol):
-        angelia_background.post_payment_account(self.post_payment_account_auto_link_message)
+        angelia_background.post_payment_account(self.post_payment_account_auto_link_message, self.x_azure_ref_headers)
         self.assertFalse(mock_metis_enrol.called)
         links = PaymentCardSchemeEntry.objects.filter(
             scheme_account=self.scheme_account,
@@ -94,7 +95,7 @@ class TestPaymentAccountMessaging(GlobalMockAPITestCase):
     @patch("payment_card.metis.delete_payment_card")
     def test_process_delete_payment_account_deleted(self, metis_delete_payment_card):
         objects_pre = PaymentCardAccountEntry.objects.filter(id=self.payment_card_account_entry.id).count()
-        angelia_background.delete_payment_account(self.delete_payment_account_message)
+        angelia_background.delete_payment_account(self.delete_payment_account_message, self.x_azure_ref_headers)
         objects_post = PaymentCardAccountEntry.objects.filter(id=self.payment_card_account_entry.id).count()
 
         self.assertEqual(objects_pre, 1)
@@ -184,6 +185,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         cls.loyalty_card_authorise_headers = {"X-http-path": "loyalty_card_authorise"}
         cls.loyalty_card_add_and_authorise_headers = {"X-http-path": "loyalty_card_authorise"}
         cls.loyalty_card_register_headers = {"X-http-path": "loyalty_card_register"}
+        cls.x_azure_ref_headers = {"X-azure-ref": "x_azure_ref"}
         cls.fail_headers = {"X-http-path": "failing_test"}
 
     @patch("api_messaging.angelia_background.loyalty_card_authorise")
@@ -211,7 +213,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
     @patch("api_messaging.angelia_background.async_link")
     def test_loyalty_card_authorise_async_link(self, mock_async_link):
         """Tests AUTH routing for an existing loyalty card with auto-linking"""
-        angelia_background.loyalty_card_add_authorise(self.loyalty_card_auth_autolink_message)
+        angelia_background.loyalty_card_add_authorise(self.loyalty_card_auth_autolink_message, self.x_azure_ref_headers)
         self.assertTrue(mock_async_link.called)
         params = mock_async_link.call_args.kwargs
         to_link = params.get("payment_cards_to_link", [])
@@ -221,7 +223,9 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
     def test_loyalty_card_authorise_no_autolink(self, mock_async_link):
         """Tests AUTH routing for an existing loyalty card without auto-linking"""
 
-        angelia_background.loyalty_card_add_authorise(self.loyalty_card_auth_no_autolink_message)
+        angelia_background.loyalty_card_add_authorise(
+            self.loyalty_card_auth_no_autolink_message, self.x_azure_ref_headers
+        )
         self.assertTrue(mock_async_link.called)
         params = mock_async_link.call_args.kwargs
         to_link = params.get("payment_cards_to_link", [])
@@ -230,7 +234,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
     @patch("api_messaging.angelia_background.MembershipCardView.handle_registration_route")
     def test_loyalty_card_register_journey(self, mock_handle_registration):
         """Tests routing for Registering a loyalty card"""
-        angelia_background.loyalty_card_register(self.loyalty_card_register_message)
+        angelia_background.loyalty_card_register(self.loyalty_card_register_message, self.x_azure_ref_headers)
         self.assertTrue(mock_handle_registration.called)
         # Should ideally check linking
 
@@ -238,7 +242,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
     def test_loyalty_card_join_journey(self, mock_async_join):
         """Tests Join routing for a loyalty card"""
 
-        angelia_background.loyalty_card_join(self.loyalty_card_join_message)
+        angelia_background.loyalty_card_join(self.loyalty_card_join_message, self.x_azure_ref_headers)
 
         self.assertTrue(mock_async_join.called)
 
@@ -246,7 +250,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
     def test_delete_loyalty_card_journey(self, mock_deleted_card_cleanup):
         """Tests successful routing for a DELETE loyalty card journey."""
 
-        angelia_background.delete_loyalty_card(self.delete_loyalty_card_message)
+        angelia_background.delete_loyalty_card(self.delete_loyalty_card_message, self.x_azure_ref_headers)
 
         self.assertTrue(mock_deleted_card_cleanup.called)
 
