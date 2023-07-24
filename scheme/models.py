@@ -717,7 +717,7 @@ class SchemeAccount(models.Model):
 
         try:
             response = self._get_balance_request(
-                credentials, journey, scheme_account_entry, headers.get("x-azure-ref", None) if headers else None
+                credentials, journey, scheme_account_entry, headers.get("X-azure-ref", None) if headers else None
             )
             points, account_status, dw_event = self._process_midas_response(response, scheme_account_entry)
             self._received_balance_checks(scheme_account_entry)

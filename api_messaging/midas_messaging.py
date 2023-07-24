@@ -40,7 +40,7 @@ def send_midas_join_request(
         join_data={"encrypted_credentials": encrypted_credentials},
     )
 
-    to_midas(message, headers.get("x-azure-ref", None) if headers else None)
+    to_midas(message, headers.get("X-azure-ref", None) if headers else None)
 
 
 def send_midas_last_loyalty_card_removed(scheme_account_entry: SchemeAccountEntry, headers: dict = None):
@@ -55,4 +55,4 @@ def send_midas_last_loyalty_card_removed(scheme_account_entry: SchemeAccountEntr
         # message body data
         message_data={"status": str(scheme_account_entry.link_status)},
     )
-    to_midas(message, headers.get("x-azure-ref", None) if headers else None)
+    to_midas(message, headers.get("X-azure-ref", None) if headers else None)
