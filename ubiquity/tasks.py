@@ -271,7 +271,7 @@ def send_merchant_metrics_for_link_delete(
         raise ValueError(f"{date_type} in an invalid merchant metrics date_type")
 
     payload = {"scheme_account_id": scheme_account_id, f"{date_type}_date": date}
-    _send_metrics_to_atlas("PATCH", scheme_slug, payload, headers.get("x-azure-ref", None) if headers else None)
+    _send_metrics_to_atlas("PATCH", scheme_slug, payload, headers.get("X-azure-ref", None) if headers else None)
 
 
 @shared_task
@@ -549,7 +549,7 @@ def deleted_service_cleanup(user_id: int, consent: dict, history_kwargs: dict = 
     clean_history_kwargs(history_kwargs)
 
     try:  # send user info to be persisted in Atlas
-        _send_data_to_atlas(consent, headers.get("x-azure-ref", None) if headers else None)
+        _send_data_to_atlas(consent, headers.get("X-azure-ref", None) if headers else None)
     except Exception:
         sentry_sdk.capture_exception()
 

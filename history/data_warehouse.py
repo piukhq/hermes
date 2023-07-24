@@ -39,7 +39,7 @@ def get_user_consents(user: "CustomUser", scheme_account: "SchemeAccount") -> li
 
 
 def to_data_warehouse(payload: dict, headers: dict = None) -> None:
-    headers = {"X-azure-ref": headers.get("x-azure-ref", None) if headers else None}
+    headers = {"X-azure-ref": headers.get("X-azure-ref", None) if headers else None}
     if payload:
         message_sender.send(payload, headers, settings.WAREHOUSE_QUEUE_NAME)
 
