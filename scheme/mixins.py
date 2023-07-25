@@ -62,7 +62,7 @@ class BaseLinkMixin(object):
         scheme_account: SchemeAccount,
         user: "CustomUser",
         scheme_account_entry: "SchemeAccountEntry",
-        headers: dict = None,
+        headers: dict | None = None,
     ) -> dict:
         serializer.is_valid(raise_exception=True)
         return BaseLinkMixin._link_account(
@@ -75,7 +75,7 @@ class BaseLinkMixin(object):
         scheme_account: "SchemeAccount",
         user: "CustomUser",
         scheme_account_entry: "SchemeAccountEntry",
-        headers: dict = None,
+        headers: dict | None = None,
     ) -> dict:
         user_consents = []
 
@@ -288,7 +288,7 @@ class SchemeAccountJoinMixin:
         scheme_account: SchemeAccount,
         serializer: "Serializer",
         channel: str,
-        headers: dict = None,
+        headers: dict | None = None,
     ) -> t.Tuple[dict, int, SchemeAccount]:
         scheme_account_entry = scheme_account.schemeaccountentry_set.get(user=user)
         scheme_account_entry.update_scheme_account_key_credential_fields()
@@ -409,7 +409,7 @@ class SchemeAccountJoinMixin:
         user_id: int,
         channel: str,
         scheme_account_entry: SchemeAccountEntry,
-        headers: dict = None,
+        headers: dict | None = None,
     ) -> None:
         for question in scheme_account.scheme.link_questions:
             question_type = question.type
