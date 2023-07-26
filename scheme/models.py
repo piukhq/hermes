@@ -703,7 +703,7 @@ class SchemeAccount(models.Model):
         self,
         journey,
         scheme_account_entry: SchemeAccountEntry,
-        credentials_override: dict = None,
+        credentials_override: dict | None = None,
         headers: dict | None = None,
     ) -> tuple[dict | None, AccountLinkStatus, tuple[bool, AccountLinkStatus] | None]:
         points = None
@@ -780,7 +780,7 @@ class SchemeAccount(models.Model):
     def get_balance(
         self,
         scheme_account_entry: SchemeAccountEntry,
-        credentials_override: dict = None,
+        credentials_override: dict | None = None,
         journey: JourneyTypes = None,
         headers: dict | None = None,
     ) -> tuple[list[dict], tuple[bool, AccountLinkStatus] | None]:

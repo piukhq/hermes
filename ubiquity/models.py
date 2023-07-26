@@ -467,7 +467,7 @@ class SchemeAccountEntry(models.Model):
 
         return required_credentials.difference(set(credential_types))
 
-    def credentials(self, credentials_override: dict = None):
+    def credentials(self, credentials_override: dict | None = None):
         """
         Returns all credentials for this scheme_account_entry as an encoded string. The 'main_answer' credential's value
          is replaced with the main_answer value from the Scheme Account. This is to avoid problems of different
@@ -537,7 +537,7 @@ class SchemeAccountEntry(models.Model):
                 pass
         return answer
 
-    def _iceland_hack(self, credentials: dict = None, credentials_override: dict = None) -> bool:
+    def _iceland_hack(self, credentials: dict | None = None, credentials_override: dict | None = None) -> bool:
         # todo: we will need to review this for P2
 
         if self.link_status in AccountLinkStatus.all_pending_statuses():
@@ -928,7 +928,7 @@ class PllUserAssociation(models.Model):
 
     @classmethod
     def update_user_pll_by_both(
-        cls, payment_card_account: "PaymentCardAccount", scheme_account: "SchemeAccount", headers: dict = None
+        cls, payment_card_account: "PaymentCardAccount", scheme_account: "SchemeAccount", headers: dict | None = None
     ):
         wallet_pll_data = WalletPLLData(payment_card_account=payment_card_account, scheme_account=scheme_account)
         # these are pll user links to all wallets which have this payment_card_account
@@ -945,7 +945,7 @@ class PllUserAssociation(models.Model):
             user_pll_status_change_event(link, previous_slug, previous_state, headers)
 
     @classmethod
-    def update_user_pll_by_pay_account(cls, payment_card_account: "PaymentCardAccount", headers: dict = None):
+    def update_user_pll_by_pay_account(cls, payment_card_account: "PaymentCardAccount", headers: dict | None = None):
         wallet_pll_data = WalletPLLData(payment_card_account=payment_card_account)
         # these are pll user links to all wallets which have this payment_card_account
         wallet_pll_records = wallet_pll_data.all_except_collision()
@@ -982,7 +982,7 @@ class PllUserAssociation(models.Model):
         cls,
         payment_card_account: "PaymentCardAccount",
         scheme_account_entries: list["SchemeAccountEntry"],
-        headers: dict = None,
+        headers: dict | None = None,
     ):
         for scheme_account_entry in scheme_account_entries:
             cls.link_users_scheme_account_entry_to_payment(scheme_account_entry, payment_card_account, headers)
@@ -993,7 +993,7 @@ class PllUserAssociation(models.Model):
         scheme_account: "SchemeAccount",
         payment_card_accounts: list["PaymentCardAccount"],
         user: "CustomUser",
-        headers: dict = None,
+        headers: dict | None = None,
     ):
         scheme_user_entry = SchemeAccountEntry.objects.select_related("scheme_account").get(
             user=user, scheme_account=scheme_account, scheme_account__is_deleted=False
@@ -1005,7 +1005,7 @@ class PllUserAssociation(models.Model):
         cls,
         scheme_account_entry: SchemeAccountEntry,
         payment_card_accounts: list["PaymentCardAccount"],
-        headers: dict = None,
+        headers: dict | None = None,
     ):
         for payment_card_account in payment_card_accounts:
             if isinstance(payment_card_account, int):  # In background tasks a list of ids is sent rather than objects
@@ -1025,7 +1025,7 @@ class PllUserAssociation(models.Model):
 
     @classmethod
     def link_users_scheme_account_entry_to_payment(
-        cls, scheme_account_entry: SchemeAccountEntry, payment_card_account: "PaymentCardAccount", headers: dict = None
+        cls, scheme_account_entry: SchemeAccountEntry, payment_card_account: "PaymentCardAccount", headers: dict | None = None
     ) -> "PllUserAssociation":
         """
         This is called after a new scheme account entry or payment card is created and a user PLL
@@ -1149,7 +1149,7 @@ class PaymentCardSchemeEntry(models.Model):
                 )
 
     @classmethod
-    def deactivate_activations(cls, activations: dict, headers: dict = None):
+    def deactivate_activations(cls, activations: dict, headers: dict | None = None):
         """If an activation cannot be supported by an active link then deactivate it if activated"""
         for activation in activations.values():
             # check if any entries require the activation - deactivate if not used

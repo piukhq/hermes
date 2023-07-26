@@ -71,7 +71,7 @@ def activate(activation, data: dict):
 
 
 @shared_task
-def send_activation(activation, data: dict, history_kwargs: dict = None):
+def send_activation(activation, data: dict, history_kwargs: dict | None = None):
     set_history_kwargs(history_kwargs)
     status, result = activate(activation, data)
     if status == PeriodicRetryStatus.REQUIRED:
@@ -92,7 +92,7 @@ def send_activation(activation, data: dict, history_kwargs: dict = None):
     clean_history_kwargs(history_kwargs)
 
 
-def deactivate(activation, data: dict, headers: dict = None):
+def deactivate(activation, data: dict, headers: dict | None = None):
     activation.status = activation.DEACTIVATING
     activation.save(update_fields=["status"])
 
@@ -109,7 +109,7 @@ def deactivate(activation, data: dict, headers: dict = None):
 
 
 @shared_task
-def send_deactivation(activation, history_kwargs: dict = None, headers: dict = None):
+def send_deactivation(activation, history_kwargs: dict | None = None, headers: dict | None = None):
     set_history_kwargs(history_kwargs)
     data = {
         "payment_token": activation.payment_card_account.psp_token,

@@ -254,7 +254,7 @@ class PaymentCardCreationMixin:
 
     @staticmethod
     def _collect_creation_data(
-        request_data: dict, allowed_issuers: t.List[int], version: "Version", bundle_id: str = None
+        request_data: dict, allowed_issuers: t.List[int], version: "Version", bundle_id: str | None = None
     ) -> t.Tuple[dict, dict]:
         try:
             pcard_data = VersionedSerializerMixin.get_serializer_by_version(

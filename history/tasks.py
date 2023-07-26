@@ -13,7 +13,7 @@ if typing.TYPE_CHECKING:
 
 
 @shared_task
-def record_history(model_name: str, headers: dict = None, **kwargs) -> None:
+def record_history(model_name: str, headers: dict | None = None, **kwargs) -> None:
     # Django is able to convert enums to the value before saving to the db but the serializer below will
     # raise an error for any enums. This is to convert to the value so no errors are raised, without having
     # to add .value to the enums in the code.
@@ -37,26 +37,26 @@ def record_history(model_name: str, headers: dict = None, **kwargs) -> None:
 
 
 @shared_task
-def join_outcome_event(success: bool, scheme_account_entry: "SchemeAccountEntry", headers: dict = None) -> None:
+def join_outcome_event(success: bool, scheme_account_entry: "SchemeAccountEntry", headers: dict | None = None) -> None:
     join_outcome(success, scheme_account_entry, headers)
 
 
 @shared_task
 def add_auth_outcome_task(
-    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None, headers: dict = None
+    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object | None = None, headers: dict | None = None
 ) -> None:
     add_auth_outcome(success, scheme_account_entry, date_time, headers)
 
 
 @shared_task
 def auth_outcome_task(
-    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None, headers: dict = None
+    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object | None = None, headers: dict | None = None
 ) -> None:
     auth_outcome(success, scheme_account_entry, date_time, headers)
 
 
 @shared_task
-def register_outcome_event(success: bool, scheme_account_entry: "SchemeAccountEntry", headers: dict = None) -> None:
+def register_outcome_event(success: bool, scheme_account_entry: "SchemeAccountEntry", headers: dict | None = None) -> None:
     register_outcome(success, scheme_account_entry, headers)
 
 

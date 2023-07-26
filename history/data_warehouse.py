@@ -38,14 +38,14 @@ def get_user_consents(user: "CustomUser", scheme_account: "SchemeAccount") -> li
     return formatted_consents or None
 
 
-def to_data_warehouse(payload: dict, headers: dict = None) -> None:
+def to_data_warehouse(payload: dict, headers: dict | None = None) -> None:
     headers = {"X-azure-ref": headers.get("X-azure-ref", None) if headers else None}
     if payload:
         message_sender.send(payload, headers, settings.WAREHOUSE_QUEUE_NAME)
 
 
 def addauth_request_lc_event(
-    user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str, date_time: object = None, headers: dict = None
+    user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str, date_time: object | None = None, headers: dict | None = None
 ):
     payload = {
         "event_type": "lc.addandauth.request",
@@ -63,7 +63,7 @@ def addauth_request_lc_event(
 
 
 def auth_request_lc_event(
-    user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str, date_time: object = None, headers: dict = None
+    user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str, date_time: object | None = None, headers: dict | None = None
 ):
     payload = {
         "event_type": "lc.auth.request",
@@ -81,7 +81,7 @@ def auth_request_lc_event(
 
 
 def register_lc_event(
-    scheme_account_entry: "SchemeAccountEntry", bundle_id: str, date_time: object = None, headers: dict = None
+    scheme_account_entry: "SchemeAccountEntry", bundle_id: str, date_time: object | None = None, headers: dict | None = None
 ):
     payload = {
         "event_type": "lc.register.request",
@@ -99,7 +99,7 @@ def register_lc_event(
 
 
 def join_request_lc_event(
-    scheme_account_entry: "SchemeAccountEntry", bundle_id: str, date_time: object = None, headers: dict = None
+    scheme_account_entry: "SchemeAccountEntry", bundle_id: str, date_time: object | None = None, headers: dict | None = None
 ):
     payload = {
         "event_type": "lc.join.request",
@@ -116,7 +116,7 @@ def join_request_lc_event(
 
 
 def remove_loyalty_card_event(
-    scheme_account_entry: "SchemeAccountEntry", date_time: object = None, headers: dict = None
+    scheme_account_entry: "SchemeAccountEntry", date_time: object | None = None, headers: dict | None = None
 ):
     user = scheme_account_entry.user
     scheme_account = scheme_account_entry.scheme_account
@@ -139,7 +139,7 @@ def remove_loyalty_card_event(
 
 
 def join_outcome(
-    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None, headers: dict = None
+    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object | None = None, headers: dict | None = None
 ):
     extra_data = {}
     if success:
@@ -169,7 +169,7 @@ def join_outcome(
 
 
 def add_auth_outcome(
-    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None, headers: dict = None
+    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object | None = None, headers: dict | None = None
 ):
     extra_data = {}
     if success:
@@ -196,7 +196,7 @@ def add_auth_outcome(
 
 
 def auth_outcome(
-    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None, headers: dict = None
+    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object | None = None, headers: dict | None = None
 ):
     extra_data = {}
     if success:
@@ -223,7 +223,7 @@ def auth_outcome(
 
 
 def register_outcome(
-    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None, headers: dict = None
+    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object | None = None, headers: dict | None = None
 ):
     extra_data = {}
     if success:
@@ -343,7 +343,7 @@ event_map = {
 }
 
 
-def history_event(model_name: str, data: dict, headers: dict = None):
+def history_event(model_name: str, data: dict, headers: dict | None = None):
     if model_name in event_map and data.get("change_type") in event_map.get(model_name, {}):
         event_info = event_map[model_name][data["change_type"]]
         origin = "channel"
@@ -377,7 +377,7 @@ def history_event(model_name: str, data: dict, headers: dict = None):
 
 
 def user_pll_status_change_event(
-    user_pll: "PllUserAssociation", previous_slug: str, previous_state: int = None, headers: dict = None
+    user_pll: "PllUserAssociation", previous_slug: str, previous_state: int | None = None, headers: dict | None = None
 ) -> None:
     # Only trigger an event when there's a state change or slug change
     if previous_state != user_pll.state or previous_slug != user_pll.slug:
@@ -422,6 +422,6 @@ def generate_pll_delete_payload(user_plls: list["PllUserAssociation"]):
     return event_payloads
 
 
-def user_pll_delete_event(payloads: list[dict], headers: dict = None) -> None:
+def user_pll_delete_event(payloads: list[dict], headers: dict | None = None) -> None:
     for payload in payloads:
         to_data_warehouse(payload, headers)
