@@ -43,20 +43,28 @@ def join_outcome_event(success: bool, scheme_account_entry: "SchemeAccountEntry"
 
 @shared_task
 def add_auth_outcome_task(
-    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object | None = None, headers: dict | None = None
+    success: bool,
+    scheme_account_entry: "SchemeAccountEntry",
+    date_time: object | None = None,
+    headers: dict | None = None,
 ) -> None:
     add_auth_outcome(success, scheme_account_entry, date_time, headers)
 
 
 @shared_task
 def auth_outcome_task(
-    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object | None = None, headers: dict | None = None
+    success: bool,
+    scheme_account_entry: "SchemeAccountEntry",
+    date_time: object | None = None,
+    headers: dict | None = None,
 ) -> None:
     auth_outcome(success, scheme_account_entry, date_time, headers)
 
 
 @shared_task
-def register_outcome_event(success: bool, scheme_account_entry: "SchemeAccountEntry", headers: dict | None = None) -> None:
+def register_outcome_event(
+    success: bool, scheme_account_entry: "SchemeAccountEntry", headers: dict | None = None
+) -> None:
     register_outcome(success, scheme_account_entry, headers)
 
 

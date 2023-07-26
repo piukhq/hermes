@@ -45,7 +45,11 @@ def to_data_warehouse(payload: dict, headers: dict | None = None) -> None:
 
 
 def addauth_request_lc_event(
-    user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str, date_time: object | None = None, headers: dict | None = None
+    user: "CustomUser",
+    scheme_account: "SchemeAccount",
+    bundle_id: str,
+    date_time: object | None = None,
+    headers: dict | None = None,
 ):
     payload = {
         "event_type": "lc.addandauth.request",
@@ -63,7 +67,11 @@ def addauth_request_lc_event(
 
 
 def auth_request_lc_event(
-    user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str, date_time: object | None = None, headers: dict | None = None
+    user: "CustomUser",
+    scheme_account: "SchemeAccount",
+    bundle_id: str,
+    date_time: object | None = None,
+    headers: dict | None = None,
 ):
     payload = {
         "event_type": "lc.auth.request",
@@ -81,7 +89,10 @@ def auth_request_lc_event(
 
 
 def register_lc_event(
-    scheme_account_entry: "SchemeAccountEntry", bundle_id: str, date_time: object | None = None, headers: dict | None = None
+    scheme_account_entry: "SchemeAccountEntry",
+    bundle_id: str,
+    date_time: object | None = None,
+    headers: dict | None = None,
 ):
     payload = {
         "event_type": "lc.register.request",
@@ -99,7 +110,10 @@ def register_lc_event(
 
 
 def join_request_lc_event(
-    scheme_account_entry: "SchemeAccountEntry", bundle_id: str, date_time: object | None = None, headers: dict | None = None
+    scheme_account_entry: "SchemeAccountEntry",
+    bundle_id: str,
+    date_time: object | None = None,
+    headers: dict | None = None,
 ):
     payload = {
         "event_type": "lc.join.request",
@@ -139,7 +153,10 @@ def remove_loyalty_card_event(
 
 
 def join_outcome(
-    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object | None = None, headers: dict | None = None
+    success: bool,
+    scheme_account_entry: "SchemeAccountEntry",
+    date_time: object | None = None,
+    headers: dict | None = None,
 ):
     extra_data = {}
     if success:
@@ -169,7 +186,10 @@ def join_outcome(
 
 
 def add_auth_outcome(
-    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object | None = None, headers: dict | None = None
+    success: bool,
+    scheme_account_entry: "SchemeAccountEntry",
+    date_time: object | None = None,
+    headers: dict | None = None,
 ):
     extra_data = {}
     if success:
@@ -196,7 +216,10 @@ def add_auth_outcome(
 
 
 def auth_outcome(
-    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object | None = None, headers: dict | None = None
+    success: bool,
+    scheme_account_entry: "SchemeAccountEntry",
+    date_time: object | None = None,
+    headers: dict | None = None,
 ):
     extra_data = {}
     if success:
@@ -223,7 +246,10 @@ def auth_outcome(
 
 
 def register_outcome(
-    success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object | None = None, headers: dict | None = None
+    success: bool,
+    scheme_account_entry: "SchemeAccountEntry",
+    date_time: object | None = None,
+    headers: dict | None = None,
 ):
     extra_data = {}
     if success:

@@ -105,7 +105,9 @@ def async_link(
 
 
 @shared_task
-def async_balance(scheme_account_entry: "SchemeAccountEntry", delete_balance=False, headers: dict | None = None) -> None:
+def async_balance(
+    scheme_account_entry: "SchemeAccountEntry", delete_balance=False, headers: dict | None = None
+) -> None:
     if delete_balance:
         scheme_account_entry.scheme_account.delete_cached_balance()
         scheme_account_entry.scheme_account.delete_saved_balance()
@@ -324,7 +326,10 @@ def deleted_payment_card_cleanup(
 
 @shared_task
 def deleted_membership_card_cleanup(
-    scheme_account_entry: SchemeAccountEntry, delete_date: str, history_kwargs: dict | None = None, headers: dict | None = None
+    scheme_account_entry: SchemeAccountEntry,
+    delete_date: str,
+    history_kwargs: dict | None = None,
+    headers: dict | None = None,
 ) -> None:
     set_history_kwargs(history_kwargs)
     scheme_slug = scheme_account_entry.scheme_account.scheme.slug
@@ -518,7 +523,9 @@ def _delete_user_payment_cards(
 
 
 @shared_task
-def deleted_service_cleanup(user_id: int, consent: dict, history_kwargs: dict | None = None, headers: dict | None = None) -> None:
+def deleted_service_cleanup(
+    user_id: int, consent: dict, history_kwargs: dict | None = None, headers: dict | None = None
+) -> None:
     set_history_kwargs(history_kwargs)
     user = CustomUser.all_objects.get(id=user_id)
     # A user should always have a consent in normal circumstances but this is just in case one doesn't so

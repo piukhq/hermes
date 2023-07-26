@@ -1025,7 +1025,10 @@ class PllUserAssociation(models.Model):
 
     @classmethod
     def link_users_scheme_account_entry_to_payment(
-        cls, scheme_account_entry: SchemeAccountEntry, payment_card_account: "PaymentCardAccount", headers: dict | None = None
+        cls,
+        scheme_account_entry: SchemeAccountEntry,
+        payment_card_account: "PaymentCardAccount",
+        headers: dict | None = None,
     ) -> "PllUserAssociation":
         """
         This is called after a new scheme account entry or payment card is created and a user PLL
