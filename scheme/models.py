@@ -703,8 +703,8 @@ class SchemeAccount(models.Model):
         self,
         journey,
         scheme_account_entry: SchemeAccountEntry,
-        credentials_override: dict = None,
-        headers: dict = None,
+        credentials_override: dict | None = None,
+        headers: dict | None = None,
     ) -> tuple[dict | None, AccountLinkStatus, tuple[bool, AccountLinkStatus] | None]:
         points = None
         account_status = scheme_account_entry.link_status
@@ -738,7 +738,7 @@ class SchemeAccount(models.Model):
 
         return saved
 
-    def _get_balance_request(self, credentials, journey, scheme_account_entry, x_azure_ref: str = None):
+    def _get_balance_request(self, credentials, journey, scheme_account_entry, x_azure_ref: str | None = None):
         # todo: liaise with Midas to work out what we need to see here
         user_set = ",".join([str(u.id) for u in self.user_set.all()])
         parameters = {
@@ -780,9 +780,9 @@ class SchemeAccount(models.Model):
     def get_balance(
         self,
         scheme_account_entry: SchemeAccountEntry,
-        credentials_override: dict = None,
+        credentials_override: dict | None = None,
         journey: JourneyTypes = None,
-        headers: dict = None,
+        headers: dict | None = None,
     ) -> tuple[list[dict], tuple[bool, AccountLinkStatus] | None]:
         old_status = scheme_account_entry.link_status
         journey = journey or self.get_journey_type(scheme_account_entry.authorised)

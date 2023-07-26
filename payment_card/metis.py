@@ -21,7 +21,7 @@ def _generate_card_json(account: "PaymentCardAccount", retry_id: int = -1) -> di
 
 
 def enrol_new_payment_card(
-    account: "PaymentCardAccount", run_async: bool = True, retry_id: int = -1, headers: dict = None
+    account: "PaymentCardAccount", run_async: bool = True, retry_id: int = -1, headers: dict | None = None
 ) -> None:
     args = (RequestMethod.POST, "/payment_service/payment_card", _generate_card_json(account, retry_id), headers)
     if run_async:
@@ -31,7 +31,7 @@ def enrol_new_payment_card(
 
 
 def update_payment_card(
-    account: "PaymentCardAccount", run_async: bool = True, retry_id: int = -1, headers: dict = None
+    account: "PaymentCardAccount", run_async: bool = True, retry_id: int = -1, headers: dict | None = None
 ) -> None:
     args = (RequestMethod.POST, "/payment_service/payment_card/update", _generate_card_json(account, retry_id), headers)
     if run_async:
@@ -45,7 +45,7 @@ def delete_payment_card(
     run_async: bool = True,
     retry_id: int = -1,
     status: object = VopActivation.ACTIVATED,
-    headers: dict = None,
+    headers: dict | None = None,
 ) -> None:
     url = "/payment_service/payment_card"
     payload = _generate_card_json(account, retry_id)
@@ -73,7 +73,7 @@ def retry_enrol_existing_payment_card(account_id: int, run_async: bool = True, r
 
 
 def enrol_existing_payment_card(
-    account: "PaymentCardAccount", run_async: bool = True, retry_id: int = -1, headers: dict = None
+    account: "PaymentCardAccount", run_async: bool = True, retry_id: int = -1, headers: dict | None = None
 ) -> None:
     provider = account.payment_card.system
 

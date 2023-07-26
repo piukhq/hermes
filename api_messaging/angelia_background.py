@@ -66,7 +66,7 @@ class AngeliaContext:
 
     """
 
-    def __init__(self, message: dict, journey: str = None):
+    def __init__(self, message: dict, journey: str | None = None):
         self.user_id = message.get("user_id")
         self.channel_slug = message.get("channel_slug")
         self.entry_id = message.get("entry_id")
@@ -164,7 +164,7 @@ def loyalty_card_add_and_register(message: dict, headers: dict) -> None:
 
 
 def link_payment_cards(
-    user_id: int, scheme_account_entry: SchemeAccountEntry, auto_link: bool = True, headers: dict = None
+    user_id: int, scheme_account_entry: SchemeAccountEntry, auto_link: bool = True, headers: dict | None = None
 ):
     if auto_link:
         payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=user_id).values_list(
@@ -452,7 +452,7 @@ class FakeRelatedModel:
         self.pk = object_id
 
 
-def record_mapper_history(model_name: str, ac: AngeliaContext, message: dict, headers: dict = None):
+def record_mapper_history(model_name: str, ac: AngeliaContext, message: dict, headers: dict | None = None):
     payload = message.get("payload", {})
     related = message.get("related", {})
     change_details = message.get("change", "")

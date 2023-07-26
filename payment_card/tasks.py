@@ -65,7 +65,11 @@ def expired_payment_void_task() -> None:
 
 @shared_task
 def metis_delete_cards_and_activations(
-    method: RequestMethod, endpoint: str, payload: dict, status: object = VopActivation.ACTIVATED, headers: dict = None
+    method: RequestMethod,
+    endpoint: str,
+    payload: dict,
+    status: object = VopActivation.ACTIVATED,
+    headers: dict | None = None,
 ) -> None:
     payload["activations"] = vop_deactivation_dict_by_payment_card_id(payload["id"], status)
     args = (
@@ -78,7 +82,7 @@ def metis_delete_cards_and_activations(
 
 
 @shared_task
-def metis_request(method: RequestMethod, endpoint: str, payload: dict, headers: dict = None) -> None:
+def metis_request(method: RequestMethod, endpoint: str, payload: dict, headers: dict | None = None) -> None:
     response = request(
         method.value,
         settings.METIS_URL + endpoint,

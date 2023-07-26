@@ -63,7 +63,7 @@ def retry_deactivation(data):
     retry_obj.results += [result]
 
 
-def _send_metrics_to_atlas(method: str, slug: str, payload: dict, x_azure_ref: str = None) -> None:
+def _send_metrics_to_atlas(method: str, slug: str, payload: dict, x_azure_ref: str | None = None) -> None:
     headers = {
         "Authorization": f"Token {settings.SERVICE_API_KEY}",
         "Content-Type": "application/json",
@@ -78,8 +78,8 @@ def async_link(
     scheme_account_id: int,
     user_id: int,
     payment_cards_to_link: list,
-    history_kwargs: dict = None,
-    headers: dict = None,
+    history_kwargs: dict | None = None,
+    headers: dict | None = None,
 ) -> None:
     set_history_kwargs(history_kwargs)
 
@@ -105,7 +105,9 @@ def async_link(
 
 
 @shared_task
-def async_balance(scheme_account_entry: "SchemeAccountEntry", delete_balance=False, headers: dict = None) -> None:
+def async_balance(
+    scheme_account_entry: "SchemeAccountEntry", delete_balance=False, headers: dict | None = None
+) -> None:
     if delete_balance:
         scheme_account_entry.scheme_account.delete_cached_balance()
         scheme_account_entry.scheme_account.delete_saved_balance()
@@ -152,7 +154,7 @@ def async_balance_with_updated_credentials(
 
 
 @shared_task
-def async_all_balance(user_id: int, channels_permit, headers: dict = None) -> None:
+def async_all_balance(user_id: int, channels_permit, headers: dict | None = None) -> None:
     query = {"user": user_id, "scheme_account__is_deleted": False}
     exclude_query = {"link_status__in": AccountLinkStatus.exclude_balance_statuses()}
     entries = channels_permit.related_model_query(
@@ -180,8 +182,8 @@ def async_join(
     validated_data: dict,
     channel: str,
     payment_cards_to_link: list,
-    history_kwargs: dict = None,
-    headers: dict = None,
+    history_kwargs: dict | None = None,
+    headers: dict | None = None,
 ) -> None:
     set_history_kwargs(history_kwargs)
 
@@ -208,9 +210,9 @@ def async_registration(
     scheme_account_id: int,
     validated_data: dict,
     channel: str,
-    history_kwargs: dict = None,
+    history_kwargs: dict | None = None,
     delete_balance=False,
-    headers: dict = None,
+    headers: dict | None = None,
 ) -> None:
     set_history_kwargs(history_kwargs)
     user = CustomUser.objects.get(id=user_id)
@@ -228,7 +230,7 @@ def async_registration(
 
 @shared_task
 def async_join_journey_fetch_balance_and_update_status(
-    scheme_account_id: int, scheme_account_entry_id: int, headers: dict = None
+    scheme_account_id: int, scheme_account_entry_id: int, headers: dict | None = None
 ) -> None:
     # After successful join, keep scheme account entry as pending until we have fetched balance
     # Pending used rather than join pending to not re-trigger this logic
@@ -265,7 +267,7 @@ def send_merchant_metrics_for_new_account(user_id: int, scheme_account_id: int, 
 
 @shared_task
 def send_merchant_metrics_for_link_delete(
-    scheme_account_id: int, scheme_slug: str, date: str, date_type: str, headers: dict = None
+    scheme_account_id: int, scheme_slug: str, date: str, date_type: str, headers: dict | None = None
 ) -> None:
     if date_type not in ("link", "delete"):
         raise ValueError(f"{date_type} in an invalid merchant metrics date_type")
@@ -279,8 +281,8 @@ def deleted_payment_card_cleanup(
     payment_card_id: t.Optional[int],
     payment_card_hash: t.Optional[str],
     user_id: int,
-    history_kwargs: dict = None,
-    headers: dict = None,
+    history_kwargs: dict | None = None,
+    headers: dict | None = None,
 ) -> None:
     set_history_kwargs(history_kwargs)
     if payment_card_id is not None:
@@ -324,7 +326,10 @@ def deleted_payment_card_cleanup(
 
 @shared_task
 def deleted_membership_card_cleanup(
-    scheme_account_entry: SchemeAccountEntry, delete_date: str, history_kwargs: dict = None, headers: dict = None
+    scheme_account_entry: SchemeAccountEntry,
+    delete_date: str,
+    history_kwargs: dict | None = None,
+    headers: dict | None = None,
 ) -> None:
     set_history_kwargs(history_kwargs)
     scheme_slug = scheme_account_entry.scheme_account.scheme.slug
@@ -435,7 +440,7 @@ def bulk_deleted_membership_card_cleanup(
     )
 
 
-def _send_data_to_atlas(consent: dict, x_azure_ref: str = None) -> None:
+def _send_data_to_atlas(consent: dict, x_azure_ref: str | None = None) -> None:
     url = f"{settings.ATLAS_URL}/audit/ubiquity_user/save"
     headers = {
         "Content-Type": "application/json",
@@ -450,7 +455,7 @@ def _send_data_to_atlas(consent: dict, x_azure_ref: str = None) -> None:
 
 
 def _delete_user_membership_cards(
-    user: "CustomUser", m_cards: list[SchemeAccount], send_deactivation: bool = True, headers: dict = None
+    user: "CustomUser", m_cards: list[SchemeAccount], send_deactivation: bool = True, headers: dict | None = None
 ) -> None:
     cards_to_delete = []
     for card in m_cards:
@@ -476,7 +481,7 @@ def _delete_user_membership_cards(
 
 
 def _delete_user_payment_cards(
-    user: "CustomUser", p_cards: list[PaymentCardAccount], run_async: bool = True, headers: dict = None
+    user: "CustomUser", p_cards: list[PaymentCardAccount], run_async: bool = True, headers: dict | None = None
 ) -> None:
     cards_to_delete = []
     for card in p_cards:
@@ -518,7 +523,9 @@ def _delete_user_payment_cards(
 
 
 @shared_task
-def deleted_service_cleanup(user_id: int, consent: dict, history_kwargs: dict = None, headers: dict = None) -> None:
+def deleted_service_cleanup(
+    user_id: int, consent: dict, history_kwargs: dict | None = None, headers: dict | None = None
+) -> None:
     set_history_kwargs(history_kwargs)
     user = CustomUser.all_objects.get(id=user_id)
     # A user should always have a consent in normal circumstances but this is just in case one doesn't so
@@ -592,7 +599,7 @@ The calls are from other tasks so no task instance was required.
 
 @shared_task
 def auto_link_membership_to_payments(
-    payment_cards_to_link: list, membership_card: t.Union[SchemeAccount, int], history_kwargs: dict = None
+    payment_cards_to_link: list, membership_card: t.Union[SchemeAccount, int], history_kwargs: dict | None = None
 ) -> None:
     set_history_kwargs(history_kwargs)
 
@@ -705,8 +712,8 @@ def auto_link_payment_to_memberships(
     payment_card_account: t.Union[PaymentCardAccount, int],
     user_id: int,
     just_created: bool,
-    history_kwargs: dict = None,
-    headers: dict = None,
+    history_kwargs: dict | None = None,
+    headers: dict | None = None,
 ) -> None:
     set_history_kwargs(history_kwargs)
 

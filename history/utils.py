@@ -226,9 +226,9 @@ def _format_history_objs(
 def _history_bulk(
     model: Type["Model"],
     objs: Iterable,
-    update_fields: list = None,
+    update_fields: list | None = None,
     *,
-    batch_size: int = None,
+    batch_size: int | None = None,
     ignore_conflicts: bool = False,
     update: bool = False,
 ) -> list:
@@ -261,12 +261,12 @@ def _history_bulk(
 
 
 def history_bulk_update(
-    model: Type["Model"], objs: Iterable, update_fields: list = None, batch_size: int = None
+    model: Type["Model"], objs: Iterable, update_fields: list | None = None, batch_size: int | None = None
 ) -> None:
     _history_bulk(model, objs, update_fields, batch_size=batch_size, update=True)
 
 
 def history_bulk_create(
-    model: Type["Model"], objs: Iterable, batch_size: int = None, ignore_conflicts: bool = False
+    model: Type["Model"], objs: Iterable, batch_size: int | None = None, ignore_conflicts: bool = False
 ) -> list:
     return _history_bulk(model, objs, batch_size=batch_size, ignore_conflicts=ignore_conflicts, update=False)

@@ -248,7 +248,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         return Response({"id": scheme_account.id, "status": new_status_code})
 
     @staticmethod
-    def process_new_status(new_status_code, previous_status, scheme_account_entry, headers: dict = None):
+    def process_new_status(new_status_code, previous_status, scheme_account_entry, headers: dict | None = None):
         update_fields = []
 
         pending_statuses = (
@@ -303,7 +303,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             scheme_account.save(update_fields=update_fields)
 
     def process_active_accounts(
-        self, scheme_account, journey, new_status_code, scheme_account_entry_id, headers: dict = None
+        self, scheme_account, journey, new_status_code, scheme_account_entry_id, headers: dict | None = None
     ):
         if journey in ["join", "join-with-balance"] and new_status_code == AccountLinkStatus.ACTIVE:
             join_date = timezone.now()
