@@ -37,7 +37,7 @@ class GenerateJWToken:
         organisation_id: str,
         client_secret: str,
         bundle_id: str,
-        email: str = None,
+        email: str | None = None,
         magic_link: bool = False,
         expired: bool = False,
     ):

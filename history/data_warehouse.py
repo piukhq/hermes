@@ -38,14 +38,18 @@ def get_user_consents(user: "CustomUser", scheme_account: "SchemeAccount") -> li
     return formatted_consents or None
 
 
-def to_data_warehouse(payload: dict) -> None:
-    headers = {}
+def to_data_warehouse(payload: dict, headers: dict | None = None) -> None:
+    headers = {"X-azure-ref": headers.get("X-azure-ref", None) if headers else None}
     if payload:
         message_sender.send(payload, headers, settings.WAREHOUSE_QUEUE_NAME)
 
 
 def addauth_request_lc_event(
-    user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str, date_time: object = None
+    user: "CustomUser",
+    scheme_account: "SchemeAccount",
+    bundle_id: str,
+    date_time: object | None = None,
+    headers: dict | None = None,
 ):
     payload = {
         "event_type": "lc.addandauth.request",
@@ -59,11 +63,15 @@ def addauth_request_lc_event(
         "loyalty_plan": scheme_account.scheme_id,
         "main_answer": get_main_answer(scheme_account),
     }
-    to_data_warehouse(payload)
+    to_data_warehouse(payload, headers)
 
 
 def auth_request_lc_event(
-    user: "CustomUser", scheme_account: "SchemeAccount", bundle_id: str, date_time: object = None
+    user: "CustomUser",
+    scheme_account: "SchemeAccount",
+    bundle_id: str,
+    date_time: object | None = None,
+    headers: dict | None = None,
 ):
     payload = {
         "event_type": "lc.auth.request",
@@ -77,10 +85,15 @@ def auth_request_lc_event(
         "loyalty_plan": scheme_account.scheme_id,
         "main_answer": get_main_answer(scheme_account),
     }
-    to_data_warehouse(payload)
+    to_data_warehouse(payload, headers)
 
 
-def register_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id: str, date_time: object = None):
+def register_lc_event(
+    scheme_account_entry: "SchemeAccountEntry",
+    bundle_id: str,
+    date_time: object | None = None,
+    headers: dict | None = None,
+):
     payload = {
         "event_type": "lc.register.request",
         "origin": "channel",
@@ -93,10 +106,15 @@ def register_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id: str
         "loyalty_plan": scheme_account_entry.scheme_account.scheme_id,
         "main_answer": get_main_answer(scheme_account_entry.scheme_account),
     }
-    to_data_warehouse(payload)
+    to_data_warehouse(payload, headers)
 
 
-def join_request_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id: str, date_time: object = None):
+def join_request_lc_event(
+    scheme_account_entry: "SchemeAccountEntry",
+    bundle_id: str,
+    date_time: object | None = None,
+    headers: dict | None = None,
+):
     payload = {
         "event_type": "lc.join.request",
         "origin": "channel",
@@ -108,10 +126,12 @@ def join_request_lc_event(scheme_account_entry: "SchemeAccountEntry", bundle_id:
         "scheme_account_id": scheme_account_entry.scheme_account.id,
         "loyalty_plan": scheme_account_entry.scheme_account.scheme_id,
     }
-    to_data_warehouse(payload)
+    to_data_warehouse(payload, headers)
 
 
-def remove_loyalty_card_event(scheme_account_entry: "SchemeAccountEntry", date_time: object = None):
+def remove_loyalty_card_event(
+    scheme_account_entry: "SchemeAccountEntry", date_time: object | None = None, headers: dict | None = None
+):
     user = scheme_account_entry.user
     scheme_account = scheme_account_entry.scheme_account
     cabs = user.client.clientapplicationbundle_set.all()
@@ -129,10 +149,15 @@ def remove_loyalty_card_event(scheme_account_entry: "SchemeAccountEntry", date_t
             "main_answer": get_main_answer(scheme_account),
             "status": scheme_account_entry.link_status,
         }
-        to_data_warehouse(payload)
+        to_data_warehouse(payload, headers)
 
 
-def join_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None):
+def join_outcome(
+    success: bool,
+    scheme_account_entry: "SchemeAccountEntry",
+    date_time: object | None = None,
+    headers: dict | None = None,
+):
     extra_data = {}
     if success:
         event_type = "lc.join.success"
@@ -157,10 +182,15 @@ def join_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", date
             "loyalty_plan": scheme_account_entry.scheme_account.scheme_id,
             **extra_data,
         }
-        to_data_warehouse(payload)
+        to_data_warehouse(payload, headers)
 
 
-def add_auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None):
+def add_auth_outcome(
+    success: bool,
+    scheme_account_entry: "SchemeAccountEntry",
+    date_time: object | None = None,
+    headers: dict | None = None,
+):
     extra_data = {}
     if success:
         event_type = "lc.addandauth.success"
@@ -182,10 +212,15 @@ def add_auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", 
         "loyalty_plan": scheme_account_entry.scheme_account.scheme_id,
         **extra_data,
     }
-    to_data_warehouse(payload)
+    to_data_warehouse(payload, headers)
 
 
-def auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None):
+def auth_outcome(
+    success: bool,
+    scheme_account_entry: "SchemeAccountEntry",
+    date_time: object | None = None,
+    headers: dict | None = None,
+):
     extra_data = {}
     if success:
         event_type = "lc.auth.success"
@@ -207,10 +242,15 @@ def auth_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", date
         "loyalty_plan": scheme_account_entry.scheme_account.scheme_id,
         **extra_data,
     }
-    to_data_warehouse(payload)
+    to_data_warehouse(payload, headers)
 
 
-def register_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", date_time: object = None):
+def register_outcome(
+    success: bool,
+    scheme_account_entry: "SchemeAccountEntry",
+    date_time: object | None = None,
+    headers: dict | None = None,
+):
     extra_data = {}
     if success:
         event_type = "lc.register.success"
@@ -235,7 +275,7 @@ def register_outcome(success: bool, scheme_account_entry: "SchemeAccountEntry", 
             "loyalty_plan": scheme_account_entry.scheme_account.scheme_id,
             **extra_data,
         }
-        to_data_warehouse(payload)
+        to_data_warehouse(payload, headers)
 
 
 def pay_account_from_entry(data: dict) -> list:
@@ -329,7 +369,7 @@ event_map = {
 }
 
 
-def history_event(model_name: str, data: dict):
+def history_event(model_name: str, data: dict, headers: dict | None = None):
     if model_name in event_map and data.get("change_type") in event_map.get(model_name, {}):
         event_info = event_map[model_name][data["change_type"]]
         origin = "channel"
@@ -359,11 +399,11 @@ def history_event(model_name: str, data: dict):
                     "event_date_time": arrow.utcnow().isoformat(),
                     **extra_data,
                 }
-                to_data_warehouse(payload)
+                to_data_warehouse(payload, headers)
 
 
 def user_pll_status_change_event(
-    user_pll: "PllUserAssociation", previous_slug: str, previous_state: int = None
+    user_pll: "PllUserAssociation", previous_slug: str, previous_state: int | None = None, headers: dict | None = None
 ) -> None:
     # Only trigger an event when there's a state change or slug change
     if previous_state != user_pll.state or previous_slug != user_pll.slug:
@@ -381,7 +421,7 @@ def user_pll_status_change_event(
             "from_state": previous_state,
             "to_state": user_pll.state,
         }
-        to_data_warehouse(payload)
+        to_data_warehouse(payload, headers)
 
 
 def generate_pll_delete_payload(user_plls: list["PllUserAssociation"]):
@@ -408,6 +448,6 @@ def generate_pll_delete_payload(user_plls: list["PllUserAssociation"]):
     return event_payloads
 
 
-def user_pll_delete_event(payloads: list[dict]) -> None:
+def user_pll_delete_event(payloads: list[dict], headers: dict | None = None) -> None:
     for payload in payloads:
-        to_data_warehouse(payload)
+        to_data_warehouse(payload, headers)

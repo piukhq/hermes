@@ -30,7 +30,7 @@ class Spreedly:
         self.void_resp = None
         self.transaction_token = ""
 
-    def purchase(self, payment_token: str, amount: int, order_id: str, gateway_token: str = None) -> None:
+    def purchase(self, payment_token: str, amount: int, order_id: str, gateway_token: str | None = None) -> None:
         if gateway_token is None:
             gateway_token = get_secret_key(SecretKeyName.SPREEDLY_GATEWAY_TOKEN)
 

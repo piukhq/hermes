@@ -62,9 +62,12 @@ class BaseLinkMixin(object):
         scheme_account: SchemeAccount,
         user: "CustomUser",
         scheme_account_entry: "SchemeAccountEntry",
+        headers: dict | None = None,
     ) -> dict:
         serializer.is_valid(raise_exception=True)
-        return BaseLinkMixin._link_account(serializer.validated_data, scheme_account, user, scheme_account_entry)
+        return BaseLinkMixin._link_account(
+            serializer.validated_data, scheme_account, user, scheme_account_entry, headers
+        )
 
     @staticmethod
     def _link_account(
@@ -72,6 +75,7 @@ class BaseLinkMixin(object):
         scheme_account: "SchemeAccount",
         user: "CustomUser",
         scheme_account_entry: "SchemeAccountEntry",
+        headers: dict | None = None,
     ) -> dict:
         user_consents = []
 
@@ -93,13 +97,15 @@ class BaseLinkMixin(object):
                 scheme_account_entry=scheme_account_entry,
             )
 
-        midas_information, dw_event = scheme_account.get_balance(scheme_account_entry)
+        midas_information, dw_event = scheme_account.get_balance(scheme_account_entry, headers=headers)
 
         # dw_event is a two piece tuple, success: bool, journey: SchemeAccount STATUS
         #  - not present for cached balances only fresh crepes
         if dw_event:
             success, journey = dw_event
-            DATAWAREHOUSE_EVENTS[journey].delay(success=success, scheme_account_entry=scheme_account_entry)
+            DATAWAREHOUSE_EVENTS[journey].delay(
+                success=success, scheme_account_entry=scheme_account_entry, headers=headers
+            )
 
         response_data = {
             "balance": midas_information,
@@ -282,6 +288,7 @@ class SchemeAccountJoinMixin:
         scheme_account: SchemeAccount,
         serializer: "Serializer",
         channel: str,
+        headers: dict | None = None,
     ) -> t.Tuple[dict, int, SchemeAccount]:
         scheme_account_entry = scheme_account.schemeaccountentry_set.get(user=user)
         scheme_account_entry.update_scheme_account_key_credential_fields()
@@ -297,7 +304,13 @@ class SchemeAccountJoinMixin:
                 self.save_user_profile(data["credentials"], user)
 
             self.post_midas_join(
-                scheme_account, data["credentials"], scheme_account.scheme.slug, user.id, channel, scheme_account_entry
+                scheme_account,
+                data["credentials"],
+                scheme_account.scheme.slug,
+                user.id,
+                channel,
+                scheme_account_entry,
+                headers=headers,
             )
 
             keys_to_remove = ["save_user_information", "credentials"]
@@ -396,6 +409,7 @@ class SchemeAccountJoinMixin:
         user_id: int,
         channel: str,
         scheme_account_entry: SchemeAccountEntry,
+        headers: dict | None = None,
     ) -> None:
         for question in scheme_account.scheme.link_questions:
             question_type = question.type
@@ -427,6 +441,7 @@ class SchemeAccountJoinMixin:
             request_id=scheme_account.id,
             account_id=scheme_account.card_number or scheme_account.barcode or scheme_account.alt_main_answer,
             encrypted_credentials=encrypted_credentials,
+            headers=headers,
         )
 
 

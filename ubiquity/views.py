@@ -254,7 +254,7 @@ class PaymentCardCreationMixin:
 
     @staticmethod
     def _collect_creation_data(
-        request_data: dict, allowed_issuers: t.List[int], version: "Version", bundle_id: str = None
+        request_data: dict, allowed_issuers: t.List[int], version: "Version", bundle_id: str | None = None
     ) -> t.Tuple[dict, dict]:
         try:
             pcard_data = VersionedSerializerMixin.get_serializer_by_version(
@@ -586,6 +586,7 @@ class MembershipCardView(
                 scheme,
                 registration_fields,
                 scheme_questions,
+                request.headers,
             )
             metrics_route = MembershipCardAddRoute.REGISTER
 
@@ -751,6 +752,7 @@ class MembershipCardView(
         scheme: Scheme,
         registration_fields: dict,
         scheme_questions: list,
+        headers: dict,
     ) -> SchemeAccount:
         journey = SchemeAccountJourney.REGISTER.value
         HISTORY_CONTEXT.journey = journey
@@ -781,6 +783,7 @@ class MembershipCardView(
                 "journey": journey,
             },
             delete_balance=True,
+            headers=headers,
         )
         return account
 

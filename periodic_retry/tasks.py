@@ -172,7 +172,13 @@ class PeriodicRetryHandler:
         logger.info(f"PeriodicRetry (id={retry_info.id}) added to {self.task_list} queue")
 
     def new(
-        self, module_name: str, function_name: str, *args, retry_kwargs: dict = None, context: dict = None, **kwargs
+        self,
+        module_name: str,
+        function_name: str,
+        *args,
+        retry_kwargs: dict | None = None,
+        context: dict | None = None,
+        **kwargs,
     ) -> PeriodicRetry:
         """Creates a new PeriodicRetry object and adds to the retry queue"""
         data = {

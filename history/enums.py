@@ -62,7 +62,7 @@ class ExcludedField(Enum):
         return {entry.value for entry in cls}
 
     @classmethod
-    def as_list(cls, filter_for: Type["Model"] = None) -> List[str]:
+    def as_list(cls, filter_for: Type["Model"] | None = None) -> List[str]:
         if filter_for:
             allowed_fields = [field.attname for field in filter_for._meta.fields]
         else:
@@ -76,7 +76,7 @@ class DeleteField(Enum):
     IS_ACTIVE = "is_active"
     NONE = "n/a"
 
-    def get_value(self, objs: Union[Iterable, Type["Model"]] = None) -> Tuple[Optional[str], bool]:
+    def get_value(self, objs: Union[Iterable, Type["Model"]] | None = None) -> Tuple[Optional[str], bool]:
         if not objs:
             field_value = False
 
