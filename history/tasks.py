@@ -32,13 +32,13 @@ def record_history(model_name: str, headers: dict | None = None, **kwargs) -> No
             # Do nothing if create object is already there
             pass
     else:
-        history_event(model_name, serializer.validated_data, headers)
+        history_event(model_name, serializer.validated_data, headers=headers)
         serializer.save()
 
 
 @shared_task
 def join_outcome_event(success: bool, scheme_account_entry: "SchemeAccountEntry", headers: dict | None = None) -> None:
-    join_outcome(success, scheme_account_entry, headers)
+    join_outcome(success, scheme_account_entry, headers=headers)
 
 
 @shared_task
@@ -48,7 +48,7 @@ def add_auth_outcome_task(
     date_time: object | None = None,
     headers: dict | None = None,
 ) -> None:
-    add_auth_outcome(success, scheme_account_entry, date_time, headers)
+    add_auth_outcome(success, scheme_account_entry, date_time, headers=headers)
 
 
 @shared_task
@@ -58,14 +58,14 @@ def auth_outcome_task(
     date_time: object | None = None,
     headers: dict | None = None,
 ) -> None:
-    auth_outcome(success, scheme_account_entry, date_time, headers)
+    auth_outcome(success, scheme_account_entry, date_time, headers=headers)
 
 
 @shared_task
 def register_outcome_event(
     success: bool, scheme_account_entry: "SchemeAccountEntry", headers: dict | None = None
 ) -> None:
-    register_outcome(success, scheme_account_entry, headers)
+    register_outcome(success, scheme_account_entry, headers=headers)
 
 
 @shared_task

@@ -191,7 +191,7 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath, headers: dict) 
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
 
         if path in [LoyaltyCardPath.REGISTER, LoyaltyCardPath.ADD_AND_REGISTER]:
-            register_lc_event(scheme_account_entry, ac.channel_slug, ac.date_time, headers)
+            register_lc_event(scheme_account_entry, ac.channel_slug, ac.date_time, headers=headers)
 
         link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link, headers=headers)
         """
@@ -218,7 +218,7 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath, headers: dict) 
 def loyalty_card_add(message: dict, headers: dict) -> None:
     with AngeliaContext(message) as ac:
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
-        link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link, headers)
+        link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link, headers=headers)
         create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
 
 
@@ -228,7 +228,7 @@ def loyalty_card_trusted_add(message: dict, headers: dict) -> None:
         scheme_account_entry = SchemeAccountEntry.objects.select_related("scheme_account").get(
             user=ac.user_id, scheme_account_id=scheme_account_id, scheme_account__is_deleted=False
         )
-        link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link, headers)
+        link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link, headers=headers)
 
         # scheme_account_id = message.get("loyalty_card_id")
         # scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
@@ -343,7 +343,7 @@ def loyalty_card_join(message: dict, headers: dict) -> None:
                     account, payment_cards_to_link, user, headers
                 )
             # send event to data warehouse
-            join_request_lc_event(entry, ac.channel_slug, ac.date_time, headers)
+            join_request_lc_event(entry, ac.channel_slug, ac.date_time, headers=headers)
             # @todo we may need to modify join_outcome to accept a different origin as it is not "merchant call back"
             # however need to agree this with data team.
             join_outcome(
@@ -351,7 +351,7 @@ def loyalty_card_join(message: dict, headers: dict) -> None:
             )  # outcome must have now time
         else:
             # send event to data warehouse
-            join_request_lc_event(entry, ac.channel_slug, ac.date_time, headers)
+            join_request_lc_event(entry, ac.channel_slug, ac.date_time, headers=headers)
             async_join(
                 scheme_account_id=account.id,
                 user_id=user.id,
@@ -369,7 +369,7 @@ def delete_loyalty_card(message: dict, headers: dict) -> None:
         scheme_account_entry = SchemeAccountEntry.objects.get(
             scheme_account_id=message.get("loyalty_card_id"), user_id=ac.user_id
         )
-        deleted_membership_card_cleanup(scheme_account_entry, ac.date_time, headers)
+        deleted_membership_card_cleanup(scheme_account_entry, ac.date_time, headers=headers)
 
 
 def delete_user(message: dict, headers: dict) -> None:
@@ -399,7 +399,7 @@ def refresh_balances(message: dict, headers: dict) -> None:
     with AngeliaContext(message) as ac:
         user = CustomUser.objects.get(pk=ac.user_id)
         permit = Permit(bundle_id=ac.channel_slug, user=user)
-        async_all_balance(ac.user_id, permit, headers)
+        async_all_balance(ac.user_id, permit, headers=headers)
         logger.info(f"User {ac.user_id} refresh balances called. ")
 
 
