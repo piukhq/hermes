@@ -117,7 +117,7 @@ def send_deactivation(activation, history_kwargs: dict | None = None, headers: d
         "activation_id": activation.activation_id,
         "id": activation.payment_card_account.id,  # improves tracking via logs esp. in Metis
     }
-    status, result = deactivate(activation, data, headers)
+    status, result = deactivate(activation, data, headers=headers)
 
     if status == PeriodicRetryStatus.REQUIRED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(

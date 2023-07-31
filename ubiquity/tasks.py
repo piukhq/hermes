@@ -112,7 +112,7 @@ def async_balance(
         scheme_account_entry.scheme_account.delete_cached_balance()
         scheme_account_entry.scheme_account.delete_saved_balance()
 
-    scheme_account_entry.scheme_account.get_balance(scheme_account_entry, headers)
+    scheme_account_entry.scheme_account.get_balance(scheme_account_entry, headers=headers)
 
 
 @shared_task
@@ -237,7 +237,7 @@ def async_join_journey_fetch_balance_and_update_status(
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
     scheme_account_entry = SchemeAccountEntry.objects.get(id=scheme_account_entry_id)
     scheme_account_entry.set_link_status(AccountLinkStatus.PENDING)
-    scheme_account.get_balance(scheme_account_entry, headers)
+    scheme_account.get_balance(scheme_account_entry, headers=headers)
 
 
 def _format_info(scheme_account: SchemeAccount, user_id: int) -> dict:
@@ -466,7 +466,7 @@ def _delete_user_membership_cards(
     user_card_entries = user.schemeaccountentry_set.all()
 
     for user_card_entry in user_card_entries:
-        remove_loyalty_card_event(user_card_entry, headers)
+        remove_loyalty_card_event(user_card_entry, headers=headers)
 
     # VOP deactivate
     links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account__in=cards_to_delete)
