@@ -6,6 +6,7 @@ from django.db import transaction
 from payment_card.models import PaymentCardAccount
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.tasks import deleted_service_cleanup
+from user.models import CustomUser
 
 if typing.TYPE_CHECKING:
     from scripts.models import ScriptResult
@@ -45,8 +46,36 @@ def do_delete_user_cleanup(entry: "ScriptResult") -> bool:
     return success
 
 
-def do_set_account_and_links_active(entry):
+def do_set_account_and_links_active(entry: "ScriptResult") -> bool:
     pca = PaymentCardAccount.objects.get(pk=entry.data["card_id"])
     pca.status = PaymentCardAccount.ACTIVE
     pca.save(update_fields=["status"])
     return True
+
+
+def do_client_decommission(entry: "ScriptResult") -> bool:
+    success = True
+    try:
+        user = CustomUser.all_objects.select_related("serviceconsent").get(pk=entry.data["user_id"])
+
+        consent_data = None
+        try:
+            consent = user.serviceconsent
+            consent_data = {"email": user.email, "timestamp": consent.timestamp}
+        except CustomUser.serviceconsent.RelatedObjectDoesNotExist:
+            logger.error(f"Service Consent data could not be found whilst deleting user {user.id} .")
+
+        if user.is_active:
+            user.soft_delete()
+            deleted_service_cleanup(user_id=user.id, consent=consent_data)
+            logger.info(f"User {user.id} successfully deleted.")
+        else:
+            deleted_service_cleanup(user_id=user.id, consent=consent_data)
+            logger.info(f"User {user.id} already deleted, but delete cleanup has run successfully")
+    except CustomUser.DoesNotExist:
+        pass
+    except Exception as e:
+        logger.exception(e)
+        success = False
+
+    return success
