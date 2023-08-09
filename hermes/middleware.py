@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 from django.conf import settings
 from django.db import connection
 
+from hermes.utils import ctx
+
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
@@ -85,4 +87,14 @@ class QueryDebug(MiddlewareMixin):
                 sql = query.get("sql", "")
                 response[f"X-SQL-{counter}"] = f"| {query_time}  | {sql} |"
             response["X-Total-Query-Timer"] = "".join([str(total_timer), " ms"])
+        return response
+
+
+class AzureRef(MiddlewareMixin):
+    def middleware(self, request: "Request") -> "Response":
+        response = self.get_response(request)
+        headers = request.headers
+
+        ctx.x_azure_ref = headers.get("X-azure-ref")
+
         return response

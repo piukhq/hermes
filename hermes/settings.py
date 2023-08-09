@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+import logging
 import os
 import sys
 from collections import namedtuple
@@ -28,6 +29,7 @@ from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
 
 from hermes.sentry import _make_celery_event_processor, _make_django_event_processor, strip_sensitive_data
+from hermes.utils import ctx
 from hermes.version import __version__
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -102,6 +104,7 @@ MIDDLEWARE = (
     "django.middleware.common.CommonMiddleware",
     "dictfilter.django.middleware.DictFilterMiddleware",
     "hermes.middleware.AcceptVersion",
+    "hermes.middleware.AzureRef",
     "history.middleware.HistoryRequestMiddleware",
     "prometheus.middleware.CustomPrometheusAfterMiddleware",
 )
@@ -284,7 +287,14 @@ PROMETHEUS_LOG_LEVEL = config("PROMETHEUS_LOG_LEVEL", default="INFO", cast=LOG_L
 QUERY_LOG_LEVEL = config("QUERY_LOG_LEVEL", default="CRITICAL", cast=LOG_LEVEL_CHOICES)
 
 
-init_loguru_root_sink(json_logging=JSON_LOGGING, sink_log_level=MASTER_LOG_LEVEL, show_pid=True)
+def azure_ref_patcher(record: logging.LogRecord):
+    if ctx.x_azure_ref:
+        record["extra"].update({"x-azure-ref": ctx.x_azure_ref})
+
+
+init_loguru_root_sink(
+    json_logging=JSON_LOGGING, sink_log_level=MASTER_LOG_LEVEL, show_pid=True, custom_patcher=azure_ref_patcher
+)
 
 LOGGING = {
     "version": 1,
