@@ -6,6 +6,7 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.settings import api_settings
 
 from hermes.channels import Permit
+from hermes.utils import ctx
 from history.data_warehouse import (
     addauth_request_lc_event,
     auth_request_lc_event,
@@ -115,6 +116,7 @@ def post_payment_account(message: dict, headers: dict) -> None:
     # Calls Metis to enrol payment card if account was just created.
     logger.info("Handling onward POST/payment_account journey from Angelia. ")
     with AngeliaContext(message) as ac:
+        ctx.x_azure_ref = headers.get("X-azure-ref")
         payment_card_account = PaymentCardAccount.all_objects.get(pk=message.get("payment_account_id"))
         user = CustomUser.objects.get(pk=ac.user_id)
         # auto_link
@@ -146,6 +148,7 @@ def post_payment_account(message: dict, headers: dict) -> None:
 def delete_payment_account(message: dict, headers: dict) -> None:
     logger.info("Handling DELETE/payment_account journey from Angelia.")
     with AngeliaContext(message) as ac:
+        ctx.x_azure_ref = headers.get("X-azure-ref")
         query = {"user_id": ac.user_id, "payment_card_account_id": message["payment_account_id"]}
         get_object_or_404(PaymentCardAccountEntry.objects, **query).delete()
         deleted_payment_card_cleanup(
@@ -176,6 +179,7 @@ def link_payment_cards(
 
 def _loyalty_card_register(message: dict, path: LoyaltyCardPath, headers: dict) -> None:
     with AngeliaContext(message, SchemeAccountJourney.REGISTER.value) as ac:
+        ctx.x_azure_ref = headers.get("X-azure-ref")
         all_credentials_and_consents = {}
         all_credentials_and_consents.update(credentials_to_key_pairs(message.get("register_fields")))
 
@@ -217,6 +221,7 @@ def _loyalty_card_register(message: dict, path: LoyaltyCardPath, headers: dict) 
 
 def loyalty_card_add(message: dict, headers: dict) -> None:
     with AngeliaContext(message) as ac:
+        ctx.x_azure_ref = headers.get("X-azure-ref")
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
         link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link, headers=headers)
         create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
@@ -224,6 +229,7 @@ def loyalty_card_add(message: dict, headers: dict) -> None:
 
 def loyalty_card_trusted_add(message: dict, headers: dict) -> None:
     with AngeliaContext(message) as ac:
+        ctx.x_azure_ref = headers.get("X-azure-ref")
         scheme_account_id = message.get("loyalty_card_id")
         scheme_account_entry = SchemeAccountEntry.objects.select_related("scheme_account").get(
             user=ac.user_id, scheme_account_id=scheme_account_id, scheme_account__is_deleted=False
@@ -260,6 +266,7 @@ def loyalty_card_trusted_add(message: dict, headers: dict) -> None:
 
 def loyalty_card_add_authorise(message: dict, headers: dict) -> None:
     with AngeliaContext(message) as ac:
+        ctx.x_azure_ref = headers.get("X-azure-ref")
         journey = message.get("journey")
 
         if message.get("auto_link"):
@@ -306,6 +313,7 @@ def loyalty_card_add_authorise(message: dict, headers: dict) -> None:
 def loyalty_card_join(message: dict, headers: dict) -> None:
     logger.info("Handling loyalty_card join")
     with AngeliaContext(message, SchemeAccountJourney.ENROL.value) as ac:
+        ctx.x_azure_ref = headers.get("X-azure-ref")
         if message.get("auto_link"):
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=ac.user_id).values_list(
                 "payment_card_account_id", flat=True
@@ -366,6 +374,7 @@ def loyalty_card_join(message: dict, headers: dict) -> None:
 
 def delete_loyalty_card(message: dict, headers: dict) -> None:
     with AngeliaContext(message) as ac:
+        ctx.x_azure_ref = headers.get("X-azure-ref")
         scheme_account_entry = SchemeAccountEntry.objects.get(
             scheme_account_id=message.get("loyalty_card_id"), user_id=ac.user_id
         )
@@ -375,6 +384,7 @@ def delete_loyalty_card(message: dict, headers: dict) -> None:
 def delete_user(message: dict, headers: dict) -> None:
     consent_data = None
     with AngeliaContext(message) as ac:
+        ctx.x_azure_ref = headers.get("X-azure-ref")
         try:
             user = CustomUser.all_objects.get(pk=ac.user_id)
         except CustomUser.DoesNotExist:
@@ -397,6 +407,7 @@ def delete_user(message: dict, headers: dict) -> None:
 
 def refresh_balances(message: dict, headers: dict) -> None:
     with AngeliaContext(message) as ac:
+        ctx.x_azure_ref = headers.get("X-azure-ref")
         user = CustomUser.objects.get(pk=ac.user_id)
         permit = Permit(bundle_id=ac.channel_slug, user=user)
         async_all_balance(ac.user_id, permit, headers=headers)
@@ -404,6 +415,7 @@ def refresh_balances(message: dict, headers: dict) -> None:
 
 
 def user_session(message: dict, headers: dict) -> None:
+    ctx.x_azure_ref = headers.get("X-azure-ref")
     user = CustomUser.objects.get(id=message.get("user_id"))
     user.last_accessed = message.get("utc_adjusted")
     user.save(update_fields=["last_accessed"])
@@ -492,6 +504,7 @@ def mapper_history(message: dict, headers: dict) -> None:
     data was known to Angelia and can be passed to Hermes to update History
     """
     model_name = table_to_model.get(message.get("table", ""), False)
+    ctx.x_azure_ref = headers.get("X-azure-ref")
     if message.get("payload") and model_name:
         with AngeliaContext(message) as ac:
             record_mapper_history(model_name, ac, message, headers)
@@ -500,6 +513,7 @@ def mapper_history(message: dict, headers: dict) -> None:
 
 
 def add_auth_outcome_event(message: dict, headers: dict) -> None:
+    ctx.x_azure_ref = headers.get("X-azure-ref")
     success = message.get("success")
     journey = message.get("journey")
     date_time = message.get("utc_adjusted")
@@ -516,6 +530,7 @@ def add_auth_outcome_event(message: dict, headers: dict) -> None:
 
 
 def add_auth_request_event(message: dict, headers: dict) -> None:
+    ctx.x_azure_ref = headers.get("X-azure-ref")
     journey = message.get("journey")
     user_id = message.get("user_id")
     date_time = message.get("utc_adjusted")
@@ -535,6 +550,7 @@ def sql_history(message: dict, headers: dict) -> None:
     was not know to Angelia because a SqlAlchemy mapped the Model to the table name and then sent a SQL to
     postgres which did not
     """
+    ctx.x_azure_ref = headers.get("X-azure-ref")
     with AngeliaContext(message) as ac:
         model_name = table_to_model.get(message.get("table", ""), False)
 
