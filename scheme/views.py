@@ -14,6 +14,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from hermes.utils import ctx
 from history.tasks import join_outcome_event, register_outcome_event
 from payment_card.payment import Payment
 from prometheus.utils import capture_membership_card_status_change_metric
@@ -219,6 +220,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
+        ctx.x_azure_ref = request.headers.get("x-azure-ref")
         scheme_account_id = int(kwargs["pk"])
         user_id = int(request.data["user_info"]["bink_user_id"])
         journey = request.data.get("journey")
@@ -337,6 +339,7 @@ class UpdateSchemeAccountTransactions(GenericAPIView, MembershipTransactionsMixi
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
+        ctx.x_azure_ref = request.headers.get("x-azure-ref")
         scheme_account_id = int(kwargs["pk"])
         transactions = json.loads(request.data)
 

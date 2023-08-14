@@ -71,6 +71,7 @@ class AccountLinkStatus(IntEnum):
     REGISTRATION_FAILED = 902
     JOIN_FAILED = 903
     AUTHORISATION_FAILED = 904
+    JOIN_WEAK_PASSWORD = 905
     ADD_AUTH_PENDING = 1001
     AUTH_PENDING = 2001
 
@@ -130,6 +131,7 @@ class AccountLinkStatus(IntEnum):
             (cls.AUTHORISATION_FAILED, "AuthorisationFailed", "AUTHORISATION_FAILED"),
             (cls.ADD_AUTH_PENDING.value, "Add and Auth pending", "ADD_AUTH_PENDING"),
             (cls.AUTH_PENDING.value, "Auth pending", "AUTH_PENDING"),
+            (cls.JOIN_WEAK_PASSWORD.value, "Join password too weak", "JOIN_WEAK_PASSWORD"),
         )
 
     @classmethod
@@ -145,6 +147,7 @@ class AccountLinkStatus(IntEnum):
             cls.REGISTRATION_FAILED,
             cls.ENROL_FAILED,
             cls.ACCOUNT_ALREADY_EXISTS,
+            cls.JOIN_WEAK_PASSWORD,
         ]
 
     @classmethod
@@ -162,6 +165,7 @@ class AccountLinkStatus(IntEnum):
             cls.JOIN_IN_PROGRESS,
             cls.SCHEME_REQUESTED_DELETE,
             cls.FAILED_UPDATE,
+            cls.JOIN_WEAK_PASSWORD,
         ]
 
     @classmethod
