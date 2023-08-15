@@ -1,11 +1,12 @@
 from celery import shared_task
 
-from ..actions.corrections import Correction
+from scripts.actions.corrections import Correction
+from scripts.models import ScriptResult
 
 
 @shared_task()
-def background_corrections(queryset: object):
-    for entry in queryset:
+def background_corrections(script_results_ids: list[int]):
+    for entry in ScriptResult.objects.filter(id__in=script_results_ids).all():
         if not entry.done:
             title = Correction.TITLES[entry.apply]
             success = Correction.do(entry)
@@ -22,4 +23,5 @@ def background_corrections(queryset: object):
                     entry.apply = sequence[sequence_pos]
             else:
                 entry.results.append(f"{title}: failed")
+
             entry.save()

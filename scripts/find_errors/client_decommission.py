@@ -14,13 +14,13 @@ class FindClientNonTestUsers(BaseScript):
 
     def script(self):
         client_name = "bink"
-        users = CustomUser.objects.filter(
+        users_ids: list[int] = CustomUser.objects.values_list("id", flat=True).filter(
             client__name__iexact=client_name,
             is_staff=False,
             is_tester=False,
         )
 
-        for user in users:
+        for user_id in users_ids:
             self.set_correction(Correction.DELETE_CLIENT_USERS)
-            self.make_correction(unique_id_string=f"{str(user.id)}.{client_name}", data={"user_id": user.id})
-            self.result.append(f"user_id: {user.id} " f"script:{self.correction_title}")
+            self.make_correction(unique_id_string=f"{str(user_id)}.{client_name}", data={"user_id": user_id})
+            self.result.append(f"user_id: {user_id} " f"script:{self.correction_title}")
