@@ -524,10 +524,17 @@ def _delete_user_payment_cards(
 
 @shared_task
 def deleted_service_cleanup(
-    user_id: int, consent: dict, history_kwargs: dict | None = None, headers: dict | None = None
+    user_id: int,
+    consent: dict,
+    history_kwargs: dict | None = None,
+    headers: dict | None = None,
+    user: CustomUser | None = None,
 ) -> None:
     set_history_kwargs(history_kwargs)
-    user = CustomUser.all_objects.get(id=user_id)
+
+    if not user:
+        user = t.cast(CustomUser, CustomUser.all_objects.get(id=user_id))
+
     # A user should always have a consent in normal circumstances but this is just in case one doesn't so
     # the rest of the cleanup is still completed.
     if hasattr(user, "serviceconsent"):
