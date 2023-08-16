@@ -1,14 +1,17 @@
 import logging
 import typing
+from typing import cast
 
 from django.db import transaction
 
 from payment_card.models import PaymentCardAccount
-from ubiquity.models import PaymentCardSchemeEntry
+from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
 from ubiquity.tasks import deleted_service_cleanup
 from user.models import CustomUser
 
 if typing.TYPE_CHECKING:
+    from datetime import datetime
+
     from scripts.models import ScriptResult
 
 logger = logging.getLogger(__name__)
@@ -54,28 +57,29 @@ def do_set_account_and_links_active(entry: "ScriptResult") -> bool:
 
 
 def do_client_decommission(entry: "ScriptResult") -> bool:
+    consent_data: "dict[str, str | datetime] | None" = None
     success = True
     try:
-        user = CustomUser.all_objects.select_related("serviceconsent").get(pk=entry.data["user_id"])
+        user = cast(CustomUser, CustomUser.all_objects.select_related("serviceconsent").get(pk=entry.data["user_id"]))
 
-        consent_data = None
         try:
-            consent = user.serviceconsent
+            consent = cast(ServiceConsent, user.serviceconsent)
             consent_data = {"email": user.email, "timestamp": consent.timestamp}
         except CustomUser.serviceconsent.RelatedObjectDoesNotExist:
-            logger.error(f"Service Consent data could not be found whilst deleting user {user.id} .")
+            logger.error("Service Consent data could not be found whilst deleting user %d .", user.id)
 
         if user.is_active:
             user.soft_delete()
-            deleted_service_cleanup(user_id=user.id, consent=consent_data)
-            logger.info(f"User {user.id} successfully deleted.")
+            msg = "User %d successfully deleted."
         else:
-            deleted_service_cleanup(user_id=user.id, consent=consent_data)
-            logger.info(f"User {user.id} already deleted, but delete cleanup has run successfully")
+            msg = "User %d already deleted, but delete cleanup has run successfully"
+
+        deleted_service_cleanup(user_id=user.id, consent=consent_data, user=user)
+        logger.info(msg, user.id)
     except CustomUser.DoesNotExist:
         pass
     except Exception as e:
-        logger.exception(e)
+        logger.exception("Unexpected error.", exc_info=e)
         success = False
 
     return success

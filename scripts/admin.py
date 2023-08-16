@@ -1,3 +1,5 @@
+from typing import Iterator
+
 from django.contrib import admin, messages
 from django.template.response import TemplateResponse
 from django.urls import path
@@ -8,6 +10,14 @@ from .scripts import SCRIPT_CLASSES, SCRIPT_TITLES
 from .tasks.async_corrections import background_corrections
 
 # See scripts.py on how to add a new script find records function
+
+
+BATCH_SIZE = 250
+
+
+def chunks(ids_list: list[int]) -> Iterator[list[int]]:
+    for i in range(0, len(ids_list), BATCH_SIZE):
+        yield ids_list[i : i + BATCH_SIZE]
 
 
 def apply_correction(_, request, queryset):
@@ -49,12 +59,20 @@ def apply_correction(_, request, queryset):
 
 
 def apply_correction_in_background(_, request, queryset):
-    count = len(queryset)
+    script_results_ids = queryset.values_list("id", flat=True).all()
+
+    count = len(script_results_ids)
 
     if not user_can_run_script(request):
         messages.add_message(request, messages.WARNING, "Could not execute the script: Access Denied")
     else:
-        background_corrections.delay(queryset)
+        if len(script_results_ids) > BATCH_SIZE:
+            for batch in chunks(script_results_ids):
+                background_corrections.apply_async(kwargs={"script_results_ids": batch}, ignore_result=True)
+
+        else:
+            background_corrections.apply_async(kwargs={"script_results_ids": script_results_ids}, ignore_result=True)
+
         messages.add_message(
             request, messages.INFO, f"Processing {count} corrections in background - search results to see progress"
         )
