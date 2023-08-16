@@ -2393,7 +2393,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(isinstance(resp.json(), list))
         self.assertTrue(MockApiCache.available_called)
-        self.assertEqual(MockApiCache.key, "m_plans:test.auth.fake:0:1.3")
+        self.assertEqual(MockApiCache.key, f"{settings.REDIS_MPLANS_CACHE_PREFIX}:test.auth.fake:0:1.3")
         self.assertEqual(MockApiCache.expire, 60 * 60 * 24)
         self.assertListEqual(MockApiCache.data, resp.json())
 
@@ -2424,7 +2424,9 @@ class TestResources(GlobalMockAPITestCase):
         resp = self.client.get(reverse("membership-plan", args=[self.scheme.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(MockApiCache.available_called)
-        self.assertEqual(MockApiCache.key, f"m_plans:{self.scheme.id}:test.auth.fake:0:1.3")
+        self.assertEqual(
+            MockApiCache.key, f"{settings.REDIS_MPLANS_CACHE_PREFIX}:{self.scheme.id}:test.auth.fake:0:1.3"
+        )
         self.assertEqual(MockApiCache.expire, 60 * 60 * 24)
         self.assertDictEqual(MockApiCache.data, resp.json())
 

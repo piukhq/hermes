@@ -10,7 +10,6 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 from common.admin import InputFilter
-from hermes import redis
 from history.utils import HistoryAdmin
 from scheme.forms import ConsentForm, SchemeForm
 from scheme.models import (
@@ -36,22 +35,15 @@ from scheme.models import (
     UserConsent,
     VoucherScheme,
 )
+from scheme.tasks import delete_membership_plans_cache
 from ubiquity.models import AccountLinkStatus, SchemeAccountEntry
 from user.models import ClientApplicationBundle
-
-r = redis.r_write
-
-
-def delete_membership_plans_cache():
-    # Delete all caches for m_plan key slug including all by id ones
-    for key in r.scan_iter("m_plans:*"):
-        r.delete(key)
 
 
 def replaced_delete_selected(model_admin, request, queryset):
     if request.POST.get("post") == "yes":
         ret = delete_selected(model_admin, request, queryset)
-        delete_membership_plans_cache()
+        delete_membership_plans_cache.delay()
         return ret  # (v2.2) returns a overrideable template (delete_selected_confirmation_template) with context
     else:
         return delete_selected(model_admin, request, queryset)
@@ -88,12 +80,12 @@ class CacheResetAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         resp = super().save_model(request, obj, form, change)
-        delete_membership_plans_cache()
+        delete_membership_plans_cache.delay()
         return resp  # currently resp is None but in case it ever changes
 
     def delete_model(self, request, obj):
         resp = super().delete_model(request, obj)
-        delete_membership_plans_cache()
+        delete_membership_plans_cache.delay()
         return resp  # currently resp is None but in case it ever changes
 
 

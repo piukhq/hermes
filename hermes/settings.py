@@ -650,6 +650,7 @@ REDIS_MPLANS_CACHE_EXPIRY = config(
     default=60 * 60 * 24,  # 60*60*24 is 24 hrs in seconds
     cast=int,
 )
+REDIS_MPLANS_CACHE_PREFIX = "m_plans"
 
 
 REDIS_READ_TIMEOUT = config("REDIS_READ_TIMEOUT", default=0.3, cast=float)
