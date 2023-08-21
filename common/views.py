@@ -2,11 +2,10 @@ from django.conf import settings
 from django.db import OperationalError, connection
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
+from kombu import Connection
 from kombu.exceptions import ConnectionError as KombuConnectionError
 from redis import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
-
-from api_messaging.message_broker import BaseMessaging
 
 
 def test_database(error_response: dict):
@@ -23,10 +22,10 @@ def test_database(error_response: dict):
 
 def test_rabbit(error_response: dict):
     try:
-        conn = BaseMessaging(settings.RABBIT_DSN).conn
-        if conn.connect():
-            del error_response["rabbit"]
-        conn.close()
+        with Connection(settings.RABBIT_DSN) as conn:
+            if conn.connect():
+                del error_response["rabbit"]
+
     except (ConnectionError, KombuConnectionError) as e:
         error_response["rabbit_exception"] = str(e)
 

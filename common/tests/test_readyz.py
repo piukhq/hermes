@@ -3,11 +3,11 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.db import OperationalError
+from kombu import Connection
 from kombu.exceptions import ConnectionError as KombuConnectionError
 from redis.exceptions import ConnectionError as RedisConnectionError
 from rest_framework.test import APITestCase
 
-from common.views import BaseMessaging
 from common.views import Redis as RedisTarget
 from common.views import connection
 
@@ -42,7 +42,7 @@ class TestReadyZ(APITestCase):
         self.assertFalse(dict_resp["database"])
         self.assertEqual(dict_resp["database_exception"], "Mock Connection Error")
 
-    @patch.object(BaseMessaging, "connect")
+    @patch.object(Connection, "connect")
     def test_rabbit_fail(self, mock_rabbit_connect):
         mock_rabbit_connect.side_effect = mock_rabbit_con
         resp = self.client.get("/readyz")
