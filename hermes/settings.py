@@ -707,6 +707,8 @@ INFLUX_DB_CONFIG = {
 # RABBIT
 TIME_OUT = config("TIMEOUT", default=4, cast=int)
 RABBIT_DSN = config("RABBIT_DSN", default="amqp://guest:guest@localhost/")
+PUBLISH_MAX_RETRIES = config("PUBLISH_MAX_RETRIES", 3, cast=int)
+PUBLISH_RETRY_BACKOFF_FACTOR = config("PUBLISH_RETRY_BACKOFF_FACTOR", 0.25, cast=float)
 
 # Celery
 CELERY_BROKER_URL = RABBIT_DSN

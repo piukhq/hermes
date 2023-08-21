@@ -2,7 +2,9 @@ import atexit
 import logging
 import socket
 from time import sleep
+from typing import cast
 
+from django.conf import settings
 from kombu import Connection, Consumer, Exchange, Producer, Queue
 
 logger = logging.getLogger(__name__)
@@ -71,17 +73,33 @@ class SendingService(BaseMessaging):
             )
         producer.publish(**kwargs)
 
+    def _pub_retry(self, queue_name: str, kwargs: dict) -> None:
+        last_exc: Exception | None = None
+        for i in range(settings.PUBLISH_MAX_RETRIES):
+            try:
+                sleep(i * settings.PUBLISH_RETRY_BACKOFF_FACTOR)
+                self.close()
+                self.connect()
+                self._pub(queue_name, kwargs)
+                break
+            except Exception as e:
+                last_exc = e
+                self.logger.warning("Exception '{exc!r}' on connecting to Message Broker, trying again", exc=e)
+
+        # The logic in an 'else' clause when applied to a for loop will be executed only if the loop completed
+        # naturally without exiting prematurely. In this case it will be executed only if 'break' was never called.
+        else:
+            self.logger.exception("Failed to send message, max retries exceeded.", exc_info=last_exc)
+            raise cast(Exception, last_exc)
+
     def send(self, message: dict, headers: dict, queue_name: str):
         headers["destination-type"] = "ANYCAST"
         message = {"body": message, "headers": headers}
 
         try:
             self._pub(queue_name, message)
-        except Exception as e:
-            self.logger.warning(f"Exception on connecting to Message Broker - time out? {e} retry send")
-            self.close()
-            self.connect()
-            self._pub(queue_name, message)
+        except Exception:
+            self._pub_retry(queue_name, message)
 
     def close(self):
         if self.conn:
