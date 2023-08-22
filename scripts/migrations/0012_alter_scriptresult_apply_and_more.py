@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scripts", "0011_alter_scriptresult_apply_and_more"),
     ]

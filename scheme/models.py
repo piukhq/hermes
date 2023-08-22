@@ -17,7 +17,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
-from django.db.models import F, JSONField, Q, signals, UniqueConstraint
+from django.db.models import F, JSONField, Q, UniqueConstraint, signals
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
@@ -1236,8 +1236,7 @@ class VoucherScheme(models.Model):
     scheme = models.ForeignKey("scheme.Scheme", on_delete=models.CASCADE)
 
     default = models.BooleanField(
-        default=False,
-        help_text="Default voucher scheme when multiple are available for a scheme"
+        default=False, help_text="Default voucher scheme when multiple are available for a scheme"
     )
     slug = models.SlugField(null=True, blank=True)
 
@@ -1283,13 +1282,13 @@ class VoucherScheme(models.Model):
             UniqueConstraint(
                 fields=["scheme", "slug"],
                 name="unique_slug_per_scheme",
-                violation_error_message="Each slug must be unique per Scheme"
+                violation_error_message="Each slug must be unique per Scheme",
             ),
             UniqueConstraint(
                 fields=["scheme"],
                 condition=Q(default=True),
                 name="unique_default_per_scheme",
-                violation_error_message="There can only be one default VoucherScheme per Scheme"
+                violation_error_message="There can only be one default VoucherScheme per Scheme",
             ),
         ]
 
