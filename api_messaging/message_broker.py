@@ -127,9 +127,32 @@ class ReceivingService(BaseMessaging):
 
         self.queue_name = queue_name
         self.connect()
-        self.exchange = None
         self.exchange = Exchange(f"{self.queue_name}_exchange", type="direct", durable=True)
-        self.queue = Queue(self.queue_name, exchange=self.exchange, routing_key=queue_name)
+
+        dlx_name = self.exchange.name + "_dlx"
+        self.deadletter_exchange = Exchange(
+            name=dlx_name,
+            type="fanout",
+            durable=True,
+            delivery_mode="persistent",
+            auto_delete=False,
+        )
+        self.deadletter_queue = Queue(
+            name=self.deadletter_exchange.name + "_queue",
+            exchange=self.deadletter_exchange,
+            durable=True,
+            auto_delete=False,
+        )
+        self.deadletter_queue(self.conn).declare()
+        self.queue = Queue(
+            self.queue_name,
+            exchange=self.exchange,
+            routing_key=queue_name,
+            queue_arguments={
+                "x-dead-letter-exchange": dlx_name,
+                "x-dead-letter-routing-key": "deadletter",
+            },
+        )
         self.consumer = None
         self.heartbeat = heartbeat
         self.timeout = timeout
