@@ -730,7 +730,7 @@ class VoucherSchemeAdmin(admin.ModelAdmin):
     list_display = ("scheme", "earn_type", "burn_type", "expiry_months")
     list_filter = ("scheme", "earn_type", "burn_type")
     fieldsets = (
-        (None, {"fields": ("scheme", "barcode_type", "subtext", "expiry_months")}),
+        (None, {"fields": ("scheme", "barcode_type", "subtext", "expiry_months", "default", "slug")}),
         (
             "Earn",
             {
