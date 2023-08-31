@@ -1,24 +1,15 @@
-import logging
 import uuid
 
-from django.conf import settings
 from olympus_messaging import JoinApplication, LoyaltyCardRemovedBink, Message
 
-from api_messaging.message_broker import SendingService
+from api_messaging.message_broker import ProducerQueues, sending_service
 from history.data_warehouse import get_main_answer
 from ubiquity.models import SchemeAccountEntry
-
-logger = logging.getLogger("messaging")
-
-message_sender = SendingService(
-    dsn=settings.RABBIT_DSN,
-    log_to=logger,
-)
 
 
 def to_midas(message: Message, x_azure_ref: str | None = None) -> None:
     message.metadata["X-azure-ref"] = x_azure_ref
-    message_sender.send(message.body, message.metadata, settings.MIDAS_QUEUE_NAME)
+    sending_service.queues[ProducerQueues.MIDAS.name].send_message(message.body, headers=message.metadata)
 
 
 def send_midas_join_request(

@@ -1,4 +1,3 @@
-import json
 import logging
 from time import sleep
 
@@ -44,7 +43,7 @@ def on_message_received(body, message):
         logger.exception("Failed to prune old connections", exc_info=err)
 
     try:
-        route_message(message.headers, json.loads(body))
+        route_message(message.headers, body)
         if not message.acknowledged:
             message.ack()
 

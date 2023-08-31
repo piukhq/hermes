@@ -71,3 +71,4 @@ azure-storage-blob = "*"
 olympus-messaging = "*"
 python-decouple = "*"
 bink-logging-utils = {extras = ["gunicorn"], version = ">=1.4.0", index = "bink-pypi"}
+cosmos-message-lib = {version = ">=2.0.0",  index = "bink-pypi"}

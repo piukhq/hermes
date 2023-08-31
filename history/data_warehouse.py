@@ -1,22 +1,13 @@
-import logging
 import typing as t
 
 import arrow
-from django.conf import settings
 
-from api_messaging.message_broker import SendingService
+from api_messaging.message_broker import ProducerQueues, sending_service
 
 if t.TYPE_CHECKING:
     from scheme.models import SchemeAccount
     from ubiquity.models import PllUserAssociation, SchemeAccountEntry
     from user.models import CustomUser
-
-logger = logging.getLogger("messaging")
-
-message_sender = SendingService(
-    dsn=settings.RABBIT_DSN,
-    log_to=logger,
-)
 
 
 def get_main_answer(scheme_account: "SchemeAccount") -> str:
@@ -41,7 +32,7 @@ def get_user_consents(user: "CustomUser", scheme_account: "SchemeAccount") -> li
 def to_data_warehouse(payload: dict, headers: dict | None = None) -> None:
     headers = {"X-azure-ref": headers.get("X-azure-ref", None) if headers else None}
     if payload:
-        message_sender.send(payload, headers, settings.WAREHOUSE_QUEUE_NAME)
+        sending_service.queues[ProducerQueues.WAREHOUSE.name].send_message(payload, headers=headers)
 
 
 def addauth_request_lc_event(
