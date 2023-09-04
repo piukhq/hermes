@@ -835,15 +835,44 @@ class SchemeAccount(models.Model):
         * value: float, optional
         * target_value: float, optional
         """
-        return [self.make_single_voucher(voucher_fields) for voucher_fields in vouchers]
+        vouchers_response = []
+        for voucher_fields in vouchers:
+            voucher = self.make_single_voucher(voucher_fields)
+            if voucher:
+                vouchers_response.append(voucher)
 
-    def make_single_voucher(self, voucher_fields):
-        # this can fail with a VoucherScheme.DoesNotExist if the configuration is incorrect
-        # i let this exception go as this is something we would want to know about & fix in the database.
-        voucher_scheme = VoucherScheme.objects.get(scheme=self.scheme)
+        return vouchers_response
 
+    def make_single_voucher(self, voucher_fields) -> dict | None:
+        voucher_scheme_slug = voucher_fields.get("voucher_scheme_slug")
+        try:
+            if voucher_scheme_slug:
+                voucher_scheme = VoucherScheme.objects.get(scheme=self.scheme, slug=voucher_scheme_slug)
+            else:
+                voucher_scheme = VoucherScheme.objects.get(scheme=self.scheme, default=True)
+        except VoucherScheme.DoesNotExist:
+            logger.exception(
+                "VoucherScheme not found. Please check the voucher configuration for scheme '%s' - "
+                "Voucher scheme slug: %s",
+                self.scheme.slug,
+                voucher_scheme_slug or "None",
+            )
+            return None
+
+        voucher = self._build_voucher_response(
+            voucher_fields,
+            voucher_scheme,
+        )
+
+        return voucher
+
+    @staticmethod
+    def _build_voucher_response(
+        voucher_fields,
+        voucher_scheme,
+    ) -> dict:
         earn_target_value: float = voucher_scheme.get_earn_target_value(voucher_fields=voucher_fields)
-        earn_value: list[float, int] = voucher_scheme.get_earn_value(
+        earn_value: float | int = voucher_scheme.get_earn_value(
             voucher_fields=voucher_fields, earn_target_value=earn_target_value
         )
 
