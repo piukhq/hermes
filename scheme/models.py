@@ -1269,7 +1269,7 @@ class VoucherScheme(models.Model):
     scheme = models.ForeignKey("scheme.Scheme", on_delete=models.CASCADE)
 
     default = models.BooleanField(
-        default=False, help_text="Default voucher scheme when multiple are available for a scheme"
+        default=True, help_text="Default voucher scheme when multiple are available for a scheme"
     )
     slug = models.SlugField(null=True, blank=True)
 
