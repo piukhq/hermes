@@ -824,7 +824,7 @@ class SchemeAccount(models.Model):
 
         return balance, dw_event
 
-    def make_vouchers_response(self, vouchers: list):
+    def make_vouchers_response(self, vouchers: list) -> list:
         """
         Vouchers come from Midas with the following fields:
         * issue_date: int, optional
@@ -835,42 +835,46 @@ class SchemeAccount(models.Model):
         * value: float, optional
         * target_value: float, optional
         """
+
+        voucher_scheme_slugs = {
+            voucher_fields.get("voucher_scheme_slug")
+            for voucher_fields in vouchers
+            if voucher_fields.get("voucher_scheme_slug")
+        }
+
+        voucher_schemes = VoucherScheme.objects.filter(
+            Q(slug__in=voucher_scheme_slugs) | Q(default=True), scheme=self.scheme
+        )
+        voucher_scheme_mapping = {scheme.slug or "default": scheme for scheme in voucher_schemes}
+
         vouchers_response = []
         for voucher_fields in vouchers:
-            voucher = self.make_single_voucher(voucher_fields)
-            if voucher:
-                vouchers_response.append(voucher)
+            voucher_scheme_key = voucher_fields.get("voucher_scheme_slug", "default")
+            try:
+                voucher_scheme = voucher_scheme_mapping[voucher_scheme_key]
+            except KeyError:
+                if voucher_scheme_key == "default":
+                    msg: tuple = (
+                        "Default VoucherScheme not found. Please set a default VoucherScheme for scheme '%s'.",
+                        self.scheme.slug,
+                    )
+                else:
+                    msg: tuple = (
+                        "VoucherScheme not found. Please check the voucher configuration for scheme '%s' - "
+                        "VoucherScheme slug: %s",
+                        self.scheme.slug,
+                        voucher_scheme_key,
+                    )
+
+                logger.error(*msg)
+                continue
+
+            vouchers_response.append(self.make_single_voucher(voucher_fields, voucher_scheme))
 
         return vouchers_response
 
-    def make_single_voucher(self, voucher_fields) -> dict | None:
-        voucher_scheme_slug = voucher_fields.get("voucher_scheme_slug")
-        try:
-            if voucher_scheme_slug:
-                voucher_scheme = VoucherScheme.objects.get(scheme=self.scheme, slug=voucher_scheme_slug)
-            else:
-                voucher_scheme = VoucherScheme.objects.get(scheme=self.scheme, default=True)
-        except VoucherScheme.DoesNotExist:
-            logger.exception(
-                "VoucherScheme not found. Please check the voucher configuration for scheme '%s' - "
-                "Voucher scheme slug: %s",
-                self.scheme.slug,
-                voucher_scheme_slug or "None",
-            )
-            return None
-
-        voucher = self._build_voucher_response(
-            voucher_fields,
-            voucher_scheme,
-        )
-
-        return voucher
-
     @staticmethod
-    def _build_voucher_response(
-        voucher_fields,
-        voucher_scheme,
-    ) -> dict:
+    def make_single_voucher(voucher_fields: dict, voucher_scheme: "VoucherScheme") -> dict:
         earn_target_value: float = voucher_scheme.get_earn_target_value(voucher_fields=voucher_fields)
         earn_value: float | int = voucher_scheme.get_earn_value(
             voucher_fields=voucher_fields, earn_target_value=earn_target_value

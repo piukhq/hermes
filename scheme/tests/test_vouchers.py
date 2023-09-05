@@ -1,8 +1,10 @@
+from unittest import mock
+
 import arrow
 
 from history.utils import GlobalMockAPITestCase
 from scheme import vouchers
-from scheme.models import Category, Scheme, SchemeAccount, VoucherScheme
+from scheme.models import Category, Scheme, SchemeAccount, VoucherScheme, logger
 from scheme.vouchers import VoucherStateStr
 
 TEST_SLUG_STAMPS = "stamps_scheme"
@@ -257,7 +259,7 @@ class TestVouchers(GlobalMockAPITestCase):
         scheme = Scheme.objects.get(slug=TEST_SLUG_ACCUMULATOR)
         vs: VoucherScheme = self.vs_accumulator
         account = SchemeAccount.objects.create(scheme=scheme, order=0)
-        voucher = account.make_single_voucher(voucher_fields)
+        voucher = account.make_single_voucher(voucher_fields, vs)
         self.assertEqual(
             voucher,
             self.voucher_resp(
@@ -283,7 +285,7 @@ class TestVouchers(GlobalMockAPITestCase):
         scheme = Scheme.objects.get(slug=TEST_SLUG_ACCUMULATOR)
         vs: VoucherScheme = self.vs_accumulator_2
         account = SchemeAccount.objects.create(scheme=scheme, order=0)
-        voucher = account.make_single_voucher(voucher_fields)
+        voucher = account.make_single_voucher(voucher_fields, vs)
         self.assertEqual(
             voucher,
             self.voucher_resp(
@@ -293,23 +295,6 @@ class TestVouchers(GlobalMockAPITestCase):
                 expiry_date=voucher_fields["expiry_date"],
             ),
         )
-
-    def test_make_voucher_unrecognised_voucher_scheme_slug(self):
-        now = arrow.utcnow().int_timestamp
-        voucher_fields = {
-            "issue_date": now,
-            "redeem_date": now,
-            "expiry_date": now + 1000,
-            "code": "abc123",
-            "value": 300,
-            "target_value": 400,
-            "state": VoucherStateStr.REDEEMED.value,
-            "voucher_scheme_slug": "bad-slug",
-        }
-        scheme = Scheme.objects.get(slug=TEST_SLUG_ACCUMULATOR)
-        account = SchemeAccount.objects.create(scheme=scheme, order=0)
-        voucher = account.make_single_voucher(voucher_fields)
-        self.assertEqual(voucher, None)
 
     def test_make_voucher_sans_expiry_and_redeem_dates(self):
         now = arrow.utcnow().int_timestamp
@@ -323,7 +308,7 @@ class TestVouchers(GlobalMockAPITestCase):
         scheme = Scheme.objects.get(slug=TEST_SLUG_ACCUMULATOR)
         vs: VoucherScheme = self.vs_accumulator
         account = SchemeAccount.objects.create(scheme=scheme, order=0)
-        voucher = account.make_single_voucher(voucher_fields)
+        voucher = account.make_single_voucher(voucher_fields, vs)
 
         expiry = arrow.get(now).shift(months=vs.expiry_months).int_timestamp
         self.assertEqual(
@@ -353,7 +338,7 @@ class TestVouchers(GlobalMockAPITestCase):
         account = SchemeAccount.objects.create(scheme=scheme, order=0)
 
         # WHEN
-        voucher = account.make_single_voucher(voucher_fields)
+        voucher = account.make_single_voucher(voucher_fields, vs)
 
         # THEN
         expiry_date = arrow.get(now).shift(months=vs.expiry_months).int_timestamp
@@ -450,7 +435,16 @@ class TestVouchers(GlobalMockAPITestCase):
 
     def test_make_vouchers_response(self):
         now = arrow.utcnow().int_timestamp
-        good_voucher = {
+        good_voucher_default = {
+            "issue_date": now,
+            "redeem_date": now,
+            "expiry_date": now + 1000,
+            "code": "abc123",
+            "value": 300,
+            "target_value": 400,
+            "state": VoucherStateStr.REDEEMED.value,
+        }
+        good_voucher_with_slug = {
             "issue_date": now,
             "redeem_date": now,
             "expiry_date": now + 1000,
@@ -471,21 +465,54 @@ class TestVouchers(GlobalMockAPITestCase):
             "voucher_scheme_slug": "bad-slug",
         }
 
-        all_vouchers = [good_voucher, unrecognised_slug_voucher]
+        all_vouchers = [good_voucher_default, good_voucher_with_slug, unrecognised_slug_voucher]
         scheme = Scheme.objects.get(slug=TEST_SLUG_ACCUMULATOR)
         account = SchemeAccount.objects.create(scheme=scheme, order=0)
-        vs: VoucherScheme = self.vs_accumulator
 
-        vouchers_resp = account.make_vouchers_response(all_vouchers)
+        with mock.patch.object(logger, "error") as mock_error_log:
+            vouchers_resp = account.make_vouchers_response(all_vouchers)
 
-        self.assertEqual(
+        self.assertTrue(mock_error_log.called)
+        self.assertEqual(1, mock_error_log.call_count)
+        self.assertListEqual(
             [
                 self.voucher_resp(
-                    vs,
-                    issue_date=good_voucher["issue_date"],
-                    redeem_date=good_voucher["redeem_date"],
-                    expiry_date=good_voucher["expiry_date"],
-                )
+                    self.vs_accumulator,
+                    issue_date=good_voucher_default["issue_date"],
+                    redeem_date=good_voucher_default["redeem_date"],
+                    expiry_date=good_voucher_default["expiry_date"],
+                ),
+                self.voucher_resp(
+                    self.vs_accumulator_2,
+                    issue_date=good_voucher_with_slug["issue_date"],
+                    redeem_date=good_voucher_with_slug["redeem_date"],
+                    expiry_date=good_voucher_with_slug["expiry_date"],
+                ),
             ],
             vouchers_resp,
         )
+
+    def test_make_vouchers_response_no_default(self):
+        self.vs_accumulator.default = False
+        self.vs_accumulator.save(update_fields=["default"])
+
+        now = arrow.utcnow().int_timestamp
+        good_voucher_default = {
+            "issue_date": now,
+            "redeem_date": now,
+            "expiry_date": now + 1000,
+            "code": "abc123",
+            "value": 300,
+            "target_value": 400,
+            "state": VoucherStateStr.REDEEMED.value,
+        }
+
+        all_vouchers = [good_voucher_default]
+        scheme = Scheme.objects.get(slug=TEST_SLUG_ACCUMULATOR)
+        account = SchemeAccount.objects.create(scheme=scheme, order=0)
+
+        with mock.patch.object(logger, "error") as mock_error_log:
+            vouchers_resp = account.make_vouchers_response(all_vouchers)
+
+        self.assertTrue(mock_error_log.called)
+        self.assertListEqual([], vouchers_resp)
