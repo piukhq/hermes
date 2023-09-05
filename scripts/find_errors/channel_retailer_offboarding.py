@@ -14,17 +14,18 @@ class _FindRetailerAndChannelMembershipCards(BaseScript):
     This class needs to be inherited from to specify the desired scheme_slug and channel.
     """
 
-    scheme_slug = "N/A"
-    channel = "N/A"
+    scheme_slug: str = "N/A"
+    channel: str | None = None
 
     def script(self):
-        scheme_accounts = SchemeAccount.objects.values_list("id", flat=True).filter(
-            scheme__slug__iexact=self.scheme_slug,
-            user_set__client__clientapplicationbundle__bundle_id=self.channel,
-            is_deleted=False,
-        )
+        filter_params = {
+            "scheme__slug__iexact": self.scheme_slug,
+            "is_deleted": False,
+        }
+        if self.channel:
+            filter_params["user_set__client__clientapplicationbundle__bundle_id"] = self.channel
 
-        for scheme_account_id in scheme_accounts:
+        for scheme_account_id in SchemeAccount.objects.values_list("id", flat=True).filter(**filter_params):
             self.set_correction(Correction.CHANNEL_RETAILER_OFFBOARDING)
             self.make_correction(
                 unique_id_string=f"{str(scheme_account_id)}.{self.scheme_slug}.{self.channel}",
@@ -35,4 +36,3 @@ class _FindRetailerAndChannelMembershipCards(BaseScript):
 
 class FindBarclaysWasabiMembershipCards(_FindRetailerAndChannelMembershipCards):
     scheme_slug = "wasabi-club"
-    channel = "com.barclays.bmb"
