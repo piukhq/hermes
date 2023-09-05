@@ -7,7 +7,10 @@ from .find_errors.cards_in_provider_server_down_unknown import (
     FindVOPCardsInProviderServerDownUnknownStatus,
 )
 from .find_errors.cards_stuck_in_pending import FindCardsStuckInPending
-from .find_errors.channel_retailer_offboarding import FindBarclaysBinkWasabiMembershipCards
+from .find_errors.channel_retailer_offboarding import (
+    FindBarclaysBinkWasabiMembershipCards,
+    FindBarclaysViatorMembershipCards,
+)
 from .find_errors.client_decommission import FindClientNonTestUsers
 from .find_errors.deleted_users_with_links import FindDeletedUsersWithCardLinks
 from .find_errors.deleted_vop_cards_with_activations import FindDeletedVopCardsWithActivations
@@ -40,6 +43,7 @@ class DataScripts(IntEnum):
     MASTERCARD_PSD_UNKNOWN_CARDS = auto()
     CLIENT_NON_TEST_USERS = auto()
     BARCLAYS_BINK_WASABI_RETAILER_CARDS = auto()
+    BARCLAYS_VIATOR_RETAILER_CARDS = auto()
 
 
 # Titles displayed in Django Admin. Should make sense in the format "Find records for: [SCRIPT TITLE]"
@@ -65,6 +69,7 @@ SCRIPT_TITLES = {
     DataScripts.DELETED_USERS_WITH_CARD_LINKS: "Deleted Users with Loyalty/Payment card links",
     DataScripts.CLIENT_NON_TEST_USERS: "Bink client non-test users for deletion",
     DataScripts.BARCLAYS_BINK_WASABI_RETAILER_CARDS: "Barclays and Bink Wasabi membership cards for unboarding",
+    DataScripts.BARCLAYS_VIATOR_RETAILER_CARDS: "Barclays Viator membership cards for unboarding",
 }
 
 SCRIPT_CLASSES = {
@@ -84,6 +89,7 @@ SCRIPT_CLASSES = {
     DataScripts.DELETED_USERS_WITH_CARD_LINKS: FindDeletedUsersWithCardLinks,
     DataScripts.CLIENT_NON_TEST_USERS: FindClientNonTestUsers,
     DataScripts.BARCLAYS_BINK_WASABI_RETAILER_CARDS: FindBarclaysBinkWasabiMembershipCards,
+    DataScripts.BARCLAYS_VIATOR_RETAILER_CARDS: FindBarclaysViatorMembershipCards,
 }
 # End of new script definition - you do not need to do anything else to add a new find script
 # But you may need to add one or more corrective actions see actions/corrections.py
