@@ -43,3 +43,8 @@ class _FindRetailerAndChannelMembershipCards(BaseScript):
 class FindBarclaysBinkWasabiMembershipCards(_FindRetailerAndChannelMembershipCards):
     scheme_slug = "wasabi-club"
     channels = ["com.barclays.bmb", "com.wasabi.bink.web"]
+
+
+class FindBarclaysViatorMembershipCards(_FindRetailerAndChannelMembershipCards):
+    scheme_slug = "bpl-viator"
+    channels = ["com.barclays.bmb"]
