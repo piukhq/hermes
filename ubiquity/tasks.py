@@ -333,7 +333,7 @@ def deleted_membership_card_cleanup(
 ) -> None:
     set_history_kwargs(history_kwargs)
     scheme_slug = scheme_account_entry.scheme_account.scheme.slug
-    user = scheme_account_entry.user
+    user_id = scheme_account_entry.user_id
 
     # todo: review PLL behaviour on card deletion in P3
     pll_links = PaymentCardSchemeEntry.objects.filter(
@@ -345,7 +345,7 @@ def deleted_membership_card_cleanup(
     # @todo consider if the next line is redundant - deleting base_pll cascades delete PLLAssociation on foreign key
     #  also pll_links.delete() does this with a post delete signal.
 
-    user_plls = PllUserAssociation.objects.filter(pll__in=pll_links, user=user)
+    user_plls = PllUserAssociation.objects.filter(pll__in=pll_links, user_id=user_id)
 
     # Generate payload for event pll_link.statuschange
     delete_user_pll_payloads = generate_pll_delete_payload(user_plls)

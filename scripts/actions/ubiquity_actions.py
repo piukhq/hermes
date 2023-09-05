@@ -1,17 +1,18 @@
 import logging
 import typing
+from datetime import UTC, datetime
 from typing import cast
 
 from django.db import transaction
 
+from history.utils import user_info
 from payment_card.models import PaymentCardAccount
-from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
-from ubiquity.tasks import deleted_service_cleanup
+from scheme.models import SchemeAccount
+from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent
+from ubiquity.tasks import deleted_membership_card_cleanup, deleted_service_cleanup
 from user.models import CustomUser
 
 if typing.TYPE_CHECKING:
-    from datetime import datetime
-
     from scripts.models import ScriptResult
 
 logger = logging.getLogger(__name__)
@@ -80,6 +81,40 @@ def do_client_decommission(entry: "ScriptResult") -> bool:
         pass
     except Exception as e:
         logger.exception("Unexpected error.", exc_info=e)
+        success = False
+
+    return success
+
+
+def do_channel_retailer_offboarding(entry: "ScriptResult") -> bool:
+    success = False
+
+    try:
+        clients_to_bundle_map = cast(dict[str, str], entry.data["clients_to_bundle_map"])
+        scheme_account_id = cast(int, entry.data["scheme_account_id"])
+
+        for scheme_account_entry in (
+            SchemeAccountEntry.objects.select_related("scheme_account__scheme", "user")
+            .filter(scheme_account__id=scheme_account_id, user__client_id__in=clients_to_bundle_map.keys())
+            .all()
+        ):
+            deleted_membership_card_cleanup(
+                scheme_account_entry=scheme_account_entry,
+                delete_date=datetime.now(tz=UTC).isoformat(),
+                history_kwargs={
+                    "user_info": user_info(
+                        user_id=scheme_account_entry.user_id,
+                        channel=clients_to_bundle_map[scheme_account_entry.user.client_id],
+                    )
+                },
+            )
+
+        success = True
+
+    except SchemeAccount.DoesNotExist:
+        logger.warn("Script result scheme account id '%d' does not exist", scheme_account_id)
+    except Exception as e:
+        logger.exception("Unexpected error", exc_info=e)
         success = False
 
     return success
