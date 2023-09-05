@@ -90,18 +90,23 @@ def do_channel_retailer_offboarding(entry: "ScriptResult") -> bool:
     success = False
 
     try:
-        channel = cast(str, entry.data["channel"])
+        clients_to_bundle_map = cast(dict[str, str], entry.data["clients_to_bundle_map"])
         scheme_account_id = cast(int, entry.data["scheme_account_id"])
 
         for scheme_account_entry in (
-            SchemeAccountEntry.objects.select_related("scheme_account__scheme")
-            .filter(scheme_account__id=scheme_account_id, user__client__clientapplicationbundle__bundle_id=channel)
+            SchemeAccountEntry.objects.select_related("scheme_account__scheme", "user")
+            .filter(scheme_account__id=scheme_account_id, user__client_id__in=clients_to_bundle_map.keys())
             .all()
         ):
             deleted_membership_card_cleanup(
                 scheme_account_entry=scheme_account_entry,
                 delete_date=datetime.now(tz=UTC).isoformat(),
-                history_kwargs={"user_info": user_info(user_id=scheme_account_entry.user_id, channel=channel)},
+                history_kwargs={
+                    "user_info": user_info(
+                        user_id=scheme_account_entry.user_id,
+                        channel=clients_to_bundle_map[scheme_account_entry.user.client_id],
+                    )
+                },
             )
 
         success = True

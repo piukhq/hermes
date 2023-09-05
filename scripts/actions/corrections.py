@@ -55,7 +55,7 @@ class Correction:
     # User corrections
     DELETE_CARD_LINKS_FOR_DELETED_USERS = 4001
     DELETE_CLIENT_USERS = 5001
-    CHANNEL_RETAILER_OFFBOARDING = 6001
+    CHANNELS_RETAILER_OFFBOARDING = 6001
 
     CORRECTION_SCRIPTS = (
         (NO_CORRECTION, "No correction available"),
@@ -89,7 +89,7 @@ class Correction:
         # Users
         (DELETE_CARD_LINKS_FOR_DELETED_USERS, "Delete card links for deleted Users"),
         (DELETE_CLIENT_USERS, "Run delete process for Bink client users"),
-        (CHANNEL_RETAILER_OFFBOARDING, "Unboard membership cards for a specific retailer and channel"),
+        (CHANNELS_RETAILER_OFFBOARDING, "Unboard membership cards for a specific retailer and channels"),
     )
 
     COMPOUND_CORRECTION_SCRIPTS = {
@@ -133,7 +133,7 @@ class Correction:
             cls.UPDATE_ACTIVE_LINK: do_update_active_link_to_false,
             cls.DELETE_CARD_LINKS_FOR_DELETED_USERS: do_delete_user_cleanup,
             cls.DELETE_CLIENT_USERS: do_client_decommission,
-            cls.CHANNEL_RETAILER_OFFBOARDING: do_channel_retailer_offboarding,
+            cls.CHANNELS_RETAILER_OFFBOARDING: do_channel_retailer_offboarding,
         }
         if entry.apply not in actions.keys():
             return False
