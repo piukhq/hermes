@@ -267,7 +267,7 @@ MY360_SCHEME_API_URL = "https://rewards.api.mygravity.co/v3/reward_scheme/{}/sch
 
 MIDAS_QUEUE_NAME = config("MIDAS_QUEUE_NAME", default="loyalty-request")
 
-ANGELIA_QUEUE_NAME = config("ANGELIA_QUEUE_NAME", default="from-angelia")
+ANGELIA_QUEUE_NAME = config("ANGELIA_QUEUE_NAME", default="angelia-hermes-bridge")
 ANGELIA_QUEUE_ROUTING_KEY = config("ANGELIA_QUEUE_ROUTING_KEY", default="angelia")
 
 APPLE_APP_ID = config("APPLE_APP_ID", default="com.bink.wallet")
