@@ -7,13 +7,13 @@ import sentry_sdk
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
-from django.http import HttpResponseForbidden
+from django.http import HttpRequest, HttpResponseForbidden
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import GenericViewSet, ModelViewSet
 from rustyjeff import rsa_decrypt_base64
 from shared_config_storage.credentials.encryption import BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
@@ -91,6 +91,7 @@ from ubiquity.versioning.base.serializers import (
     ServiceSerializer,
     TransactionSerializer,
 )
+from user.authentication import ServiceAuthentication as InternalServiceAuthentication
 from user.models import CustomUser
 
 if t.TYPE_CHECKING:
@@ -1461,6 +1462,63 @@ class ListMembershipCardView(MembershipCardView):
                 },
             ).data,
             status=status_code,
+        )
+
+
+class PortalUsersLookupView(GenericViewSet):
+    """
+    GET `/ubiquity/users/lookup?s=...`
+
+    Expected response payload:
+
+    ```json
+    [
+        {
+            "user_id": 1,
+            "is_active": false,
+            "channel": "com.stuff.1",
+            "membership_cards": [
+                ...,  # GET /membership_cards payload without removing empty values
+            ],
+        },
+        {
+            "user_id": 2,
+            "is_active": true,
+            "channel": "com.stuff.2",
+            "membership_cards": [
+                ...,  # GET /membership_cards payload without removing empty values
+            ],
+        },
+    ]
+    ```
+    """
+
+    authentication_classes = (InternalServiceAuthentication,)
+
+    def get_queryset(self, lookup_val: str):
+        return (
+            CustomUser.all_objects.prefetch_related("scheme_account_set__scheme")
+            .filter(Q(email=lookup_val) | Q(external_id=lookup_val))
+            .all()
+        )
+
+    def list(self, request: HttpRequest, *args: t.Any, **kwargs: t.Any) -> Response:
+        if not (lookup_val := request.GET.get("s")):
+            raise ValidationError("Lookup value not provided. Expected non empty query param 's'.")
+
+        return Response(
+            [
+                {
+                    "user_id": user.id,
+                    "is_active": user.is_active,
+                    "channel": user.bundle_id,
+                    "membership_cards": MembershipCardSerializer(
+                        user.scheme_account_set, context={"user_id": user.id}, many=True
+                    ).data,
+                }
+                for user in self.get_queryset(lookup_val)
+            ],
+            status=200,
         )
 
 

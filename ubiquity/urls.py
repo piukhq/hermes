@@ -9,6 +9,7 @@ from ubiquity.views import (  # CompositeMembershipCardView,; CompositePaymentCa
     MembershipPlanView,
     MembershipTransactionView,
     PaymentCardView,
+    PortalUsersLookupView,
     ServiceView,
 )
 
@@ -66,5 +67,10 @@ urlpatterns = [
         r"^/membership_card/(?P<mcard_id>[0-9]+)/payment_card/(?P<pcard_id>[0-9]+)/?$",
         CardLinkView.as_view(link_payment),
         name="payment-link",
+    ),
+    re_path(
+        r"^/users/lookup/?$",
+        PortalUsersLookupView.as_view({"get": "list"}),
+        name="users-lookup",
     ),
 ]
