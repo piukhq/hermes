@@ -1,5 +1,6 @@
 import datetime
 import json
+from dataclasses import dataclass
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -73,6 +74,7 @@ from ubiquity.versioning.v1_2.serializers import (
 )
 from ubiquity.versioning.v1_3.serializers import MembershipCardSerializer as MembershipCardSerializer_V1_3
 from ubiquity.views import MembershipCardView, detect_and_handle_escaped_unicode
+from user.models import CustomUser
 from user.tests.factories import (
     ClientApplicationBundleFactory,
     ClientApplicationFactory,
@@ -199,6 +201,7 @@ class TestResources(GlobalMockAPITestCase):
 
         cls.auth_headers = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user))}
         cls.auth_headers_user2 = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user2))}
+        cls.internal_service_auth_headers = {"HTTP_AUTHORIZATION": f"token {settings.SERVICE_API_KEY}"}
         cls.version_header = {"HTTP_ACCEPT": "Application/json;v=1.1"}
         cls.version_header_v1_2 = {"HTTP_ACCEPT": "Application/json;v=1.2"}
         cls.version_header_v1_3 = {"HTTP_ACCEPT": "Application/json;v=1.3"}
@@ -396,6 +399,160 @@ class TestResources(GlobalMockAPITestCase):
         self.user.save()
         bundle_assoc.test_scheme = False
         bundle_assoc.save()
+
+    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
+    def test_portal_users_lookup(self, *_):
+        @dataclass
+        class TestData:
+            test_name: str
+            lookup_val: str
+            user_1_email: str
+            user_2_email: str
+            user_1_external_id: str
+            user_2_external_id: str
+            found_users: list[CustomUser]
+
+        def check_user_info(payload, user, test_name):
+            self.assertEqual(payload["user_id"], user.id, test_name)
+            self.assertEqual(payload["is_active"], user.is_active, test_name)
+            self.assertEqual(payload["channel"], user.bundle_id, test_name)
+
+        existing_user_email = self.user.email
+        existing_user_external_id = self.user.external_id
+
+        scheme_account_2 = SchemeAccountFactory(balances=self.scheme_account.balances)
+        SchemeBundleAssociationFactory(
+            scheme=scheme_account_2.scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE
+        )
+        user_2 = UserFactory(external_id="placeholder", client=self.client_app, email="place@holder.email")
+        SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=self.user)
+        SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=user_2)
+        SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=user_2)
+        scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
+        expected_m_cards_payload = MembershipCardSerializer(
+            scheme_accounts, many=True, context={"user_id": self.user.id}
+        ).data
+
+        # test lookup not provided:
+        resp = self.client.get(reverse("users-lookup"), **self.internal_service_auth_headers)
+        self.assertEqual(resp.status_code, 400, "test for lookup value not provided.")
+
+        # test wrong auth:
+        resp = self.client.get(reverse("users-lookup"), {"s": "sample"})
+        self.assertEqual(resp.status_code, 401, "test for auth not provided.")
+
+        # unfortunately pytest parametrize is not supported in methods of a rest_framework APITestCase class
+        for test_data in [
+            TestData(
+                test_name="lookup match user 1 external id",
+                lookup_val="sample_id_one",
+                user_1_email="test@email.one",
+                user_2_email="test@email.two",
+                user_1_external_id="sample_id_one",
+                user_2_external_id="sample_id_two",
+                found_users=[self.user],
+            ),
+            TestData(
+                test_name="lookup match user 2 external id",
+                lookup_val="sample_id_two",
+                user_1_email="test@email.one",
+                user_2_email="test@email.two",
+                user_1_external_id="sample_id_one",
+                user_2_external_id="sample_id_two",
+                found_users=[user_2],
+            ),
+            TestData(
+                test_name="lookup match user 1 email",
+                lookup_val="test@email.one",
+                user_1_email="test@email.one",
+                user_2_email="test@email.two",
+                user_1_external_id="sample_id_one",
+                user_2_external_id="sample_id_two",
+                found_users=[self.user],
+            ),
+            TestData(
+                test_name="lookup match user 2 email",
+                lookup_val="test@email.two",
+                user_1_email="test@email.one",
+                user_2_email="test@email.two",
+                user_1_external_id="sample_id_one",
+                user_2_external_id="sample_id_two",
+                found_users=[user_2],
+            ),
+            TestData(
+                test_name="lookup match both users emails",
+                lookup_val="test@email.same",
+                user_1_email="test@email.same",
+                user_2_email="test@email.same",
+                user_1_external_id="sample_id_one",
+                user_2_external_id="sample_id_two",
+                found_users=[self.user, user_2],
+            ),
+            TestData(
+                test_name="lookup match both users external ids",
+                lookup_val="sample_id_same",
+                user_1_email="test@email.one",
+                user_2_email="test@email.two",
+                user_1_external_id="sample_id_same",
+                user_2_external_id="sample_id_same",
+                found_users=[self.user, user_2],
+            ),
+            TestData(
+                test_name="lookup match nothing",
+                lookup_val="potato",
+                user_1_email="test@email.one",
+                user_2_email="test@email.two",
+                user_1_external_id="sample_id_one",
+                user_2_external_id="sample_id_two",
+                found_users=[],
+            ),
+        ]:
+            self.user.email = test_data.user_1_email
+            self.user.external_id = test_data.user_1_external_id
+            self.user.save()
+
+            user_2.email = test_data.user_2_email
+            user_2.external_id = test_data.user_2_external_id
+            user_2.save()
+
+            resp = self.client.get(
+                reverse("users-lookup"), {"s": test_data.lookup_val}, **self.internal_service_auth_headers
+            )
+            self.assertEqual(resp.status_code, 200, test_data.test_name)
+            response_payload = resp.json()
+
+            match test_data.found_users:
+                case [found_user]:
+                    self.assertEqual(len(response_payload), 1, test_data.test_name)
+                    check_user_info(response_payload[0], found_user, test_data.test_name)
+                    card_payloads = [response_payload[0]["membership_cards"]]
+
+                case [found_user_1, found_user_2]:
+                    self.assertEqual(len(response_payload), 2, test_data.test_name)
+                    payload_1, payload_2 = response_payload
+                    if payload_1["user_id"] != found_user_1.id:
+                        found_user_1, found_user_2 = found_user_2, found_user_1
+
+                    check_user_info(payload_1, found_user_1, test_data.test_name)
+                    check_user_info(payload_2, found_user_2, test_data.test_name)
+                    card_payloads = [payload_1["membership_cards"], payload_2["membership_cards"]]
+
+                case []:
+                    self.assertEqual(response_payload, [], test_data.test_name)
+                    card_payloads = []
+
+                case _ as val:
+                    raise ValueError(f"test '{test_data.test_name}' found_users' case {val} not supported")
+
+            for card_payload in card_payloads:
+                for i, data in enumerate(expected_m_cards_payload):
+                    self.assertDictEqual(card_payload[i], data, test_data.test_name)
+
+        # cleanup extra user and reset original values for existing user
+        self.user.email = existing_user_email
+        self.user.external_id = existing_user_external_id
+        self.user.save()
+        user_2.delete()
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
@@ -3023,6 +3180,10 @@ class TestAgainWithWeb2(TestResources):
     def _get_auth_header(cls, user):
         token = user.create_token()
         return "Token {}".format(token)
+
+    def test_portal_users_lookup(self, *_args, **_kwargs):
+        # this endpoint uses internal service authentication so it does not require Web2 re-test
+        pass
 
 
 class TestMembershipCardCredentials(GlobalMockAPITestCase):
