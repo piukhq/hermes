@@ -352,13 +352,15 @@ class SchemeAccountAdmin(HistoryAdmin):
     def refresh_scheme_account_information(self, request, queryset):
         # Forces a refresh of balance, voucher and transaction information. Requests an update of balance information
         # directly from Midas, which will also push transactions from Midas (via Hades), to Hermes.
+
         for scheme_account in queryset:
             # grab the first SchemeAccountEntry linked to this scheme account to refresh balance as
             # we do not have a user in DJango admin, if there are no users linked then this will do nothing
             scheme_account.delete_cached_balance()
             for entry in SchemeAccountEntry.objects.filter(scheme_account=scheme_account.id):
-                if entry.link_status == AccountLinkStatus.ACTIVE:
+                if entry.link_status not in AccountLinkStatus.exclude_balance_statuses():
                     scheme_account.get_balance(entry)
+
         messages.add_message(request, messages.INFO, "Refreshed balance, vouchers and transactions information.")
 
     def get_readonly_fields(self, request, obj=None):
@@ -470,17 +472,6 @@ class SchemeUserAssociationAdmin(HistoryAdmin):
         "scheme_account",
         "user",
     )
-
-    actions = ["refresh_scheme_account_information"]
-
-    def refresh_scheme_account_balance(self, request, queryset):
-        # todo: moved this to the Scheme
-        # Forces a refresh of balance, voucher and transaction information. Requests an update of balance information
-        # directly from Midas, which will also push transactions from Midas (via Hades), to Hermes.
-        for scheme_account_entry in queryset:
-            scheme_account_entry.scheme_account.delete_cached_balance()
-            scheme_account_entry.scheme_account.get_balance(scheme_account_entry=scheme_account_entry)
-        messages.add_message(request, messages.INFO, "Refreshed balance, vouchers and transactions information.")
 
     def scheme_account_link(self, obj):
         return format_html(
