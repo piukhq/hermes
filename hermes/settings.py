@@ -235,12 +235,12 @@ UPLOAD_CONTAINER_NAME = config("UPLOAD_CONTAINER_NAME", default="hermes-imports"
 ARCHIVE_CONTAINER_NAME = config("ARCHIVE_CONTAINER_NAME", default="hermes-archive")
 
 if not NO_AZURE_STORAGE:
-    DEFAULT_FILE_STORAGE = "hermes.storage.CustomAzureStorage"
+    DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
     AZURE_CONTAINER = config("HERMES_BLOB_STORAGE_CONTAINER", default="media/hermes")
     AZURE_CONNECTION_STRING = config("HERMES_BLOB_STORAGE_DSN", default="")
     # For generating image urls with a custom domain
     HERMES_CUSTOM_DOMAIN = config("HERMES_CUSTOM_DOMAIN", default="https://api.dev.gb.bink.com")
-    CONTENT_URL = f"{HERMES_CUSTOM_DOMAIN}/content"
+    CONTENT_URL = f"{HERMES_CUSTOM_DOMAIN}/content/hermes"
     MAGIC_LINK_TEMPLATE = "email/magic_link_email.txt"
 
 
