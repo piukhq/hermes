@@ -279,13 +279,13 @@ class TestBaseSerializers(GlobalMockAPITestCase):
 
         self.assertEqual(image1.id, image["id"])
 
-        url = os.path.join(settings.MEDIA_URL, image1.image.name)
+        url = os.path.join(settings.CONTENT_URL, image1.image.name)
         self.assertEqual(url, image["url"])
         self.assertEqual(image1.image_type_code, image["type"])
         self.assertEqual(image1.description, image["description"])
 
     @override_settings(
-        NO_AZURE_STORAGE=False, CONTENT_URL="https://api.dev.gb.bink.com/content", AZURE_CONTAINER="media/hermes"
+        NO_AZURE_STORAGE=False, CONTENT_URL="https://api.dev.gb.bink.com/content/hermes", AZURE_CONTAINER="media/hermes"
     )
     def test_ubiquity_image_deserializer_azure(self):
         serializer_class = UbiquityImageSerializer
@@ -296,7 +296,7 @@ class TestBaseSerializers(GlobalMockAPITestCase):
 
         self.assertEqual(image1.id, image["id"])
 
-        url = os.path.join("https://api.dev.gb.bink.com/content/media/hermes", image1.image.name)
+        url = os.path.join("https://api.dev.gb.bink.com/content/hermes", image1.image.name)
         self.assertEqual(url, image["url"])
         self.assertEqual(image1.image_type_code, image["type"])
         self.assertEqual(image1.description, image["description"])
@@ -520,17 +520,17 @@ class TestSerializersV1_3(GlobalMockAPITestCase):
 
         self.assertEqual(self.image1.id, image["id"])
 
-        url = os.path.join(settings.MEDIA_URL, self.image1.image.name)
+        url = os.path.join(settings.CONTENT_URL, self.image1.image.name)
         self.assertEqual(url, image["url"])
 
-        dark_mode_url = os.path.join(settings.MEDIA_URL, self.image1.dark_mode_image.name)
+        dark_mode_url = os.path.join(settings.CONTENT_URL, self.image1.dark_mode_image.name)
         self.assertEqual(dark_mode_url, image["dark_mode_url"])
 
         self.assertEqual(self.image1.image_type_code, image["type"])
         self.assertEqual(self.image1.description, image["description"])
 
     @override_settings(
-        NO_AZURE_STORAGE=False, CONTENT_URL="https://api.dev.gb.bink.com/content", AZURE_CONTAINER="media/hermes"
+        NO_AZURE_STORAGE=False, CONTENT_URL="https://api.dev.gb.bink.com/content/hermes", AZURE_CONTAINER="media/hermes"
     )
     def test_dark_mode_url_azure(self):
         serializer_class = MembershipPlanSerializerV1_3.image_serializer_class
@@ -539,12 +539,10 @@ class TestSerializersV1_3(GlobalMockAPITestCase):
 
         self.assertEqual(self.image1.id, image["id"])
 
-        url = os.path.join("https://api.dev.gb.bink.com/content/media/hermes", self.image1.image.name)
+        url = os.path.join("https://api.dev.gb.bink.com/content/hermes", self.image1.image.name)
         self.assertEqual(url, image["url"])
 
-        dark_mode_url = os.path.join(
-            "https://api.dev.gb.bink.com/content/media/hermes", self.image1.dark_mode_image.name
-        )
+        dark_mode_url = os.path.join("https://api.dev.gb.bink.com/content/hermes", self.image1.dark_mode_image.name)
         self.assertEqual(dark_mode_url, image["dark_mode_url"])
 
         self.assertEqual(self.image1.image_type_code, image["type"])
