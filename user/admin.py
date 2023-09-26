@@ -245,6 +245,7 @@ class SchemeInline(admin.TabularInline):
     raw_id_fields = ("scheme",)
     extra = 1
     verbose_name = "Schemes"
+    ordering = ("plan_popularity", "scheme__name")
 
 
 @admin.register(ClientApplicationBundle)
