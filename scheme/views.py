@@ -228,8 +228,14 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         if new_status_code not in [status_code[0] for status_code in AccountLinkStatus.statuses()]:
             raise serializers.ValidationError("Invalid status code sent.")
 
-        scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id, is_deleted=False)
-        scheme_account_entry = scheme_account.schemeaccountentry_set.get(user_id=user_id)
+        scheme_account_entry = get_object_or_404(
+            SchemeAccountEntry.objects.select_related("scheme_account"),
+            scheme_account_id=scheme_account_id,
+            scheme_account__is_deleted=False,
+            user_id=user_id,
+        )
+        scheme_account = scheme_account_entry.scheme_account
+
         previous_status = scheme_account_entry.link_status
 
         if journey == "join" and previous_status == AccountLinkStatus.ACCOUNT_ALREADY_EXISTS:

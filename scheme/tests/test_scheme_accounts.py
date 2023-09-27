@@ -254,6 +254,39 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(scheme_account_entry.link_status, AccountLinkStatus.MIDAS_UNREACHABLE)
 
     @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
+    def test_scheme_account_update_status_404_missing_scheme_account(self, *_):
+        missing_scheme_account_id = 999999
+        user_set = str(self.bink_user.id)
+
+        data = {
+            "status": AccountLinkStatus.ACTIVE,
+            "journey": "join",
+            "user_info": {"bink_user_id": user_set},
+        }
+        response = self.client.post(
+            "/schemes/accounts/{}/status/".format(missing_scheme_account_id),
+            data,
+            format="json",
+            **self.auth_service_headers,
+        )
+        self.assertEqual(response.status_code, 404)
+
+    @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
+    def test_scheme_account_update_status_404_missing_entry(self, *_):
+        scheme_account = SchemeAccountFactory()
+        user_set = str(self.bink_user.id)
+
+        data = {
+            "status": AccountLinkStatus.ACTIVE,
+            "journey": "join",
+            "user_info": {"bink_user_id": user_set},
+        }
+        response = self.client.post(
+            "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
+        )
+        self.assertEqual(response.status_code, 404)
+
+    @patch("scheme.views.async_join_journey_fetch_balance_and_update_status")
     def test_scheme_account_update_status_ubiquity_user(self, *_):
         client_app = ClientApplicationFactory(name="barclays")
         scheme_account = SchemeAccountFactory()
