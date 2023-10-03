@@ -15,7 +15,7 @@ from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
+from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 from django.db.models import F, JSONField, Q, UniqueConstraint, signals
 from django.dispatch import receiver
@@ -52,6 +52,7 @@ BARCODE_TYPES = (
     (6, "ITF (Interleaved 2 of 5)"),
     (7, "Code 39"),
 )
+
 
 slug_regex = re.compile(r"^[a-z0-9\-]+$")
 hex_colour_re = re.compile("^#((?:[0-9a-fA-F]{3}){1,2})$")
@@ -144,6 +145,12 @@ class SchemeBundleAssociation(models.Model):
     bundle = models.ForeignKey("user.ClientApplicationBundle", on_delete=models.CASCADE)
     status = models.IntegerField(choices=STATUSES, default=ACTIVE)
     test_scheme = models.BooleanField(default=False)
+    plan_popularity = models.IntegerField(
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(1)],
+        help_text="positive number, 1 being the most popular",
+    )
 
     @classmethod
     @redis_cache
