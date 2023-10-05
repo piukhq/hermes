@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 r_write = Redis(connection_pool=settings.REDIS_WRITE_API_CACHE_POOL)
 r_read = Redis(connection_pool=settings.REDIS_READ_API_CACHE_POOL)
+REDIS_CACHE_DELETE_BATCH_SIZE = 20
 
 
 ################################################################################
@@ -133,9 +134,11 @@ def redis_cache(user_function: Any) -> Callable:
         """Clear the cache"""
         nonlocal json_hits, pickle_hits, misses
         with lock:
-            for key in r_write.scan_iter(f"fn_cache:{user_fn_id}:*"):
-                r_write.delete(key)
+            pipe = r_write.pipeline()
+            for keys in r_write.scan_iter(f"fn_cache:{user_fn_id}:*", REDIS_CACHE_DELETE_BATCH_SIZE):
+                pipe.delete(keys)
 
+            pipe.execute()
             json_hits = pickle_hits = misses = 0
 
     def cache_info() -> tuple:
