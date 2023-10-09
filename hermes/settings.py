@@ -239,11 +239,10 @@ if not NO_AZURE_STORAGE:
     AZURE_CONTAINER = config("HERMES_BLOB_STORAGE_CONTAINER", default="media/hermes")
     AZURE_CONNECTION_STRING = config("HERMES_BLOB_STORAGE_DSN", default="")
     # For generating image urls with a custom domain
-    HERMES_CUSTOM_DOMAIN = config("HERMES_CUSTOM_DOMAIN", default="https://api.dev.gb.bink.com")
-    CONTENT_URL = f"{HERMES_CUSTOM_DOMAIN}/content"
     MAGIC_LINK_TEMPLATE = "email/magic_link_email.txt"
 
-
+HERMES_CUSTOM_DOMAIN = config("HERMES_CUSTOM_DOMAIN", default="https://api.dev.gb.bink.com")
+CONTENT_URL = f"{HERMES_CUSTOM_DOMAIN}/content/hermes"
 MEDIA_URL = config("HERMES_MEDIA_URL", default="/media/")
 MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
 

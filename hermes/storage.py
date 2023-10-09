@@ -10,6 +10,6 @@ class CustomAzureStorage(AzureStorage):
     def url(self, name, expire=None, parameters=None):
         url = super().url(name, expire, parameters)
         _, path = url.split(settings.AZURE_CONTAINER)
-        base_url = join(settings.CONTENT_URL, settings.AZURE_CONTAINER)
+        base_url = settings.CONTENT_URL
 
         return join(base_url, *path.split("/"))

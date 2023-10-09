@@ -57,12 +57,7 @@ logger = logging.getLogger(__name__)
 
 
 def _add_base_media_url(image: dict) -> dict:
-    if settings.NO_AZURE_STORAGE:
-        base_url = settings.MEDIA_URL
-    else:
-        base_url = join(settings.CONTENT_URL, settings.AZURE_CONTAINER)
-
-    return {**image, "url": join(base_url, image["url"])}
+    return {**image, "url": join(settings.CONTENT_URL, image["url"])}
 
 
 class MembershipTransactionsMixin:
@@ -252,10 +247,7 @@ class UbiquityImageSerializer(serializers.Serializer):
 
     @staticmethod
     def image_url(image: "ImageFieldFile") -> t.Optional[str]:
-        if settings.NO_AZURE_STORAGE:
-            base_url = settings.MEDIA_URL
-        else:
-            base_url = os.path.join(settings.CONTENT_URL, settings.AZURE_CONTAINER)
+        base_url = settings.CONTENT_URL
 
         try:
             if image.name:
