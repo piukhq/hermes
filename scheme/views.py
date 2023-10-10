@@ -298,8 +298,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         elif new_status_code not in pending_statuses:
             Payment.process_payment_void(scheme_account)
 
-        scheme_account_entry.link_status = new_status_code
-        scheme_account_entry.save(update_fields=["link_status"])
+        scheme_account_entry.set_link_status(new_status_code)
 
         if update_fields:
             scheme_account.save(update_fields=update_fields)
