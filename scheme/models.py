@@ -931,7 +931,7 @@ class SchemeAccount(models.Model):
             voucher.update(
                 {
                     "date_issued": issue_date.int_timestamp,
-                    "expiry_date": expiry_date.int_timestamp,
+                    "expiry_date": expiry_date.int_timestamp if expiry_date else None,
                 }
             )
 
@@ -1315,7 +1315,7 @@ class VoucherScheme(models.Model):
     subtext = models.CharField(max_length=250, null=False, blank=True)
     terms_and_conditions_url = models.URLField(null=False, blank=True)
 
-    expiry_months = models.IntegerField()
+    # expiry_months = models.IntegerField()
 
     class Meta:
         constraints = [
