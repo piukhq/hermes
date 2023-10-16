@@ -15,7 +15,6 @@ loaded = False
 _bundle_secrets = {}
 _secret_keys = {}
 _aes_keys = {}
-_barclays_hermes_sftp = {}
 
 
 class VaultError(Exception):
@@ -35,15 +34,6 @@ def retry_session(backoff_factor: float = 0.3) -> requests.Session:
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     return session
-
-
-class BarclaysSftpKeyNames(str, Enum):
-    SFTP_HOST = "SFTP_HOST"
-    SFTP_USERNAME = "SFTP_USERNAME"
-    SFTP_PRIVATE_KEY = "SFTP_PRIVATE_KEY"
-    SFTP_HOST_KEYS = "SFTP_HOST_KEYS"
-    SFTP_PORT = "SFTP_PORT"
-    SFTP_PASSWORD = "SFTP_PASSWORD"
 
 
 class AESKeyNames(str, Enum):
@@ -84,7 +74,6 @@ def load_secrets(config):
     global _bundle_secrets
     global _secret_keys
     global _aes_keys
-    global _barclays_hermes_sftp
 
     if loaded:
         logger.info("Tried to load the vault secrets more than once, ignoring the request.")
@@ -97,7 +86,6 @@ def load_secrets(config):
         _bundle_secrets = local_secrets["channels"]
         _secret_keys = local_secrets["secret-keys"]
         _aes_keys = local_secrets["aes-keys"]
-        _barclays_hermes_sftp = local_secrets["barclays-hermes-sftp"]
         loaded = True
 
     else:
@@ -115,12 +103,6 @@ def load_secrets(config):
                 secret_definition = (secret.name, _bundle_secrets)
                 secrets_to_load.append(secret_definition)
                 logger.info(f"Found channel information: {secret.name} - adding to load list")
-
-            # add secret only if it's available and don't prevent hermes from running.
-            if "barclays-hermes-sftp" in secret.name:
-                secret_definition = (secret.name, _barclays_hermes_sftp)
-                secrets_to_load.append(secret_definition)
-                logger.info(f"Found barclay notification information: {secret.name} - adding to load list")
 
         errors = []
         failed_secrets = []
@@ -181,14 +163,5 @@ def get_aes_key(key_type: str):
         return _aes_keys[key_type]
     except KeyError as exc:
         err_msg = f"{key_type} not found in _aes_keys."
-        logger.exception(err_msg)
-        raise VaultError(err_msg) from exc
-
-
-def get_barclays_sftp_key(key_type: str):
-    try:
-        return _barclays_hermes_sftp[key_type]
-    except KeyError as exc:
-        err_msg = f"{key_type} not found in _barclays_sftp_keys."
         logger.exception(err_msg)
         raise VaultError(err_msg) from exc

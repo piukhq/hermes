@@ -1,7 +1,6 @@
 import os
 
 from celery import Celery
-from celery.schedules import crontab
 from django.conf import settings
 from kombu import Exchange, Queue
 
@@ -72,11 +71,6 @@ app.conf.beat_schedule = {
         "task": "periodic_retry.tasks.retry_metis_request_tasks",
         "schedule": int(settings.RETRY_PERIOD),
         "args": (),
-    },
-    "generate_notification_file": {
-        "task": "notification.tasks.notification_file",
-        "schedule": crontab(minute=0, hour=settings.NOTIFICATION_RUN_TIME),
-        "args": (False,),
     },
     "periodic_corrections_tasks": {
         "task": "periodic_corrections.tasks.retain_pending_payments",
