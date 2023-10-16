@@ -46,7 +46,6 @@ app.autodiscover_tasks(
         "periodic_retry.tasks",
         "hermes.vop_tasks.tasks",
         "history.tasks",
-        "notification.tasks",
         "periodic_corrections.tasks",
         "scheme.tasks",
         "scheme.migrations.0109_alter_schemeaccountcredentialanswer_unique_together_and_more",
