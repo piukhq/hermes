@@ -765,7 +765,6 @@ VAULT_CONFIG = dict(
     BUNDLE_SECRETS_NAME=config("BUNDLE_SECRETS_NAME", default="channels"),
     SECRET_KEYS_NAME=config("SECRET_KEYS_NAME", default="secret-keys"),
     AES_KEYS_NAME=config("AES_KEYS_NAME", default="aes-keys"),
-    BARCLAYS_SFTP_SECRETS_NAME=config("BARCLAYS_SFTP_SECRETS_NAME", default="barclays-hermes-sftp"),
 )
 
 CSRF_COOKIE_HTTPONLY = config("SECURE_COOKIES", default=False, cast=bool)
@@ -819,19 +818,6 @@ PROMETHEUS_JOB = "hermes"
 ENCRYPTED_VALUES_LENGTH_CONTROL = config("ENCRYPTED_VALUES_LENGTH_CONTROL", default=255, cast=int)
 
 WAREHOUSE_QUEUE_NAME = config("WAREHOUSE_QUEUE_NAME", default="clickhouse_hermes")
-
-# SFTP DETAILS
-SFTP_DIRECTORY = config("SFTP_DIRECTORY", default="uploads")
-
-# 2 hours
-NOTIFICATION_RUN_TIME = config("NOTIFICATION_RUN_TIME", default="10, 12, 14, 16, 18")
-NOTIFICATION_PERIOD = config("NOTIFICATION_PERIOD", default=7200, cast=int)
-NOTIFICATION_ERROR_THRESHOLD = config("NOTIFICATION_ERROR_THRESHOLD", default=5, cast=int)
-# 2 minutes
-NOTIFICATION_RETRY_TIMER = config("NOTIFICATION_RETRY_TIMER", default=120, cast=int)
-NOTIFICATION_RUN = config("NOTIFICATION_RUN", default=False, cast=bool)
-# Barclays notification file suffix
-BARCLAYS_SFTP_FILE_SUFFIX = config("BARCLAYS_SFTP_FILE_SUFFIX", default="_DTUIL05787")
 
 # DJango 3/4 change
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
