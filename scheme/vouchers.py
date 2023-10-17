@@ -55,11 +55,9 @@ def apply_template(template_string, *, voucher_scheme, earn_value, earn_target_v
     return template.render(context)
 
 
-def get_expiry_date(voucher_scheme, voucher_fields, issue_date):
+def get_expiry_date(voucher_fields):
     if "expiry_date" in voucher_fields:
         expiry_date = arrow.get(voucher_fields["expiry_date"])
-    elif issue_date is not None:
-        expiry_date = issue_date.shift(months=+voucher_scheme.expiry_months)
     else:
         expiry_date = None
 
