@@ -890,7 +890,7 @@ class SchemeAccount(models.Model):
         issue_date = arrow.get(voucher_fields["issue_date"]) if "issue_date" in voucher_fields else None
         redeem_date = arrow.get(voucher_fields["redeem_date"]) if "redeem_date" in voucher_fields else None
 
-        expiry_date = vouchers.get_expiry_date(voucher_scheme, voucher_fields, issue_date)
+        expiry_date = vouchers.get_expiry_date(voucher_fields)
         conversion_date = arrow.get(voucher_fields["conversion_date"]) if "conversion_date" in voucher_fields else None
 
         headline_template = voucher_scheme.get_headline(voucher_fields["state"])
@@ -931,7 +931,7 @@ class SchemeAccount(models.Model):
             voucher.update(
                 {
                     "date_issued": issue_date.int_timestamp,
-                    "expiry_date": expiry_date.int_timestamp,
+                    "expiry_date": expiry_date.int_timestamp if expiry_date else None,
                 }
             )
 
@@ -1314,8 +1314,6 @@ class VoucherScheme(models.Model):
     body_text_pending = models.TextField(null=False, blank=True, verbose_name="Pending", default="")
     subtext = models.CharField(max_length=250, null=False, blank=True)
     terms_and_conditions_url = models.URLField(null=False, blank=True)
-
-    expiry_months = models.IntegerField()
 
     class Meta:
         constraints = [

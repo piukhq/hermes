@@ -718,10 +718,10 @@ TEMPLATING_HELP_TEXT = """
 
 @admin.register(VoucherScheme)
 class VoucherSchemeAdmin(admin.ModelAdmin):
-    list_display = ("scheme", "earn_type", "burn_type", "expiry_months")
+    list_display = ("scheme", "earn_type", "burn_type")
     list_filter = ("scheme", "earn_type", "burn_type")
     fieldsets = (
-        (None, {"fields": ("scheme", "barcode_type", "subtext", "expiry_months", "default", "slug")}),
+        (None, {"fields": ("scheme", "barcode_type", "subtext", "default", "slug")}),
         (
             "Earn",
             {

@@ -35,7 +35,6 @@ class TestVouchers(GlobalMockAPITestCase):
                     slug=slug,
                     scheme=cls.scheme_accumulator,
                     barcode_type=1,
-                    expiry_months=3,
                     earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR,
                     earn_prefix="£",
                     earn_suffix="pounds",
@@ -64,7 +63,6 @@ class TestVouchers(GlobalMockAPITestCase):
         cls.vs_stamps = VoucherScheme.objects.create(
             scheme=cls.scheme_stamps,
             barcode_type=1,
-            expiry_months=3,
             earn_type=VoucherScheme.EARNTYPE_STAMPS,
             earn_prefix="£",
             earn_suffix="pounds",
@@ -90,7 +88,6 @@ class TestVouchers(GlobalMockAPITestCase):
         cls.vs_join = VoucherScheme.objects.create(
             scheme=cls.scheme_join,
             barcode_type=2,
-            expiry_months=3,
             earn_type=VoucherScheme.EARNTYPE_JOIN,
             earn_prefix="£",
             earn_suffix="pounds",
@@ -304,13 +301,13 @@ class TestVouchers(GlobalMockAPITestCase):
             "value": 300,
             "target_value": 0,
             "state": VoucherStateStr.ISSUED.value,
+            "expiry_date": arrow.get(now).shift(months=3).int_timestamp,
         }
         scheme = Scheme.objects.get(slug=TEST_SLUG_ACCUMULATOR)
         vs: VoucherScheme = self.vs_accumulator
         account = SchemeAccount.objects.create(scheme=scheme, order=0)
         voucher = account.make_single_voucher(voucher_fields, vs)
 
-        expiry = arrow.get(now).shift(months=vs.expiry_months).int_timestamp
         self.assertEqual(
             voucher,
             self.voucher_resp(
@@ -318,7 +315,7 @@ class TestVouchers(GlobalMockAPITestCase):
                 state=VoucherStateStr.ISSUED.value,
                 target_value=0,
                 issue_date=voucher_fields["issue_date"],
-                expiry_date=expiry,
+                expiry_date=voucher_fields["expiry_date"],
             ),
         )
 
@@ -332,6 +329,7 @@ class TestVouchers(GlobalMockAPITestCase):
             "target_value": 0,
             "state": VoucherStateStr.PENDING.value,
             "conversion_date": now,
+            "expiry_date": arrow.get(now).shift(months=3).int_timestamp,
         }
         scheme = Scheme.objects.get(slug=TEST_SLUG_ACCUMULATOR)
         vs: VoucherScheme = self.vs_accumulator
@@ -341,13 +339,12 @@ class TestVouchers(GlobalMockAPITestCase):
         voucher = account.make_single_voucher(voucher_fields, vs)
 
         # THEN
-        expiry_date = arrow.get(now).shift(months=vs.expiry_months).int_timestamp
         voucher_resp = self.voucher_resp(
             vs,
             state=voucher_fields["state"],
             value=voucher_fields["value"],
             target_value=voucher_fields["target_value"],
-            expiry_date=expiry_date,
+            expiry_date=voucher_fields["expiry_date"],
             issue_date=voucher_fields["issue_date"],
         )
         voucher_resp["conversion_date"] = now
