@@ -93,3 +93,8 @@ class FindBarclaysViatorMembershipCards(_FindRetailerAndChannelMembershipCards):
 
 class FindAllChannelsIcelandMembershipCards(_FindRetailerAndChannelMembershipCards):
     scheme_slug = "iceland-bonus-card"
+
+
+class FindBarclaysSquaremealMembershipCards(_FindRetailerAndChannelMembershipCards):
+    scheme_slug = "squaremeal"
+    channels = ["com.barclays.bmb"]
