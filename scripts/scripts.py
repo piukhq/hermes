@@ -10,6 +10,7 @@ from .find_errors.cards_stuck_in_pending import FindCardsStuckInPending
 from .find_errors.channel_retailer_offboarding import (
     FindAllChannelsIcelandMembershipCards,
     FindBarclaysBinkWasabiMembershipCards,
+    FindBarclaysSquaremealMembershipCards,
     FindBarclaysViatorMembershipCards,
 )
 from .find_errors.client_decommission import FindClientNonTestUsers
@@ -46,6 +47,7 @@ class DataScripts(IntEnum):
     BARCLAYS_BINK_WASABI_RETAILER_CARDS = auto()
     BARCLAYS_VIATOR_RETAILER_CARDS = auto()
     ALL_CHANNELS_ICELAND_RETAILER_CARDS = auto()
+    BARCLAYS_SQUAREMEAL_RETAILER_CARDS = auto()
 
 
 # Titles displayed in Django Admin. Should make sense in the format "Find records for: [SCRIPT TITLE]"
@@ -73,6 +75,7 @@ SCRIPT_TITLES = {
     DataScripts.BARCLAYS_BINK_WASABI_RETAILER_CARDS: "Barclays and Bink Wasabi membership cards for offboarding",
     DataScripts.BARCLAYS_VIATOR_RETAILER_CARDS: "Barclays Viator membership cards for offboarding",
     DataScripts.ALL_CHANNELS_ICELAND_RETAILER_CARDS: "All Channels Iceland membership cards for offboarding",
+    DataScripts.BARCLAYS_SQUAREMEAL_RETAILER_CARDS: "Barclays Squaremeal membership cards for offboarding",
 }
 
 SCRIPT_CLASSES = {
@@ -94,6 +97,7 @@ SCRIPT_CLASSES = {
     DataScripts.BARCLAYS_BINK_WASABI_RETAILER_CARDS: FindBarclaysBinkWasabiMembershipCards,
     DataScripts.BARCLAYS_VIATOR_RETAILER_CARDS: FindBarclaysViatorMembershipCards,
     DataScripts.ALL_CHANNELS_ICELAND_RETAILER_CARDS: FindAllChannelsIcelandMembershipCards,
+    DataScripts.BARCLAYS_SQUAREMEAL_RETAILER_CARDS: FindBarclaysSquaremealMembershipCards,
 }
 # End of new script definition - you do not need to do anything else to add a new find script
 # But you may need to add one or more corrective actions see actions/corrections.py
