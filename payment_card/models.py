@@ -1,9 +1,10 @@
 import base64
 import uuid
 from enum import IntEnum
+from functools import lru_cache
 
 from django.db import models
-from django.db.models import F, JSONField, Q, signals
+from django.db.models import F, JSONField, Q, UniqueConstraint, signals
 from django.dispatch import receiver
 from django.utils import timezone
 
@@ -365,3 +366,36 @@ class PaymentAudit(models.Model):
         return "PaymentAudit id: {} - User id: {} - SchemeAccount id: {}".format(
             self.id, self.user_id, self.scheme_account_id
         )
+
+
+class VopMerchantGroup(models.Model):
+    offer_id = models.IntegerField()
+    group_name = models.CharField()
+    default = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=["default"],
+                condition=Q(default=True),
+                name="unique_default",
+                violation_error_message="There can only be one default VopMerchantGroup",
+            ),
+        ]
+
+    @lru_cache
+    @staticmethod
+    def cached_group_lookup(pk: int | None) -> "VopMerchantGroup":
+        """
+        Returns a VopMerchantGroup by pk if the pk is not None, otherwise returns the default group.
+
+        This lookup is cached in memory (lru).
+        """
+        return VopMerchantGroup.objects.get(**({"pk": pk} if pk else {"default": True}))
+
+    def __str__(self) -> str:
+        name = f"Offer ID: {self.offer_id} - Group Name: {self.group_name}"
+        if self.default:
+            name += " - DEFAULT"
+
+        return name

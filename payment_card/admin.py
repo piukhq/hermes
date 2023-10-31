@@ -231,3 +231,22 @@ class PaymentAuditAdmin(admin.ModelAdmin):
         "payment_card_hash",
         "payment_card_id",
     )
+
+
+@admin.register(models.VopMerchantGroup)
+class VopMerchantGroupAdmin(admin.ModelAdmin):
+    list_display = ("id", "offer_id", "group_name", "default")
+    readonly_fields = ("default",)
+    search_fields = ("offer_id", "group_name")
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": ("offer_id", "group_name"),
+                "description": (
+                    "If these fields are updated a restart of the pods is required "
+                    "for the changes to be reflected in Hermes."
+                ),
+            },
+        ),
+    )

@@ -1,17 +1,26 @@
+from typing import TYPE_CHECKING
+
 import requests
 from celery import shared_task
 from django.conf import settings
 
 from history.signals import HISTORY_CONTEXT
 from history.utils import clean_history_kwargs, set_history_kwargs
+from payment_card.models import VopMerchantGroup
 from periodic_retry.models import PeriodicRetryStatus, RetryTaskList
 from periodic_retry.tasks import PeriodicRetryHandler
 
+if TYPE_CHECKING:
+    from ubiquity.models import VopActivation
 
-def vop_activate_request(activation):
-    data = {
+
+def vop_activate_request(activation: "VopActivation") -> None:
+    merchant_group = VopMerchantGroup.cached_group_lookup(activation.scheme.vop_merchant_group_id)
+    data: dict[str, str | int] = {
         "payment_token": activation.payment_card_account.psp_token,
         "partner_slug": "visa",
+        "offer_id": merchant_group.offer_id,
+        "merchant_group": merchant_group.group_name,
         "merchant_slug": activation.scheme.slug,
         "id": activation.payment_card_account.id,  # improves tracking via logs esp. in Metis
     }
@@ -23,9 +32,11 @@ def vop_activate_request(activation):
     send_activation.delay(activation, data, history_kwargs)
 
 
-def process_result(rep, activation, link_action):
+def process_result(
+    resp: requests.Response, activation: "VopActivation", link_action: int
+) -> tuple[PeriodicRetryStatus, dict]:
     status = PeriodicRetryStatus.REQUIRED
-    ret_data = rep.json()
+    ret_data: dict[str, str] = resp.json()
     response_status = ret_data.get("response_status")
     activation_id = ret_data.get("activation_id")
 
@@ -37,7 +48,7 @@ def process_result(rep, activation, link_action):
     if activation_id:
         response_data["activation_id"] = activation_id
 
-    if rep.status_code == 201:
+    if resp.status_code == 201:
         if activation_id and link_action == activation.ACTIVATING:
             activation.activation_id = activation_id
             activation.status = activation.ACTIVATED
@@ -53,25 +64,26 @@ def process_result(rep, activation, link_action):
     else:
         if response_status != "Retry":
             status = PeriodicRetryStatus.FAILED
+
     return status, response_data
 
 
-def activate(activation, data: dict):
+def activate(activation: "VopActivation", data: dict) -> tuple[PeriodicRetryStatus, dict]:
     if activation.status != activation.ACTIVATING:
         activation.status = activation.ACTIVATING
         activation.save(update_fields=["status"])
 
-    rep = requests.post(
+    resp = requests.post(
         settings.METIS_URL + "/visa/activate/",
         json=data,
         headers={"Authorization": "Token {}".format(settings.SERVICE_API_KEY), "Content-Type": "application/json"},
     )
 
-    return process_result(rep, activation, activation.ACTIVATING)
+    return process_result(resp, activation, activation.ACTIVATING)
 
 
 @shared_task
-def send_activation(activation, data: dict, history_kwargs: dict | None = None):
+def send_activation(activation: "VopActivation", data: dict, history_kwargs: dict | None = None) -> None:
     set_history_kwargs(history_kwargs)
     status, result = activate(activation, data)
     if status == PeriodicRetryStatus.REQUIRED:
@@ -92,7 +104,9 @@ def send_activation(activation, data: dict, history_kwargs: dict | None = None):
     clean_history_kwargs(history_kwargs)
 
 
-def deactivate(activation, data: dict, headers: dict | None = None):
+def deactivate(
+    activation: "VopActivation", data: dict, headers: dict | None = None
+) -> tuple[PeriodicRetryStatus, dict]:
     activation.status = activation.DEACTIVATING
     activation.save(update_fields=["status"])
 
@@ -109,11 +123,15 @@ def deactivate(activation, data: dict, headers: dict | None = None):
 
 
 @shared_task
-def send_deactivation(activation, history_kwargs: dict | None = None, headers: dict | None = None):
+def send_deactivation(
+    activation: "VopActivation", history_kwargs: dict | None = None, headers: dict | None = None
+) -> None:
+    merchant_group = VopMerchantGroup.cached_group_lookup(activation.scheme.vop_merchant_group_id)
     set_history_kwargs(history_kwargs)
     data = {
         "payment_token": activation.payment_card_account.psp_token,
         "partner_slug": "visa",
+        "offer_id": merchant_group.offer_id,
         "activation_id": activation.activation_id,
         "id": activation.payment_card_account.id,  # improves tracking via logs esp. in Metis
     }

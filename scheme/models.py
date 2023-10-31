@@ -283,6 +283,14 @@ class Scheme(models.Model):
         default=60 * 20, help_text="Time, in seconds, to allow before calling the merchant to refresh a balance"
     )  # 20 minute default
     go_live = models.DateField(null=True, blank=True)
+    vop_merchant_group = models.ForeignKey(
+        "payment_card.VopMerchantGroup",
+        related_name="schemes",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        help_text="If not set, will fallback to the default VopMerchantGroup",
+    )
 
     @cached_property
     def manual_question(self):
