@@ -335,6 +335,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         deleted_service_cleanup.delay(
             user_id,
             response["consent"],
+            channel_slug=request.channels_permit.bundle_id,
             history_kwargs={"user_info": user_info(user_id=user_id, channel=request.channels_permit.bundle_id)},
         )
         return Response(response)
@@ -430,6 +431,7 @@ class PaymentCardView(
             pcard_pk,
             pcard_hash,
             request.channels_permit.user.id,
+            channel_slug=request.channels_permit.bundle_id,
             history_kwargs={
                 "user_info": user_info(
                     user_id=request.channels_permit.user.id, channel=request.channels_permit.bundle_id
@@ -968,6 +970,7 @@ class MembershipCardView(
         deleted_membership_card_cleanup.delay(
             entry,
             arrow.utcnow().format(),
+            channel_slug=request.channels_permit.bundle_id,
             history_kwargs={
                 "user_info": user_info(
                     user_id=request.channels_permit.user.id, channel=request.channels_permit.bundle_id

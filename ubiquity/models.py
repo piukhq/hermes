@@ -12,6 +12,7 @@ from django.db.models import F, Q, signals
 from django.dispatch import receiver
 from django.utils.functional import cached_property
 
+from api_messaging.midas_messaging import send_midas_last_pll_per_channel_group_event
 from hermes import settings
 from hermes.vop_tasks import send_deactivation, vop_activate_request
 from history.data_warehouse import user_pll_status_change_event
@@ -19,12 +20,12 @@ from history.signals import HISTORY_CONTEXT
 from scheme.credentials import BARCODE, CARD_NUMBER, ENCRYPTED_CREDENTIALS, MERCHANT_IDENTIFIER, PASSWORD, PASSWORD_2
 from scheme.encryption import AESCipher
 from ubiquity.channel_vault import AESKeyNames
+from user.models import ClientApplicationBundle, CustomUser
 
 if TYPE_CHECKING:
     from payment_card.models import PaymentCardAccount  # noqa
     from scheme.models import SchemeAccount  # noqa
     from scheme.models import SchemeAccountCredentialAnswer
-    from user.models import CustomUser
 
 logger = logging.getLogger(__name__)
 
@@ -931,11 +932,7 @@ class PllUserAssociation(models.Model):
                 link.pll.save()
 
     @classmethod
-    def update_user_pll_by_both(
-        cls, payment_card_account: "PaymentCardAccount", scheme_account: "SchemeAccount", headers: dict | None = None
-    ):
-        wallet_pll_data = WalletPLLData(payment_card_account=payment_card_account, scheme_account=scheme_account)
-        # these are pll user links to all wallets which have this payment_card_account
+    def _update_user_pll(cls, wallet_pll_data: WalletPLLData, headers: dict | None = None):
         wallet_pll_records = wallet_pll_data.all_except_collision()
         for link in wallet_pll_data.all_except_collision():
             previous_state = link.state
@@ -946,40 +943,33 @@ class PllUserAssociation(models.Model):
             )
             cls.update_link(link, wallet_pll_records)
 
-            user_pll_status_change_event(link, previous_slug, previous_state, headers)
+            # Only trigger events when there's a state change or slug change
+            if previous_state != link.state or previous_slug != link.slug:
+                user_pll_status_change_event(link, previous_state, headers)
+
+                # Only do last man standing check if link was deactivated
+                if previous_state == WalletPLLStatus.ACTIVE:
+                    channel_last_man_standing_user_pll_check(user_pll=link)
+
+    @classmethod
+    def update_user_pll_by_both(
+        cls, payment_card_account: "PaymentCardAccount", scheme_account: "SchemeAccount", headers: dict | None = None
+    ):
+        wallet_pll_data = WalletPLLData(payment_card_account=payment_card_account, scheme_account=scheme_account)
+        # these are pll user links to all wallets which have this payment_card_account or scheme account
+        cls._update_user_pll(wallet_pll_data, headers)
 
     @classmethod
     def update_user_pll_by_pay_account(cls, payment_card_account: "PaymentCardAccount", headers: dict | None = None):
         wallet_pll_data = WalletPLLData(payment_card_account=payment_card_account)
         # these are pll user links to all wallets which have this payment_card_account
-        wallet_pll_records = wallet_pll_data.all_except_collision()
-        for link in wallet_pll_data.all_except_collision():
-            previous_state = link.state
-            previous_slug = link.slug
-
-            link.state, link.slug = cls.get_state_and_slug(
-                link.pll.payment_card_account, wallet_pll_data.scheme_account_status(link)
-            )
-            cls.update_link(link, wallet_pll_records)
-
-            logger.info("Sending pll_link.statuschange event from payment account.")
-            user_pll_status_change_event(link, previous_slug, previous_state, headers)
+        cls._update_user_pll(wallet_pll_data, headers)
 
     @classmethod
     def update_user_pll_by_scheme_account(cls, scheme_account: "SchemeAccount"):
         wallet_pll_data = WalletPLLData(scheme_account=scheme_account)
         # these are pll user links to all wallets which have this scheme_account
-        wallet_pll_records = wallet_pll_data.all_except_collision()
-        for link in wallet_pll_data.all_except_collision():
-            previous_state = link.state
-            previous_slug = link.slug
-
-            wallet_scheme_account_status = wallet_pll_data.scheme_account_status(link)
-            link.state, link.slug = cls.get_state_and_slug(link.pll.payment_card_account, wallet_scheme_account_status)
-            cls.update_link(link, wallet_pll_records)
-
-            logger.info("Sending pll_link.statuschange event from scheme account.")
-            user_pll_status_change_event(link, previous_slug, previous_state)
+        cls._update_user_pll(wallet_pll_data)
 
     @classmethod
     def link_users_scheme_accounts(
@@ -1047,9 +1037,8 @@ class PllUserAssociation(models.Model):
         scheme_account = scheme_account_entry.scheme_account
         user = scheme_account_entry.user
         status, slug = cls.get_state_and_slug(payment_card_account, scheme_account_entry.link_status)
-        base_status = False
-        if status == WalletPLLStatus.ACTIVE:
-            base_status = True
+        base_status = status == WalletPLLStatus.ACTIVE
+
         scheme_count = (
             payment_card_account.scheme_account_set.filter(scheme=scheme_account.scheme_id)
             .exclude(pk=scheme_account.id)
@@ -1076,11 +1065,22 @@ class PllUserAssociation(models.Model):
 
         # Check if in multi wallet
         # If base link is already active do not update unless it's a single wallet scenario
-        if cls.objects.filter(pll=base_link).count() < 1:
-            if base_link.active_link != base_status:
-                base_link.active_link = base_status
-                base_link.save()
+        if cls.objects.filter(pll=base_link).count() < 1 and base_link.active_link != base_status:
+            base_link.active_link = base_status
+            base_link.save()
 
+        user_link = cls._single_update_user_pll(user, base_link, slug, status, headers)
+        return user_link
+
+    @classmethod
+    def _single_update_user_pll(
+        cls,
+        user: "CustomUser",
+        base_link: "PaymentCardSchemeEntry",
+        slug: "WalletPLLSlug",
+        status: "WalletPLLStatus",
+        headers: dict | None = None,
+    ) -> "PllUserAssociation":
         user_link, link_created = cls.objects.get_or_create(
             pll=base_link, user=user, defaults={"slug": slug, "state": status}
         )
@@ -1093,9 +1093,114 @@ class PllUserAssociation(models.Model):
             user_link.slug = slug
             user_link.save()
 
-        user_pll_status_change_event(user_link, previous_slug, previous_state, headers)
+        if previous_state != user_link.state or previous_slug != user_link.slug:
+            user_pll_status_change_event(user_link, previous_state, headers)
 
         return user_link
+
+
+def _channel_last_man_standing_check(
+    user_id: int,
+    channel_slug: str,
+    is_trusted: bool,
+    scheme_account: "SchemeAccount",
+) -> None:
+    # is_trusted filter separate the retailer channel from all other channels.
+    # An assumption is made that there will only be a single retailer channel for a scheme.
+    user_pll_count = PllUserAssociation.objects.filter(
+        pll__scheme_account=scheme_account,
+        state=WalletPLLStatus.ACTIVE,
+        user__client__clientapplicationbundle__is_trusted=is_trusted,
+    ).count()
+    if user_pll_count < 1:
+        # loyalty card does not have active user pll in any other wallet of this channel group.
+        send_midas_last_pll_per_channel_group_event(
+            channel_slug=channel_slug,
+            user_id=user_id,
+            scheme_account=scheme_account,
+        )
+
+
+def channel_last_man_standing_payment_card_check(
+    user_id: int,
+    base_pll_links: list["PaymentCardSchemeEntry"],
+    channel_slug: str,
+):
+    """
+    Check whether to send the midas loyalty card removed event for a channel group when a payment
+    card is removed from the wallet.
+
+    This must be called after the user PLL has been deleted for the calling user.
+    """
+    current_user = CustomUser.objects.get(pk=user_id)
+    current_user_channel = ClientApplicationBundle.objects.only("is_trusted", "bundle_id").get(
+        bundle_id=channel_slug, client=current_user.client
+    )
+
+    for pll in base_pll_links:
+        _channel_last_man_standing_check(
+            user_id=user_id,
+            channel_slug=current_user_channel.bundle_id,
+            is_trusted=current_user_channel.is_trusted,
+            scheme_account=pll.scheme_account,
+        )
+
+
+def channel_last_man_standing_loyalty_card_check(
+    scheme_account_entry: "SchemeAccountEntry",
+    channel_slug: str | None = None,
+):
+    """
+    Check whether to send the midas loyalty card removed event for a channel group when a loyalty
+    card is removed from the wallet.
+
+    This must be called after the user PLL has been deleted for the calling user.
+    """
+    # Sometimes it's not possible to get the channel of the initial request
+    # (e.g. as a result of an internal change or script run)
+    # fall back to bundle_id field on the user or get the first available channel for a client.
+    channel_query_params = {"client": scheme_account_entry.user.client}
+    if channel_slug or scheme_account_entry.user.bundle_id:
+        channel_query_params["bundle_id"] = channel_slug or scheme_account_entry.user.bundle_id
+
+    # Get first in case client is multi-channel and we haven't been able to specify which one
+    current_user_channel = (
+        ClientApplicationBundle.objects.only("is_trusted", "bundle_id").filter(**channel_query_params).first()
+    )
+    _channel_last_man_standing_check(
+        user_id=scheme_account_entry.user_id,
+        channel_slug=current_user_channel.bundle_id,
+        is_trusted=current_user_channel.is_trusted,
+        scheme_account=scheme_account_entry.scheme_account,
+    )
+
+
+def channel_last_man_standing_user_pll_check(
+    user_pll: "PllUserAssociation",
+) -> None:
+    """
+    Check whether to send the midas loyalty card removed event for a channel group when the user pll
+    state is changed.
+    """
+    # Since this is triggered from an internal change i.e. status update signal, we don't have the channel
+    # of the initial request.
+    # Fall back to bundle_id on the user if it is populated.
+    # This could cause unexpected behaviour if there is ever a client with
+    # both a trusted and a non-trusted channel.
+    channel_query_params = {"client": user_pll.user.client}
+    if user_pll.user.bundle_id:
+        channel_query_params["bundle_id"] = user_pll.user.bundle_id
+
+    # Get first in case client is multi-channel and we haven't been able to specify which one
+    user_channel = (
+        ClientApplicationBundle.objects.only("is_trusted", "bundle_id").filter(**channel_query_params).first()
+    )
+    _channel_last_man_standing_check(
+        user_id=user_pll.user_id,
+        channel_slug=user_channel.bundle_id,
+        is_trusted=user_channel.is_trusted,
+        scheme_account=user_pll.pll.scheme_account,
+    )
 
 
 class PaymentCardSchemeEntry(models.Model):
@@ -1382,7 +1487,6 @@ def update_pll_links_on_save(instance: PaymentCardSchemeEntry, created: bool, **
 
 @receiver(signals.post_delete, sender=PaymentCardSchemeEntry)
 def update_pll_links_on_delete(instance: PaymentCardSchemeEntry, **kwargs) -> None:
-    PllUserAssociation.objects.filter(pll=instance).delete()
     PllUserAssociation.update_user_pll_by_both(instance.payment_card_account, instance.scheme_account)
     _remove_pll_link(instance)
 

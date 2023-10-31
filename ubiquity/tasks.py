@@ -11,7 +11,6 @@ from django.conf import settings
 from django.db.models import Q
 from rest_framework import serializers
 
-from api_messaging.midas_messaging import send_midas_last_loyalty_card_removed
 from hermes.vop_tasks import activate, deactivate
 from history.data_warehouse import (
     generate_pll_delete_payload,
@@ -32,6 +31,8 @@ from ubiquity.models import (
     PllUserAssociation,
     SchemeAccountEntry,
     VopActivation,
+    channel_last_man_standing_loyalty_card_check,
+    channel_last_man_standing_payment_card_check,
 )
 from user.models import ClientApplicationBundle, CustomUser
 
@@ -281,6 +282,7 @@ def deleted_payment_card_cleanup(
     payment_card_id: t.Optional[int],
     payment_card_hash: t.Optional[str],
     user_id: int,
+    channel_slug: str,
     history_kwargs: dict | None = None,
     headers: dict | None = None,
 ) -> None:
@@ -290,18 +292,24 @@ def deleted_payment_card_cleanup(
     else:
         query = {"hash": payment_card_hash}
 
-    payment_card_account = PaymentCardAccount.objects.prefetch_related("paymentcardschemeentry_set").get(**query)
+    payment_card_account = PaymentCardAccount.objects.prefetch_related(
+        "paymentcardschemeentry_set", "paymentcardschemeentry_set__plluserassociation_set"
+    ).get(**query)
     p_card_users = payment_card_account.user_set.values_list("id", flat=True).all()
-    pll_links = payment_card_account.paymentcardschemeentry_set.all()
+    pll_links = (
+        payment_card_account.paymentcardschemeentry_set.select_related("scheme_account")
+        .prefetch_related("plluserassociation_set")
+        .all()
+    )
 
     user_plls = PllUserAssociation.objects.filter(pll__in=pll_links, user__id=user_id)
-
     # Generate event payload for pll_link.status_change
     delete_user_pll_payloads = generate_pll_delete_payload(user_plls)
-
     user_plls.delete()
-
     user_pll_delete_event(delete_user_pll_payloads, headers)
+
+    # This must be called after the user PLL is deleted
+    channel_last_man_standing_payment_card_check(user_id, pll_links, channel_slug)
 
     if not p_card_users:
         payment_card_account.is_deleted = True
@@ -311,15 +319,9 @@ def deleted_payment_card_cleanup(
     else:
         pll_links = pll_links.exclude(scheme_account__user_set__id__in=p_card_users)
 
-    # deleted_link_ids = [link.id for link in pll_links]
     # Pll links delete triggers the delete signal on the base link which also removes PllUserAssociations and
     # recomputes the user link status and slug. Could be made more efficient as this is done on every link
     pll_links.delete()
-
-    # @todo pll stuff removed this if ok - pll_links
-    # Updates any ubiquity collisions linked to this payment card
-    # for entry in payment_card_account.paymentcardschemeentry_set.exclude(id__in=deleted_link_ids).all():
-    #    entry.update_soft_links({"payment_card_account": payment_card_account})
 
     clean_history_kwargs(history_kwargs)
 
@@ -328,30 +330,26 @@ def deleted_payment_card_cleanup(
 def deleted_membership_card_cleanup(
     scheme_account_entry: SchemeAccountEntry,
     delete_date: str,
+    channel_slug: str | None = None,
     history_kwargs: dict | None = None,
     headers: dict | None = None,
 ) -> None:
     set_history_kwargs(history_kwargs)
     scheme_slug = scheme_account_entry.scheme_account.scheme.slug
-    user_id = scheme_account_entry.user_id
 
-    # todo: review PLL behaviour on card deletion in P3
     pll_links = PaymentCardSchemeEntry.objects.filter(
-        scheme_account_id=scheme_account_entry.scheme_account.id
+        scheme_account_id=scheme_account_entry.scheme_account_id
     ).prefetch_related("scheme_account", "payment_card_account", "payment_card_account__paymentcardschemeentry_set")
 
-    remove_loyalty_card_event(scheme_account_entry, date_time=delete_date, headers=headers)
-
-    # @todo consider if the next line is redundant - deleting base_pll cascades delete PLLAssociation on foreign key
-    #  also pll_links.delete() does this with a post delete signal.
-
-    user_plls = PllUserAssociation.objects.filter(pll__in=pll_links, user_id=user_id)
-
     # Generate payload for event pll_link.statuschange
+    user_plls = PllUserAssociation.objects.filter(pll__in=pll_links, user_id=scheme_account_entry.user_id)
     delete_user_pll_payloads = generate_pll_delete_payload(user_plls)
-
     user_plls.delete()
     user_pll_delete_event(delete_user_pll_payloads, headers)
+
+    remove_loyalty_card_event(scheme_account_entry, date_time=delete_date, headers=headers)
+    # This must be called after deleting the user PLL
+    channel_last_man_standing_loyalty_card_check(scheme_account_entry=scheme_account_entry, channel_slug=channel_slug)
 
     other_scheme_account_entries = SchemeAccountEntry.objects.filter(
         scheme_account=scheme_account_entry.scheme_account
@@ -359,12 +357,10 @@ def deleted_membership_card_cleanup(
 
     if other_scheme_account_entries.count() <= 0:
         # Last man standing
-        send_midas_last_loyalty_card_removed(scheme_account_entry)
         scheme_account_entry.scheme_account.is_deleted = True
         scheme_account_entry.scheme_account.save(update_fields=["is_deleted"])
 
     else:
-        # todo: Some PLL link nonsense to look at here for Phase 3 - This should work ok
         m_card_users = other_scheme_account_entries.values_list("user_id", flat=True)
         pll_links = pll_links.exclude(payment_card_account__user_set__in=m_card_users)
 
@@ -373,23 +369,13 @@ def deleted_membership_card_cleanup(
 
     activations = VopActivation.find_activations_matching_links(pll_links)
 
-    # related_pcards = {link.payment_card_account for link in pll_links}
-    # deleted_pll_link_ids = {link.id for link in pll_links}
-
     # Pll links delete triggers the delete signal on the base link which also removes PllUserAssociations and
     # recomputes the user link status and slug. Could be made more efficient as this is done on every link
     pll_links.delete()
 
-    # @todo pll stuff removed this if ok - pll_links.delete() handles this now
-    # Resolve ubiquity collisions for any PLL links related to the linked payment card accounts
-    # for pcard in related_pcards:
-    #    pcard_links = pcard.paymentcardschemeentry_set.exclude(id__in=deleted_pll_link_ids).all()
-    #    for pcard_link in pcard_links:
-    #       pcard_link.update_soft_links({"payment_card_account": pcard_link.payment_card_account_id})
-
     if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
         send_merchant_metrics_for_link_delete.delay(
-            scheme_account_entry.scheme_account.id, scheme_slug, delete_date, "delete"
+            scheme_account_entry.scheme_account_id, scheme_slug, delete_date, "delete"
         )
 
     PaymentCardSchemeEntry.deactivate_activations(activations)
@@ -431,6 +417,7 @@ def bulk_deleted_membership_card_cleanup(
             scheme_acc_id,
             arrow.utcnow().format(),
             user_id,
+            channel_slug=channel,
             history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
         )
 
@@ -455,7 +442,11 @@ def _send_data_to_atlas(consent: dict, x_azure_ref: str | None = None) -> None:
 
 
 def _delete_user_membership_cards(
-    user: "CustomUser", m_cards: list[SchemeAccount], send_deactivation: bool = True, headers: dict | None = None
+    user: "CustomUser",
+    m_cards: list[SchemeAccount],
+    channel_slug: str = None,
+    send_deactivation: bool = True,
+    headers: dict | None = None,
 ) -> None:
     cards_to_delete = []
     for card in m_cards:
@@ -467,6 +458,8 @@ def _delete_user_membership_cards(
 
     for user_card_entry in user_card_entries:
         remove_loyalty_card_event(user_card_entry, headers=headers)
+        # This can be made more efficient if handled in bulk
+        channel_last_man_standing_loyalty_card_check(scheme_account_entry=user_card_entry, channel_slug=channel_slug)
 
     # VOP deactivate
     links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account__in=cards_to_delete)
@@ -526,6 +519,7 @@ def _delete_user_payment_cards(
 def deleted_service_cleanup(
     user_id: int,
     consent: dict,
+    channel_slug: str | None = None,
     history_kwargs: dict | None = None,
     headers: dict | None = None,
     user: CustomUser | None = None,
@@ -533,15 +527,18 @@ def deleted_service_cleanup(
     set_history_kwargs(history_kwargs)
 
     if not user:
-        user = t.cast(CustomUser, CustomUser.all_objects.get(id=user_id))
+        user = t.cast(
+            CustomUser,
+            CustomUser.all_objects.prefetch_related("schemeaccountentry_set", "scheme_account_set").get(id=user_id),
+        )
 
     # A user should always have a consent in normal circumstances but this is just in case one doesn't so
     # the rest of the cleanup is still completed.
     if hasattr(user, "serviceconsent"):
         user.serviceconsent.delete()
 
-    m_cards = user.scheme_account_set.prefetch_related("user_set").all()
-    p_cards = user.payment_card_account_set.prefetch_related("user_set", "paymentcardschemeentry_set").all()
+    m_cards = user.scheme_account_set.all()
+    p_cards = user.payment_card_account_set.prefetch_related("paymentcardschemeentry_set").all()
 
     user_plls = PllUserAssociation.objects.filter(
         Q(user__id=user.id), Q(pll__scheme_account_id__in=m_cards) | Q(pll__payment_card_account_id__in=p_cards)
@@ -549,7 +546,6 @@ def deleted_service_cleanup(
 
     # Generate payload for event pll_link.statuschange
     delete_user_pll_payloads = generate_pll_delete_payload(user_plls)
-
     user_plls.delete()
 
     # user pll event
@@ -558,7 +554,7 @@ def deleted_service_cleanup(
     # Don't deactivate when removing membership card as it will race with delete payment card
     # Deleting all payment cards causes an un-enrol for each card which also deactivates all linked activations
     # if a payment card was linked to 2 accounts its activations will not be deleted
-    _delete_user_membership_cards(user, m_cards, send_deactivation=False, headers=headers)
+    _delete_user_membership_cards(user, m_cards, channel_slug=channel_slug, send_deactivation=False, headers=headers)
     _delete_user_payment_cards(user, p_cards, run_async=False, headers=headers)
     clean_history_kwargs(history_kwargs)
 

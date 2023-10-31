@@ -1,3 +1,4 @@
+import typing
 from unittest.mock import patch
 
 import arrow
@@ -40,6 +41,9 @@ from user.tests.factories import (
     UserFactory,
 )
 
+if typing.TYPE_CHECKING:
+    from user.models import CustomUser
+
 
 class TestTasks(GlobalMockAPITestCase):
     @classmethod
@@ -71,6 +75,12 @@ class TestTasks(GlobalMockAPITestCase):
             options=SchemeCredentialQuestion.LINK_AND_JOIN,
             auth_field=True,
         )
+
+    @staticmethod
+    def trusted_channel_user() -> "CustomUser":
+        bundle = ClientApplicationBundleFactory(is_trusted=True)
+        external_id = "trusted_channel_user"
+        return UserFactory(external_id=external_id, email=external_id, client=bundle.client)
 
     @patch("requests.get")
     def test_async_balance(self, mock_midas_balance):
@@ -523,6 +533,7 @@ class TestTasks(GlobalMockAPITestCase):
     def test_deleted_payment_card_cleanup_ubiquity_collision(self, mock_metrics):
         external_id_1 = "testuser@testbink.com"
         user1 = UserFactory(external_id=external_id_1, email=external_id_1)
+        user1_channel = user1.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
         external_id_2 = "testuser2@testbink.com"
         user2 = UserFactory(external_id=external_id_2, email=external_id_2)
 
@@ -543,18 +554,10 @@ class TestTasks(GlobalMockAPITestCase):
         # PaymentCardSchemeEntryFactory(payment_card_account=payment_card, scheme_account=mcard1, active_link=True)
         PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user1)
 
-        """
-        PaymentCardSchemeEntryFactory(
-            payment_card_account=payment_card,
-            scheme_account=mcard2,
-            active_link=False,
-            slug=PaymentCardSchemeEntry.UBIQUITY_COLLISION,
-        )
-        """
         PllUserAssociation.link_users_scheme_account_to_payment(mcard2, payment_card, user2)
 
         # TEST
-        deleted_payment_card_cleanup(payment_card.id, None, user1.id)
+        deleted_payment_card_cleanup(payment_card.id, None, user1.id, channel_slug=user1_channel)
 
         # PLL links deleted for mcards held by user1 and
         # resolved to Active from UBIQUITY_COLLISION for mcard held by user2
@@ -568,6 +571,551 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertTrue(links[0].active_link)
         self.assertEqual(pll_users[0].slug, "")
         self.assertEqual(pll_users[0].state, WalletPLLStatus.ACTIVE)
+
+    @patch("message_lib.producer.MessageProducer._MessageProducerQueueHandler.send_message")
+    def test_loyalty_card_removed_event_sent_when_deleting_pcard_trusted_channel(self, mock_send_message):
+        """
+        A LoyaltyCardRemoved (trusted channel) event should be sent when the last payment card in a retailer
+        (trusted) channel is unlinked from a loyalty card.
+
+        This test is for when the unlinking happens specifically when a payment card is deleted.
+        """
+        trusted_user1 = self.trusted_channel_user()
+        external_id_1 = "testuser@testbink.com"
+        user1 = UserFactory(external_id=external_id_1, email=external_id_1)
+        external_id_2 = "testuser2@testbink.com"
+        user2 = UserFactory(external_id=external_id_2, email=external_id_2)
+
+        # Add an Active payment account and link mcard to test PLL link handling
+        payment_card = PaymentCardAccountFactory()
+        # This link is not created for the test because it is deleted in the api before the cleanup task
+        # PaymentCardAccountEntryFactory(user=trusted_user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user2, payment_card_account=payment_card)
+
+        # Add scheme account to all users
+        mcard1 = SchemeAccountFactory(card_number="1111")
+
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=trusted_user1)
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=user1)
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=user2)
+
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, trusted_user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user2)
+
+        mock_send_message.call_count = 0
+        trusted_user1_channel = trusted_user1.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
+        # TEST
+        deleted_payment_card_cleanup(
+            payment_card.id,
+            None,
+            trusted_user1.id,
+            trusted_user1_channel,
+        )
+
+        expected_msg_body = {}
+        expected_msg_headers = {
+            "X-azure-ref": None,
+            "bink-user-id": str(trusted_user1.id),
+            "channel": trusted_user1_channel,
+            "loyalty-plan": mcard1.scheme.slug,
+            "request-id": str(mcard1.id),
+            # "transaction-id": "5479d204-6da8-11ee-af1c-3af9d391be47",
+            "type": "loyalty_card.removed.bink",
+        }
+
+        # dw user pll status change event -> this midas loyalty card removed event
+        self.assertEqual(2, mock_send_message.call_count)
+
+        call_args = mock_send_message.call_args_list[-1]
+        self.assertEqual((expected_msg_body,), call_args.args)
+        # check if expected_message_headers is a subset of headers. Full headers will have a random transaction id.
+        self.assertEqual(call_args.kwargs["headers"], call_args.kwargs["headers"] | expected_msg_headers)
+        self.assertIn("transaction-id", call_args.kwargs["headers"])
+
+    @patch("message_lib.producer.MessageProducer._MessageProducerQueueHandler.send_message")
+    def test_loyalty_card_removed_event_sent_when_deleting_pcard_non_trusted_channel(self, mock_send_message):
+        """
+        A LoyaltyCardRemoved (non-trusted channel) event should be sent when the last payment card in a
+        channel is unlinked from a loyalty card AND there are no other non-trusted channels that hold a link
+        for the given loyalty card.
+
+        This test is for when the unlinking happens specifically when a payment card is deleted.
+        """
+        trusted_user1 = self.trusted_channel_user()
+        external_id_1 = "testuser@testbink.com"
+        user1 = UserFactory(external_id=external_id_1, email=external_id_1)
+        external_id_2 = "testuser2@testbink.com"
+        user2 = UserFactory(external_id=external_id_2, email=external_id_2)
+
+        # Add an Active payment account and link mcard to test PLL link handling
+        payment_card = PaymentCardAccountFactory()
+        # This link is not created for the test because it is deleted in the api before the cleanup task
+        # PaymentCardAccountEntryFactory(user=user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=trusted_user1, payment_card_account=payment_card)
+        user2_pcard_entry = PaymentCardAccountEntryFactory(user=user2, payment_card_account=payment_card)
+
+        # Add scheme account to all users
+        mcard1 = SchemeAccountFactory()
+
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=trusted_user1)
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=user1)
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=user2)
+
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, trusted_user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user2)
+
+        mock_send_message.call_count = 0
+        user1_channel = user1.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
+        user2_channel = user2.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
+
+        # TEST
+        deleted_payment_card_cleanup(
+            payment_card.id,
+            None,
+            user1.id,
+            user1_channel,
+        )
+
+        # a data warehouse message is sent but loyalty card removed event is not since the link
+        # exists in another non-retailer wallet
+        self.assertEqual(1, mock_send_message.call_count)
+        mock_send_message.call_count = 0
+
+        user2_pcard_entry.delete()
+        deleted_payment_card_cleanup(
+            payment_card.id,
+            None,
+            user2.id,
+            user2_channel,
+        )
+
+        expected_msg_body = {}
+        expected_msg_headers = {
+            "X-azure-ref": None,
+            "bink-user-id": str(user2.id),
+            "channel": user2_channel,
+            "loyalty-plan": mcard1.scheme.slug,
+            "request-id": str(mcard1.id),
+            # "transaction-id": "5479d204-6da8-11ee-af1c-3af9d391be47",
+            "type": "loyalty_card.removed.bink",
+        }
+
+        # dw user pll status change event -> this midas loyalty card removed event
+        self.assertEqual(2, mock_send_message.call_count)
+
+        call_args = mock_send_message.call_args_list[-1]
+        self.assertEqual((expected_msg_body,), call_args.args)
+        # check if expected_message_headers is a subset of headers. Full headers will have a random transaction id.
+        self.assertEqual(call_args.kwargs["headers"], call_args.kwargs["headers"] | expected_msg_headers)
+        self.assertIn("transaction-id", call_args.kwargs["headers"])
+
+    @patch("message_lib.producer.MessageProducer._MessageProducerQueueHandler.send_message")
+    def test_loyalty_card_removed_event_sent_when_deleting_mcard_trusted_channel(self, mock_send_message):
+        """
+        A LoyaltyCardRemoved (trusted channel) event should be sent when the last payment card in a retailer
+        (trusted) channel is unlinked from a loyalty card.
+
+        This test is when the unlinking happens specifically when a loyalty card is deleted.
+        """
+        trusted_user1 = self.trusted_channel_user()
+        external_id_1 = "testuser@testbink.com"
+        user1 = UserFactory(external_id=external_id_1, email=external_id_1)
+        external_id_2 = "testuser2@testbink.com"
+        user2 = UserFactory(external_id=external_id_2, email=external_id_2)
+
+        # Add an Active payment account and link mcard to test PLL link handling
+        payment_card = PaymentCardAccountFactory()
+        PaymentCardAccountEntryFactory(user=trusted_user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user2, payment_card_account=payment_card)
+
+        # Add scheme account to all users
+        mcard1 = SchemeAccountFactory(card_number="1111")
+
+        tc_user_mcard_entry = SchemeAccountEntryFactory(scheme_account=mcard1, user=trusted_user1)
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=user1)
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=user2)
+
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, trusted_user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user2)
+
+        mock_send_message.call_count = 0
+        trusted_user1_channel = trusted_user1.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
+        # TEST
+
+        deleted_membership_card_cleanup(
+            tc_user_mcard_entry,
+            arrow.utcnow().format(),
+            channel_slug=trusted_user1_channel,
+        )
+
+        expected_msg_body = {}
+        expected_msg_headers = {
+            "X-azure-ref": None,
+            "bink-user-id": str(trusted_user1.id),
+            "channel": trusted_user1_channel,
+            "loyalty-plan": mcard1.scheme.slug,
+            "request-id": str(mcard1.id),
+            # "transaction-id": "5479d204-6da8-11ee-af1c-3af9d391be47",
+            "type": "loyalty_card.removed.bink",
+        }
+
+        # dw user pll status change event -> dw remove loyalty card event -> this midas loyalty card removed event
+        self.assertEqual(3, mock_send_message.call_count)
+
+        call_args = mock_send_message.call_args_list[-1]
+        self.assertEqual((expected_msg_body,), call_args.args)
+        # check if expected_message_headers is a subset of headers. Full headers will have a random transaction id.
+        self.assertEqual(call_args.kwargs["headers"], call_args.kwargs["headers"] | expected_msg_headers)
+        self.assertIn("transaction-id", call_args.kwargs["headers"])
+
+    @patch("message_lib.producer.MessageProducer._MessageProducerQueueHandler.send_message")
+    def test_loyalty_card_removed_event_sent_when_deleting_mcard_non_trusted_channel(self, mock_send_message):
+        """
+        A LoyaltyCardRemoved (non-trusted channel) event should be sent when the last payment card in a
+        channel is unlinked from a loyalty card AND there are no other non-trusted channels that hold a link
+        for the given loyalty card.
+
+        This test is for when the unlinking happens specifically when a loyalty card is deleted.
+        """
+        trusted_user1 = self.trusted_channel_user()
+        external_id_1 = "testuser@testbink.com"
+        user1 = UserFactory(external_id=external_id_1, email=external_id_1)
+        external_id_2 = "testuser2@testbink.com"
+        user2 = UserFactory(external_id=external_id_2, email=external_id_2)
+
+        # Add an Active payment account and link mcard to test PLL link handling
+        payment_card = PaymentCardAccountFactory()
+        PaymentCardAccountEntryFactory(user=user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=trusted_user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user2, payment_card_account=payment_card)
+
+        # Add scheme account to all users
+        mcard1 = SchemeAccountFactory()
+
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=trusted_user1)
+        user1_mcard_entry = SchemeAccountEntryFactory(scheme_account=mcard1, user=user1)
+        user2_mcard_entry = SchemeAccountEntryFactory(scheme_account=mcard1, user=user2)
+
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, trusted_user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user2)
+
+        mock_send_message.call_count = 0
+        user1_channel = user1.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
+        user2_channel = user2.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
+
+        # TEST
+        deleted_membership_card_cleanup(
+            user1_mcard_entry,
+            arrow.utcnow().format(),
+            channel_slug=user1_channel,
+        )
+
+        # dw user pll status change event -> dw remove loyalty card event
+        self.assertEqual(2, mock_send_message.call_count)
+        mock_send_message.call_count = 0
+
+        deleted_membership_card_cleanup(
+            user2_mcard_entry,
+            arrow.utcnow().format(),
+            channel_slug=user2_channel,
+        )
+
+        expected_msg_body = {}
+        expected_msg_headers = {
+            "X-azure-ref": None,
+            "bink-user-id": str(user2.id),
+            "channel": user2_channel,
+            "loyalty-plan": mcard1.scheme.slug,
+            "request-id": str(mcard1.id),
+            # "transaction-id": "5479d204-6da8-11ee-af1c-3af9d391be47",
+            "type": "loyalty_card.removed.bink",
+        }
+
+        # dw user pll status change event -> dw remove loyalty card event -> this midas loyalty card removed event
+        self.assertEqual(3, mock_send_message.call_count)
+
+        call_args = mock_send_message.call_args_list[-1]
+        self.assertEqual((expected_msg_body,), call_args.args)
+        # check if expected_message_headers is a subset of headers. Full headers will have a random transaction id.
+        self.assertEqual(call_args.kwargs["headers"], call_args.kwargs["headers"] | expected_msg_headers)
+        self.assertIn("transaction-id", call_args.kwargs["headers"])
+
+    @patch("message_lib.producer.MessageProducer._MessageProducerQueueHandler.send_message")
+    def test_loyalty_card_removed_event_sent_when_deleting_user_trusted_channel(self, mock_send_message):
+        """
+        A LoyaltyCardRemoved (trusted channel) event should be sent when the last payment card in a retailer
+        (trusted) channel is unlinked from a loyalty card.
+
+        This test is when the unlinking happens specifically when a user is deleted.
+        """
+        trusted_user1 = self.trusted_channel_user()
+        external_id_1 = "testuser@testbink.com"
+        user1 = UserFactory(external_id=external_id_1, email=external_id_1)
+        external_id_2 = "testuser2@testbink.com"
+        user2 = UserFactory(external_id=external_id_2, email=external_id_2)
+
+        # Add an Active payment account and link mcard to test PLL link handling
+        payment_card = PaymentCardAccountFactory()
+        PaymentCardAccountEntryFactory(user=trusted_user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user2, payment_card_account=payment_card)
+
+        # Add scheme account to all users
+        mcard1 = SchemeAccountFactory(card_number="1111")
+
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=trusted_user1)
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=user1)
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=user2)
+
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, trusted_user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user2)
+
+        mock_send_message.call_count = 0
+        trusted_user1_channel = trusted_user1.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
+
+        # TEST
+        deleted_service_cleanup(user_id=trusted_user1.id, consent={}, channel_slug=trusted_user1_channel)
+
+        expected_msg_body = {}
+        expected_msg_headers = {
+            "X-azure-ref": None,
+            "bink-user-id": str(trusted_user1.id),
+            "channel": trusted_user1_channel,
+            "loyalty-plan": mcard1.scheme.slug,
+            "request-id": str(mcard1.id),
+            # "transaction-id": "5479d204-6da8-11ee-af1c-3af9d391be47",
+            "type": "loyalty_card.removed.bink",
+        }
+
+        # dw user pll status change event -> dw remove loyalty card event -> this midas loyalty card removed event
+        # -> dw payment card removed event
+        self.assertEqual(4, mock_send_message.call_count)
+
+        call_args = mock_send_message.call_args_list[-2]
+        self.assertEqual((expected_msg_body,), call_args.args)
+        # check if expected_message_headers is a subset of headers. Full headers will have a random transaction id.
+        self.assertEqual(call_args.kwargs["headers"], call_args.kwargs["headers"] | expected_msg_headers)
+        self.assertIn("transaction-id", call_args.kwargs["headers"])
+
+    @patch("message_lib.producer.MessageProducer._MessageProducerQueueHandler.send_message")
+    def test_loyalty_card_removed_event_sent_when_deleting_user_non_trusted_channel(self, mock_send_message):
+        """
+        A LoyaltyCardRemoved (non-trusted channel) event should be sent when the last payment card in a
+        channel is unlinked from a loyalty card AND there are no other non-trusted channels that hold a link
+        for the given loyalty card.
+
+        This test is for when the unlinking happens specifically when a user is deleted.
+        """
+        trusted_user1 = self.trusted_channel_user()
+        external_id_1 = "testuser@testbink.com"
+        user1 = UserFactory(external_id=external_id_1, email=external_id_1)
+        external_id_2 = "testuser2@testbink.com"
+        user2 = UserFactory(external_id=external_id_2, email=external_id_2)
+
+        # Add an Active payment account and link mcard to test PLL link handling
+        payment_card = PaymentCardAccountFactory()
+        PaymentCardAccountEntryFactory(user=user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=trusted_user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user2, payment_card_account=payment_card)
+
+        # Add scheme account to all users
+        mcard1 = SchemeAccountFactory()
+
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=trusted_user1)
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=user1)
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=user2)
+
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, trusted_user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user2)
+
+        mock_send_message.call_count = 0
+        user1_channel = user1.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
+        user2_channel = user2.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
+
+        # TEST
+        deleted_service_cleanup(user_id=user1.id, consent={}, channel_slug=user1_channel)
+
+        # dw user pll status change event -> dw remove loyalty card event -> payment card removed
+        self.assertEqual(3, mock_send_message.call_count)
+        mock_send_message.call_count = 0
+
+        deleted_service_cleanup(user_id=user2.id, consent={}, channel_slug=user2_channel)
+
+        expected_msg_body = {}
+        expected_msg_headers = {
+            "X-azure-ref": None,
+            "bink-user-id": str(user2.id),
+            "channel": user2_channel,
+            "loyalty-plan": mcard1.scheme.slug,
+            "request-id": str(mcard1.id),
+            # "transaction-id": "5479d204-6da8-11ee-af1c-3af9d391be47",
+            "type": "loyalty_card.removed.bink",
+        }
+
+        # dw user pll status change event -> dw remove loyalty card event -> this midas loyalty card removed event
+        # -> dw payment card removed event
+        self.assertEqual(4, mock_send_message.call_count)
+
+        call_args = mock_send_message.call_args_list[-2]
+        self.assertEqual((expected_msg_body,), call_args.args)
+        # check if expected_message_headers is a subset of headers. Full headers will have a random transaction id.
+        self.assertEqual(call_args.kwargs["headers"], call_args.kwargs["headers"] | expected_msg_headers)
+        self.assertIn("transaction-id", call_args.kwargs["headers"])
+
+    @patch("message_lib.producer.MessageProducer._MessageProducerQueueHandler.send_message")
+    def test_loyalty_card_removed_event_sent_when_user_pll_status_change_trusted_channel(self, mock_send_message):
+        """
+        A LoyaltyCardRemoved (trusted channel) event should be sent when the last payment card in a retailer
+        (trusted) channel is unlinked from a loyalty card.
+
+        This test is for when the unlinking happens specifically when the User PLL state changes from Active
+        to a non-active status i.e via a loyalty card changing from Active to an error state.
+        """
+        trusted_user1 = self.trusted_channel_user()
+        external_id_1 = "testuser@testbink.com"
+        user1 = UserFactory(external_id=external_id_1, email=external_id_1)
+        external_id_2 = "testuser2@testbink.com"
+        user2 = UserFactory(external_id=external_id_2, email=external_id_2)
+
+        # Add an Active payment account and link mcard to test PLL link handling
+        payment_card = PaymentCardAccountFactory()
+        PaymentCardAccountEntryFactory(user=trusted_user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user2, payment_card_account=payment_card)
+
+        # Add scheme account to all users
+        mcard1 = SchemeAccountFactory(card_number="1111")
+
+        tc_user_mcard_entry = SchemeAccountEntryFactory(scheme_account=mcard1, user=trusted_user1)
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=user1)
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=user2)
+
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, trusted_user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user2)
+
+        trusted_user1_channel = trusted_user1.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
+
+        # TEST
+        # todo: add proper parameterization for django tests
+        for status in (AccountLinkStatus.SERVICE_CONNECTION_ERROR, AccountLinkStatus.INVALID_CREDENTIALS):
+            if tc_user_mcard_entry.link_status != AccountLinkStatus.ACTIVE:
+                tc_user_mcard_entry.link_status = AccountLinkStatus.ACTIVE
+                tc_user_mcard_entry.save(update_fields=["link_status"])
+
+            mock_send_message.call_count = 0
+            # trigger SchemeAccountEntry signal
+            tc_user_mcard_entry.link_status = status
+            tc_user_mcard_entry.save(update_fields=["link_status"])
+
+            expected_msg_body = {}
+            expected_msg_headers = {
+                "X-azure-ref": None,
+                "bink-user-id": str(trusted_user1.id),
+                "channel": trusted_user1_channel,
+                "loyalty-plan": mcard1.scheme.slug,
+                "request-id": str(mcard1.id),
+                # "transaction-id": "5479d204-6da8-11ee-af1c-3af9d391be47",
+                "type": "loyalty_card.removed.bink",
+            }
+
+            # dw user pll status change event -> this midas loyalty card removed event
+            self.assertEqual(2, mock_send_message.call_count)
+
+            call_args = mock_send_message.call_args_list[-1]
+            self.assertEqual((expected_msg_body,), call_args.args)
+            # check if expected_message_headers is a subset of headers. Full headers will have a random transaction id.
+            self.assertEqual(call_args.kwargs["headers"], call_args.kwargs["headers"] | expected_msg_headers)
+            self.assertIn("transaction-id", call_args.kwargs["headers"])
+
+    @patch("message_lib.producer.MessageProducer._MessageProducerQueueHandler.send_message")
+    def test_loyalty_card_removed_event_sent_when_user_pll_status_change_non_trusted_channel(self, mock_send_message):
+        """
+        A LoyaltyCardRemoved (non-trusted channel) event should be sent when the last payment card in a
+        channel is unlinked from a loyalty card AND there are no other non-trusted channels that hold a link
+        for the given loyalty card.
+
+        This test is for when the unlinking happens specifically when the User PLL state changes from Active
+        to a non-active status i.e via a loyalty card changing from Active to an error state.
+        """
+        trusted_user1 = self.trusted_channel_user()
+        external_id_1 = "testuser@testbink.com"
+        user1 = UserFactory(external_id=external_id_1, email=external_id_1)
+        external_id_2 = "testuser2@testbink.com"
+        user2 = UserFactory(external_id=external_id_2, email=external_id_2)
+
+        # Add an Active payment account and link mcard to test PLL link handling
+        payment_card = PaymentCardAccountFactory()
+        PaymentCardAccountEntryFactory(user=trusted_user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user1, payment_card_account=payment_card)
+        PaymentCardAccountEntryFactory(user=user2, payment_card_account=payment_card)
+
+        # Add scheme account to all users
+        mcard1 = SchemeAccountFactory()
+
+        SchemeAccountEntryFactory(scheme_account=mcard1, user=trusted_user1)
+        user1_mcard_entry = SchemeAccountEntryFactory(scheme_account=mcard1, user=user1)
+        user2_mcard_entry = SchemeAccountEntryFactory(scheme_account=mcard1, user=user2)
+
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, trusted_user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user1)
+        PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user2)
+
+        user1.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
+        user2_channel = user2.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
+
+        # TEST
+        # todo: add proper parameterization for django tests
+        for status in (AccountLinkStatus.SERVICE_CONNECTION_ERROR, AccountLinkStatus.INVALID_CREDENTIALS):
+            mock_send_message.call_count = 0
+            # trigger SchemeAccountEntry signal
+            user1_mcard_entry.link_status = status
+            user1_mcard_entry.save(update_fields=["link_status"])
+
+            # dw pll status change sent but not this event
+            self.assertEqual(1, mock_send_message.call_count)
+
+            mock_send_message.call_count = 0
+            user2_mcard_entry.link_status = status
+            user2_mcard_entry.save(update_fields=["link_status"])
+
+            expected_msg_body = {}
+            expected_msg_headers = {
+                "X-azure-ref": None,
+                "bink-user-id": str(user2.id),
+                "channel": user2_channel,
+                "loyalty-plan": mcard1.scheme.slug,
+                "request-id": str(mcard1.id),
+                # "transaction-id": "5479d204-6da8-11ee-af1c-3af9d391be47",
+                "type": "loyalty_card.removed.bink",
+            }
+
+            # dw user pll status change event -> this midas loyalty card removed event
+            self.assertEqual(2, mock_send_message.call_count)
+
+            call_args = mock_send_message.call_args_list[-1]
+            self.assertEqual((expected_msg_body,), call_args.args)
+            # check if expected_message_headers is a subset of headers. Full headers will have a random transaction id.
+            self.assertEqual(call_args.kwargs["headers"], call_args.kwargs["headers"] | expected_msg_headers)
+            self.assertIn("transaction-id", call_args.kwargs["headers"])
+
+            # Reset link statuses to active for the next iteration. This should be removed when proper
+            # parameterization is added.
+            if user1_mcard_entry.link_status != AccountLinkStatus.ACTIVE:
+                user1_mcard_entry.link_status = AccountLinkStatus.ACTIVE
+                user1_mcard_entry.save(update_fields=["link_status"])
+
+            if user2_mcard_entry.link_status != AccountLinkStatus.ACTIVE:
+                user2_mcard_entry.link_status = AccountLinkStatus.ACTIVE
+                user2_mcard_entry.save(update_fields=["link_status"])
 
     @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
     def test_deleted_membership_card_identical_2_wallet(self, mock_metrics):
@@ -617,6 +1165,7 @@ class TestTasks(GlobalMockAPITestCase):
     def test_deleted_payment_card_identical_2_wallet(self, mock_metrics):
         external_id_1 = "testuser@testbink.com"
         user1 = UserFactory(external_id=external_id_1, email=external_id_1)
+        user1_channel = user1.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
         external_id_2 = "testuser2@testbink.com"
         user2 = UserFactory(external_id=external_id_2, email=external_id_2)
 
@@ -648,7 +1197,7 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertEqual(pll_user_links[1].state, WalletPLLStatus.ACTIVE)
         self.assertTrue(base_links[0].active_link)
 
-        deleted_payment_card_cleanup(payment_card.id, None, user_id=user2.id)
+        deleted_payment_card_cleanup(payment_card.id, None, user_id=user2.id, channel_slug=user1_channel)
 
         base_links = payment_card.paymentcardschemeentry_set.all()
         pll_user_links = PllUserAssociation.objects.all()

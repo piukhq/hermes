@@ -101,6 +101,7 @@ def do_channel_retailer_offboarding(entry: "ScriptResult") -> bool:
             deleted_membership_card_cleanup(
                 scheme_account_entry=scheme_account_entry,
                 delete_date=datetime.now(tz=UTC).isoformat(),
+                channel_slug=client_channel_map[scheme_account_entry.user.client_id]["channel"],
                 history_kwargs={
                     "user_info": user_info(
                         user_id=scheme_account_entry.user_id,
