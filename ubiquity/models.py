@@ -1132,9 +1132,8 @@ def channel_last_man_standing_payment_card_check(
 
     This must be called after the user PLL has been deleted for the calling user.
     """
-    current_user = CustomUser.objects.get(pk=user_id)
     current_user_channel = ClientApplicationBundle.objects.only("is_trusted", "bundle_id").get(
-        bundle_id=channel_slug, client=current_user.client
+        bundle_id=channel_slug, client__customuser__id=user_id
     )
 
     for pll in base_pll_links:
