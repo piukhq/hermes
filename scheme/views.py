@@ -276,7 +276,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         scheme_account = scheme_account_entry.scheme_account
 
         # delete main answer credential if an async join failed
-        # todo: do we want to delete the main answer credential if the join fails? Why?
         if (
             previous_status
             in [AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS, AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS]

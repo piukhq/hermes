@@ -25,6 +25,7 @@ pytest-django = "*"
 ptpython = "*"
 black = "*"
 tomli = "*"
+ipython = "*"
 
 [packages]
 arrow = "*"

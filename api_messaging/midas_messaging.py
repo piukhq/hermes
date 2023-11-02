@@ -1,15 +1,19 @@
 import uuid
+from typing import TYPE_CHECKING
 
-from olympus_messaging import JoinApplication, LoyaltyCardRemovedBink, Message
+from olympus_messaging import JoinApplication, LoyaltyCardRemoved, Message
 
 from api_messaging.message_broker import ProducerQueues, sending_service
 from history.data_warehouse import get_main_answer
-from ubiquity.models import SchemeAccountEntry
+
+if TYPE_CHECKING:
+    from ubiquity.models import SchemeAccount
 
 
 def to_midas(message: Message, x_azure_ref: str | None = None) -> None:
-    message.metadata["X-azure-ref"] = x_azure_ref
-    sending_service.queues[ProducerQueues.MIDAS.name].send_message(message.body, headers=message.metadata)
+    headers = message.metadata
+    headers["X-azure-ref"] = x_azure_ref
+    sending_service.queues[ProducerQueues.MIDAS.name].send_message(message.body, headers=headers)
 
 
 def send_midas_join_request(
@@ -34,16 +38,24 @@ def send_midas_join_request(
     to_midas(message, headers.get("X-azure-ref", None) if headers else None)
 
 
-def send_midas_last_loyalty_card_removed(scheme_account_entry: SchemeAccountEntry, headers: dict | None = None):
-    message = LoyaltyCardRemovedBink(
+def send_midas_last_pll_per_channel_group_event(
+    channel_slug: str,
+    user_id: int | str,
+    scheme_account: "SchemeAccount",
+    headers: dict | None = None,
+) -> None:
+    """
+    This event is sent to identify when PLL has been deactivated for a loyalty card in
+    either a trusted channel or all other channels (as a single group, not individually).
+    """
+
+    message = LoyaltyCardRemoved(
         # message header data
-        channel=scheme_account_entry.user.bundle_id,
+        channel=channel_slug,
         transaction_id=str(uuid.uuid1()),
-        bink_user_id=str(scheme_account_entry.user.id),
-        request_id=str(scheme_account_entry.scheme_account.id),
-        account_id=get_main_answer(scheme_account_entry.scheme_account),
-        loyalty_plan=scheme_account_entry.scheme_account.scheme.slug,
-        # message body data
-        message_data={"status": str(scheme_account_entry.link_status)},
+        bink_user_id=str(user_id),
+        request_id=str(scheme_account.id),
+        account_id=get_main_answer(scheme_account),
+        loyalty_plan=scheme_account.scheme.slug,
     )
     to_midas(message, headers.get("X-azure-ref", None) if headers else None)

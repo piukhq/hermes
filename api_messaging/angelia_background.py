@@ -152,7 +152,10 @@ def delete_payment_account(message: dict, headers: dict) -> None:
         query = {"user_id": ac.user_id, "payment_card_account_id": message["payment_account_id"]}
         get_object_or_404(PaymentCardAccountEntry.objects, **query).delete()
         deleted_payment_card_cleanup(
-            payment_card_id=message["payment_account_id"], payment_card_hash=None, user_id=ac.user_id
+            payment_card_id=message["payment_account_id"],
+            payment_card_hash=None,
+            user_id=ac.user_id,
+            channel_slug=ac.channel_slug,
         )
 
 
@@ -375,14 +378,16 @@ def loyalty_card_join(message: dict, headers: dict) -> None:
 def delete_loyalty_card(message: dict, headers: dict) -> None:
     with AngeliaContext(message) as ac:
         ctx.x_azure_ref = headers.get("X-azure-ref")
-        scheme_account_entry = SchemeAccountEntry.objects.get(
-            scheme_account_id=message.get("loyalty_card_id"), user_id=ac.user_id
+        scheme_account_entry = SchemeAccountEntry.objects.prefetch_related(
+            "scheme_account", "scheme_account__scheme", "user", "user__client"
+        ).get(scheme_account_id=message.get("loyalty_card_id"), user_id=ac.user_id)
+        deleted_membership_card_cleanup(
+            scheme_account_entry, ac.date_time, channel_slug=ac.channel_slug, headers=headers
         )
-        deleted_membership_card_cleanup(scheme_account_entry, ac.date_time, headers=headers)
 
 
 def delete_user(message: dict, headers: dict) -> None:
-    consent_data = None
+    consent_data = {}
     with AngeliaContext(message) as ac:
         ctx.x_azure_ref = headers.get("X-azure-ref")
         try:
@@ -398,11 +403,14 @@ def delete_user(message: dict, headers: dict) -> None:
 
             if user.is_active:
                 user.soft_delete()
-                deleted_service_cleanup(user_id=ac.user_id, consent=consent_data, headers=headers)
-                logger.info(f"User {ac.user_id} successfully deleted.")
+                msg = f"User {ac.user_id} successfully deleted."
             else:
-                deleted_service_cleanup(user_id=ac.user_id, consent=consent_data, headers=headers)
-                logger.info(f"User {ac.user_id} already deleted, but delete cleanup has run successfully")
+                msg = f"User {ac.user_id} already deleted, but delete cleanup has run successfully"
+
+            deleted_service_cleanup(
+                user_id=ac.user_id, consent=consent_data, channel_slug=ac.channel_slug, headers=headers
+            )
+            logger.info(msg)
 
 
 def refresh_balances(message: dict, headers: dict) -> None:
