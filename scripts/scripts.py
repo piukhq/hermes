@@ -13,7 +13,7 @@ from .find_errors.channel_retailer_offboarding import (
     FindBarclaysSquaremealMembershipCards,
     FindBarclaysViatorMembershipCards,
 )
-from .find_errors.client_decommission import FindClientNonTestUsers
+from .find_errors.client_decommission import FindBarclaysUsers, FindBinkNonTestUsers
 from .find_errors.deleted_users_with_links import FindDeletedUsersWithCardLinks
 from .find_errors.deleted_vop_cards_with_activations import FindDeletedVopCardsWithActivations
 from .find_errors.pll_incorrect_state import FindIncorrectPLL
@@ -43,11 +43,12 @@ class DataScripts(IntEnum):
     DELETED_USERS_WITH_CARD_LINKS = auto()
     AMEX_PSD_UNKNOWN_CARDS = auto()
     MASTERCARD_PSD_UNKNOWN_CARDS = auto()
-    CLIENT_NON_TEST_USERS = auto()
+    BINK_NON_TEST_USERS = auto()
     BARCLAYS_BINK_WASABI_RETAILER_CARDS = auto()
     BARCLAYS_VIATOR_RETAILER_CARDS = auto()
     ALL_CHANNELS_ICELAND_RETAILER_CARDS = auto()
     BARCLAYS_SQUAREMEAL_RETAILER_CARDS = auto()
+    BARCLAYS_USERS = auto()
 
 
 # Titles displayed in Django Admin. Should make sense in the format "Find records for: [SCRIPT TITLE]"
@@ -71,11 +72,12 @@ SCRIPT_TITLES = {
     DataScripts.DELETE_LISTED_PAYMENT_ACCOUNTS: "Remove Payment Accounts in supplied CSV File",
     DataScripts.FIX_FALSE_ACTIVE_PLL_LINK: "Update PLL links that are marked incorrectly as True",
     DataScripts.DELETED_USERS_WITH_CARD_LINKS: "Deleted Users with Loyalty/Payment card links",
-    DataScripts.CLIENT_NON_TEST_USERS: "Bink client non-test users for deletion",
+    DataScripts.BINK_NON_TEST_USERS: "Bink client non-test users for deletion",
     DataScripts.BARCLAYS_BINK_WASABI_RETAILER_CARDS: "Barclays and Bink Wasabi membership cards for offboarding",
     DataScripts.BARCLAYS_VIATOR_RETAILER_CARDS: "Barclays Viator membership cards for offboarding",
     DataScripts.ALL_CHANNELS_ICELAND_RETAILER_CARDS: "All Channels Iceland membership cards for offboarding",
     DataScripts.BARCLAYS_SQUAREMEAL_RETAILER_CARDS: "Barclays Squaremeal membership cards for offboarding",
+    DataScripts.BARCLAYS_USERS: "Barclays client users for deletion",
 }
 
 SCRIPT_CLASSES = {
@@ -93,11 +95,12 @@ SCRIPT_CLASSES = {
     DataScripts.DELETE_LISTED_PAYMENT_ACCOUNTS: BarclaysDeleteUpload,
     DataScripts.FIX_FALSE_ACTIVE_PLL_LINK: FindIncorrectPLL,
     DataScripts.DELETED_USERS_WITH_CARD_LINKS: FindDeletedUsersWithCardLinks,
-    DataScripts.CLIENT_NON_TEST_USERS: FindClientNonTestUsers,
+    DataScripts.BINK_NON_TEST_USERS: FindBinkNonTestUsers,
     DataScripts.BARCLAYS_BINK_WASABI_RETAILER_CARDS: FindBarclaysBinkWasabiMembershipCards,
     DataScripts.BARCLAYS_VIATOR_RETAILER_CARDS: FindBarclaysViatorMembershipCards,
     DataScripts.ALL_CHANNELS_ICELAND_RETAILER_CARDS: FindAllChannelsIcelandMembershipCards,
     DataScripts.BARCLAYS_SQUAREMEAL_RETAILER_CARDS: FindBarclaysSquaremealMembershipCards,
+    DataScripts.BARCLAYS_USERS: FindBarclaysUsers,
 }
 # End of new script definition - you do not need to do anything else to add a new find script
 # But you may need to add one or more corrective actions see actions/corrections.py
