@@ -422,6 +422,21 @@ def refresh_balances(message: dict, headers: dict) -> None:
         logger.info(f"User {ac.user_id} refresh balances called. ")
 
 
+def view_wallet_event(message: dict, headers: dict) -> None:
+    ctx.x_azure_ref = headers.get("X-azure-ref")
+    user = CustomUser.objects.get(id=message.get("user_id"))
+    payload = {
+        "event_type": "user.wallet_view",
+        "origin": "api",
+        "channel": message.get("channel_slug"),
+        "event_date_time": message.get("utc_adjusted"),
+        "external_user_ref": user.external_id,
+        "internal_user_ref": user.id,
+        "email": user.email,
+    }
+    to_data_warehouse(payload, headers)
+
+
 def user_session(message: dict, headers: dict) -> None:
     ctx.x_azure_ref = headers.get("X-azure-ref")
     user = CustomUser.objects.get(id=message.get("user_id"))

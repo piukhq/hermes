@@ -90,6 +90,7 @@ def route_message(headers: dict, message: dict):
         "add_auth_request_event": angelia_background.add_auth_request_event,
         "sql_history": angelia_background.sql_history,
         "user_session": angelia_background.user_session,
+        "view_wallet_event": angelia_background.view_wallet_event,
     }
 
     retry(headers, message, route)
