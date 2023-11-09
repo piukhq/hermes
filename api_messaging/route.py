@@ -91,6 +91,7 @@ def route_message(headers: dict, message: dict):
         "sql_history": angelia_background.sql_history,
         "user_session": angelia_background.user_session,
         "add_trusted_failed": angelia_background.add_trusted_failed,
+        "view_wallet_event": angelia_background.view_wallet_event,
     }
 
     retry(headers, message, route)
