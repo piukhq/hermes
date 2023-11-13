@@ -9,6 +9,7 @@ from hermes.channels import Permit
 from hermes.utils import ctx
 from history.data_warehouse import (
     add_trusted_failed_lc_event,
+    add_trusted_lc_event,
     addauth_request_lc_event,
     auth_request_lc_event,
     join_outcome,
@@ -239,9 +240,6 @@ def loyalty_card_trusted_add(message: dict, headers: dict) -> None:
             user=ac.user_id, scheme_account_id=scheme_account_id, scheme_account__is_deleted=False
         )
         link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link, headers=headers)
-
-        # scheme_account_id = message.get("loyalty_card_id")
-        # scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
         create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
 
         for credential in message.get("merchant_fields"):
@@ -266,6 +264,18 @@ def loyalty_card_trusted_add(message: dict, headers: dict) -> None:
             """
 
         scheme_account_entry.update_scheme_account_key_credential_fields()
+
+
+def loyalty_card_trusted_add_success_event(message: dict, headers: dict) -> None:
+    with AngeliaContext(message) as ac:
+        date_time = message.get("utc_adjusted")
+        loyalty_card_id = message.get("loyalty_card_id")
+        scheme_account = SchemeAccount.objects.get(pk=loyalty_card_id)
+        scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id) if ac.entry_id else None
+        status = scheme_account_entry.link_status if scheme_account_entry else "ACTIVE"
+        channel_slug = message.get("channel_slug")
+        user = CustomUser.objects.get(id=ac.user_id)
+        add_trusted_lc_event(user, scheme_account, channel_slug, status, date_time, headers)
 
 
 def loyalty_card_add_authorise(message: dict, headers: dict) -> None:
