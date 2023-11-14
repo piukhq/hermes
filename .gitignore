@@ -18,3 +18,4 @@ celerybeat-schedule
 /celerybeat.pid
 /my_channels.json
 hermes_template.sql
+.decomission_logs.log
