@@ -8,6 +8,7 @@ from rest_framework.settings import api_settings
 from hermes.channels import Permit
 from hermes.utils import ctx
 from history.data_warehouse import (
+    add_trusted_failed_lc_event,
     addauth_request_lc_event,
     auth_request_lc_event,
     join_outcome,
@@ -590,4 +591,20 @@ def create_key_credential_from_add_fields(scheme_account_entry: SchemeAccountEnt
         scheme_account_entry=scheme_account_entry,
         question=question,
         defaults={"answer": answer},
+    )
+
+
+def add_trusted_failed(message: dict, headers: dict) -> None:
+    ctx.x_azure_ref = headers.get("X-azure-ref")
+    scheme_account_id = message["loyalty_card_id"]
+    user = CustomUser.objects.get(pk=message["user_id"])
+    scheme_account = SchemeAccount.objects.get(pk=scheme_account_id) if scheme_account_id else None
+
+    add_trusted_failed_lc_event(
+        user=user,
+        scheme_account=scheme_account,
+        bundle_id=message["channel_slug"],
+        scheme_id=message["loyalty_plan_id"],
+        date_time=message["utc_adjusted"],
+        headers=headers,
     )
