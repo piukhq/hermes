@@ -81,6 +81,7 @@ def route_message(headers: dict, message: dict):
         "loyalty_card_add_auth": angelia_background.loyalty_card_add_authorise,
         "loyalty_card_add": angelia_background.loyalty_card_add,
         "loyalty_card_trusted_add": angelia_background.loyalty_card_trusted_add,
+        "loyalty_card_trusted_add_success_event": angelia_background.loyalty_card_trusted_add_success_event,
         "loyalty_card_join": angelia_background.loyalty_card_join,
         "delete_loyalty_card": angelia_background.delete_loyalty_card,
         "delete_user": angelia_background.delete_user,
@@ -90,6 +91,8 @@ def route_message(headers: dict, message: dict):
         "add_auth_request_event": angelia_background.add_auth_request_event,
         "sql_history": angelia_background.sql_history,
         "user_session": angelia_background.user_session,
+        "add_trusted_failed": angelia_background.add_trusted_failed,
+        "view_wallet_event": angelia_background.view_wallet_event,
     }
 
     retry(headers, message, route)

@@ -5,6 +5,8 @@ import arrow
 from api_messaging.message_broker import ProducerQueues, sending_service
 
 if t.TYPE_CHECKING:
+    from datetime import datetime
+
     from scheme.models import SchemeAccount
     from ubiquity.models import PllUserAssociation, SchemeAccountEntry
     from user.models import CustomUser
@@ -75,6 +77,30 @@ def auth_request_lc_event(
         "scheme_account_id": scheme_account.id,
         "loyalty_plan": scheme_account.scheme_id,
         "main_answer": get_main_answer(scheme_account),
+    }
+    to_data_warehouse(payload, headers)
+
+
+def add_trusted_lc_event(
+    user: "CustomUser",
+    scheme_account: "SchemeAccount",
+    bundle_id: str,
+    status: str,
+    date_time: object | None = None,
+    headers: dict | None = None,
+):
+    payload = {
+        "event_type": "lc.addtrusted.success",
+        "origin": "channel",
+        "channel": bundle_id,
+        "event_date_time": date_time if date_time else arrow.utcnow().isoformat(),
+        "external_user_ref": user.external_id,
+        "internal_user_ref": user.id,
+        "email": user.email,
+        "scheme_account_id": scheme_account.id,
+        "loyalty_plan": scheme_account.scheme_id,
+        "main_answer": get_main_answer(scheme_account),
+        "status": status,
     }
     to_data_warehouse(payload, headers)
 
@@ -440,3 +466,27 @@ def generate_pll_delete_payload(user_plls: list["PllUserAssociation"]):
 def user_pll_delete_event(payloads: list[dict], headers: dict | None = None) -> None:
     for payload in payloads:
         to_data_warehouse(payload, headers)
+
+
+def add_trusted_failed_lc_event(
+    user: "CustomUser",
+    scheme_account: "SchemeAccount | None",
+    bundle_id: str | None,
+    scheme_id: int,
+    date_time: "datetime | None" = None,
+    headers: dict | None = None,
+):
+    payload = {
+        "event_type": "lc.add_trusted.failed",
+        "origin": "channel",
+        "channel": bundle_id,
+        "event_date_time": date_time if date_time else arrow.utcnow().isoformat(),
+        "external_user_ref": user.external_id,
+        "internal_user_ref": user.id,
+        "email": user.email,
+        "scheme_account_id": scheme_account.id if scheme_account else None,
+        "loyalty_plan": scheme_id,
+        "main_answer": get_main_answer(scheme_account) if scheme_account else None,
+        "status": None,
+    }
+    to_data_warehouse(payload, headers)

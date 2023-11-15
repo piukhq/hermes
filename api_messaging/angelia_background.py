@@ -8,6 +8,8 @@ from rest_framework.settings import api_settings
 from hermes.channels import Permit
 from hermes.utils import ctx
 from history.data_warehouse import (
+    add_trusted_failed_lc_event,
+    add_trusted_lc_event,
     addauth_request_lc_event,
     auth_request_lc_event,
     join_outcome,
@@ -238,9 +240,6 @@ def loyalty_card_trusted_add(message: dict, headers: dict) -> None:
             user=ac.user_id, scheme_account_id=scheme_account_id, scheme_account__is_deleted=False
         )
         link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link, headers=headers)
-
-        # scheme_account_id = message.get("loyalty_card_id")
-        # scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
         create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
 
         for credential in message.get("merchant_fields"):
@@ -265,6 +264,18 @@ def loyalty_card_trusted_add(message: dict, headers: dict) -> None:
             """
 
         scheme_account_entry.update_scheme_account_key_credential_fields()
+
+
+def loyalty_card_trusted_add_success_event(message: dict, headers: dict) -> None:
+    with AngeliaContext(message) as ac:
+        date_time = message.get("utc_adjusted")
+        loyalty_card_id = message.get("loyalty_card_id")
+        scheme_account = SchemeAccount.objects.get(pk=loyalty_card_id)
+        scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id) if ac.entry_id else None
+        status = scheme_account_entry.link_status if scheme_account_entry else "ACTIVE"
+        channel_slug = message.get("channel_slug")
+        user = CustomUser.objects.get(id=ac.user_id)
+        add_trusted_lc_event(user, scheme_account, channel_slug, status, date_time, headers)
 
 
 def loyalty_card_add_authorise(message: dict, headers: dict) -> None:
@@ -420,6 +431,21 @@ def refresh_balances(message: dict, headers: dict) -> None:
         permit = Permit(bundle_id=ac.channel_slug, user=user)
         async_all_balance(ac.user_id, permit, headers=headers)
         logger.info(f"User {ac.user_id} refresh balances called. ")
+
+
+def view_wallet_event(message: dict, headers: dict) -> None:
+    ctx.x_azure_ref = headers.get("X-azure-ref")
+    user = CustomUser.objects.get(id=message.get("user_id"))
+    payload = {
+        "event_type": "user.wallet_view",
+        "origin": "api",
+        "channel": message.get("channel_slug"),
+        "event_date_time": message.get("utc_adjusted"),
+        "external_user_ref": user.external_id,
+        "internal_user_ref": user.id,
+        "email": user.email,
+    }
+    to_data_warehouse(payload, headers)
 
 
 def user_session(message: dict, headers: dict) -> None:
@@ -590,4 +616,20 @@ def create_key_credential_from_add_fields(scheme_account_entry: SchemeAccountEnt
         scheme_account_entry=scheme_account_entry,
         question=question,
         defaults={"answer": answer},
+    )
+
+
+def add_trusted_failed(message: dict, headers: dict) -> None:
+    ctx.x_azure_ref = headers.get("X-azure-ref")
+    scheme_account_id = message["loyalty_card_id"]
+    user = CustomUser.objects.get(pk=message["user_id"])
+    scheme_account = SchemeAccount.objects.get(pk=scheme_account_id) if scheme_account_id else None
+
+    add_trusted_failed_lc_event(
+        user=user,
+        scheme_account=scheme_account,
+        bundle_id=message["channel_slug"],
+        scheme_id=message["loyalty_plan_id"],
+        date_time=message["utc_adjusted"],
+        headers=headers,
     )
