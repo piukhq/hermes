@@ -17,6 +17,7 @@ import os
 import sys
 from collections import namedtuple
 from enum import Enum
+from urllib.parse import urlparse
 
 import dj_database_url
 import sentry_sdk
@@ -660,15 +661,16 @@ REDIS_WRITE_TIMEOUT = config("REDIS_WRITE_TIMEOUT", default=20.0, cast=float)
 REDIS_RETRY_COUNT = 3
 REDIS_READ_HEALTH_CHECK_INTERVAL = 1
 REDIS_WRITE_HEALTH_CHECK_INTERVAL = 1
+REDIS_API_CACHE_SCAN_BATCH_SIZE = config("REDIS_API_CACHE_SCAN_BATCH_SIZE", default=5_000, cast=int)
 
-
+REDIS_API_CACHE_URL = urlparse(REDIS_URL)._replace(path=f"/{REDIS_API_CACHE_DB}").geturl()
 REDIS_READ_API_CACHE_POOL = Redis_ConnectionPool.from_url(
-    url=REDIS_URL,
+    url=REDIS_API_CACHE_URL,
     socket_timeout=REDIS_READ_TIMEOUT,
     health_check_interval=REDIS_READ_HEALTH_CHECK_INTERVAL,
 )
 REDIS_WRITE_API_CACHE_POOL = Redis_ConnectionPool.from_url(
-    url=REDIS_URL,
+    url=REDIS_API_CACHE_URL,
     socket_timeout=REDIS_WRITE_TIMEOUT,
     health_check_interval=REDIS_WRITE_HEALTH_CHECK_INTERVAL,
 )
