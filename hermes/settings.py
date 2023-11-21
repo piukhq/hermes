@@ -646,7 +646,6 @@ ENVIRONMENT_COLOR = config("ENVIRONMENT_COLOR", default=None)
 CLOCK_SKEW_LEEWAY = config("CLOCK_SKEW_LEEWAY", default=180, cast=int)
 
 REDIS_URL = config("REDIS_URL", default="redis://localhost:6379/1")
-REDIS_API_CACHE_DB = config("REDIS_API_CACHE_DB", default=2, cast=int)
 REDIS_MPLANS_CACHE_EXPIRY = config(
     "REDIS_MPLANS_CACHE_EXPIRY",
     default=60 * 60 * 24,  # 60*60*24 is 24 hrs in seconds
@@ -661,7 +660,7 @@ REDIS_RETRY_COUNT = 3
 REDIS_READ_HEALTH_CHECK_INTERVAL = 1
 REDIS_WRITE_HEALTH_CHECK_INTERVAL = 1
 
-
+REDIS_API_CACHE_SCAN_BATCH_SIZE = config("REDIS_API_CACHE_SCAN_BATCH_SIZE", default=5_000, cast=int)
 REDIS_READ_API_CACHE_POOL = Redis_ConnectionPool.from_url(
     url=REDIS_URL,
     socket_timeout=REDIS_READ_TIMEOUT,
