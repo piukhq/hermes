@@ -17,7 +17,6 @@ from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 from hashids import Hashids
 
-from hermes.redis import redis_cache
 from user.forms import MagicLinkTemplateFileField
 from user.managers import CustomUserManager, IgnoreDeletedUserManager
 from user.validators import validate_boolean, validate_number
@@ -175,7 +174,6 @@ class ClientApplicationBundle(models.Model):
         return True
 
     @classmethod
-    @redis_cache
     def get_bundle_by_bundle_id_and_org_name(cls, bundle_id: str, organisation_name: str) -> "ClientApplicationBundle":
         return cls.objects.select_related("client").get(
             bundle_id=bundle_id, client__organisation__name=organisation_name
@@ -183,14 +181,6 @@ class ClientApplicationBundle(models.Model):
 
     def __str__(self):
         return "{} ({})".format(self.bundle_id, self.client)
-
-
-def clear_bundle_cache(sender, **kwargs):
-    sender.get_bundle_by_bundle_id_and_org_name.cache_clear()
-
-
-signals.post_save.connect(clear_bundle_cache, sender=ClientApplicationBundle)
-signals.post_delete.connect(clear_bundle_cache, sender=ClientApplicationBundle)
 
 
 class ClientApplicationKit(models.Model):

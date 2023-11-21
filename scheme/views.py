@@ -229,7 +229,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             raise serializers.ValidationError("Invalid status code sent.")
 
         scheme_account_entry = get_object_or_404(
-            SchemeAccountEntry.objects.select_related("scheme_account"),
+            SchemeAccountEntry.objects.select_related("scheme_account__scheme"),
             scheme_account_id=scheme_account_id,
             scheme_account__is_deleted=False,
             user_id=user_id,
@@ -268,7 +268,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         )
 
         capture_membership_card_status_change_metric(
-            scheme_slug=Scheme.get_scheme_slug_by_scheme_id(scheme_account_entry.scheme_account.scheme_id),
+            scheme_slug=scheme_account_entry.scheme_account.scheme.slug,
             old_status=previous_status,
             new_status=new_status_code,
         )

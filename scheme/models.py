@@ -5,7 +5,7 @@ import sre_constants
 import uuid
 from decimal import ROUND_HALF_UP, Decimal
 from enum import IntEnum
-from typing import TYPE_CHECKING, Dict, Iterable, Type, Union
+from typing import TYPE_CHECKING, Dict, Iterable
 
 import arrow
 import requests
@@ -25,7 +25,6 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from common.models import Image
-from hermes.redis import redis_cache
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
@@ -38,7 +37,7 @@ from ubiquity.reason_codes import REASON_CODES
 if TYPE_CHECKING:
     from django.db.models import QuerySet
 
-    from user.models import ClientApplication, ClientApplicationBundle
+    from user.models import ClientApplication
 
 logger = logging.getLogger(__name__)
 
@@ -153,18 +152,8 @@ class SchemeBundleAssociation(models.Model):
     )
 
     @classmethod
-    @redis_cache
     def get_status_by_bundle_id_and_scheme_id(cls, bundle_id: str, scheme_id: int) -> dict:
         return cls.objects.filter(bundle__bundle_id=bundle_id, scheme_id=scheme_id).values("status")
-
-
-def clear_bundle_association_cache(sender, instance, **kwargs):
-    sender.get_status_by_bundle_id_and_scheme_id.cache_clear()
-    instance.scheme.get_suspended_schemes_by_bundle.cache_clear()
-
-
-signals.pre_save.connect(clear_bundle_association_cache, sender=SchemeBundleAssociation)
-signals.pre_delete.connect(clear_bundle_association_cache, sender=SchemeBundleAssociation)
 
 
 class SchemeContent(models.Model):
@@ -364,35 +353,11 @@ class Scheme(models.Model):
         return question_type_dict
 
     @classmethod
-    @redis_cache
     def get_scheme_and_questions_by_scheme_id(cls, scheme_id: int) -> "Scheme":
         return cls.objects.prefetch_related("questions").get(pk=scheme_id)
 
-    @classmethod
-    @redis_cache
-    def get_scheme_slug_by_scheme_id(cls, scheme_id: Union[Type[int], int]) -> str:
-        return cls.objects.values_list("slug", flat=True).get(pk=scheme_id)
-
-    @classmethod
-    @redis_cache
-    def get_suspended_schemes_by_bundle(cls, bundle: "ClientApplicationBundle") -> "Scheme":
-        return cls.objects.filter(
-            schemebundleassociation__bundle=bundle,
-            schemebundleassociation__status=SchemeBundleAssociation.SUSPENDED,
-        ).all()
-
     def __str__(self):
         return "{} ({})".format(self.name, self.company)
-
-
-def clear_scheme_cache(sender, **kwargs):
-    logger.info("A scheme was updated, deleted, or created, invalidating schemes' cache.")
-    sender.get_scheme_and_questions_by_scheme_id.cache_clear()
-    sender.get_scheme_slug_by_scheme_id.cache_clear()
-
-
-signals.post_save.connect(clear_scheme_cache, sender=Scheme)
-signals.post_delete.connect(clear_scheme_cache, sender=Scheme)
 
 
 class ConsentsManager(models.Manager):
@@ -457,17 +422,8 @@ class Consent(models.Model):
         unique_together = ("slug", "scheme", "journey")
 
     @classmethod
-    @redis_cache
     def get_checkboxes_by_scheme_and_journey_type(cls, scheme: Scheme, journey_type: int) -> "QuerySet":
         return cls.objects.filter(scheme=scheme, journey=journey_type, check_box=True).all()
-
-
-def clear_consent_cache(sender, **kwargs):
-    sender.get_checkboxes_by_scheme_and_journey_type.cache_clear()
-
-
-signals.pre_save.connect(clear_consent_cache, sender=Consent)
-signals.pre_delete.connect(clear_consent_cache, sender=Consent)
 
 
 class Exchange(models.Model):
@@ -815,7 +771,7 @@ class SchemeAccount(models.Model):
                 voucher_resp = self.make_vouchers_response(balance["vouchers"])
                 del balance["vouchers"]
 
-            balance.update({"updated_at": arrow.utcnow().int_timestamp, "scheme_id": self.scheme.id})
+            balance.update({"updated_at": arrow.utcnow().int_timestamp, "scheme_id": self.scheme_id})
             balance: list[dict] = UbiquityBalanceHandler(balance).data
 
         update_fields = self.check_balance_and_vouchers(balance=balance, voucher_resp=voucher_resp)
@@ -823,7 +779,7 @@ class SchemeAccount(models.Model):
         if account_status != old_status:
             scheme_account_entry.set_link_status(account_status)
             capture_membership_card_status_change_metric(
-                scheme_slug=Scheme.get_scheme_slug_by_scheme_id(self.scheme_id),
+                scheme_slug=self.scheme.slug,
                 old_status=old_status,
                 new_status=scheme_account_entry.link_status,
             )
@@ -1123,14 +1079,6 @@ class SchemeCredentialQuestion(models.Model):
         return self.type
 
 
-def clear_scheme_cache_on_question_change(sender, instance, **kwargs):
-    instance.scheme.get_scheme_and_questions_by_scheme_id.cache_clear()
-
-
-signals.post_save.connect(clear_scheme_cache_on_question_change, sender=SchemeCredentialQuestion)
-signals.post_delete.connect(clear_scheme_cache_on_question_change, sender=SchemeCredentialQuestion)
-
-
 class SchemeCredentialQuestionChoice(models.Model):
     scheme = models.ForeignKey("Scheme", on_delete=models.CASCADE)
     scheme_question = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
@@ -1245,17 +1193,8 @@ class ThirdPartyConsentLink(models.Model):
     enrol_field = models.BooleanField(default=False)
 
     @classmethod
-    @redis_cache
     def get_by_scheme_and_client(cls, scheme: Scheme, client_app: "ClientApplication") -> "QuerySet":
         return cls.objects.filter(scheme=scheme, client_app=client_app).all()
-
-
-def clear_third_party_consent_cache(sender, **kwargs):
-    sender.get_by_scheme_and_client.cache_clear()
-
-
-signals.pre_save.connect(clear_third_party_consent_cache, sender=ThirdPartyConsentLink)
-signals.pre_delete.connect(clear_third_party_consent_cache, sender=ThirdPartyConsentLink)
 
 
 class VoucherScheme(models.Model):
