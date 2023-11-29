@@ -36,6 +36,10 @@ class PaymentCardFactory(factory.django.DjangoModelFactory):
     type = models.PaymentCard.CREDIT
 
 
+def gen_fingerprint() -> str:
+    return str(uuid.uuid4().hex)
+
+
 class PaymentCardAccountFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.PaymentCardAccount
@@ -52,8 +56,8 @@ class PaymentCardAccountFactory(factory.django.DjangoModelFactory):
     pan_end = "2222"
     order = 0
     issuer = factory.SubFactory(IssuerFactory)
-    fingerprint = str(uuid.uuid4().hex)
-    psp_token = str(uuid.uuid4().hex)
+    fingerprint = FuzzyAttribute(gen_fingerprint)
+    psp_token = FuzzyAttribute(gen_fingerprint)
     token = psp_token
     issuer_name = fake.word()
 

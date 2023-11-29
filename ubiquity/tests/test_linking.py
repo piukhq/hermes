@@ -118,7 +118,7 @@ def set_up_membership_card(user, scheme, link_status=1):
 
 def set_up_payment_card_account(payment_card, issuer, payload, status=PaymentCardAccount.ACTIVE):
     card = payload["card"]
-    fingerprint = card.get("fingerprint", FuzzyAttribute(uuid.uuid4))
+    fingerprint = FuzzyAttribute(uuid.uuid4)
     name_on_card = card.get("name_on_card", fake.name())
     pan_end = card.get("last_four_digits", 5234)
     pan_start = card.get("first_six_digits", 423456)

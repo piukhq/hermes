@@ -266,6 +266,16 @@ class PaymentCardAccount(models.Model):
     all_objects = models.Manager()
     objects = PaymentCardAccountManager()
 
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=("fingerprint",),
+                condition=Q(is_deleted=False),
+                name="unique_fingerprint",
+                violation_error_message="An active payment account with this fingerprint already exists",
+            ),
+        ]
+
     def __str__(self):
         return "{} - {}".format(self.payment_card.name, self.name_on_card)
 
