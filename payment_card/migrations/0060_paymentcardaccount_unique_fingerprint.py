@@ -32,6 +32,15 @@ def _handle_duplicated_mcard(
         user_pll.save(update_fields=["pll_id"])
 
 
+def _handle_links_to_users(
+    pcard: "PaymentCardAccountType", correct_pcard_id: int, existing_linked_users: list[int]
+) -> None:
+    for entry in pcard.paymentcardaccountentry_set.all():
+        if entry.user_id not in existing_linked_users:
+            entry.payment_card_account_id = correct_pcard_id
+            entry.save(update_fields=["payment_card_account_id"])
+
+
 def _handle_remaining_pcards(oldest_pcard: "PaymentCardAccountType", remaining_pcards: list["PaymentCardAccountType"]):
     def get_main_answer(scheme_account: "SchemeAccountType") -> str:
         return scheme_account.card_number or scheme_account.barcode or scheme_account.alt_main_answer
@@ -40,13 +49,12 @@ def _handle_remaining_pcards(oldest_pcard: "PaymentCardAccountType", remaining_p
         get_main_answer(mcard): mcard.id for mcard in oldest_pcard.scheme_account_set.all()
     }
     existing_plls = {pll.scheme_account_id: pll.id for pll in oldest_pcard.paymentcardschemeentry_set.all()}
+    existing_linked_users = [entry.user_id for entry in oldest_pcard.paymentcardaccountentry_set.all()]
 
     for pcard in remaining_pcards:
         # transfer any user links
         with transaction.atomic():
-            for entry in pcard.paymentcardaccountentry_set.all():
-                entry.payment_card_account_id = oldest_pcard.id
-                entry.save(update_fields=["payment_card_account_id"])
+            _handle_links_to_users(pcard, oldest_pcard.id, existing_linked_users)
 
         with transaction.atomic():
             for pll in pcard.paymentcardschemeentry_set.all():
