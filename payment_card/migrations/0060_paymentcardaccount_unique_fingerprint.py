@@ -36,9 +36,12 @@ def _handle_links_to_users(
     pcard: "PaymentCardAccountType", correct_pcard_id: int, existing_linked_users: list[int]
 ) -> None:
     for entry in pcard.paymentcardaccountentry_set.all():
-        if entry.user_id not in existing_linked_users:
+        if entry.user_id in existing_linked_users:
+            entry.delete()
+        else:
             entry.payment_card_account_id = correct_pcard_id
             entry.save(update_fields=["payment_card_account_id"])
+            existing_linked_users.append(entry.user_id)
 
 
 def _handle_remaining_pcards(oldest_pcard: "PaymentCardAccountType", remaining_pcards: list["PaymentCardAccountType"]):
