@@ -11,25 +11,37 @@ if TYPE_CHECKING:
     from ubiquity.models import PaymentCardSchemeEntry as PaymentCardSchemeEntryType
 
 
-def _handle_same_mcard(pll: "PaymentCardSchemeEntryType", existing_plls: dict[int, int]) -> None:
+def _handle_same_mcard(pll: "PaymentCardSchemeEntryType", correct_pll: "PaymentCardSchemeEntryType") -> None:
+    already_linked_users = [plluser.user_id for plluser in correct_pll.plluserassociation_set.all()]
+
     for user_pll in pll.plluserassociation_set.all():
-        user_pll.pll_id = existing_plls[user_pll.pll.scheme_account_id]
-        user_pll.save(update_fields=["pll_id"])
+        if user_pll.user_id in already_linked_users:
+            user_pll.delete()
+        else:
+            user_pll.pll_id = correct_pll.id
+            user_pll.save(update_fields=["pll_id"])
+            already_linked_users.append(user_pll.user_id)
 
 
 def _handle_duplicated_mcard(
-    pll: "PaymentCardSchemeEntryType", correct_scheme_account_id: int, correct_pll_id: int
+    pll: "PaymentCardSchemeEntryType", correct_scheme_account_id: int, correct_pll: "PaymentCardSchemeEntryType"
 ) -> None:
     pll.scheme_account.is_deleted = True
     pll.scheme_account.save(update_fields=["is_deleted"])
+
+    existing_users = [plluser.user_id for plluser in correct_pll.plluserassociation_set.all()]
 
     for sae in pll.scheme_account.schemeaccountentry_set.all():
         sae.scheme_account_id = correct_scheme_account_id
         sae.save(update_fields=["scheme_account_id"])
 
     for user_pll in pll.plluserassociation_set.all():
-        user_pll.pll_id = correct_pll_id
-        user_pll.save(update_fields=["pll_id"])
+        if user_pll.user_id in existing_users:
+            user_pll.delete()
+        else:
+            user_pll.pll_id = correct_pll.id
+            user_pll.save(update_fields=["pll_id"])
+            existing_users.append(user_pll.user_id)
 
 
 def _handle_links_to_users(
@@ -48,10 +60,12 @@ def _handle_remaining_pcards(oldest_pcard: "PaymentCardAccountType", remaining_p
     def get_main_answer(scheme_account: "SchemeAccountType") -> str:
         return scheme_account.card_number or scheme_account.barcode or scheme_account.alt_main_answer
 
-    existing_main_answers: dict[str, int] = {
-        get_main_answer(mcard): mcard.id for mcard in oldest_pcard.scheme_account_set.all()
-    }
-    existing_plls = {pll.scheme_account_id: pll.id for pll in oldest_pcard.paymentcardschemeentry_set.all()}
+    existing_main_answers: dict[str, int] = {}
+    existing_plls: dict[int, "PaymentCardSchemeEntryType"] = {}
+    for pll in oldest_pcard.paymentcardschemeentry_set.all():
+        existing_main_answers[get_main_answer(pll.scheme_account)] = pll.scheme_account_id
+        existing_plls[pll.scheme_account_id] = pll
+
     existing_linked_users = [entry.user_id for entry in oldest_pcard.paymentcardaccountentry_set.all()]
 
     for pcard in remaining_pcards:
@@ -63,10 +77,12 @@ def _handle_remaining_pcards(oldest_pcard: "PaymentCardAccountType", remaining_p
             for pll in pcard.paymentcardschemeentry_set.all():
                 pll_migrated = False
 
-                if pll.scheme_account_id not in existing_main_answers.values():
+                if pll.scheme_account_id not in existing_plls.keys():
                     if (main_answer := get_main_answer(pll.scheme_account)) not in existing_main_answers.keys():
                         pll.payment_card_account_id = oldest_pcard.id
                         pll.save(update_fields=["payment_card_account_id"])
+                        existing_main_answers[main_answer] = pll.scheme_account_id
+                        existing_plls[pll.scheme_account_id] = pll
                         pll_migrated = True
                     else:
                         correct_scheme_account_id = existing_main_answers[main_answer]
@@ -75,7 +91,7 @@ def _handle_remaining_pcards(oldest_pcard: "PaymentCardAccountType", remaining_p
                         )
 
                 else:
-                    _handle_same_mcard(pll, existing_plls)
+                    _handle_same_mcard(pll, existing_plls[pll.scheme_account_id])
 
                 if not pll_migrated:
                     pll.delete()
