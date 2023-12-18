@@ -589,14 +589,15 @@ class SchemeOverrideErrorAdmin(admin.ModelAdmin):
             self.message_user(request, f"Copied {success} items to {chosen_channel}  {failed_message}")
             return HttpResponseRedirect(request.get_full_path())
 
-        to_channels = ClientApplicationBundle.objects.all()
+        excluded_channel_ids = []
         action_pks = []
         for entry in queryset:
-            to_channels = to_channels.exclude(bundle_id=entry.channel.bundle_id)
             action_pks.append(str(entry.pk))
+            if entry.channel:
+                excluded_channel_ids.append(entry.channel.bundle_id)
 
         channels = []
-        for to_channel in to_channels:
+        for to_channel in ClientApplicationBundle.objects.exclude(bundle_id__in=excluded_channel_ids):
             channels.append(to_channel.bundle_id)
 
         return render(
