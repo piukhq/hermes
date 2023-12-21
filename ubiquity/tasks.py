@@ -395,35 +395,28 @@ def bulk_deleted_membership_card_cleanup(
     scheme_acc_entries = SchemeAccountEntry.objects.filter(
         user__client__clientapplicationbundle=bundle_id, scheme_account__scheme=scheme_id
     )
-
-    scheme_acc_and_user_ids = {(entry.scheme_account_id, entry.user_id) for entry in scheme_acc_entries}
-    entry_count = len(scheme_acc_entries)
+    entry_count = scheme_acc_entries.count()
 
     set_history_kwargs({"table_user_id_column": "user_id"})
-    scheme_acc_entries.delete()
 
     logger.debug(f"Deleted {entry_count} SchemeAccountEntrys as part of delete " "SchemeBundleAssociation cleanup...")
 
-    accounts_to_clean_up_count = len(scheme_acc_and_user_ids)
-    for index, scheme_acc_and_user_id in enumerate(scheme_acc_and_user_ids):
-        scheme_acc_id, user_id = scheme_acc_and_user_id
-
+    for index, scheme_account_entry in enumerate(scheme_acc_entries):
         # Log at percentage-based intervals, so we don't spam logs for larger cleanups (minimum of 10)
-        log_interval = max([10, math.ceil(accounts_to_clean_up_count / 100) * 20])
+        log_interval = max([10, math.ceil(entry_count / 100) * 20])
         if index > 0 and index % log_interval == 0:
             logger.debug(f"Triggered cleanup tasks for {index} scheme account deletions")
 
         deleted_membership_card_cleanup.delay(
-            scheme_acc_id,
+            scheme_account_entry,
             arrow.utcnow().format(),
-            user_id,
             channel_slug=channel,
-            history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
+            history_kwargs={"user_info": user_info(user_id=scheme_account_entry.user_id, channel=channel)},
         )
 
     logger.debug(
         "Scheme account deletion cleanup process executed - "
-        f"Total scheme account cleanup tasks executed: {accounts_to_clean_up_count}"
+        f"Total scheme account cleanup tasks executed: {entry_count}"
     )
 
 
