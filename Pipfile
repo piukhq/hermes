@@ -1,11 +1,11 @@
 [[source]]
-name = "bink-pypi"
-url = "https://269fdc63-af3d-4eca-8101-8bddc22d6f14:b694b5b1-f97e-49e4-959e-f3c202e3ab91@pypi.gb.bink.com/simple"
+name = "pypi"
+url = "https://pypi.org/simple"
 verify_ssl = true
 
 [[source]]
-name = "pypi"
-url = "https://pypi.org/simple"
+name = "azure"
+url = "https://:lkzedq5xrttrobhxf6liuqefz4pzb5hp6m6wnjygjr5qhqo4phua@pkgs.dev.azure.com/binkhq/_packaging/binkhq/pypi/simple/"
 verify_ssl = true
 
 [requires]
@@ -51,7 +51,7 @@ PyJWT = ">=2.5.0,!=2.6.0"
 PyYAML = "*"
 sentry-sdk = "*"
 tenacity = "*"
-shared-config-storage = "*"
+shared-config-storage = {version = "*", index = "azure"}
 psycopg2-binary = "*"
 mozilla-django-oidc = "*"
 django-prometheus = "*"
@@ -60,7 +60,7 @@ django-storages = {extras = ["azure"], version = "*"}
 cryptography = "*"
 gunicorn = "*"
 cached-property = "*"
-rusty-jeff = "*"
+rusty-jeff = {version = "*", index = "azure"}
 paramiko = "*"
 dj-database-url = "*"
 azure-identity = "*"
@@ -69,8 +69,8 @@ django = "<5"
 tzdata = "*"
 whitenoise = "*"
 azure-storage-blob = "*"
-olympus-messaging = "*"
+olympus-messaging = {version = "*", index = "azure"}
 python-decouple = "*"
-bink-logging-utils = {extras = ["gunicorn"], version = ">=1.4.0", index = "bink-pypi"}
-cosmos-message-lib = {version = ">=2.0.0",  index = "bink-pypi"}
+bink-logging-utils = {extras = ["gunicorn"], version = ">=1.4.0", index = "azure"}
+cosmos-message-lib = {version = ">=2.0.0",  index = "azure"}
 tqdm = "*"
