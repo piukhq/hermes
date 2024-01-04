@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand, CommandParser
 
+from scripts.cli.barclays_wipe import wipe_barclays_data
 from scripts.cli.client_decommission import decommission_client
 
 available_scripts = {
@@ -45,6 +46,10 @@ available_scripts = {
                 "help": "show what data will be impacted without actually making any modifications",
             },
         },
+    },
+    "barclays-wipe": {
+        "fn": wipe_barclays_data,
+        "script_kwargs": {},
     },
 }
 
