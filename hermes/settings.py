@@ -217,6 +217,9 @@ USE_L10N = True
 
 USE_TZ = True
 
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_AGE = config("SESSION_COOKIE_AGE", default=240 * 60, cast=int)
+
 BINK_CLIENT_ID = "MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd"
 BINK_BUNDLE_ID = "com.bink.wallet"
 
