@@ -5,7 +5,6 @@ from .base_script import BaseScript
 
 
 class FindVOPActivationsStuckInActivating(BaseScript):
-
     """Finds all VOP Activations where the status is set to 'activating', and then added to results log. Correction is
     set for each to try activation again. Script also checks for an equivalent active link in the PaymentSchemeEntry
     model, to check that activation should be retried. If one is not found then this action is blocked."""

@@ -5,7 +5,6 @@ from .base_script import BaseScript
 
 
 class FindVOPActivationsStuckInDeactivating(BaseScript):
-
     """Finds all VOP Activations where the status is set to 'deactivating', and then added to results log. Correction is
     set for each to try deactivation again."""
 

@@ -271,7 +271,7 @@ class PaymentCardAccount(models.Model):
             UniqueConstraint(
                 fields=("fingerprint",),
                 condition=Q(is_deleted=False),
-                name="unique_fingerprint",
+                name="unique_active_fingerprint",
                 violation_error_message="An active payment account with this fingerprint already exists",
             ),
         ]

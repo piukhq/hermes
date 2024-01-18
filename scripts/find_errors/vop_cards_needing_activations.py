@@ -5,7 +5,6 @@ from .base_script import BaseScript
 
 
 class FindVopCardsNeedingActivation(BaseScript):
-
     """Finds every record in PaymentCardSchemeEntry linked to an active visa cards (with active link).
     Then loops through each of these records, and checks that for each of these there is a corresponding VOP Activation
     entry. If this cannot be found, then card and scheme details are added to the results log, and correction is set to

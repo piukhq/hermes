@@ -5,7 +5,6 @@ from .base_script import BaseScript
 
 
 class FindVOPCardsInDuplicateCardStatus(BaseScript):
-
     """Finds all Visa Payment Card Accounts where the status == 'DUPLICATE_CARD', and sets the status to 'ACTIVE'.
     This is to allow for bulk fixes in the case of outages or service issues which might erroneously cause duplicate
     cards to be reported in the system."""
