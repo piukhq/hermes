@@ -19,3 +19,4 @@ celerybeat-schedule
 /my_channels.json
 hermes_template.sql
 .decomission_logs.log
+tokens.csv

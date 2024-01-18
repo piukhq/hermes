@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand, CommandParser
 
 from scripts.cli.barclays_wipe import wipe_barclays_data
 from scripts.cli.client_decommission import decommission_client
+from scripts.cli.collect_payment_card_tokens import collect_tokens
 
 available_scripts = {
     "client-decommission": {
@@ -50,6 +51,29 @@ available_scripts = {
     "barclays-wipe": {
         "fn": wipe_barclays_data,
         "script_kwargs": {},
+    },
+    "collect-payment-card-tokens": {
+        "fn": collect_tokens,
+        "script_kwargs": {
+            "channel": {
+                "flags": ["--channel", "-c"],
+                "type": str,
+                "help": "collect tokens for payment cards that belong to this channel",
+                "required": True,
+            },
+            "output_path": {
+                "flags": ["--output-path", "-o"],
+                "type": str,
+                "help": "collected tokens output file path",
+                "default": "tokens.csv",
+            },
+            "postgres_uri": {
+                "flags": ["--postgres-uri", "-u"],
+                "type": str,
+                "help": "Postgres URI",
+                "required": True,
+            },
+        },
     },
 }
 
