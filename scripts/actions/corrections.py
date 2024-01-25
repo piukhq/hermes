@@ -1,4 +1,5 @@
 from .paymentaccount_actions import (  # do_delete_payment_account,
+    do_orphaned_payment_card_cleanup,
     do_re_enroll,
     do_remove_payment_account,
     do_retain,
@@ -50,6 +51,7 @@ class Correction:
     RE_ENROLL_CARD = 2006
     AMEX_RETRY_ENROL = 2007
     MC_RETRY_ENROL = 2008
+    ORPHANED_PAYMENT_CARD_CLEANUP = 2009
     # PLL corrections
     UPDATE_ACTIVE_LINK = 3001
     # User corrections
@@ -86,6 +88,7 @@ class Correction:
         (UN_ENROLL_CARD, "UN-ENROLL Payment Card Account"),
         (RE_ENROLL_CARD, "RE-ENROLL Payment Card Account"),
         (UPDATE_ACTIVE_LINK, "Update PLL Active Link"),
+        (ORPHANED_PAYMENT_CARD_CLEANUP, "Soft delete a payment card and send a un-enroll request to Metis"),
         # Users
         (DELETE_CARD_LINKS_FOR_DELETED_USERS, "Delete card links for deleted Users"),
         (DELETE_CLIENT_USERS, "Run delete process for Bink client users"),
@@ -134,6 +137,7 @@ class Correction:
             cls.DELETE_CARD_LINKS_FOR_DELETED_USERS: do_delete_user_cleanup,
             cls.DELETE_CLIENT_USERS: do_client_decommission,
             cls.CHANNELS_RETAILER_OFFBOARDING: do_channel_retailer_offboarding,
+            cls.ORPHANED_PAYMENT_CARD_CLEANUP: do_orphaned_payment_card_cleanup,
         }
         if entry.apply not in actions.keys():
             return False

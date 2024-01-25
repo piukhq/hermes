@@ -1,6 +1,7 @@
 import logging
 
 from payment_card.enums import RequestMethod
+from payment_card.metis import delete_payment_card
 from payment_card.models import PaymentCardAccount
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry
 
@@ -98,6 +99,18 @@ def do_delete_payment_account(entry: dict) -> bool:
 def do_removed_payment_account_scheme_entry(entry: dict) -> bool:
     try:
         PaymentCardSchemeEntry.objects.filter(payment_card_account__id=entry.data["payment_card_account_id"]).delete()
+        return True
+    except Exception as ex:
+        logger.warning(ex)
+        return False
+
+
+def do_orphaned_payment_card_cleanup(entry: dict) -> bool:
+    try:
+        card = PaymentCardAccount.all_objects.select_related("payment_card").get(id=entry.data["card_id"])
+        delete_payment_card(card)
+        card.is_deleted = True
+        card.save(update_fields=["is_deleted"])
         return True
     except Exception as ex:
         logger.warning(ex)

@@ -16,6 +16,7 @@ from .find_errors.channel_retailer_offboarding import (
 from .find_errors.client_decommission import FindBarclaysUsers, FindBinkNonTestUsers
 from .find_errors.deleted_users_with_links import FindDeletedUsersWithCardLinks
 from .find_errors.deleted_vop_cards_with_activations import FindDeletedVopCardsWithActivations
+from .find_errors.orphaned_payment_cards import FindOrphanedPaymentCards
 from .find_errors.pll_incorrect_state import FindIncorrectPLL
 from .find_errors.scheme_accounts_invalid_creds import FindIcelandSchemeAccountsStuckInInvalidCreds
 from .find_errors.vop_activations_stuck_in_activating import FindVOPActivationsStuckInActivating
@@ -49,6 +50,7 @@ class DataScripts(IntEnum):
     ALL_CHANNELS_ICELAND_RETAILER_CARDS = auto()
     BARCLAYS_SQUAREMEAL_RETAILER_CARDS = auto()
     BARCLAYS_USERS = auto()
+    ORPHANED_PAYMENT_CARDS = auto()
 
 
 # Titles displayed in Django Admin. Should make sense in the format "Find records for: [SCRIPT TITLE]"
@@ -78,6 +80,7 @@ SCRIPT_TITLES = {
     DataScripts.ALL_CHANNELS_ICELAND_RETAILER_CARDS: "All Channels Iceland membership cards for offboarding",
     DataScripts.BARCLAYS_SQUAREMEAL_RETAILER_CARDS: "Barclays Squaremeal membership cards for offboarding",
     DataScripts.BARCLAYS_USERS: "Barclays client users for deletion",
+    DataScripts.ORPHANED_PAYMENT_CARDS: "Find Payment cards that are not deleted but not linked to any wallet.",
 }
 
 SCRIPT_CLASSES = {
@@ -101,6 +104,7 @@ SCRIPT_CLASSES = {
     DataScripts.ALL_CHANNELS_ICELAND_RETAILER_CARDS: FindAllChannelsIcelandMembershipCards,
     DataScripts.BARCLAYS_SQUAREMEAL_RETAILER_CARDS: FindBarclaysSquaremealMembershipCards,
     DataScripts.BARCLAYS_USERS: FindBarclaysUsers,
+    DataScripts.ORPHANED_PAYMENT_CARDS: FindOrphanedPaymentCards,
 }
 # End of new script definition - you do not need to do anything else to add a new find script
 # But you may need to add one or more corrective actions see actions/corrections.py
