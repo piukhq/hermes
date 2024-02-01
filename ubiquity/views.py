@@ -1483,6 +1483,9 @@ class PortalUsersLookupView(GenericViewSet):
             "membership_cards": [
                 ...,  # GET /membership_cards payload without removing empty values
             ],
+            "payment_cards": [
+                ...,  # GET /payment_cards payload without removing empty values
+            ],
         },
         {
             "user_id": 2,
@@ -1490,6 +1493,9 @@ class PortalUsersLookupView(GenericViewSet):
             "channel": "com.stuff.2",
             "membership_cards": [
                 ...,  # GET /membership_cards payload without removing empty values
+            ],
+            "payment_cards": [
+                ...,  # GET /payment_cards payload without removing empty values
             ],
         },
     ]
@@ -1500,7 +1506,7 @@ class PortalUsersLookupView(GenericViewSet):
 
     def get_queryset(self, lookup_val: str):
         return (
-            CustomUser.all_objects.prefetch_related("scheme_account_set__scheme")
+            CustomUser.all_objects.prefetch_related("scheme_account_set__scheme", "payment_card_account_set")
             .filter(Q(email=lookup_val) | Q(external_id=lookup_val))
             .all()
         )
@@ -1516,7 +1522,10 @@ class PortalUsersLookupView(GenericViewSet):
                     "is_active": user.is_active,
                     "channel": user.bundle_id,
                     "membership_cards": MembershipCardSerializer(
-                        user.scheme_account_set, context={"user_id": user.id}, many=True
+                        user.scheme_account_set.all(), context={"user_id": user.id}, many=True
+                    ).data,
+                    "payment_cards": PaymentCardSerializer(
+                        user.payment_card_account_set.all(), context={"user_id": user.id}, many=True
                     ).data,
                 }
                 for user in self.get_queryset(lookup_val)
