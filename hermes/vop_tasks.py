@@ -76,7 +76,7 @@ def activate(activation: "VopActivation", data: dict) -> tuple[PeriodicRetryStat
     resp = requests.post(
         settings.METIS_URL + "/visa/activate/",
         json=data,
-        headers={"Authorization": "Token {}".format(settings.SERVICE_API_KEY), "Content-Type": "application/json"},
+        headers={"Authorization": "Token {}".format(settings.SERVICE_API_KEY)},
     )
 
     return process_result(resp, activation, activation.ACTIVATING)
@@ -115,7 +115,6 @@ def deactivate(
         json=data,
         headers={
             "Authorization": "Token {}".format(settings.SERVICE_API_KEY),
-            "Content-Type": "application/json",
             "X-azure-ref": headers.get("X-azure-ref", None) if headers else None,
         },
     )

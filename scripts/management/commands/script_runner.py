@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand, CommandParser
 
 from scripts.cli.barclays_wipe import wipe_barclays_data
 from scripts.cli.client_decommission import decommission_client
+from scripts.cli.visa_vop import run_activations_by_scheme_slug, run_deactivations_by_scheme_slug
 
 available_scripts = {
     "client-decommission": {
@@ -50,6 +51,67 @@ available_scripts = {
     "barclays-wipe": {
         "fn": wipe_barclays_data,
         "script_kwargs": {},
+    },
+    "vop-deactivation-by-scheme": {
+        "fn": run_deactivations_by_scheme_slug,
+        "script_kwargs": {
+            "scheme_slug": {
+                "flags": ["--scheme-slug", "-s"],
+                "type": str,
+                "help": "Scheme.slug to deactivate VOPActivations for",
+                "required": True,
+            },
+            "use_default": {
+                "flags": ["--use-default-group", "-D"],
+                "action": "store_true",
+                "help": "Use default VOPMerchantGroup for deactivation",
+            },
+            "group_name": {
+                "flags": ["--group-name", "-g"],
+                "type": str,
+                "help": (
+                    "use specified VOPMerchantGroup.group_name for deactivation, requires --use-default to be False"
+                ),
+                "required": False,
+            },
+            "log_path": {
+                "flags": ["--log-path", "-l"],
+                "type": str,
+                "help": "Write logs for failed deactications to this file, defaults to '/tmp/vop_deactivation.log'",
+                "default": "/tmp/vop_deactivation.log",
+                "required": False,
+            },
+        },
+    },
+    "vop-activation-by-scheme": {
+        "fn": run_activations_by_scheme_slug,
+        "script_kwargs": {
+            "scheme_slug": {
+                "flags": ["--scheme-slug", "-s"],
+                "type": str,
+                "help": "Scheme.slug to activate VOPActivations for",
+                "required": True,
+            },
+            "use_default": {
+                "flags": ["--use-default-group", "-D"],
+                "action": "store_true",
+                "help": "Use default VOPMerchantGroup for activation",
+                "required": False,
+            },
+            "group_name": {
+                "flags": ["--group-name", "-g"],
+                "type": str,
+                "help": "use specified VOPMerchantGroup.group_name for activation, requires --use-default to be False",
+                "required": False,
+            },
+            "log_path": {
+                "flags": ["--log-path", "-l"],
+                "type": str,
+                "help": "Write logs for failed actications to this file, defaults to '/tmp/vop_activation.log'",
+                "default": "/tmp/vop_activation.log",
+                "required": False,
+            },
+        },
     },
 }
 
