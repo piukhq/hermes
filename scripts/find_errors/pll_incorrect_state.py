@@ -7,7 +7,6 @@ from .base_script import BaseScript
 
 
 class FindIncorrectPLL(BaseScript):
-
     """Find any pll link that should be False either due to the payment card or scheme account entry
     status not active for all wallets
 

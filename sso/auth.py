@@ -5,7 +5,7 @@ from django.core.exceptions import SuspiciousOperation
 from django.http import HttpResponseRedirect
 from django.utils.crypto import get_random_string
 from mozilla_django_oidc.auth import LOGGER, OIDCAuthenticationBackend
-from mozilla_django_oidc.utils import add_state_and_nonce_to_session
+from mozilla_django_oidc.utils import add_state_and_verifier_and_nonce_to_session
 from mozilla_django_oidc.views import OIDCAuthenticationRequestView, get_next_url
 
 from user.models import ClientApplication, CustomUser
@@ -172,7 +172,7 @@ class CustomOIDCAuthenticationRequestView(OIDCAuthenticationRequestView):
             nonce = get_random_string(self.get_settings("OIDC_NONCE_SIZE", 32))
             params.update({"nonce": nonce})
 
-        add_state_and_nonce_to_session(request, state, params)
+        add_state_and_verifier_and_nonce_to_session(request, state, params)
 
         request.session["oidc_login_next"] = get_next_url(request, redirect_field_name)
 
