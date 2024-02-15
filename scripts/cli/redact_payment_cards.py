@@ -18,6 +18,7 @@ import requests
 from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 from django.conf import settings
 from requests import Response
+from tqdm import tqdm
 
 from ubiquity.channel_vault import get_azure_client
 
@@ -169,10 +170,7 @@ def attempt_redact_requests(
         next(reader)
 
         total = failed_total = 0
-        for row in reader:
-            if total > 0 and total in [100, 1000] or total % 10000 == 0:
-                stdout.write(f"Completed {total} redact requests...")
-
+        for row in tqdm(reader):
             total += 1
             token = row[0]
             successful, resp = try_redact_request(token, (spreedly_username, spreedly_password))
@@ -188,7 +186,7 @@ def attempt_redact_requests(
                 if failed_total == 1:
                     # Allow manually ending script to avoid spamming the Spreedly API
                     if _input(
-                        f"WARNING: A redact request has encountered an error."
+                        "\n\nWARNING: A redact request has encountered an error."
                         "You can continue the script and have all errors logged or quit now and view the error in"
                         f"{redact_detail_filename}\n\n"
                         "Continue? [y/N]"
