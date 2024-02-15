@@ -1,27 +1,98 @@
 # CLI Usage
 
-```
-python manage.py script_runner <command> <options>
-```
+`python manage.py script_runner <command> <options>`
+
+To see available scripts
+
+`python manage.py script_runner --help`
+
 
 ## Available commands
 
 ### `barclays-wipe`
 
----
+```shell
+usage: manage.py script_runner barclays-wipe [-h]
+
+options:
+  -h, --help  show this help message and exit
+```
 
 ### `client-decommission`
 
----
+```shell
+usage: manage.py script_runner client-decommission [-h] --client-name CLIENT_NAME [--exclude-test-users] [--batch-size BATCH_SIZE] [--log-path LOG_PATH]
+                                                   [--dry-run]
+
+options:
+  -h, --help            show this help message and exit
+  --client-name CLIENT_NAME, -c CLIENT_NAME
+                        name field of the ClientApplication to decommission
+  --exclude-test-users, -e
+                        excludes test users from deletion by adding filters `is_staff=False` and `is_tester=False`
+  --batch-size BATCH_SIZE, -b BATCH_SIZE
+                        users to be processed batch size, defaults to 1000
+  --log-path LOG_PATH, -p LOG_PATH
+                        during script execution the normal hermes logging will be redirected to this file, defaults to '/tmp/client_decommission.log'
+  --dry-run, -d         show what data will be impacted without actually making any modifications
+```
+
+### `vop-deactivation-by-scheme`
+
+```shell
+usage: manage.py script_runner vop-deactivation-by-scheme [-h] --scheme-slug SCHEME_SLUG [--use-default-group] [--group-name GROUP_NAME]
+                                                          [--log-path LOG_PATH]
+
+options:
+  -h, --help            show this help message and exit
+  --scheme-slug SCHEME_SLUG, -s SCHEME_SLUG
+                        Scheme.slug to deactivate VOPActivations for
+  --use-default-group, -D
+                        Use default VOPMerchantGroup for deactivation
+  --group-name GROUP_NAME, -g GROUP_NAME
+                        use specified VOPMerchantGroup.group_name for deactivation, requires --use-default to be False
+  --log-path LOG_PATH, -l LOG_PATH
+                        Write logs for failed deactivations to this file, defaults to '/tmp/vop_deactivation.log'
+```
+
+### `vop-activation-by-scheme`
+
+```shell
+usage: manage.py script_runner vop-activation-by-scheme [-h] --scheme-slug SCHEME_SLUG [--use-default-group] [--group-name GROUP_NAME]
+                                                        [--log-path LOG_PATH]
+
+options:
+  -h, --help            show this help message and exit
+  --scheme-slug SCHEME_SLUG, -s SCHEME_SLUG
+                        Scheme.slug to activate VOPActivations for
+  --use-default-group, -D
+                        Use default VOPMerchantGroup for activation
+  --group-name GROUP_NAME, -g GROUP_NAME
+                        use specified VOPMerchantGroup.group_name for activation, requires --use-default to be False
+  --log-path LOG_PATH, -l LOG_PATH
+                        Write logs for failed activations to this file, defaults to '/tmp/vop_activation.log'
+```
 
 ### `collect-payment-card-tokens`
 
----
+```shell
+usage: manage.py script_runner collect-payment-card-tokens [-h] --channel CHANNEL [--output-path OUTPUT_PATH] --postgres-uri POSTGRES_URI
+
+options:
+  -h, --help            show this help message and exit
+  --channel CHANNEL, -c CHANNEL
+                        collect tokens for payment cards that belong to this channel
+  --output-path OUTPUT_PATH, -o OUTPUT_PATH
+                        collected tokens output file path. Defaults to '/tmp/tokens.csv'
+  --postgres-uri POSTGRES_URI, -u POSTGRES_URI
+                        Postgres URI
+```
 
 ### `redact-payment-cards`
 
-```
-usage: manage.py script_runner redact-payment-cards [-h] --filepath TOKEN_FILENAME [--spreedly-user SPREEDLY_USER] [--spreedly-pass SPREEDLY_PASS] [--output-folder OUTPUT_FOLDER]
+```shell
+usage: manage.py script_runner redact-payment-cards [-h] --filepath TOKEN_FILENAME [--spreedly-user SPREEDLY_USER] [--spreedly-pass SPREEDLY_PASS]
+                                                    [--output-folder OUTPUT_FOLDER]
 
 options:
   -h, --help            show this help message and exit
@@ -32,7 +103,7 @@ options:
   --spreedly-pass SPREEDLY_PASS, -p SPREEDLY_PASS
                         Password for Basic Auth to access Spreedly redact endpoint.
   --output-folder OUTPUT_FOLDER, -o OUTPUT_FOLDER
-                        The destination folder to output error detail and retry files.
+                        The destination folder to output error detail and retry files. Defaults to '/tmp/'
 ```
 
 Provide a list of payment card tokens to be redacted from Spreedly. This list can be

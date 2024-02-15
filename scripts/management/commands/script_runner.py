@@ -79,7 +79,7 @@ available_scripts = {
             "log_path": {
                 "flags": ["--log-path", "-l"],
                 "type": str,
-                "help": "Write logs for failed deactications to this file, defaults to '/tmp/vop_deactivation.log'",
+                "help": "Write logs for failed deactivations to this file, defaults to '/tmp/vop_deactivation.log'",
                 "default": "/tmp/vop_deactivation.log",
                 "required": False,
             },
@@ -109,7 +109,7 @@ available_scripts = {
             "log_path": {
                 "flags": ["--log-path", "-l"],
                 "type": str,
-                "help": "Write logs for failed actications to this file, defaults to '/tmp/vop_activation.log'",
+                "help": "Write logs for failed activations to this file, defaults to '/tmp/vop_activation.log'",
                 "default": "/tmp/vop_activation.log",
                 "required": False,
             },
@@ -127,7 +127,7 @@ available_scripts = {
             "output_path": {
                 "flags": ["--output-path", "-o"],
                 "type": str,
-                "help": "collected tokens output file path. Defaults to /tmp/tokens.csv",
+                "help": "collected tokens output file path. Defaults to '/tmp/tokens.csv'",
                 "default": "/tmp/tokens.csv",
             },
             "postgres_uri": {
@@ -163,7 +163,7 @@ available_scripts = {
             "output_folder": {
                 "flags": ["--output-folder", "-o"],
                 "type": str,
-                "help": "The destination folder to output error detail and retry files.",
+                "help": "The destination folder to output error detail and retry files. Defaults to '/tmp/'",
                 "required": False,
                 "default": "/tmp/",
             },
