@@ -1,6 +1,6 @@
 """
 This script is to redact payment cards from Spreedly using payment card tokens specified in a CSV
-file. This file can be generated using the `collect_payment_card_tokens' command, where the filename
+file. This file can be generated using the `collect-payment-card-tokens' command, where the filename
 can then be provided to this command as a command line argument.
 
 If Spreedly responds with "payment_method_not_found" then the request is treated as a successful redaction.
@@ -11,6 +11,7 @@ the vault settings are not sufficient.
 
 import csv
 import json
+import os
 from typing import TYPE_CHECKING
 
 import requests
@@ -38,12 +39,17 @@ SPREEDLY_OAUTH_PASSWORD_VAULT_KEY = "spreedly-oAuthPassword"
 
 
 def redact_payment_cards(
-    *, token_filename: str, spreedly_user: str = None, spreedly_pass: str = None, stdout: "OutputWrapper"
+    *,
+    token_filename: str,
+    output_folder: str,
+    spreedly_user: str = None,
+    spreedly_pass: str = None,
+    stdout: "OutputWrapper",
 ) -> str:
     stdout.write("Requested redaction of payment cards from Spreedly...")
 
-    redact_detail_filename = "failed_redacts_details.csv"
-    failed_tokens_filename = "failed_tokens_list.csv"
+    redact_detail_filename = os.path.join(output_folder, "failed_redacts_details.csv")
+    failed_tokens_filename = os.path.join(output_folder, "failed_tokens_list.csv")
     try:
         total, failed_total = attempt_redact_requests(
             token_filename,

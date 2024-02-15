@@ -65,8 +65,8 @@ available_scripts = {
             "output_path": {
                 "flags": ["--output-path", "-o"],
                 "type": str,
-                "help": "collected tokens output file path",
-                "default": "tokens.csv",
+                "help": "collected tokens output file path. Defaults to /tmp/tokens.csv",
+                "default": "/tmp/tokens.csv",
             },
             "postgres_uri": {
                 "flags": ["--postgres-uri", "-u"],
@@ -97,6 +97,13 @@ available_scripts = {
                 "type": str,
                 "help": "Password for Basic Auth to access Spreedly redact endpoint.",
                 "required": False,
+            },
+            "output_folder": {
+                "flags": ["--output-folder", "-o"],
+                "type": str,
+                "help": "The destination folder to output error detail and retry files.",
+                "required": False,
+                "default": "/tmp/",
             },
         },
     },

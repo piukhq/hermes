@@ -21,7 +21,7 @@ python manage.py script_runner <command> <options>
 ### `redact-payment-cards`
 
 ```
-manage.py script_runner redact-payment-cards [-h] --filepath TOKEN_FILENAME [--spreedly-user SPREEDLY_USER] [--spreedly-pass SPREEDLY_PASS]
+usage: manage.py script_runner redact-payment-cards [-h] --filepath TOKEN_FILENAME [--spreedly-user SPREEDLY_USER] [--spreedly-pass SPREEDLY_PASS] [--output-folder OUTPUT_FOLDER]
 
 options:
   -h, --help            show this help message and exit
@@ -31,6 +31,8 @@ options:
                         Username for Basic Auth to access Spreedly redact endpoint.
   --spreedly-pass SPREEDLY_PASS, -p SPREEDLY_PASS
                         Password for Basic Auth to access Spreedly redact endpoint.
+  --output-folder OUTPUT_FOLDER, -o OUTPUT_FOLDER
+                        The destination folder to output error detail and retry files.
 ```
 
 Provide a list of payment card tokens to be redacted from Spreedly. This list can be
