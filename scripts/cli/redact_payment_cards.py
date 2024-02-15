@@ -8,27 +8,31 @@ If Spreedly responds with "payment_method_not_found" then the request is treated
 The Spreedly Basic Auth credentials are also required to use this command and can be provided as an argument if
 the vault settings are not sufficient.
 """
+
 import csv
 import json
 from typing import TYPE_CHECKING
 
 import requests
-from requests import Response
-from azure.core.exceptions import ResourceNotFoundError, HttpResponseError
+from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 from django.conf import settings
+from requests import Response
+
 from ubiquity.channel_vault import get_azure_client
 
 if TYPE_CHECKING:
-    from django.core.management.base import OutputWrapper
     from azure.keyvault.secrets import SecretClient
+    from django.core.management.base import OutputWrapper
 
 
 class VaultException(Exception):
     pass
 
 
-# user = {"value": "1Lf7DiKgkcx5Anw7QxWdDxaKtTa"}
-# pwd = {"value": "xwMcI4T04SlhP4vFucSj3nTX3O8trwQObdgWnI96SI5s5D5Lk4RCI6D3GdWnNrgP"}
+class Abort(Exception):
+    pass
+
+
 SPREEDLY_OAUTH_USERNAME_VAULT_KEY = "spreedly-oAuthUsername"
 SPREEDLY_OAUTH_PASSWORD_VAULT_KEY = "spreedly-oAuthPassword"
 
@@ -36,66 +40,24 @@ SPREEDLY_OAUTH_PASSWORD_VAULT_KEY = "spreedly-oAuthPassword"
 def redact_payment_cards(
     *, token_filename: str, spreedly_user: str = None, spreedly_pass: str = None, stdout: "OutputWrapper"
 ) -> str:
-    stdout.write(f"Requested redaction of payment cards from Spreedly...")
+    stdout.write("Requested redaction of payment cards from Spreedly...")
 
     redact_detail_filename = "failed_redacts_details.csv"
     failed_tokens_filename = "failed_tokens_list.csv"
-
     try:
-        with (
-            open(token_filename, newline="") as token_file,
-            open(redact_detail_filename, "w") as failed_results_f,
-            open(failed_tokens_filename, "w") as failed_tokens_list_f,
-        ):
-            # add header to failed redact details file
-            print("tokens,valid_response,status_code,content,error", file=failed_results_f)
-
-            # add header to failed tokens file
-            print("tokens", file=failed_tokens_list_f)
-
-            if not (spreedly_user and spreedly_pass):
-                client = get_azure_client(settings.VAULT_CONFIG)
-
-            spreedly_username = spreedly_user or _get_azure_secret(client, SPREEDLY_OAUTH_USERNAME_VAULT_KEY)
-            spreedly_password = spreedly_pass or _get_azure_secret(client, SPREEDLY_OAUTH_PASSWORD_VAULT_KEY)
-
-            reader = csv.reader(token_file)
-            # Skip header
-            next(reader)
-
-            total = failed_total = 0
-            for row in reader:
-                if total > 0 and total in [100, 1000] or total % 10000 == 0:
-                    stdout.write(f"Completed {total} redact requests...")
-
-                total += 1
-                token = row[0]
-                successful, resp = try_redact_request(token, (spreedly_username, spreedly_password))
-
-                if not successful:
-                    failed_total += 1
-                    print(f"{token}", file=failed_tokens_list_f)
-                    if isinstance(resp, Response):
-                        print(f'{token},true,{resp.status_code},"{resp.content}",', file=failed_results_f)
-                    else:
-                        print(f'{token},false,,,"{resp}"', file=failed_results_f)
-
-                    if failed_total == 1:
-                        # Allow manually ending script to avoid spamming the Spreedly API
-                        if _input(
-                            f"WARNING: A redact request has encountered an error."
-                            "You can continue the script and have all errors logged or quit now and view the error in"
-                            f"{redact_detail_filename}\n\n"
-                            "Continue? [y/N]"
-                        ):
-                            stdout.write("Script continuing...")
-                        else:
-                            return "Exiting..."
-
+        total, failed_total = attempt_redact_requests(
+            token_filename,
+            redact_detail_filename,
+            failed_tokens_filename,
+            spreedly_auth=(spreedly_user, spreedly_pass),
+            stdout=stdout,
+        )
     except FileNotFoundError:
         return "The given token file was not found."
     except VaultException as e:
         return f"Failed to load secrets from the vault: \n{e}"
+    except Abort:
+        return "Exiting..."
 
     result = f"{total - failed_total} of {total} Payment cards redacted successfully\n\n"
     if failed_total > 0:
@@ -166,3 +128,67 @@ def _input(msg: str) -> bool:
     # default to False if empty
     res = input(msg).strip().lower() or "n"
     return valid.get(res, False)
+
+
+def _get_spreedly_auth_creds(spreedly_user: str | None, spreedly_pass: str | None) -> tuple[str, str]:
+    if not (spreedly_user and spreedly_pass):
+        client = get_azure_client(settings.VAULT_CONFIG)
+
+    spreedly_username = spreedly_user or _get_azure_secret(client, SPREEDLY_OAUTH_USERNAME_VAULT_KEY)
+    spreedly_password = spreedly_pass or _get_azure_secret(client, SPREEDLY_OAUTH_PASSWORD_VAULT_KEY)
+    return spreedly_username, spreedly_password
+
+
+def attempt_redact_requests(
+    token_filename: str,
+    redact_detail_filename: str,
+    failed_tokens_filename: str,
+    spreedly_auth: tuple[str, str],
+    stdout: "OutputWrapper",
+) -> tuple[int, int]:
+    with (
+        open(token_filename, newline="") as token_file,
+        open(redact_detail_filename, "w") as failed_results_f,
+        open(failed_tokens_filename, "w") as failed_tokens_list_f,
+    ):
+        # add header to failed redact details file
+        print("tokens,valid_response,status_code,content,error", file=failed_results_f)
+
+        # add header to failed tokens file
+        print("tokens", file=failed_tokens_list_f)
+
+        spreedly_username, spreedly_password = _get_spreedly_auth_creds(*spreedly_auth)
+        reader = csv.reader(token_file)
+        # Skip header
+        next(reader)
+
+        total = failed_total = 0
+        for row in reader:
+            if total > 0 and total in [100, 1000] or total % 10000 == 0:
+                stdout.write(f"Completed {total} redact requests...")
+
+            total += 1
+            token = row[0]
+            successful, resp = try_redact_request(token, (spreedly_username, spreedly_password))
+
+            if not successful:
+                failed_total += 1
+                print(f"{token}", file=failed_tokens_list_f)
+                if isinstance(resp, Response):
+                    print(f'{token},true,{resp.status_code},"{resp.content}",', file=failed_results_f)
+                else:
+                    print(f'{token},false,,,"{resp}"', file=failed_results_f)
+
+                if failed_total == 1:
+                    # Allow manually ending script to avoid spamming the Spreedly API
+                    if _input(
+                        f"WARNING: A redact request has encountered an error."
+                        "You can continue the script and have all errors logged or quit now and view the error in"
+                        f"{redact_detail_filename}\n\n"
+                        "Continue? [y/N]"
+                    ):
+                        stdout.write("Script continuing...")
+                    else:
+                        raise Abort
+
+    return total, failed_total
