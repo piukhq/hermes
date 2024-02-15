@@ -20,3 +20,5 @@ celerybeat-schedule
 hermes_template.sql
 .decomission_logs.log
 tokens.csv
+failed_redacts_details.csv
+failed_tokens_list.csv
