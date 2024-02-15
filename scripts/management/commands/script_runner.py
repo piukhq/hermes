@@ -2,6 +2,9 @@ from django.core.management.base import BaseCommand, CommandParser
 
 from scripts.cli.barclays_wipe import wipe_barclays_data
 from scripts.cli.client_decommission import decommission_client
+from scripts.cli.collect_payment_card_tokens import collect_tokens
+from scripts.cli.redact_payment_cards import redact_payment_cards
+from scripts.cli.visa_vop import run_activations_by_scheme_slug, run_deactivations_by_scheme_slug
 
 available_scripts = {
     "client-decommission": {
@@ -50,6 +53,121 @@ available_scripts = {
     "barclays-wipe": {
         "fn": wipe_barclays_data,
         "script_kwargs": {},
+    },
+    "vop-deactivation-by-scheme": {
+        "fn": run_deactivations_by_scheme_slug,
+        "script_kwargs": {
+            "scheme_slug": {
+                "flags": ["--scheme-slug", "-s"],
+                "type": str,
+                "help": "Scheme.slug to deactivate VOPActivations for",
+                "required": True,
+            },
+            "use_default": {
+                "flags": ["--use-default-group", "-D"],
+                "action": "store_true",
+                "help": "Use default VOPMerchantGroup for deactivation",
+            },
+            "group_name": {
+                "flags": ["--group-name", "-g"],
+                "type": str,
+                "help": (
+                    "use specified VOPMerchantGroup.group_name for deactivation, requires --use-default to be False"
+                ),
+                "required": False,
+            },
+            "log_path": {
+                "flags": ["--log-path", "-l"],
+                "type": str,
+                "help": "Write logs for failed deactivations to this file, defaults to '/tmp/vop_deactivation.log'",
+                "default": "/tmp/vop_deactivation.log",
+                "required": False,
+            },
+        },
+    },
+    "vop-activation-by-scheme": {
+        "fn": run_activations_by_scheme_slug,
+        "script_kwargs": {
+            "scheme_slug": {
+                "flags": ["--scheme-slug", "-s"],
+                "type": str,
+                "help": "Scheme.slug to activate VOPActivations for",
+                "required": True,
+            },
+            "use_default": {
+                "flags": ["--use-default-group", "-D"],
+                "action": "store_true",
+                "help": "Use default VOPMerchantGroup for activation",
+                "required": False,
+            },
+            "group_name": {
+                "flags": ["--group-name", "-g"],
+                "type": str,
+                "help": "use specified VOPMerchantGroup.group_name for activation, requires --use-default to be False",
+                "required": False,
+            },
+            "log_path": {
+                "flags": ["--log-path", "-l"],
+                "type": str,
+                "help": "Write logs for failed activations to this file, defaults to '/tmp/vop_activation.log'",
+                "default": "/tmp/vop_activation.log",
+                "required": False,
+            },
+        },
+    },
+    "collect-payment-card-tokens": {
+        "fn": collect_tokens,
+        "script_kwargs": {
+            "channel": {
+                "flags": ["--channel", "-c"],
+                "type": str,
+                "help": "collect tokens for payment cards that belong to this channel",
+                "required": True,
+            },
+            "output_path": {
+                "flags": ["--output-path", "-o"],
+                "type": str,
+                "help": "collected tokens output file path. Defaults to '/tmp/tokens.csv'",
+                "default": "/tmp/tokens.csv",
+            },
+            "postgres_uri": {
+                "flags": ["--postgres-uri", "-u"],
+                "type": str,
+                "help": "Postgres URI",
+                "required": True,
+            },
+        },
+    },
+    "redact-payment-cards": {
+        "fn": redact_payment_cards,
+        "script_kwargs": {
+            "token_filename": {
+                "flags": ["--filepath", "-f"],
+                "type": str,
+                "help": "Filepath of payment card tokens to redact from Spreedly. "
+                "This can be generated via the collect-payment-card-tokens command.",
+                "required": True,
+            },
+            "spreedly_user": {
+                "flags": ["--spreedly-user", "-u"],
+                "type": str,
+                "help": "Username for Basic Auth to access Spreedly redact endpoint.",
+                "required": False,
+            },
+            "spreedly_pass": {
+                "flags": ["--spreedly-pass", "-p"],
+                "type": str,
+                "help": "Password for Basic Auth to access Spreedly redact endpoint.",
+                "required": False,
+            },
+            "output_folder": {
+                "flags": ["--output-folder", "-o"],
+                "type": str,
+                "help": "The destination folder to output error detail and retry files. Defaults to '/tmp/'",
+                "required": False,
+                "default": "/tmp/",
+            },
+        },
     },
 }
 

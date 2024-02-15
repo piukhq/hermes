@@ -10,7 +10,6 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.8/ref/settings/
 """
 
-
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import logging
 import os
@@ -723,7 +722,7 @@ CELERY_ACCEPT_CONTENT = ["pickle", "json"]
 CELERY_RESULT_SERIALIZER = "pickle"
 CELERY_WORKER_ENABLE_REMOTE_CONTROL = False
 
-SPREEDLY_BASE_URL = config("SPREEDLY_BASE_URL", default="")
+SPREEDLY_BASE_URL = config("SPREEDLY_BASE_URL", default="")  # "https://core.spreedly.com/v1"
 
 # Time in seconds for periodic corrections to be called by celery beats
 PERIODIC_CORRECTIONS_PERIOD = config("PERIODIC_CORRECTIONS_PERIOD", default=600, cast=int)
