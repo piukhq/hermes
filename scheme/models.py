@@ -3,9 +3,10 @@ import re
 import socket
 import sre_constants
 import uuid
+from collections.abc import Iterable
 from decimal import ROUND_HALF_UP, Decimal
 from enum import IntEnum
-from typing import TYPE_CHECKING, Dict, Iterable
+from typing import TYPE_CHECKING
 
 import arrow
 import requests
@@ -227,7 +228,7 @@ class Scheme(models.Model):
         default="points",
         blank=True,
         help_text="This field must have a length that, when added to the value of the above "
-        "field, is less than or equal to {}.".format(MAX_POINTS_VALUE_LENGTH - 1),
+        f"field, is less than or equal to {MAX_POINTS_VALUE_LENGTH - 1}.",
     )
 
     identifier = models.CharField(max_length=30, blank=True, help_text="Regex identifier for barcode")
@@ -357,7 +358,7 @@ class Scheme(models.Model):
         return cls.objects.prefetch_related("questions").get(pk=scheme_id)
 
     def __str__(self):
-        return "{} ({})".format(self.name, self.company)
+        return f"{self.name} ({self.company})"
 
 
 class ConsentsManager(models.Manager):
@@ -416,7 +417,7 @@ class Consent(models.Model):
         return truncatewords(self.text, 5)
 
     def __str__(self):
-        return "({}) {}: {}".format(self.scheme.slug, self.id, self.short_text)
+        return f"({self.scheme.slug}) {self.id}: {self.short_text}"
 
     class Meta:
         unique_together = ("slug", "scheme", "journey")
@@ -448,7 +449,7 @@ class Exchange(models.Model):
     end_date = models.DateField(null=True, blank=True, editable=False)
 
     def __str__(self):
-        return "{} -> {}".format(self.donor_scheme.name, self.host_scheme.name)
+        return f"{self.donor_scheme.name} -> {self.host_scheme.name}"
 
 
 class ActiveSchemeImageManager(models.Manager):
@@ -723,7 +724,7 @@ class SchemeAccount(models.Model):
         midas_balance_uri = f"{settings.MIDAS_URL}/{self.scheme.slug}/balance"
         headers = {
             "transaction": str(uuid.uuid1()),
-            "User-agent": "Hermes on {0}".format(socket.gethostname()),
+            "User-agent": f"Hermes on {socket.gethostname()}",
             "X-azure-ref": x_azure_ref,
         }
         response = requests.get(midas_balance_uri, params=parameters, headers=headers)
@@ -922,11 +923,11 @@ class SchemeAccount(models.Model):
                 self.save(update_fields=["originating_journey"])
 
     def delete_cached_balance(self):
-        cache_key = "scheme_{}".format(self.pk)
+        cache_key = f"scheme_{self.pk}"
         cache.delete(cache_key)
 
     def delete_saved_balance(self):
-        self.balances = dict()
+        self.balances: dict = {}
         self.save(update_fields=["balances"])
 
     def question(self, question_type):
@@ -977,7 +978,7 @@ class SchemeAccount(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return "{} - id: {}".format(self.scheme.name, self.id)
+        return f"{self.scheme.name} - id: {self.id}"
 
     class Meta:
         ordering = ["order", "-created"]
@@ -995,7 +996,7 @@ class SchemeOverrideError(models.Model):
     channel = models.ForeignKey("user.ClientApplicationBundle", on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
-        return "({}) {}: {}".format(self.reason_code, self.scheme.name, self.message)
+        return f"({self.reason_code}) {self.scheme.name}: {self.message}"
 
     class Meta:
         unique_together = ("error_code", "scheme", "channel")
@@ -1178,7 +1179,7 @@ class UserConsent(models.Model):
         return truncatewords(metadata.get("text"), 5)
 
     def __str__(self):
-        return "{} - {}: {}".format(self.user, self.slug, self.value)
+        return f"{self.user} - {self.slug}: {self.value}"
 
 
 class ThirdPartyConsentLink(models.Model):
@@ -1218,7 +1219,10 @@ class VoucherScheme(models.Model):
         (BURNTYPE_DISCOUNT, "Discount"),
     )
 
-    VOUCHER_BARCODE_TYPES = BARCODE_TYPES + ((9, "Barcode Not Supported"),)
+    VOUCHER_BARCODE_TYPES = (
+        *BARCODE_TYPES,
+        (9, "Barcode Not Supported"),
+    )
 
     scheme = models.ForeignKey("scheme.Scheme", on_delete=models.CASCADE)
 
@@ -1279,7 +1283,7 @@ class VoucherScheme(models.Model):
 
     def __str__(self):
         type_name = dict(self.EARN_TYPES)[self.earn_type]
-        return "{} {} - id: {}".format(self.scheme.name, type_name, self.id)
+        return f"{self.scheme.name} {type_name} - id: {self.id}"
 
     def get_headline(self, state: VoucherStateStr):
         return {
@@ -1301,7 +1305,7 @@ class VoucherScheme(models.Model):
             VoucherStateStr.PENDING: self.body_text_pending,
         }[state]
 
-    def get_earn_target_value(self, voucher_fields: Dict) -> float:
+    def get_earn_target_value(self, voucher_fields: dict) -> float:
         """
         Get the target value from the incoming voucher, or voucher scheme if it's been set.
         Raise value exception if no value found from either.
@@ -1320,7 +1324,7 @@ class VoucherScheme(models.Model):
         return float(earn_target_value)
 
     @staticmethod
-    def get_earn_value(voucher_fields: Dict, earn_target_value: float) -> float:
+    def get_earn_value(voucher_fields: dict, earn_target_value: float) -> float:
         """
         Get the value from the incoming voucher. If it's None then assume
         it's been completed and set to the earn target value, otherwise return the value of the field.

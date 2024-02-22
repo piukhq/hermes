@@ -132,7 +132,7 @@ class PaymentCard(models.Model):
         (CREDIT, "Credit Card"),
     )
 
-    class TokenMethod(object):
+    class TokenMethod:
         COPY = 0
         LEN_24 = 1
         LEN_25 = 2
@@ -159,7 +159,7 @@ class PaymentCard(models.Model):
             check_digit = (odds + evens) % 10
             if check_digit != 0:
                 check_digit = 10 - check_digit
-            return "{}{}".format(cls.len24(psp_token), check_digit)
+            return f"{cls.len24(psp_token)}{check_digit}"
 
         @classmethod
         def dispatch(cls, method, psp_token):
@@ -277,7 +277,7 @@ class PaymentCardAccount(models.Model):
         ]
 
     def __str__(self):
-        return "{} - {}".format(self.payment_card.name, self.name_on_card)
+        return f"{self.payment_card.name} - {self.name_on_card}"
 
     def save(self, *args, **kwargs):
         if not self.token:
@@ -339,7 +339,7 @@ class AuthTransaction(models.Model):
     currency_code = models.CharField(max_length=3, default="GBP")
 
     def __str__(self):
-        return "Auth transaction of {}{}".format(self.currency_code, self.amount / 100)
+        return f"Auth transaction of {self.currency_code}{self.amount / 100}"
 
 
 class PaymentStatus(IntEnum):
@@ -355,7 +355,7 @@ def _generate_tx_ref() -> str:
     prefix = "BNK-"
     identifier = uuid.uuid4()
 
-    return "{}{}".format(prefix, identifier)
+    return f"{prefix}{identifier}"
 
 
 class PaymentAudit(models.Model):
@@ -373,9 +373,7 @@ class PaymentAudit(models.Model):
     modified_on = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return "PaymentAudit id: {} - User id: {} - SchemeAccount id: {}".format(
-            self.id, self.user_id, self.scheme_account_id
-        )
+        return f"PaymentAudit id: {self.id} - User id: {self.user_id} - SchemeAccount id: {self.scheme_account_id}"
 
 
 class VopMerchantGroup(models.Model):

@@ -58,7 +58,7 @@ class TestClientDecommission(TestCase):
                         "is_tester": True,
                         "is_staff": True,
                     }
-                    test_n -= 1
+                    test_n -= 1  # noqa: PLW2901
 
                 user = UserFactory(client=client_app, **params)
                 created_users.append(user)

@@ -4,12 +4,11 @@ from celery import shared_task
 from shared_config_storage.credentials.encryption import BLAKE2sHash
 
 from payment_card.models import PaymentCard, PaymentCardAccount
+from scripts.actions.corrections import Correction
+from scripts.azure_files import process_files
 from ubiquity.channel_vault import SecretKeyName, get_secret_key
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, VopActivation
 from user.models import CustomUser
-
-from ..actions.corrections import Correction
-from ..azure_files import process_files
 
 
 def process_barclays_hash_contents(correction_script: object, upload_file: str, contents: list, item_no: int):

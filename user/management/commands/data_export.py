@@ -73,7 +73,7 @@ def flatten_field_values(field_values, parent_key=""):
     """
     items = []
     for k, v in field_values.items():
-        new_key = "{}.{}".format(parent_key, k) if parent_key else k
+        new_key = f"{parent_key}.{k}" if parent_key else k
         if isinstance(v, dict):
             items.extend(flatten_field_values(v, new_key).items())
         else:
@@ -108,7 +108,7 @@ def write_csv(rows, filename):
     """
     fieldnames = rows[0].keys()
 
-    with open("{}.csv".format(filename), "w") as f:
+    with open(f"{filename}.csv", "w") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
@@ -119,7 +119,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         for filename, spec in exports.items():
-            self.stdout.write(self.style.MIGRATE_LABEL("processing {}.csv".format(filename)))
+            self.stdout.write(self.style.MIGRATE_LABEL(f"processing {filename}.csv"))
             rows = create_export(spec)
             write_csv(rows, filename)
         self.stdout.write(self.style.SUCCESS("data export successful."))

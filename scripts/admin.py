@@ -1,4 +1,4 @@
-from typing import Iterator
+from collections.abc import Iterator
 
 from django.contrib import admin, messages
 from django.template.response import TemplateResponse

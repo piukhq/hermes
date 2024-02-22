@@ -63,7 +63,11 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
             rsa_key_pem = get_bundle_key(bundle_id=self.context["bundle_id"], key_type=KeyType.PRIVATE_KEY)
             try:
                 with sentry_sdk.start_span(op="decryption", description="payment card"):
-                    decrypted_values = zip(fields_to_decrypt, rsa_decrypt_base64(rsa_key_pem, values_to_decrypt))
+                    decrypted_values = zip(
+                        fields_to_decrypt,
+                        rsa_decrypt_base64(rsa_key_pem, values_to_decrypt),
+                        strict=False,
+                    )
             except ValueError as e:
                 raise ValueError("Failed to decrypt sensitive fields") from e
 

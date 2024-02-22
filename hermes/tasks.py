@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def retry_tasks():
     # needs to try all tasks in list on each scheduled retry beat
     task_store = RetryTaskStore()
-    for i in range(0, task_store.length):
+    for _ in range(0, task_store.length):
         task_store.call_next_task()
 
 
@@ -69,7 +69,7 @@ class RetryTaskStore:
                     if data[self.retry_name] > 0:
                         self.save_to_redis(data)
 
-        except IOError as e:
+        except OSError as e:
             if self.retry_results in data:
                 data[self.retry_results].append(str(e))
             self.save_to_redis(data)

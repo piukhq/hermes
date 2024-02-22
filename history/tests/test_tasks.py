@@ -21,7 +21,7 @@ class TestTasks(APITestCase):
                 "instance_id": self.payment_card_account.id,
                 "change_type": HistoricalBase.CREATE,
                 "channel": "bink",
-            }
+            },
         )
         payment_card_account_history_post = HistoricalPaymentCardAccount.objects.count()
         payment_card_account_history_last = HistoricalPaymentCardAccount.objects.latest("id")

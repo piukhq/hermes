@@ -138,7 +138,6 @@ class MockApiCache:
         MockApiCache.subject = subject
         MockApiCache.cache_hi = high
         MockApiCache.cache_lo = low
-        return
 
     def save(self, data):
         MockApiCache.data = data
@@ -150,7 +149,7 @@ class TestResources(GlobalMockAPITestCase):
         token = GenerateJWToken(
             cls.client_app.organisation.name, cls.client_app.secret, cls.bundle.bundle_id, user.external_id
         ).get_token()
-        return "Bearer {}".format(token)
+        return f"Bearer {token}"
 
     @classmethod
     def setUpTestData(cls):
@@ -199,8 +198,8 @@ class TestResources(GlobalMockAPITestCase):
         cls.pcard_hash1 = "some_hash"
         cls.pcard_hash2 = "5ae741975b4db7bc80072fe8f88f233ef4a67e1e1d7e3bbf68a314dfc6691636"
 
-        cls.auth_headers = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user))}
-        cls.auth_headers_user2 = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user2))}
+        cls.auth_headers = {"HTTP_AUTHORIZATION": f"{cls._get_auth_header(cls.user)}"}
+        cls.auth_headers_user2 = {"HTTP_AUTHORIZATION": f"{cls._get_auth_header(cls.user2)}"}
         cls.internal_service_auth_headers = {"HTTP_AUTHORIZATION": f"token {settings.SERVICE_API_KEY}"}
         cls.version_header = {"HTTP_ACCEPT": "Application/json;v=1.1"}
         cls.version_header_v1_2 = {"HTTP_ACCEPT": "Application/json;v=1.2"}
@@ -786,7 +785,7 @@ class TestResources(GlobalMockAPITestCase):
                 "first_six_digits": "423456",
                 "name_on_card": "test user 2",
                 "token": "token-to-ignore",
-                "fingerprint": "this-is-not-{}".format(pca.fingerprint),
+                "fingerprint": f"this-is-not-{pca.fingerprint}",
                 "year": 22,
                 "month": 3,
                 "order": 1,
@@ -1100,7 +1099,7 @@ class TestResources(GlobalMockAPITestCase):
     def test_membership_card_V1_3_returns_default_error_message_if_no_override_exists(self, *_):
         self.scheme_account_entry.link_status = AccountLinkStatus.ACCOUNT_ALREADY_EXISTS
         self.scheme_account_entry.save()
-        error_messages = dict((code, message) for code, message in CURRENT_STATUS_CODES)
+        error_messages = dict(CURRENT_STATUS_CODES)
         data = MembershipCardSerializer_V1_3(
             self.scheme_account,
             context={"user_id": self.user.id},
@@ -1271,7 +1270,7 @@ class TestResources(GlobalMockAPITestCase):
         )
 
         new_user = UserFactory(client=self.client_app, external_id="testexternalid")
-        headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(new_user))}
+        headers = {"HTTP_AUTHORIZATION": f"{self._get_auth_header(new_user)}"}
         for scheme, question in test_schemes:
             existing_answer_value = "1234554321"
             existing_scheme_account = SchemeAccountFactory(scheme=scheme, **{question.type: existing_answer_value})
@@ -1321,7 +1320,7 @@ class TestResources(GlobalMockAPITestCase):
         )
 
         new_user = UserFactory(client=self.client_app, external_id="testexternalid")
-        headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(new_user))}
+        headers = {"HTTP_AUTHORIZATION": f"{self._get_auth_header(new_user)}"}
         payload = {
             "membership_plan": self.scheme.id,
             "account": {
@@ -1561,7 +1560,7 @@ class TestResources(GlobalMockAPITestCase):
         mock_secret.return_value = "test_secret"
         external_id = "anothertest@user.com"
         user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
-        auth_headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(user))}
+        auth_headers = {"HTTP_AUTHORIZATION": f"{self._get_auth_header(user)}"}
 
         consent_label = "Consent 1"
         consent = ConsentFactory.create(scheme=self.scheme, journey=JourneyTypes.JOIN.value)
@@ -1608,7 +1607,7 @@ class TestResources(GlobalMockAPITestCase):
         mock_secret.return_value = "test_secret"
         external_id = "anothertest@user.com"
         user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
-        auth_headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(user))}
+        auth_headers = {"HTTP_AUTHORIZATION": f"{self._get_auth_header(user)}"}
 
         consent_label = "Consent 1"
         consent = ConsentFactory.create(scheme=self.scheme, journey=JourneyTypes.JOIN.value)
@@ -2111,7 +2110,7 @@ class TestResources(GlobalMockAPITestCase):
 
     @httpretty.activate
     def test_user_transactions(self):
-        uri = "{}/transactions/user/{}".format(settings.HADES_URL, self.user.id)
+        uri = f"{settings.HADES_URL}/transactions/user/{self.user.id}"
         httpretty.register_uri(httpretty.GET, uri, json.dumps(self.test_hades_transactions))
         expected_resp = [
             {
@@ -2131,7 +2130,7 @@ class TestResources(GlobalMockAPITestCase):
     @httpretty.activate
     def test_retrieve_transactions(self):
         transaction_id = 1
-        uri = "{}/transactions/{}".format(settings.HADES_URL, transaction_id)
+        uri = f"{settings.HADES_URL}/transactions/{transaction_id}"
         httpretty.register_uri(httpretty.GET, uri, json.dumps(self.test_hades_transactions))
         expected_resp = {
             "id": 1,
@@ -2451,7 +2450,7 @@ class TestResources(GlobalMockAPITestCase):
     def test_membership_card_patch(self, *_):
         external_id = "test patch user 1"
         user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
-        auth_headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(user))}
+        auth_headers = {"HTTP_AUTHORIZATION": f"{self._get_auth_header(user)}"}
         sa = SchemeAccountFactory(scheme=self.scheme, card_number="12345", originating_journey=JourneyTypes.ADD)
         scheme_account_entry = SchemeAccountEntryFactory(
             user=user, scheme_account=sa, link_status=AccountLinkStatus.ACTIVE
@@ -2504,7 +2503,7 @@ class TestResources(GlobalMockAPITestCase):
     def test_check_patch_does_not_override_originating_journey(self, *_):
         external_id = "test patch user 1"
         user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
-        auth_headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(user))}
+        auth_headers = {"HTTP_AUTHORIZATION": f"{self._get_auth_header(user)}"}
         sa = SchemeAccountFactory(scheme=self.scheme, card_number="12345", originating_journey=JourneyTypes.JOIN)
         scheme_account_entry = SchemeAccountEntryFactory(user=user, scheme_account=sa)
         SchemeCredentialAnswerFactory(
@@ -2976,7 +2975,7 @@ class TestResources(GlobalMockAPITestCase):
         pcard_unlink = PaymentCardAccountFactory()
         mcard_delete = SchemeAccountFactory()
         mcard_unlink = SchemeAccountFactory()
-        auth_headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(user))}
+        auth_headers = {"HTTP_AUTHORIZATION": f"{self._get_auth_header(user)}"}
 
         PaymentCardAccountEntry.objects.create(user_id=user.id, payment_card_account_id=pcard_delete.id)
         PaymentCardAccountEntry.objects.create(user_id=user.id, payment_card_account_id=pcard_unlink.id)
@@ -2999,7 +2998,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertTrue(mcard_delete.is_deleted)
         self.assertFalse(pcard_unlink.is_deleted)
         self.assertFalse(mcard_unlink.is_deleted)
-        self.assertNotEquals(user.delete_token, "")
+        self.assertNotEqual(user.delete_token, "")
 
         non_deleted_links = SchemeAccountEntry.objects.filter(user_id=user.id).count()
         self.assertEqual(non_deleted_links, 0)
@@ -3016,7 +3015,7 @@ class TestResources(GlobalMockAPITestCase):
         user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
 
         auth_header = self._get_auth_header(user)
-        auth_headers = {"HTTP_AUTHORIZATION": "{}".format(auth_header)}
+        auth_headers = {"HTTP_AUTHORIZATION": f"{auth_header}"}
         payment_card_account = PaymentCardAccountFactory(issuer=self.issuer, payment_card=self.payment_card)
         PaymentCardAccountEntryFactory(user=user, payment_card_account=payment_card_account)
         query = {"payment_card_account_id": payment_card_account.id}
@@ -3179,7 +3178,7 @@ class TestAgainWithWeb2(TestResources):
     @classmethod
     def _get_auth_header(cls, user):
         token = user.create_token()
-        return "Token {}".format(token)
+        return f"Token {token}"
 
     def test_portal_users_lookup(self, *_args, **_kwargs):
         # this endpoint uses internal service authentication so it does not require Web2 re-test
@@ -3222,7 +3221,7 @@ class TestMembershipCardCredentials(GlobalMockAPITestCase):
             scheme_account_entry=cls.scheme_account_entry,
         )
         token = GenerateJWToken(client.organisation.name, client.secret, cls.bundle.bundle_id, external_id).get_token()
-        cls.auth_headers = {"HTTP_AUTHORIZATION": "Bearer {}".format(token)}
+        cls.auth_headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
     @patch("ubiquity.views.async_balance_with_updated_credentials.delay", autospec=True)
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
@@ -3252,7 +3251,7 @@ class TestResourcesV1_2(GlobalMockAPITestCase):
         token = GenerateJWToken(
             cls.client_app.organisation.name, cls.client_app.secret, cls.bundle.bundle_id, user.external_id
         ).get_token()
-        return "Bearer {}".format(token)
+        return f"Bearer {token}"
 
     @classmethod
     def setUpTestData(cls) -> None:
@@ -3293,7 +3292,7 @@ class TestResourcesV1_2(GlobalMockAPITestCase):
             scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
         )
 
-        cls.auth_headers = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user))}
+        cls.auth_headers = {"HTTP_AUTHORIZATION": f"{cls._get_auth_header(cls.user)}"}
         cls.version_header = {"HTTP_ACCEPT": "Application/json;v=1.2"}
 
     @patch("ubiquity.channel_vault._secret_keys", mock_secrets["secret_keys"])
@@ -3443,7 +3442,7 @@ class TestLastManStanding(GlobalMockAPITestCase):
         token = GenerateJWToken(
             cls.client_app.organisation.name, cls.client_app.secret, cls.bundle.bundle_id, user.external_id
         ).get_token()
-        return "Bearer {}".format(token)
+        return f"Bearer {token}"
 
     @classmethod
     def setUpTestData(cls) -> None:
@@ -3479,8 +3478,8 @@ class TestLastManStanding(GlobalMockAPITestCase):
             scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
         )
 
-        cls.auth_headers_1 = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user_1))}
-        cls.auth_headers_2 = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user_2))}
+        cls.auth_headers_1 = {"HTTP_AUTHORIZATION": f"{cls._get_auth_header(cls.user_1)}"}
+        cls.auth_headers_2 = {"HTTP_AUTHORIZATION": f"{cls._get_auth_header(cls.user_2)}"}
         cls.version_header = {"HTTP_ACCEPT": "Application/json;v=1.1"}
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
@@ -3606,7 +3605,7 @@ class TestHistoryResources(GlobalMockAPIHistoryTestCase):
         token = GenerateJWToken(
             cls.client_app.organisation.name, cls.client_app.secret, cls.bundle.bundle_id, user.external_id
         ).get_token()
-        return "Bearer {}".format(token)
+        return f"Bearer {token}"
 
     @classmethod
     def setUpTestData(cls):
@@ -3655,8 +3654,8 @@ class TestHistoryResources(GlobalMockAPIHistoryTestCase):
         cls.pcard_hash1 = "some_hash"
         cls.pcard_hash2 = "5ae741975b4db7bc80072fe8f88f233ef4a67e1e1d7e3bbf68a314dfc6691636"
 
-        cls.auth_headers = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user))}
-        cls.auth_headers_user2 = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user2))}
+        cls.auth_headers = {"HTTP_AUTHORIZATION": f"{cls._get_auth_header(cls.user)}"}
+        cls.auth_headers_user2 = {"HTTP_AUTHORIZATION": f"{cls._get_auth_header(cls.user2)}"}
         cls.version_header = {"HTTP_ACCEPT": "Application/json;v=1.1"}
         cls.version_header_v1_2 = {"HTTP_ACCEPT": "Application/json;v=1.2"}
         cls.version_header_v1_3 = {"HTTP_ACCEPT": "Application/json;v=1.3"}
@@ -3918,9 +3917,11 @@ class TestHistoryResources(GlobalMockAPIHistoryTestCase):
         count = 0
         for call_number in range(0, len(mock_to_data_warehouse.call_args_list)):
             args = mock_to_data_warehouse.call_args_list[call_number][0][0]
-            if args["event_type"] == "user.created":
-                count += 1
-            elif args["event_type"] == "lc.statuschange" and args["to_status"] == AccountLinkStatus.WALLET_ONLY.value:
+            if (
+                args["event_type"] == "user.created"
+                or args["event_type"] == "lc.statuschange"
+                and args["to_status"] == AccountLinkStatus.WALLET_ONLY.value
+            ):
                 count += 1
         self.assertEqual(count, 2)
         return scheme, user1, response.data["id"]

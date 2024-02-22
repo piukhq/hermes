@@ -16,7 +16,7 @@ def do_fix_enroll(entry):
     the status."""
     card = PaymentCardAccount.objects.get(id=entry.data["card_id"])
     enrol_existing_payment_card(card, False)
-    for i in range(0, 10):
+    for _ in range(0, 10):
         acc = PaymentCardAccount.objects.get(id=entry.data["card_id"])
         if acc.status != PaymentCardAccount.PENDING:
             return True

@@ -22,3 +22,5 @@ hermes_template.sql
 tokens.csv
 failed_redacts_details.csv
 failed_tokens_list.csv
+.venv
+dist

@@ -41,7 +41,7 @@ class TestPaymentCardAccountImages(GlobalMockAPITestCase):
         response = self.client.post(
             "/payment_cards/csv_upload",
             {"payment_card": self.payment_card_account.payment_card.name, "emails": csv_file},
-            **self.auth_headers
+            **self.auth_headers,
         )
         self.assertEqual(response.status_code, 200)
 

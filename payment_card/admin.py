@@ -87,7 +87,7 @@ class PaymentCardAccountAdmin(HistoryAdmin):
 
     user_email.allow_tags = True
 
-    def PLL_consent(self, obj):
+    def PLL_consent(self, obj):  # noqa: N802
         when = arrow.get(obj.consent["timestamp"]).format("HH:mm DD/MM/YYYY")
         return "Date Time: {} \nCoordinates: {}, {}".format(when, obj.consent["latitude"], obj.consent["longitude"])
 

@@ -1,12 +1,12 @@
 def is_not_empty(value):
-    if value or isinstance(value, (bool, int, float, list)):
+    if value or isinstance(value, bool | int | float | list):
         return True
 
     return False
 
 
 def remove_empty(d):
-    if not isinstance(d, (dict, list)):
+    if not isinstance(d, dict | list):
         return d
 
     if isinstance(d, list):
@@ -20,9 +20,8 @@ def remove_empty(d):
     for k, v in d.items():
         if k in ("code", "cta_url"):
             data[k] = v
-        else:
-            if is_not_empty(v):
-                data[k] = remove_empty(v)
+        elif is_not_empty(v):
+            data[k] = remove_empty(v)
     return data
 
 

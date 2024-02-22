@@ -78,7 +78,7 @@ class Permit:
                     "Error found in channels.py when trying to "
                     "find a bundle_id using client because it was not in the token"
                 )
-                raise exceptions.AuthenticationFailed("Invalid Token")
+                raise exceptions.AuthenticationFailed("Invalid Token") from None
 
     def _init_server_to_server(self, organisation_name):
         # Ubiquity tokens supplies credentials for bundle_id and organisation_name and these need to be verified
@@ -90,7 +90,7 @@ class Permit:
                 )
             self.client = self.looked_up_bundle.client
         except ObjectDoesNotExist:
-            raise KeyError
+            raise KeyError from None
         except MultipleObjectsReturned:
             # This should not occur after release as unique together constraint has been added in a migration
             # Covers edge case of duplicate already exists which would cause the unique together migration to fail
@@ -100,7 +100,7 @@ class Permit:
                 "Error found in channels.py when checking token. A migration added unique together constraint"
                 "which should have prevented this error"
             )
-            raise exceptions.AuthenticationFailed("Invalid Token")
+            raise exceptions.AuthenticationFailed("Invalid Token") from None
 
     @staticmethod
     def is_authenticated():
@@ -127,14 +127,14 @@ class Permit:
                     f"No ClientApplicationBundle found for '{self.bundle_id}' and client '{self.client}'"
                     "Bundle id has not been configured to a client in Admin"
                 )
-                raise exceptions.AuthenticationFailed("Invalid Token")
+                raise exceptions.AuthenticationFailed("Invalid Token") from None
             except MultipleObjectsReturned:
                 logger.error(
                     f"Multiple bundles match '{self.bundle_id}' and client '{self.client}'"
                     "Error found in channels.py when looking up bundle. This a error caused by"
                     "configuring the same bundle to more than one client/organisation."
                 )
-                raise exceptions.AuthenticationFailed("Invalid Token")
+                raise exceptions.AuthenticationFailed("Invalid Token") from None
         return self.looked_up_bundle
 
     @staticmethod

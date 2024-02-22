@@ -182,9 +182,7 @@ class CreateJoinSchemeAccount(APIView):
         setting = UserSetting.objects.filter(
             user=user,
             setting__scheme=scheme,
-            setting__slug="join-{}".format(
-                scheme.slug,
-            ),
+            setting__slug=f"join-{scheme.slug}",
         )
         if setting.exists() and setting.first().value == "0":
             return Response(
@@ -415,7 +413,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
             account = self.request.channels_permit.scheme_account_query(
                 SchemeAccount.objects,
                 user_id=self.request.user.id,
-                user_filter=False if request.user.uid == "api_user" else True,
+                user_filter=request.user.uid != "api_user",
             ).get(**kwargs)
         except SchemeAccount.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -540,7 +538,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
 
     @staticmethod
     def invalid_data_response(invalid_data):
-        message = {"message": "No answers found for: {}. Not deleting any credential answers".format(invalid_data)}
+        message = {"message": f"No answers found for: {invalid_data}. Not deleting any credential answers"}
         return Response(message, status=status.HTTP_404_NOT_FOUND)
 
 
@@ -566,7 +564,7 @@ def csv_upload(request):
                         image_criteria_instance.delete()
                         return HttpResponseBadRequest()
 
-            return redirect("/admin/scheme/schemeaccountimage/{}".format(image_criteria_instance.id))
+            return redirect(f"/admin/scheme/schemeaccountimage/{image_criteria_instance.id}")
 
     context = {"form": form}
     return render(request, "admin/csv_upload_form.html", context)

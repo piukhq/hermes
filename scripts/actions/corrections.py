@@ -139,6 +139,6 @@ class Correction:
             cls.CHANNELS_RETAILER_OFFBOARDING: do_channel_retailer_offboarding,
             cls.ORPHANED_PAYMENT_CARD_CLEANUP: do_orphaned_payment_card_cleanup,
         }
-        if entry.apply not in actions.keys():
+        if entry.apply not in actions:
             return False
         return actions[entry.apply](entry)

@@ -356,9 +356,8 @@ def loyalty_card_join(message: dict, headers: dict) -> None:
             )
         except RestValidationError as e:
             link_error = AccountLinkStatus.UNKNOWN_ERROR
-            if isinstance(e.detail, dict):
-                if api_settings.NON_FIELD_ERRORS_KEY not in e.detail.keys():
-                    link_error = AccountLinkStatus.INVALID_CREDENTIALS
+            if isinstance(e.detail, dict) and api_settings.NON_FIELD_ERRORS_KEY not in e.detail:
+                link_error = AccountLinkStatus.INVALID_CREDENTIALS
             entry.set_link_status(link_error)
             if payment_cards_to_link:
                 PllUserAssociation.link_user_scheme_account_to_payment_cards(
@@ -514,9 +513,12 @@ def record_mapper_history(model_name: str, ac: AngeliaContext, message: dict, he
     if "body" in required_extra_fields:
         extra["body"] = get_body_serializer(model_name)(payload).data
 
-    if "journey" in required_extra_fields:
-        if message["event"] == "create" and payload.get("originating_journey", -1) <= 5:
-            extra["journey"] = journey_map[payload["originating_journey"]]
+    if (
+        "journey" in required_extra_fields
+        and message["event"] == "create"
+        and payload.get("originating_journey", -1) <= 5
+    ):
+        extra["journey"] = journey_map[payload["originating_journey"]]
 
     for field in required_extra_fields:
         if field not in extra and payload.get(field):

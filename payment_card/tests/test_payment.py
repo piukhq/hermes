@@ -368,7 +368,7 @@ class TestPayment(GlobalMockAPITestCase):
         self.assertNotEqual(audit.transaction_token, "")
         self.assertTrue(mock_set_task.called)
         for arg in ["payment_card.tasks", "retry_payment_void_task", {"scheme_acc_id": self.scheme_account.id}]:
-            self.assertIn(arg, list(mock_set_task.call_args_list)[0][0])
+            self.assertIn(arg, next(iter(mock_set_task.call_args_list))[0])
 
     @patch.object(PaymentAudit, "save", autospec=True)
     def test_process_payment_success_does_nothing_if_no_audit(self, mock_save):

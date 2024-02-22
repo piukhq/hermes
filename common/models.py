@@ -56,7 +56,7 @@ class Image(models.Model):
         return dict(self.TYPES)[self.image_type_code]
 
     def __str__(self):
-        return "({}) {}".format(self.image_type_code_name(), self.description)
+        return f"({self.image_type_code_name()}) {self.description}"
 
     class Meta:
         abstract = True
@@ -88,9 +88,7 @@ def check_active_image(validity: dict, date: int) -> bool:
     end = validity.get("end_date")
 
     if start is not None and start <= date:
-        if end is not None and date >= end:
-            return False
-        else:
-            return True
+        return not (end is not None and date >= end)
+
     else:
         return False

@@ -2,8 +2,10 @@ import json
 import logging
 import re
 import sre_constants
+from collections.abc import Iterable
+from contextlib import suppress
 from enum import Enum, IntEnum
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
@@ -24,7 +26,7 @@ from user.models import ClientApplicationBundle, CustomUser
 
 if TYPE_CHECKING:
     from payment_card.models import PaymentCardAccount  # noqa
-    from scheme.models import SchemeAccount  # noqa
+    from scheme.models import SchemeAccount
     from scheme.models import SchemeAccountCredentialAnswer
 
 logger = logging.getLogger(__name__)
@@ -239,9 +241,10 @@ class SchemeAccountEntry(models.Model):
 
     @property
     def status_key(self):
-        status_keys = dict(
-            (extended_status[0], extended_status[2]) for extended_status in AccountLinkStatus.extended_statuses()
-        )
+        status_keys = {
+            extended_status[0]: extended_status[2] for extended_status in AccountLinkStatus.extended_statuses()
+        }
+
         return status_keys.get(self.link_status)
 
     @property
@@ -353,7 +356,9 @@ class SchemeAccountEntry(models.Model):
         answers = {
             answer
             for answer in self.credential_answers
-            if answer.question.manual_question or answer.question.scan_question or answer.question.one_question_link
+            if answer.question.manual_question
+            or answer.question.scan_question
+            or answer.question.one_question_link
             # This is in case a merchant sends back one of these key fields but they're not an add field
             # e.g squaremeal in a trusted channel. The fields still need populating since they could be
             # an add field in non-trusted channels.
@@ -415,14 +420,12 @@ class SchemeAccountEntry(models.Model):
                 setattr(self.scheme_account, type_to_update_info[primary_cred_type]["secondary_cred_type"], "")
                 return None
             if regex_match:
-                try:
+                with suppress(IndexError):
                     setattr(
                         self.scheme_account,
                         type_to_update_info[primary_cred_type]["secondary_cred_type"],
                         type_to_update_info[primary_cred_type]["prefix"] + regex_match.group(1),
                     )
-                except IndexError:
-                    pass
 
     def set_link_status(self, new_status: "int | AccountLinkStatus", commit_change: bool = True) -> None:
         """
@@ -475,17 +478,18 @@ class SchemeAccountEntry(models.Model):
     def credentials(self, credentials_override: dict | None = None):
         """
         Returns all credentials for this scheme_account_entry as an encoded string. The 'main_answer' credential's value
-         is replaced with the main_answer value from the Scheme Account. This is to avoid problems of different
-         account-identifying information between different users.
+        is replaced with the main_answer value from the Scheme Account. This is to avoid problems of different
+        account-identifying information between different users.
         """
 
         credentials = self._collect_credential_answers()
 
-        if self.scheme_account.scheme.slug != "iceland-bonus-card":
-            if self._iceland_hack(credentials, credentials_override):
-                return None
+        if self.scheme_account.scheme.slug != "iceland-bonus-card" and self._iceland_hack(
+            credentials, credentials_override
+        ):
+            return None
 
-        for credential in credentials.keys():
+        for credential in credentials:
             # Other services only expect a single password, "password", so "password_2" must be converted
             # before sending if it exists. Ideally, the new credential would be handled in the consuming
             # service and this should be removed.
@@ -535,11 +539,10 @@ class SchemeAccountEntry(models.Model):
             answer = answer_instance.answer
         else:
             # see if we have a property that will give us the answer.
-            try:
+            # and if we can't get an answer to this question, so skip it.
+            with suppress(AttributeError):
                 answer = getattr(self, question.type)
-            except AttributeError:
-                # we can't get an answer to this question, so skip it.
-                pass
+
         return answer
 
     def _iceland_hack(self, credentials: dict | None = None, credentials_override: dict | None = None) -> bool:
@@ -745,8 +748,7 @@ class WalletPLLData:
         self.included_payment_cards = {}
 
     def all(self) -> list["PllUserAssociation"]:
-        for link in self.pll_user_associations:
-            yield link
+        yield from self.pll_user_associations
 
     def all_except_collision(self) -> list["PllUserAssociation"]:
         for link in self.pll_user_associations:
@@ -910,7 +912,7 @@ class PllUserAssociation(models.Model):
                 return dict(cls.PLL_DESCRIPTIONS)[slug]
             return ""
         except KeyError:
-            raise ValueError(f'Invalid slug value: "{slug}" sent to PllUserAssociation.get_slug_description')
+            raise ValueError(f'Invalid slug value: "{slug}" sent to PllUserAssociation.get_slug_description') from None
 
     @staticmethod
     def update_link(link: "PllUserAssociation", wallet_pll_records: list["PllUserAssociation"]):
@@ -1005,7 +1007,7 @@ class PllUserAssociation(models.Model):
             if isinstance(payment_card_account, int):  # In background tasks a list of ids is sent rather than objects
                 from payment_card.models import PaymentCardAccount  # need to avoid circular import
 
-                payment_card_account = PaymentCardAccount.objects.get(id=payment_card_account)
+                payment_card_account = PaymentCardAccount.objects.get(id=payment_card_account)  # noqa: PLW2901
             cls.link_users_scheme_account_entry_to_payment(scheme_account_entry, payment_card_account, headers=headers)
 
     @classmethod

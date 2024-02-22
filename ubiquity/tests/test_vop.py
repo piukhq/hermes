@@ -55,7 +55,7 @@ class TestVOP(GlobalMockAPITestCase):
         token = GenerateJWToken(
             cls.client_app.organisation.name, cls.client_app.secret, cls.bundle.bundle_id, user.external_id
         ).get_token()
-        return "Bearer {}".format(token)
+        return f"Bearer {token}"
 
     @classmethod
     def setUpTestData(cls):
@@ -128,7 +128,7 @@ class TestVOP(GlobalMockAPITestCase):
             user=cls.user, payment_card_account=cls.payment_card_account
         )
 
-        cls.auth_headers = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.user))}
+        cls.auth_headers = {"HTTP_AUTHORIZATION": f"{cls._get_auth_header(cls.user)}"}
         cls.version_header = {"HTTP_ACCEPT": "Application/json;v=1.1"}
         cls.service_headers = {"HTTP_AUTHORIZATION": f"Token {settings.SERVICE_API_KEY}"}
 
@@ -405,7 +405,7 @@ class TestVOP(GlobalMockAPITestCase):
         self.assertEqual("visa", metis_request_body["partner_slug"])
         self.assertEqual(1, len(metis_request_body["activations"]))
         deactivated_list = []
-        for d in metis_request_body["activations"].keys():
+        for d in metis_request_body["activations"]:
             deactivated_list.append(int(d))
 
         resp_data = {
@@ -525,7 +525,7 @@ class TestVOP(GlobalMockAPITestCase):
             self.assertEqual(VopActivation.ACTIVATED, activation.status)
             self.assertEqual(activation_ids[activation.payment_card_account.id], activation.activation_id)
 
-        auth_headers = {"HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(user))}
+        auth_headers = {"HTTP_AUTHORIZATION": f"{self._get_auth_header(user)}"}
         response = self.client.delete(reverse("service"), **auth_headers)
         self.assertEqual(response.status_code, 200)
 
@@ -550,7 +550,7 @@ class TestVOP(GlobalMockAPITestCase):
                 self.assertEqual("visa", metis_request_body["partner_slug"])
                 self.assertEqual(1, len(metis_request_body["activations"]))
                 deactivated_list = []
-                for d in metis_request_body["activations"].keys():
+                for d in metis_request_body["activations"]:
                     deactivated_list.append(int(d))
 
                 resp_data = {

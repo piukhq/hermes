@@ -61,9 +61,8 @@ def process_result(
 
         status = PeriodicRetryStatus.SUCCESSFUL
         return status, response_data
-    else:
-        if response_status != "Retry":
-            status = PeriodicRetryStatus.FAILED
+    elif response_status != "Retry":
+        status = PeriodicRetryStatus.FAILED
 
     return status, response_data
 
@@ -76,7 +75,7 @@ def activate(activation: "VopActivation", data: dict) -> tuple[PeriodicRetryStat
     resp = requests.post(
         settings.METIS_URL + "/visa/activate/",
         json=data,
-        headers={"Authorization": "Token {}".format(settings.SERVICE_API_KEY)},
+        headers={"Authorization": f"Token {settings.SERVICE_API_KEY}"},
     )
 
     return process_result(resp, activation, activation.ACTIVATING)
@@ -114,7 +113,7 @@ def deactivate(
         settings.METIS_URL + "/visa/deactivate/",
         json=data,
         headers={
-            "Authorization": "Token {}".format(settings.SERVICE_API_KEY),
+            "Authorization": f"Token {settings.SERVICE_API_KEY}",
             "X-azure-ref": headers.get("X-azure-ref", None) if headers else None,
         },
     )

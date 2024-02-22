@@ -69,7 +69,7 @@ class TestCredentials(GlobalMockAPITestCase):
         )
         GenerateJWToken(client.organisation.name, client.secret, cls.bundle.bundle_id, external_id).get_token()
         cls.auth_headers = {
-            "HTTP_AUTHORIZATION": "Token {}".format(settings.SERVICE_API_KEY),
+            "HTTP_AUTHORIZATION": f"Token {settings.SERVICE_API_KEY}",
             "HTTP_BINK_USER_ID": cls.user.id,
         }
 
@@ -239,7 +239,7 @@ class TestCredentials(GlobalMockAPITestCase):
                 question.clean()
 
             self.assertEqual(len(e.exception.message_dict.keys()), 1)
-            self.assertEqual(list(e.exception.message_dict.keys())[0], "is_optional")
+            self.assertEqual(next(iter(e.exception.message_dict.keys())), "is_optional")
             self.assertEqual(
                 e.exception.message_dict["is_optional"],
                 ["This field can only be used for enrol & register credentials."],

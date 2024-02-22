@@ -46,7 +46,7 @@ class TestTasks(APITestCase):
         token = GenerateJWToken(
             client_app.organisation.name, client_app.secret, bundle.bundle_id, user.external_id
         ).get_token()
-        return "Bearer {}".format(token)
+        return f"Bearer {token}"
 
     @classmethod
     def setUpTestData(cls):

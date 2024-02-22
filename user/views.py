@@ -2,7 +2,6 @@ import base64
 import hashlib
 import logging
 from datetime import datetime
-from typing import Tuple
 
 import arrow
 import jwt
@@ -31,7 +30,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 from rest_framework.views import APIView
 
-from errors import INCORRECT_CREDENTIALS, REGISTRATION_FAILED, error_response
+from hermes.errors import INCORRECT_CREDENTIALS, REGISTRATION_FAILED, error_response
 from history.signals import HISTORY_CONTEXT
 from history.utils import user_info
 from magic_link.tasks import send_magic_link
@@ -73,7 +72,7 @@ class OpenAuthentication(SessionAuthentication):
         return
 
 
-class CustomRegisterMixin(object):
+class CustomRegisterMixin:
     def register_user(self, request, serializer_class):
         serializer = serializer_class(data=request.data)
         if serializer.is_valid():
@@ -286,7 +285,9 @@ class Renew(APIView):
         try:
             new_token = user.create_token(bundle_id)
         except MultipleObjectsReturned:
-            raise exceptions.AuthenticationFailed(_("No bundle_id in token and multiple bundles defined for this user"))
+            raise exceptions.AuthenticationFailed(
+                _("No bundle_id in token and multiple bundles defined for this user")
+            ) from None
 
         return Response({"api_key": new_token})
 
@@ -496,7 +497,7 @@ class UserSettings(APIView):
     def _filter_bad_setting_slugs(request_data):
         bad_settings = []
 
-        for k, v in request_data.items():
+        for k, _v in request_data.items():
             setting = Setting.objects.filter(slug=k).first()
             if not setting:
                 bad_settings.append(k)
@@ -611,11 +612,11 @@ class MagicLinkAuthView(CreateAPIView):
             jwt_secret = get_jwt_secret(bundle_id)
         except (KeyError, jwt.DecodeError, AuthenticationFailed):
             logger.debug("failed to extract bundle_id from magic link temporary token.")
-            raise MagicLinkValidationError
+            raise MagicLinkValidationError from None
 
         return jwt_secret
 
-    def _validate_token(self, token: str) -> Tuple[str, str, str, int]:
+    def _validate_token(self, token: str) -> tuple[str, str, str, int]:
         """
         :param token: magic link temporary token
         :return: email, bundle_id, md5 token hash, remaining token validity time in seconds
@@ -640,7 +641,7 @@ class MagicLinkAuthView(CreateAPIView):
 
         except jwt.ExpiredSignatureError:
             logger.debug("magic link temporary token has expired.")
-            raise MagicLinkExpiredTokenError
+            raise MagicLinkExpiredTokenError from None
 
         except (KeyError, ValueError, jwt.DecodeError) as e:
             if type(e) in (KeyError, ValueError):
@@ -655,7 +656,7 @@ class MagicLinkAuthView(CreateAPIView):
                 )
 
             logger.debug(message)
-            raise MagicLinkValidationError
+            raise MagicLinkValidationError from None
 
         return email, bundle_id, token_hash, exp - arrow.utcnow().int_timestamp
 

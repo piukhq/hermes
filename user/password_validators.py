@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError
 
 
-class NumericValidator(object):
+class NumericValidator:
     def validate(self, password, user=None):
         if not (any(character.isdigit() for character in password)):
             raise ValidationError(
@@ -13,7 +13,7 @@ class NumericValidator(object):
         return "Your password must contain at least one numeric character."
 
 
-class UpperCaseCharacterValidator(object):
+class UpperCaseCharacterValidator:
     def validate(self, password, user=None):
         if not (any(character.isupper() for character in password)):
             raise ValidationError(
@@ -25,7 +25,7 @@ class UpperCaseCharacterValidator(object):
         return "Your password must contain an upper case character."
 
 
-class LowerCaseCharacterValidator(object):
+class LowerCaseCharacterValidator:
     def validate(self, password, user=None):
         if not (any(character.islower() for character in password)):
             raise ValidationError(

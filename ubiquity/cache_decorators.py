@@ -48,10 +48,9 @@ class ApiCache:
                 # uuid passed into the logs to map multiple logs together with one request
                 logger.warning(
                     f"Get plan cache from Redis failed. Retrying {remaining_retries} more times. "
-                    f"Error: {repr(e)}, Log ID: {log_id}"
+                    f"Error: {e!r}, Log ID: {log_id}"
                 )
-        else:
-            raise retry_exception
+        raise retry_exception
 
     @property
     def available(self):
@@ -87,7 +86,7 @@ def membership_plan_key(req, kwargs=None):
     :param kwargs: additional parameters defined in the cache decorator for this function
     :return: key_part
     """
-    user = getattr(req, "user")
+    user = req.user
     user_tester = "1" if user and user.is_tester else "0"
     pk = kwargs.get("pk", "")
     pk_part = ""
@@ -96,7 +95,7 @@ def membership_plan_key(req, kwargs=None):
     return f"{pk_part}:{req.channels_permit.bundle_id}:{user_tester}"
 
 
-class CacheApiRequest(object):
+class CacheApiRequest:
     def __init__(self, key_slug, expiry, key_func):
         """
         This decorator can be used to cache a get a versioned request which always returns 200 on success -

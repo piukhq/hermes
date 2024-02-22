@@ -1,5 +1,4 @@
 import sys
-from typing import List, Type
 
 from django.db import models
 from django.db.models import JSONField
@@ -85,15 +84,15 @@ class HistoricalVopActivation(HistoricalBase):
     activation_id = models.CharField(blank=True, max_length=60, default="")
 
 
-def _get_model(name: str) -> Type["models.Model"]:
+def _get_model(name: str) -> type["models.Model"]:
     return getattr(sys.modules[__name__], name)
 
 
-def get_historical_model(name: str) -> Type["models.Model"]:
+def get_historical_model(name: str) -> type["models.Model"]:
     return _get_model(f"Historical{name}")
 
 
-def get_required_extra_fields(name: str) -> List[str]:
+def get_required_extra_fields(name: str) -> list[str]:
     model = get_historical_model(name)
     return [
         field.attname

@@ -75,10 +75,10 @@ class MembershipTransactionsMixin:
     def _get_auth_token(user_id):
         payload = {"sub": user_id}
         token = jwt.encode(payload, settings.TOKEN_SECRET)
-        return "token {}".format(token)
+        return f"token {token}"
 
     def _get_hades_transactions(self, user_id, mcard_id):
-        url = "{}/transactions/scheme_account/{}?page_size=5".format(settings.HADES_URL, mcard_id)
+        url = f"{settings.HADES_URL}/transactions/scheme_account/{mcard_id}?page_size=5"
         headers = {"Authorization": self._get_auth_token(user_id), "Content-Type": "application/json"}
         resp = self.hades_request(url, headers=headers)
         return resp.json() if resp.status_code == 200 else []
@@ -141,7 +141,7 @@ class ServiceSerializer(serializers.Serializer):
     @staticmethod
     def _is_valid_latlng(value):
         # Checks type because zero is a valid value
-        return value or isinstance(value, (int, float))
+        return value or isinstance(value, int | float)
 
     def to_representation(self, instance):
         response = {"email": instance.user.email, "timestamp": int(instance.timestamp.timestamp())}
@@ -191,7 +191,7 @@ class ServiceSerializer(serializers.Serializer):
         return user, user_created
 
     @staticmethod
-    def create_new_user(client_id: str, bundle_id: str, email: str, external_id: t.Optional[str]) -> CustomUser:
+    def create_new_user(client_id: str, bundle_id: str, email: str, external_id: str | None) -> CustomUser:
         new_user_data = {
             "client_id": client_id,
             "bundle_id": bundle_id,
@@ -207,7 +207,7 @@ class ServiceSerializer(serializers.Serializer):
         try:
             user = new_user.save()
         except IntegrityError:
-            raise UserConflictError
+            raise UserConflictError from None
 
         return user
 
@@ -223,7 +223,7 @@ class PaymentCardConsentSerializer(serializers.Serializer):
         try:
             date = arrow.get(timestamp)
         except ParserError:
-            raise serializers.ValidationError("timestamp field is not a timestamp.")
+            raise serializers.ValidationError("timestamp field is not a timestamp.") from None
 
         return date.int_timestamp
 
@@ -246,7 +246,7 @@ class UbiquityImageSerializer(serializers.Serializer):
             return None
 
     @staticmethod
-    def image_url(image: "ImageFieldFile") -> t.Optional[str]:
+    def image_url(image: "ImageFieldFile") -> str | None:
         base_url = settings.CONTENT_URL
 
         try:
@@ -384,7 +384,7 @@ class TransactionListSerializer(serializers.ListSerializer):
             value = self.validate(value)
             assert value is not None, ".validate() should return the validated data"
         except (ValidationError, DjangoValidationError) as exc:
-            raise ValidationError(detail=as_serializer_error(exc))
+            raise ValidationError(detail=as_serializer_error(exc)) from None
 
         return value
 
@@ -660,7 +660,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
     image_serializer_class = MembershipCardImageSerializer
 
     @staticmethod
-    def _filter_valid_images(account_images: dict, base_images: dict, today: int) -> t.ValuesView[t.Dict[str, dict]]:
+    def _filter_valid_images(account_images: dict, base_images: dict, today: int) -> t.ValuesView[dict[str, dict]]:
         images = {}
         for image_type in ["images", "tier_images"]:
             valid_account_images = {
@@ -851,7 +851,7 @@ class LinkMembershipCardSerializer(SchemeAnswerSerializer):
         self.context["answer_type"] = answer_type
         # only allow one credential
         if answer_type not in self.allowed_answers(scheme, scheme_questions):
-            raise serializers.ValidationError("Your answer type '{0}' is not allowed".format(answer_type))
+            raise serializers.ValidationError(f"Your answer type '{answer_type}' is not allowed")
 
         return data
 
@@ -862,10 +862,8 @@ class LinkMembershipCardSerializer(SchemeAnswerSerializer):
                 question.type
                 for question in scheme_questions
                 if any(
-                    map(
-                        lambda question_type: getattr(question, question_type),
-                        ["manual_question", "scan_question", "one_question_link"],
-                    )
+                    getattr(question, question_type)
+                    for question_type in ("manual_question", "scan_question", "one_question_link")
                 )
             ]
         else:

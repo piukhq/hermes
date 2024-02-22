@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Any, Type
+from typing import Any
 
 from django.apps import apps
 from rest_framework import serializers
@@ -16,7 +16,7 @@ def historical_serializer_factory(history_model: HistoryModel) -> Any:
     except AttributeError:
         raise Exception(
             "Model %s was added to HistoryModel but no Model was found for it in history.models" % history_model.name
-        )
+        ) from None
 
     return type(
         history_model.historic_serializer_name,
@@ -69,11 +69,11 @@ def load_body_serializers():
     }
 
 
-def get_historical_serializer(name: str) -> Type["serializers.Serializer"]:
+def get_historical_serializer(name: str) -> type["serializers.Serializer"]:
     return HISTORICAL_SERIALIZERS[f"Historical{name}Serializer"]
 
 
-def get_body_serializer(name: str) -> Type["serializers.Serializer"]:
+def get_body_serializer(name: str) -> type["serializers.Serializer"]:
     if not BODY_SERIALIZERS:
         load_body_serializers()
 

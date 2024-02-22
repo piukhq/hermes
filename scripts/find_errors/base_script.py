@@ -1,8 +1,7 @@
 from uuid import uuid4
 
+from scripts.actions.corrections import Correction
 from scripts.models import ScriptResult
-
-from ..actions.corrections import Correction
 
 
 class BaseScript:

@@ -162,7 +162,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
     def test_scheme_account_query(self):
         resp = self.client.get(
-            "/schemes/accounts/query?scheme__slug={}&user_set__id={}".format(self.scheme.slug, self.user.id),
+            f"/schemes/accounts/query?scheme__slug={self.scheme.slug}&user_set__id={self.user.id}",
             **self.auth_service_headers,
         )
         self.assertEqual(200, resp.status_code)
@@ -183,7 +183,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.scheme_account.alt_main_answer = self.scheme_account_answer.answer
         self.scheme_account.save()
 
-        response = self.client.get("/schemes/accounts/{0}".format(self.scheme_account.id), **self.auth_headers)
+        response = self.client.get(f"/schemes/accounts/{self.scheme_account.id}", **self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
@@ -197,12 +197,12 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
         self.scheme_bundle_association.test_scheme = True
         self.scheme_bundle_association.save()
-        response = self.client.get("/schemes/accounts/{0}".format(self.scheme_account.id), **self.auth_headers)
+        response = self.client.get(f"/schemes/accounts/{self.scheme_account.id}", **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
         self.user.is_tester = True
         self.user.save()
-        response = self.client.get("/schemes/accounts/{0}".format(self.scheme_account.id), **self.auth_headers)
+        response = self.client.get(f"/schemes/accounts/{self.scheme_account.id}", **self.auth_headers)
         self.assertEqual(response.status_code, 200)
 
         self.scheme_bundle_association.test_scheme = False
@@ -216,9 +216,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.bink_user)
         PaymentCardSchemeEntryFactory(scheme_account=scheme_account)
 
-        response = self.client.delete(
-            "/schemes/accounts/{0}/service".format(scheme_account.id), **self.auth_service_headers
-        )
+        response = self.client.delete(f"/schemes/accounts/{scheme_account.id}/service", **self.auth_service_headers)
         deleted_scheme_account = SchemeAccount.all_objects.get(id=scheme_account.id)
 
         self.assertEqual(response.status_code, 204)
@@ -227,7 +225,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertFalse(PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account))
 
     def test_service_delete_schemes_account_404(self):
-        response = self.client.delete("/schemes/accounts/{0}/service".format(123456), **self.auth_service_headers)
+        response = self.client.delete(f"/schemes/accounts/{123456}/service", **self.auth_service_headers)
 
         self.assertEqual(response.status_code, 404)
 
@@ -245,7 +243,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             "user_info": {"bink_user_id": user_set},
         }
         response = self.client.post(
-            "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
+            f"/schemes/accounts/{scheme_account.id}/status/", data, format="json", **self.auth_service_headers
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["id"], scheme_account.id)
@@ -264,7 +262,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             "user_info": {"bink_user_id": user_set},
         }
         response = self.client.post(
-            "/schemes/accounts/{}/status/".format(missing_scheme_account_id),
+            f"/schemes/accounts/{missing_scheme_account_id}/status/",
             data,
             format="json",
             **self.auth_service_headers,
@@ -282,7 +280,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             "user_info": {"bink_user_id": user_set},
         }
         response = self.client.post(
-            "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
+            f"/schemes/accounts/{scheme_account.id}/status/", data, format="json", **self.auth_service_headers
         )
         self.assertEqual(response.status_code, 404)
 
@@ -302,7 +300,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             "user_info": {"user_set": user_set, "bink_user_id": user.id},
         }
         response = self.client.post(
-            "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
+            f"/schemes/accounts/{scheme_account.id}/status/", data, format="json", **self.auth_service_headers
         )
         scheme_account_entry.refresh_from_db()
 
@@ -328,7 +326,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             "user_info": {"user_set": user_set, "bink_user_id": user.id},
         }
         response = self.client.post(
-            "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
+            f"/schemes/accounts/{scheme_account.id}/status/", data, format="json", **self.auth_service_headers
         )
         scheme_account_entry.refresh_from_db()
 
@@ -356,7 +354,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             "user_info": {"user_set": user_set, "bink_user_id": user.id},
         }
         response = self.client.post(
-            "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
+            f"/schemes/accounts/{scheme_account.id}/status/", data, format="json", **self.auth_service_headers
         )
         scheme_account_entry.refresh_from_db()
 
@@ -383,7 +381,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             "user_info": {"bink_user_id": self.bink_user.id},
         }
         response = self.client.post(
-            "/schemes/accounts/{}/status/".format(scheme_account.id), data, format="json", **self.auth_service_headers
+            f"/schemes/accounts/{scheme_account.id}/status/", data, format="json", **self.auth_service_headers
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["id"], scheme_account.id)
@@ -407,7 +405,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
         data = {"status": 9, "journey": "join", "user_info": user_info}
         response = self.client.post(
-            "/schemes/accounts/{}/status/".format(self.scheme_account.id),
+            f"/schemes/accounts/{self.scheme_account.id}/status/",
             data,
             format="json",
             **self.auth_service_headers,
@@ -418,7 +416,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
 
     def test_scheme_account_update_status_bad(self):
         response = self.client.post(
-            "/schemes/accounts/{}/status/".format(self.scheme_account.id),
+            f"/schemes/accounts/{self.scheme_account.id}/status/",
             data={"status": 112, "journey": None, "user_info": {"bink_user_id": self.user.id}},
             format="json",
             **self.auth_service_headers,
@@ -757,7 +755,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         data = {"save_user_information": False, "order": 2, "password": "password"}
-        resp = self.client.post("/schemes/{}/join".format(scheme.id), **self.auth_headers, data=data)
+        resp = self.client.post(f"/schemes/{scheme.id}/join", **self.auth_headers, data=data)
 
         self.assertEqual(resp.status_code, 400)
         json = resp.json()
@@ -770,11 +768,11 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
         SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         data = {"order": 2, "save_user_information": False, "username": "testbink", "password": "password"}
-        resp = self.client.post("/schemes/{}/join".format(scheme.id), **self.auth_headers, data=data)
+        resp = self.client.post(f"/schemes/{scheme.id}/join", **self.auth_headers, data=data)
 
         self.assertEqual(resp.status_code, 400)
         json = resp.json()
-        self.assertEqual(json, {"non_field_errors": ["No join questions found for scheme: {}".format(scheme.slug)]})
+        self.assertEqual(json, {"non_field_errors": [f"No join questions found for scheme: {scheme.slug}"]})
 
     def test_register_join_endpoint_account_already_created(self):
         scheme = SchemeFactory()
@@ -786,7 +784,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         data = {"save_user_information": False, "order": 2, "username": "testbink", "password": "password"}
 
-        resp = self.client.post("/schemes/{}/join".format(scheme.id), **self.auth_headers, data=data)
+        resp = self.client.post(f"/schemes/{scheme.id}/join", **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 400)
         json = resp.json()
         self.assertTrue(json["non_field_errors"][0].startswith("You already have an account for this scheme"))
@@ -798,7 +796,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
         SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         data = {"save_user_information": False, "order": 2, "username": "testbink", "password": "password"}
-        resp = self.client.post("/schemes/{}/join".format(scheme.id), **self.auth_headers, data=data)
+        resp = self.client.post(f"/schemes/{scheme.id}/join", **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 400)
         json = resp.json()
         self.assertTrue(
@@ -826,9 +824,9 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             "username": "testbink",
             "password": "password",
             "barcode": "barcode",
-            "consents": [{"id": "{}".format(consent1.id), "value": test_reply}],
+            "consents": [{"id": f"{consent1.id}", "value": test_reply}],
         }
-        resp = self.client.post("/schemes/{}/join".format(scheme.id), **self.auth_headers, data=data, format="json")
+        resp = self.client.post(f"/schemes/{scheme.id}/join", **self.auth_headers, data=data, format="json")
 
         new_scheme_account = SchemeAccountEntry.objects.get(
             user=self.user, scheme_account__scheme=scheme
@@ -866,7 +864,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             "order": 2,
             "username": "testbink",
         }
-        resp = self.client.post("/schemes/{}/join".format(scheme.id), **self.auth_headers, data=data)
+        resp = self.client.post(f"/schemes/{scheme.id}/join", **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 201)
 
     @patch("api_messaging.midas_messaging.to_midas", autospec=True, return_value=MagicMock())
@@ -907,7 +905,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
             "address_2": address_2,
             "town_city": town_city,
         }
-        resp = self.client.post("/schemes/{}/join".format(scheme.id), **self.auth_headers, data=data)
+        resp = self.client.post(f"/schemes/{scheme.id}/join", **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 201)
 
         user = SchemeAccountEntry.objects.filter(scheme_account__scheme=scheme, user=self.user).first().user
@@ -923,9 +921,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         user_consent = UserConsentFactory(status=ConsentStatus.PENDING)
         data = {"status": ConsentStatus.SUCCESS.value}
 
-        resp = self.client.put(
-            "/schemes/user_consent/{}".format(user_consent.id), **self.auth_service_headers, data=data
-        )
+        resp = self.client.put(f"/schemes/user_consent/{user_consent.id}", **self.auth_service_headers, data=data)
         self.assertEqual(resp.status_code, 200)
         user_consent.refresh_from_db()
         self.assertEqual(user_consent.status, ConsentStatus.SUCCESS)
@@ -934,9 +930,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         user_consent = UserConsentFactory(status=ConsentStatus.SUCCESS)
         data = {"status": ConsentStatus.FAILED.value}
 
-        resp = self.client.put(
-            "/schemes/user_consent/{}".format(user_consent.id), **self.auth_service_headers, data=data
-        )
+        resp = self.client.put(f"/schemes/user_consent/{user_consent.id}", **self.auth_service_headers, data=data)
         self.assertEqual(resp.status_code, 400)
         user_consent.refresh_from_db()
         self.assertEqual(user_consent.status, ConsentStatus.SUCCESS)
@@ -945,9 +939,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         user_consent = UserConsentFactory(status=ConsentStatus.SUCCESS)
         data = {"status": ConsentStatus.FAILED.value}
 
-        resp = self.client.put(
-            "/schemes/user_consent/{}".format(user_consent.id), **self.auth_service_headers, data=data
-        )
+        resp = self.client.put(f"/schemes/user_consent/{user_consent.id}", **self.auth_service_headers, data=data)
         self.assertEqual(resp.status_code, 400)
         user_consent.refresh_from_db()
         self.assertEqual(user_consent.status, ConsentStatus.SUCCESS)
@@ -956,9 +948,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         user_consent = UserConsentFactory(status=ConsentStatus.SUCCESS)
         data = {"status": ConsentStatus.PENDING.value}
 
-        resp = self.client.put(
-            "/schemes/user_consent/{}".format(user_consent.id), **self.auth_service_headers, data=data
-        )
+        resp = self.client.put(f"/schemes/user_consent/{user_consent.id}", **self.auth_service_headers, data=data)
         self.assertEqual(resp.status_code, 400)
         user_consent.refresh_from_db()
         self.assertEqual(user_consent.status, ConsentStatus.SUCCESS)
@@ -1317,15 +1307,15 @@ class TestAccessTokens(GlobalMockAPITestCase):
 
     def test_retrieve_scheme_accounts(self):
         # GET Request
-        response = self.client.get("/schemes/accounts/{}".format(self.scheme_account.id), **self.auth_headers)
+        response = self.client.get(f"/schemes/accounts/{self.scheme_account.id}", **self.auth_headers)
         self.assertEqual(response.status_code, 200)
-        response = self.client.get("/schemes/accounts/{}".format(self.scheme_account2.id), **self.auth_headers)
+        response = self.client.get(f"/schemes/accounts/{self.scheme_account2.id}", **self.auth_headers)
         self.assertEqual(response.status_code, 404)
         # DELETE Request
-        response = self.client.delete("/schemes/accounts/{}".format(self.scheme_account.id), **self.auth_headers)
+        response = self.client.delete(f"/schemes/accounts/{self.scheme_account.id}", **self.auth_headers)
         self.assertEqual(response.status_code, 204)
 
-        response = self.client.delete("/schemes/accounts/{}".format(self.scheme_account2.id), **self.auth_headers)
+        response = self.client.delete(f"/schemes/accounts/{self.scheme_account2.id}", **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
         # Undo delete.
@@ -1477,7 +1467,7 @@ class TestExchange(GlobalMockAPITestCase):
 
         auth_headers = {"HTTP_AUTHORIZATION": "Token " + settings.SERVICE_API_KEY}
 
-        resp = self.client.get("/schemes/accounts/donor_schemes/{}/{}".format(host_scheme.id, user.id), **auth_headers)
+        resp = self.client.get(f"/schemes/accounts/donor_schemes/{host_scheme.id}/{user.id}", **auth_headers)
         self.assertEqual(resp.status_code, 200)
 
         json = resp.json()

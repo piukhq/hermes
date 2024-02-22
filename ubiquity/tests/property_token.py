@@ -67,7 +67,7 @@ class GenerateJWToken:
 
 
 if __name__ == "__main__":
-    print(
+    print(  # noqa: T201
         "\n\n%s\n\n"
         % GenerateJWToken(
             organisation_id="Loyalty Angels",

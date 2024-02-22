@@ -1,5 +1,4 @@
 from threading import local
-from typing import Optional, Tuple
 from uuid import uuid4
 
 import sentry_sdk
@@ -59,7 +58,7 @@ def _get_change_type_and_details(instance, kwargs):
     return change_type, change_details
 
 
-def get_user_and_channel(model_instance=None) -> Tuple[Optional[int], str]:
+def get_user_and_channel(model_instance=None) -> tuple[int | None, str]:
     request = getattr(HISTORY_CONTEXT, "request", None)
     if hasattr(HISTORY_CONTEXT, "user_info"):
         user_id, channel = HISTORY_CONTEXT.user_info
@@ -117,5 +116,5 @@ def signal_record_history(sender, instance, **kwargs) -> None:
             change_type=change_type,
             change_details=change_details,
             instance_id=instance_id,
-            **extra
+            **extra,
         )
