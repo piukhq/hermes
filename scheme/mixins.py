@@ -55,7 +55,7 @@ if t.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class BaseLinkMixin(object):
+class BaseLinkMixin:
     @staticmethod
     def link_account(
         serializer: "Serializer",
@@ -122,13 +122,13 @@ class BaseLinkMixin(object):
         else:
             user_consents = scheme_account.collect_pending_consents()
             for user_consent in user_consents:
-                user_consent = UserConsent.objects.get(id=user_consent["id"])
+                user_consent = UserConsent.objects.get(id=user_consent["id"])  # noqa: PLW2901
                 user_consent.delete()
 
         return response_data
 
 
-class SwappableSerializerMixin(object):
+class SwappableSerializerMixin:
     serializer_class = None
     override_serializer_classes = None
     context = None
@@ -159,17 +159,13 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
         if scheme.url == settings.MY360_SCHEME_URL:
             raise serializers.ValidationError(
-                {
-                    "non_field_errors": [
-                        "Invalid Scheme: {}. Please use /schemes/accounts/my360 endpoint".format(scheme.slug)
-                    ]
-                }
+                {"non_field_errors": [f"Invalid Scheme: {scheme.slug}. Please use /schemes/accounts/my360 endpoint"]}
             )
         return serializer
 
     def create_account_with_valid_data(
         self, serializer: "Serializer", user: "CustomUser", scheme: Scheme
-    ) -> t.Tuple[SchemeAccount, dict, bool, str, str, SchemeAccountEntry, bool]:
+    ) -> tuple[SchemeAccount, dict, bool, str, str, SchemeAccountEntry, bool]:
         data = serializer.validated_data
         answer_type = serializer.context["answer_type"]
         account_created = False
@@ -289,7 +285,7 @@ class SchemeAccountJoinMixin:
         serializer: "Serializer",
         channel: str,
         headers: dict | None = None,
-    ) -> t.Tuple[dict, int, SchemeAccount]:
+    ) -> tuple[dict, int, SchemeAccount]:
         scheme_account_entry = scheme_account.schemeaccountentry_set.get(user=user)
         scheme_account_entry.update_scheme_account_key_credential_fields()
         try:
@@ -529,7 +525,7 @@ class UpdateCredentialsMixin:
         existing_credentials = {
             credential.question_id: credential
             for credential in SchemeAccountCredentialAnswer.objects.filter(
-                question_id__in=[question_id_from_type[credential_type] for credential_type in data.keys()],
+                question_id__in=[question_id_from_type[credential_type] for credential_type in data],
                 scheme_account_entry=scheme_account_entry,
             ).all()
         }
@@ -575,7 +571,7 @@ class UpdateCredentialsMixin:
         return account[0] if account else None
 
     @staticmethod
-    def _get_new_answers(add_fields: dict, auth_fields: dict) -> t.Tuple[dict, str, str]:
+    def _get_new_answers(add_fields: dict, auth_fields: dict) -> tuple[dict, str, str]:
         new_answers = {**add_fields, **auth_fields}
 
         add_fields.pop("consents", None)
@@ -585,12 +581,11 @@ class UpdateCredentialsMixin:
 
     @staticmethod
     def _filter_required_questions(required_questions: "QuerySet", scheme: Scheme, data: dict) -> "QuerySet":
-        if scheme.manual_question and scheme.manual_question.type in data.keys():
+        if scheme.manual_question and scheme.manual_question.type in data:
             if scheme.scan_question:
                 required_questions = required_questions.exclude(type=scheme.scan_question.type)
-        elif scheme.scan_question and scheme.scan_question.type in data.keys():
-            if scheme.manual_question:
-                required_questions = required_questions.exclude(type=scheme.manual_question.type)
+        elif scheme.scan_question and scheme.scan_question.type in data and scheme.manual_question:
+            required_questions = required_questions.exclude(type=scheme.manual_question.type)
 
         return required_questions
 
@@ -607,5 +602,5 @@ class UpdateCredentialsMixin:
         filtered_required_questions = self._filter_required_questions(required_questions, scheme, data)
 
         for question in filtered_required_questions.all():
-            if question["type"] not in data.keys():
+            if question["type"] not in data:
                 raise ValidationError(f'required field {question["type"]} is missing.')

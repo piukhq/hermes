@@ -67,7 +67,7 @@ class TestPaymentCardAccountImages(GlobalMockAPITestCase):
         )
 
         token = GenerateJWToken(client.organisation.name, client.secret, bundle.bundle_id, external_id).get_token()
-        cls.auth_headers = {"HTTP_AUTHORIZATION": "Bearer {}".format(token)}
+        cls.auth_headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
     def test_images_in_payment_card_response(self):
         resp = self.client.get(reverse("payment-cards"), **self.auth_headers)

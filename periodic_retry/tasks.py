@@ -131,7 +131,7 @@ class PeriodicRetryHandler:
             and periodic_retry_obj.retry_count >= periodic_retry_obj.max_retry_attempts
         ):
             msg = f"PeriodicRetry (id={periodic_retry_obj.id}) has reached the maximum retry attempts"
-            periodic_retry_obj.results = periodic_retry_obj.results + [msg]
+            periodic_retry_obj.results = [*periodic_retry_obj.results, msg]
             periodic_retry_obj.status = PeriodicRetryStatus.FAILED
             periodic_retry_obj.save()
             logger.debug(msg)
@@ -259,7 +259,7 @@ class PeriodicRetryHandler:
 
     def call_all_tasks(self):
         logger.info(f"Executing tasks on {self.task_list} queue")
-        for i in range(0, self.length):
+        for _ in range(0, self.length):
             self.call_next_task()
 
     def get_tasks_in_queue(self) -> list:

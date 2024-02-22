@@ -32,9 +32,9 @@ def retry_redis(action, key):
             break
         except Exception as e:
             if x == 4:
-                logging.warning(f"redis delete failed 5 times in a row, no more retries, error: {repr(e)}")
+                logging.warning(f"redis delete failed 5 times in a row, no more retries, error: {e!r}")
                 raise
-            logging.warning(f"redis delete broke with exception {repr(e)}, retrying...")
+            logging.warning(f"redis delete broke with exception {e!r}, retrying...")
             sleep(0.2)
 
 
@@ -48,9 +48,9 @@ def retry_celery(task_id, pks_to_process, status=None, status_mapping=None):
             break
         except Exception as e:
             if x == 4:
-                logging.warning(f"celery delay failed 5 times in a row, no more retries, error: {repr(e)}")
+                logging.warning(f"celery delay failed 5 times in a row, no more retries, error: {e!r}")
                 raise
-            logging.warning(f"celery delay broke with exception {repr(e)}, retrying...")
+            logging.warning(f"celery delay broke with exception {e!r}, retrying...")
             sleep(0.2)
 
 
@@ -106,7 +106,7 @@ def populate_link_task(task_id, pks_to_process, status=None, status_mapping=None
 
     except Exception as e:
         logging.warning(
-            f"Migration task failed! Migration: '{__file__}', error: {repr(e)}, "
+            f"Migration task failed! Migration: '{__file__}', error: {e!r}, "
             f"Migration will stay locked until this is manually pushed through. To do this, run 'populate_link_task'"
             f"with these arguments: task_id = '{task_id}', pks_to_process = '{pks_to_process}'."
             f"And these keyword arguments: status={status} status_mapping={status_mapping}"
@@ -125,7 +125,7 @@ def wait_for_tasks_to_finish():
         except Exception as e:
             logging.warning(
                 f"Unexpected error happened while checking remaining tasks! I'll keep checking until"
-                f"this gets resolved! Error: {repr(e)}"
+                f"this gets resolved! Error: {e!r}"
             )
 
 

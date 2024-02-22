@@ -85,7 +85,7 @@ def decommission_client(
     match failed_deletion, is_dry_run:
         case _, True:
             msg = "Dry run completed no user was affected."
-        case [], False:
+        case [[], False]:
             msg = "All users deleted successfully"
         case _:
             msg = f"Cleanup failed for users:\n{failed_deletion}\nlog details can be found in {log_path}"

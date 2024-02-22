@@ -2,7 +2,7 @@ from django.conf import settings
 from influxdb import InfluxDBClient
 
 
-class InfluxAudit(object):
+class InfluxAudit:
     client = None
 
     def __init__(self):
@@ -46,7 +46,7 @@ class InfluxAudit(object):
         :return: json string
         """
         if self.client:
-            return self.client.query("SELECT * FROM {}".format(settings.INFLUX_DB_NAME)).raw
+            return self.client.query(f"SELECT * FROM {settings.INFLUX_DB_NAME}").raw
         return None
 
 

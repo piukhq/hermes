@@ -131,11 +131,11 @@ class TestPermit(GlobalMockAPITestCase):
         )
 
         bink_query = bink_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(bink_query), 1)
+        self.assertEqual(len(bink_query), 1)
         self.assertEqual(self.bink_scheme.id, bink_query[0].id)
 
         ubiquity_query = ubiquity_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(ubiquity_query), 1)
+        self.assertEqual(len(ubiquity_query), 1)
         self.assertEqual(self.ubiquity_scheme.id, ubiquity_query[0].id)
 
     def test_scheme_query_bink_active_ubiquity_inactive(self):
@@ -145,11 +145,11 @@ class TestPermit(GlobalMockAPITestCase):
         )
 
         bink_query = bink_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(bink_query), 1)
+        self.assertEqual(len(bink_query), 1)
         self.assertEqual(self.bink_scheme.id, bink_query[0].id)
 
         ubiquity_query = ubiquity_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(ubiquity_query), 0)
+        self.assertEqual(len(ubiquity_query), 0)
 
     def test_scheme_query_bink_active_ubiquity_suspended(self):
         bink_permit = self.set_status(self.bink_scheme_bundle_association, SchemeBundleAssociation.ACTIVE)
@@ -158,11 +158,11 @@ class TestPermit(GlobalMockAPITestCase):
         )
 
         bink_query = bink_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(bink_query), 1)
+        self.assertEqual(len(bink_query), 1)
         self.assertEqual(self.bink_scheme.id, bink_query[0].id)
 
         ubiquity_query = ubiquity_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(ubiquity_query), 0)
+        self.assertEqual(len(ubiquity_query), 0)
 
     def test_scheme_query_bink_suspended_ubiquity_active(self):
         bink_permit = self.set_status(self.bink_scheme_bundle_association, SchemeBundleAssociation.SUSPENDED)
@@ -171,11 +171,11 @@ class TestPermit(GlobalMockAPITestCase):
         )
 
         bink_query = bink_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(bink_query), 1)
+        self.assertEqual(len(bink_query), 1)
         self.assertEqual(self.bink_scheme.id, bink_query[0].id)
 
         ubiquity_query = ubiquity_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(ubiquity_query), 1)
+        self.assertEqual(len(ubiquity_query), 1)
         self.assertEqual(self.ubiquity_scheme.id, ubiquity_query[0].id)
 
     def test_scheme_query_bink_inactive_ubiquity_active(self):
@@ -185,10 +185,10 @@ class TestPermit(GlobalMockAPITestCase):
         )
 
         bink_query = bink_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(bink_query), 0)
+        self.assertEqual(len(bink_query), 0)
 
         ubiquity_query = ubiquity_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(ubiquity_query), 1)
+        self.assertEqual(len(ubiquity_query), 1)
         self.assertEqual(self.ubiquity_scheme.id, ubiquity_query[0].id)
 
 
@@ -287,11 +287,11 @@ class TestPermitSharedScheme(GlobalMockAPITestCase):
         )
 
         bink_query = bink_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(bink_query), 1)
+        self.assertEqual(len(bink_query), 1)
         self.assertEqual(self.scheme.id, bink_query[0].id)
 
         ubiquity_query = ubiquity_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(ubiquity_query), 1)
+        self.assertEqual(len(ubiquity_query), 1)
         self.assertEqual(self.scheme.id, ubiquity_query[0].id)
 
     def test_scheme_query_bink_active_ubiquity_inactive(self):
@@ -301,11 +301,11 @@ class TestPermitSharedScheme(GlobalMockAPITestCase):
         )
 
         bink_query = bink_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(bink_query), 1)
+        self.assertEqual(len(bink_query), 1)
         self.assertEqual(self.scheme.id, bink_query[0].id)
 
         ubiquity_query = ubiquity_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(ubiquity_query), 0)
+        self.assertEqual(len(ubiquity_query), 0)
 
     def test_scheme_query_bink_active_ubiquity_suspended(self):
         bink_permit = self.set_status(self.bink_scheme_bundle_association, SchemeBundleAssociation.ACTIVE)
@@ -314,11 +314,11 @@ class TestPermitSharedScheme(GlobalMockAPITestCase):
         )
 
         bink_query = bink_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(bink_query), 1)
+        self.assertEqual(len(bink_query), 1)
         self.assertEqual(self.scheme.id, bink_query[0].id)
 
         ubiquity_query = ubiquity_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(ubiquity_query), 0)
+        self.assertEqual(len(ubiquity_query), 0)
 
     def test_scheme_query_bink_suspended_ubiquity_active(self):
         bink_permit = self.set_status(self.bink_scheme_bundle_association, SchemeBundleAssociation.SUSPENDED)
@@ -327,11 +327,11 @@ class TestPermitSharedScheme(GlobalMockAPITestCase):
         )
 
         bink_query = bink_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(bink_query), 1)
+        self.assertEqual(len(bink_query), 1)
         self.assertEqual(self.scheme.id, bink_query[0].id)
 
         ubiquity_query = ubiquity_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(ubiquity_query), 1)
+        self.assertEqual(len(ubiquity_query), 1)
         self.assertEqual(self.scheme.id, ubiquity_query[0].id)
 
     def test_scheme_query_bink_inactive_ubiquity_active(self):
@@ -341,10 +341,10 @@ class TestPermitSharedScheme(GlobalMockAPITestCase):
         )
 
         bink_query = bink_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(bink_query), 0)
+        self.assertEqual(len(bink_query), 0)
 
         ubiquity_query = ubiquity_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(ubiquity_query), 1)
+        self.assertEqual(len(ubiquity_query), 1)
         self.assertEqual(self.scheme.id, ubiquity_query[0].id)
 
 
@@ -396,12 +396,12 @@ class TestInternalService(GlobalMockAPITestCase):
             cls.internal_service_bundle.bundle_id,
             cls.internal_service_id,
         ).get_token()
-        cls.internal_service_auth_headers = {"HTTP_AUTHORIZATION": "Bearer {}".format(internal_service_token)}
+        cls.internal_service_auth_headers = {"HTTP_AUTHORIZATION": f"Bearer {internal_service_token}"}
 
         token = GenerateJWToken(
             cls.other_client.organisation.name, cls.other_client.secret, cls.other_bundle.bundle_id, other_external_id
         ).get_token()
-        cls.auth_headers = {"HTTP_AUTHORIZATION": "Bearer {}".format(token)}
+        cls.auth_headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     def test_get_single_membership_card(self, mock_get_balance):
@@ -484,7 +484,7 @@ class TestInternalService(GlobalMockAPITestCase):
         generate_token.payload["iat"] = time.time() - settings.JWT_EXPIRY_TIME
         expired_token = generate_token.get_token()
 
-        auth_headers = {"HTTP_AUTHORIZATION": "Bearer {}".format(expired_token)}
+        auth_headers = {"HTTP_AUTHORIZATION": f"Bearer {expired_token}"}
 
         resp = self.client.get(reverse("payment-card", args=[self.payment_card_account_1.id]), **auth_headers)
         self.assertEqual(resp.status_code, 401)

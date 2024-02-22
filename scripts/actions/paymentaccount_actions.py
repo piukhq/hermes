@@ -31,9 +31,7 @@ def do_re_enroll(entry: dict) -> bool:
             entry.data["partner_slug"] == "visa"
             and reply.get("agent_response_code") == "Add:SUCCESS"
             and reply.get("status_code") == 201
-        ):
-            return True
-        elif 200 <= reply["status_code"] < 300:
+        ) or 200 <= reply["status_code"] < 300:
             return True
         return False
     except Exception as ex:
@@ -53,9 +51,7 @@ def do_un_enroll(entry: dict) -> bool:
             entry.data["partner_slug"] == "visa"
             and reply.get("agent_response_code") == "Delete:SUCCESS"
             and reply.get("status_code") == 201
-        ):
-            return True
-        elif 200 <= reply["status_code"] < 300:
+        ) or 200 <= reply["status_code"] < 300:
             return True
         return False
     except Exception as ex:

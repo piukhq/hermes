@@ -65,7 +65,7 @@ class SchemeForm(ModelForm):
         if len(point_name) + points_value_length + 1 > Scheme.MAX_POINTS_VALUE_LENGTH:
             raise ValidationError(
                 "The length of the point name added to the maximum points value length must not "
-                "exceed {}".format(Scheme.MAX_POINTS_VALUE_LENGTH - 1)
+                f"exceed {Scheme.MAX_POINTS_VALUE_LENGTH - 1}"
             )
 
         return point_name

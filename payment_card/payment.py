@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 import sentry_sdk
 from django.db.models.signals import post_save
@@ -70,9 +69,9 @@ class Payment:
     def __init__(
         self,
         audit_obj: PaymentAudit,
-        amount: Optional[int] = None,
+        amount: int | None = None,
         currency_code: str = "GBP",
-        payment_token: Optional[str] = None,
+        payment_token: str | None = None,
     ):
         self.audit_obj = audit_obj
         self.amount = amount
@@ -85,7 +84,7 @@ class Payment:
             currency_code=currency_code,
         )
 
-    def _purchase(self, payment_token: Optional[str] = None) -> None:
+    def _purchase(self, payment_token: str | None = None) -> None:
         p_token = payment_token or self.payment_token
         if not p_token:
             raise PaymentError("No payment token provided")
@@ -101,7 +100,7 @@ class Payment:
                 raise PaymentError(e) from e
             raise PaymentError from e
 
-    def _void(self, transaction_token: Optional[str] = None) -> None:
+    def _void(self, transaction_token: str | None = None) -> None:
         transaction_token = transaction_token or self.spreedly.transaction_token
         if not transaction_token:
             raise PaymentError("No transaction token provided to void")

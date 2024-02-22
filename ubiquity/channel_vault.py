@@ -1,7 +1,6 @@
 import json
 import logging
 from enum import Enum
-from typing import Optional
 
 import requests
 from azure.identity import DefaultAzureCredential
@@ -20,7 +19,7 @@ _aes_keys = {}
 class VaultError(Exception):
     """Exception raised for errors in the input."""
 
-    def __init__(self, message: Optional[str] = None) -> None:
+    def __init__(self, message: str | None = None) -> None:
         self.message = message
 
     def __str__(self) -> str:
@@ -118,7 +117,12 @@ def load_secrets(config):
 
         if errors:
             err_msg = "Failed to load secrets: "
-            logger.exception("{}\n{}".format(err_msg, "\n".join([str(obj) for obj in zip(failed_secrets, errors)])))
+            logger.exception(
+                "{}\n{}".format(
+                    err_msg,
+                    "\n".join([str(obj) for obj in zip(failed_secrets, errors, strict=False)]),
+                )
+            )
             raise VaultError(f"{failed_secrets}")
 
         loaded = True

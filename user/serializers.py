@@ -33,9 +33,7 @@ class ClientAppSerializerMixin(serializers.Serializer):
 
     def _check_client_app_bundle(self, client_id, bundle_id):
         if not ClientApplicationBundle.objects.filter(bundle_id=bundle_id, client_id=client_id).exists():
-            raise serializers.ValidationError(
-                "ClientApplicationBundle not found ({} for {})".format(bundle_id, client_id)
-            )
+            raise serializers.ValidationError(f"ClientApplicationBundle not found ({bundle_id} for {client_id})")
 
 
 class ApplicationKitSerializer(serializers.Serializer):
@@ -120,7 +118,7 @@ class ApplyPromoCodeSerializer(serializers.Serializer):
 
     def validate_promo_code(self, promo_code):
         if not valid_promo_code(promo_code):
-            raise serializers.ValidationError("Invalid promo code: {}".format(promo_code))
+            raise serializers.ValidationError(f"Invalid promo code: {promo_code}")
         return promo_code
 
 
@@ -352,14 +350,14 @@ class MakeMagicLinkSerializer(serializers.Serializer):
             except AuthenticationFailed as e:
                 raise serializers.ValidationError(
                     f'Config: check secrets for error bundle id {data["bundle_id"]}' f" Exception: {e}"
-                )
+                ) from None
             except MultipleObjectsReturned:
                 raise serializers.ValidationError(
                     f'Config: error multiple bundle ids {data["bundle_id"]}' f' for slug {data["slug"]}'
-                )
+                ) from None
             except ObjectDoesNotExist:
                 raise serializers.ValidationError(
                     f'Config: invalid bundle id {data["bundle_id"]} was not found or '
                     f'did not have an active slug {data["slug"]}'
-                )
+                ) from None
         return data

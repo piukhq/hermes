@@ -31,7 +31,7 @@ class TestResources(GlobalMockAPITestCase):
         token = GenerateJWToken(
             cls.client_app.organisation.name, cls.client_app.secret, cls.bundle.bundle_id, user.external_id
         ).get_token()
-        return {"HTTP_AUTHORIZATION": "Bearer {}".format(token)}
+        return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
     @staticmethod
     def _get_version_header(version):

@@ -88,7 +88,7 @@ def metis_request(method: RequestMethod, endpoint: str, payload: dict, headers: 
         settings.METIS_URL + endpoint,
         json=payload,
         headers={
-            "Authorization": "Token {}".format(settings.SERVICE_API_KEY),
+            "Authorization": f"Token {settings.SERVICE_API_KEY}",
             "Content-Type": "application/json",
             "X-azure-ref": headers.get("X-azure-ref", None) if headers else None,
         },

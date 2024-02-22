@@ -28,14 +28,14 @@ class TestPaymentCardImages(GlobalMockAPITestCase):
 
     def test_no_draft_images_in_payment_cards_list(self):
         resp = self.client.get("/payment_cards", **self.auth_headers)
-        our_payment_card = [s for s in resp.json() if s["slug"] == self.image.payment_card.slug][0]
+        our_payment_card = next(s for s in resp.json() if s["slug"] == self.image.payment_card.slug)
         self.assertEqual(0, len(our_payment_card["images"]))
 
         self.image.status = Image.PUBLISHED
         self.image.save()
 
         resp = self.client.get("/payment_cards", **self.auth_headers)
-        our_payment_card = [s for s in resp.json() if s["slug"] == self.image.payment_card.slug][0]
+        our_payment_card = next(s for s in resp.json() if s["slug"] == self.image.payment_card.slug)
         self.assertEqual(1, len(our_payment_card["images"]))
 
 
@@ -57,9 +57,8 @@ class TestPaymentCard(GlobalMockAPITestCase):
 
     def test_payment_card_account_query(self):
         resp = self.client.get(
-            "/payment_cards/accounts/query"
-            "?payment_card__slug={}&user_set__id={}".format(self.payment_card.slug, self.user.id),
-            **self.auth_service_headers
+            "/payment_cards/accounts/query" f"?payment_card__slug={self.payment_card.slug}&user_set__id={self.user.id}",
+            **self.auth_service_headers,
         )
         self.assertEqual(200, resp.status_code)
         self.assertEqual(resp.json()[0]["id"], self.payment_card_account.id)
@@ -95,9 +94,7 @@ class TestPaymentCard(GlobalMockAPITestCase):
         self.assertNotIn("token", response.data[0])
 
     def test_get_payment_card_account(self):
-        response = self.client.get(
-            "/payment_cards/accounts/{0}".format(self.payment_card_account.id), **self.auth_headers
-        )
+        response = self.client.get(f"/payment_cards/accounts/{self.payment_card_account.id}", **self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
@@ -108,9 +105,7 @@ class TestPaymentCard(GlobalMockAPITestCase):
 
     def test_patch_payment_card_account(self):
         response = self.client.patch(
-            "/payment_cards/accounts/{0}".format(self.payment_card_account.id),
-            data={"pan_start": "987678"},
-            **self.auth_headers
+            f"/payment_cards/accounts/{self.payment_card_account.id}", data={"pan_start": "987678"}, **self.auth_headers
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
@@ -119,9 +114,9 @@ class TestPaymentCard(GlobalMockAPITestCase):
     def test_patch_payment_card_cannot_change_scheme(self):
         payment_card_2 = factories.PaymentCardFactory(name="sommet", slug="sommet")
         response = self.client.patch(
-            "/payment_cards/accounts/{0}".format(self.payment_card_account.id),
+            f"/payment_cards/accounts/{self.payment_card_account.id}",
             data={"payment_card": payment_card_2.id},
-            **self.auth_headers
+            **self.auth_headers,
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, {"payment_card": ["Cannot change payment card for payment card account."]})
@@ -129,9 +124,9 @@ class TestPaymentCard(GlobalMockAPITestCase):
     def test_put_payment_card_cannot_change_scheme(self):
         payment_card_2 = factories.PaymentCardFactory(name="sommet", slug="sommet")
         response = self.client.put(
-            "/payment_cards/accounts/{0}".format(self.payment_card_account.id),
+            f"/payment_cards/accounts/{self.payment_card_account.id}",
             data={"issuer": self.issuer.id, "pan_end": "0000", "payment_card": payment_card_2.id},
-            **self.auth_headers
+            **self.auth_headers,
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, {"payment_card": ["Cannot change payment card for payment card account."]})
@@ -141,7 +136,7 @@ class TestPaymentCard(GlobalMockAPITestCase):
         response = self.client.put(
             "/payment_cards/accounts/status",
             data={"status": 1, "id": self.payment_card_account.id},
-            **self.auth_service_headers
+            **self.auth_service_headers,
         )
 
         self.assertTrue(mock_to_warehouse.called)
@@ -163,7 +158,7 @@ class TestPaymentCard(GlobalMockAPITestCase):
         response = self.client.put(
             "/payment_cards/accounts/status",
             data={"status": 9999, "id": self.payment_card_account.id},
-            **self.auth_service_headers
+            **self.auth_service_headers,
         )
 
         self.assertEqual(response.status_code, 400)
@@ -171,14 +166,10 @@ class TestPaymentCard(GlobalMockAPITestCase):
 
     @mock.patch("payment_card.metis.metis_delete_cards_and_activations", autospec=True)
     def test_delete_payment_card_accounts(self, mock_metis):
-        response = self.client.delete(
-            "/payment_cards/accounts/{0}".format(self.payment_card_account.id), **self.auth_headers
-        )
+        response = self.client.delete(f"/payment_cards/accounts/{self.payment_card_account.id}", **self.auth_headers)
 
         self.assertEqual(response.status_code, 204)
-        response = self.client.get(
-            "/payment_cards/accounts/{0}".format(self.payment_card_account.id), **self.auth_headers
-        )
+        response = self.client.get(f"/payment_cards/accounts/{self.payment_card_account.id}", **self.auth_headers)
 
         self.assertEqual(response.status_code, 404)
         # The stub is called indirectly via the View so we can only verify the stub has been called
@@ -187,7 +178,7 @@ class TestPaymentCard(GlobalMockAPITestCase):
     def test_cant_delete_other_payment_card_account(self):
         payment_card = factories.PaymentCardAccountFactory(payment_card=self.payment_card)
 
-        response = self.client.delete("/payment_cards/accounts/{0}".format(payment_card.id), **self.auth_headers)
+        response = self.client.delete(f"/payment_cards/accounts/{payment_card.id}", **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
     def test_get_payment_card_scheme_accounts(self):
@@ -198,7 +189,7 @@ class TestPaymentCard(GlobalMockAPITestCase):
         ubiquity.tests.factories.PaymentCardAccountEntryFactory(user=user, payment_card_account=pca)
         PaymentCardSchemeEntryFactory(payment_card_account=pca, scheme_account=sae.scheme_account)
 
-        response = self.client.get("/payment_cards/scheme_accounts/{0}".format(token), **self.auth_headers)
+        response = self.client.get(f"/payment_cards/scheme_accounts/{token}", **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(len(response.data[0]), 2)

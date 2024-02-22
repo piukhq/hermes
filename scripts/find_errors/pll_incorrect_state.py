@@ -1,9 +1,8 @@
 from django.db.models import Q
 
+from scripts.actions.corrections import Correction
+from scripts.find_errors.base_script import BaseScript
 from ubiquity.models import PaymentCardSchemeEntry, PllUserAssociation, WalletPLLStatus
-
-from ..actions.corrections import Correction
-from .base_script import BaseScript
 
 
 class FindIncorrectPLL(BaseScript):
@@ -24,11 +23,10 @@ class FindIncorrectPLL(BaseScript):
             Check if user plls state and if all are not in active state base link needs to be set to False
             """
             user_pll = PllUserAssociation.objects.filter(pll=pll)
-            if user_pll:
-                if user_pll.filter(Q(state=WalletPLLStatus.INACTIVE) | Q(state=WalletPLLStatus.PENDING)).count() == len(
-                    user_pll
-                ):
-                    incorrect_pll.append(pll)
+            if user_pll and user_pll.filter(
+                Q(state=WalletPLLStatus.INACTIVE) | Q(state=WalletPLLStatus.PENDING)
+            ).count() == len(user_pll):
+                incorrect_pll.append(pll)
 
         for pll_obj in incorrect_pll:
             self.set_correction(Correction.UPDATE_ACTIVE_LINK)

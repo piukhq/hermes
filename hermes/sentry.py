@@ -2,16 +2,13 @@ from typing import TYPE_CHECKING
 
 from billiard.exceptions import SoftTimeLimitExceeded
 from sentry_sdk.hub import _should_send_default_pii
-from sentry_sdk.integrations.django import DjangoIntegration, DjangoRequestExtractor, _set_user_info
+from sentry_sdk.integrations.django import DjangoRequestExtractor, _set_user_info
 from sentry_sdk.utils import capture_internal_exceptions
 
 from scheme.credentials import PASSWORD, PIN
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Dict, Optional
-
-    from django.core.handlers.wsgi import WSGIRequest
-    from sentry_sdk._types import Event, EventProcessor, Hint
+    pass
 
 
 SENSITIVE_FIELDS = {

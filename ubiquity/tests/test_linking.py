@@ -634,7 +634,7 @@ class TestSoftLinking(GlobalMockAPITestCase):
         token = GenerateJWToken(
             self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id, user.external_id
         ).get_token()
-        return "Bearer {}".format(token)
+        return f"Bearer {token}"
 
     def _get_auth_headers(self, user):
         return {"HTTP_AUTHORIZATION": f"{self._get_auth_token(user)}"}
@@ -754,7 +754,7 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         token = GenerateJWToken(
             self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id, user.external_id
         ).get_token()
-        return "Bearer {}".format(token)
+        return f"Bearer {token}"
 
     def _get_auth_headers(self, user):
         return {"HTTP_AUTHORIZATION": f"{self._get_auth_token(user)}"}

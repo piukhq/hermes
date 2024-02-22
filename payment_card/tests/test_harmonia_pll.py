@@ -94,7 +94,7 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
 
     def test_retrieve(self):
         response = self.client.post(
-            "/payment_cards/accounts/payment_card_user_info/{}".format(self.scheme.slug),
+            f"/payment_cards/accounts/payment_card_user_info/{self.scheme.slug}",
             json.dumps(
                 {
                     "payment_cards": [
@@ -105,7 +105,7 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
                 }
             ),
             content_type="application/json",
-            **self.auth_headers
+            **self.auth_headers,
         )
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode("utf-8"))
@@ -148,16 +148,16 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
                 {"payment_cards": [self.payment_card_account_1.psp_token, self.payment_card_account_2.psp_token]}
             ),
             content_type="application/json",
-            **self.auth_headers
+            **self.auth_headers,
         )
         self.assertEqual(response.status_code, 404)
 
     def test_invalid_card_token(self):
         response = self.client.post(
-            "/payment_cards/accounts/payment_card_user_info/{}".format(self.scheme.slug),
+            f"/payment_cards/accounts/payment_card_user_info/{self.scheme.slug}",
             json.dumps({"payment_cards": [self.payment_card_account_1.psp_token, 99999]}),
             content_type="application/json",
-            **self.auth_headers
+            **self.auth_headers,
         )
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode("utf-8"))
@@ -181,7 +181,7 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
         self.link3_3.save()
 
         response = self.client.post(
-            "/payment_cards/accounts/payment_card_user_info/{}".format(self.scheme.slug),
+            f"/payment_cards/accounts/payment_card_user_info/{self.scheme.slug}",
             json.dumps(
                 {
                     "payment_cards": [
@@ -192,7 +192,7 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
                 }
             ),
             content_type="application/json",
-            **self.auth_headers
+            **self.auth_headers,
         )
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode("utf-8"))
@@ -237,7 +237,7 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
         self.link3_3.save()
 
         response = self.client.post(
-            "/payment_cards/accounts/payment_card_user_info/{}".format(self.scheme.slug),
+            f"/payment_cards/accounts/payment_card_user_info/{self.scheme.slug}",
             json.dumps(
                 {
                     "payment_cards": [
@@ -248,7 +248,7 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
                 }
             ),
             content_type="application/json",
-            **self.auth_headers
+            **self.auth_headers,
         )
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode("utf-8"))
@@ -296,7 +296,7 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
         self.link3_3.save()
 
         response = self.client.post(
-            "/payment_cards/accounts/payment_card_user_info/{}".format(self.scheme.slug),
+            f"/payment_cards/accounts/payment_card_user_info/{self.scheme.slug}",
             json.dumps(
                 {
                     "payment_cards": [
@@ -307,7 +307,7 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
                 }
             ),
             content_type="application/json",
-            **self.auth_headers
+            **self.auth_headers,
         )
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode("utf-8"))

@@ -27,11 +27,11 @@ class _FindRetailerAndChannelMembershipCards(BaseScript):
                 {
                     ClientApplication.client_id: {
                         "id": ClientApplicationBundle.id,
-                        "channel": ClientApplicationBundle.bundle_id
+                        "channel": ClientApplicationBundle.bundle_id,
                     }
-                }
+                },
             ),
-            ...
+            ...,
         ]
         ```
         """
@@ -75,7 +75,7 @@ class _FindRetailerAndChannelMembershipCards(BaseScript):
             self.set_correction(Correction.CHANNELS_RETAILER_OFFBOARDING)
             channels_ids = [v["id"] for v in client_channel_map.values()]
             self.make_correction(
-                unique_id_string=(f"{str(scheme_account_id)}.{self.scheme_slug}.[{','.join(channels_ids)}]"),
+                unique_id_string=(f"{scheme_account_id!s}.{self.scheme_slug}.[{','.join(channels_ids)}]"),
                 data={"scheme_account_id": scheme_account_id, "client_channel_map": client_channel_map},
             )
             self.result.append(f"scheme_account_id: {scheme_account_id} " f"script:{self.correction_title}")

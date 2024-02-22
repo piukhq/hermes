@@ -1,7 +1,8 @@
 import re
 from collections import namedtuple
+from collections.abc import Iterable
 from decimal import Decimal
-from typing import TYPE_CHECKING, Iterable, Optional, Tuple, Type
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 from django.contrib import admin
@@ -97,13 +98,13 @@ class MockMidasBalanceResponse:
         return self.json_body
 
 
-def set_history_kwargs(kwargs: Optional[dict]) -> None:
+def set_history_kwargs(kwargs: dict | None) -> None:
     if kwargs:
         for k, v in kwargs.items():
             setattr(HISTORY_CONTEXT, k, v)
 
 
-def clean_history_kwargs(kwargs: Optional[dict]) -> None:
+def clean_history_kwargs(kwargs: dict | None) -> None:
     if kwargs:
         for k in kwargs:
             if hasattr(HISTORY_CONTEXT, k):
@@ -119,7 +120,7 @@ def get_channel_from_context() -> str:
     return channel
 
 
-def _get_change_type_and_details(update_fields: list, is_deleted: Tuple[str, bool]) -> Tuple[Optional[str], str]:
+def _get_change_type_and_details(update_fields: list, is_deleted: tuple[str, bool]) -> tuple[str | None, str]:
     change_details = ""
     deleted_key, deleted_value = is_deleted
     if update_fields:
@@ -141,7 +142,7 @@ def _get_change_type_and_details(update_fields: list, is_deleted: Tuple[str, boo
     return change_type, change_details
 
 
-def _bulk_create_with_id(model: Type["Model"], objs: Iterable, batch_size: int) -> list:
+def _bulk_create_with_id(model: type["Model"], objs: Iterable, batch_size: int) -> list:
     """
     not suited for large bulks of objects until we implement batch logic
     """
@@ -167,7 +168,7 @@ def _bulk_create_with_id(model: Type["Model"], objs: Iterable, batch_size: int) 
                 raise e
 
             parsed_dict = {k: v.split(", ") for k, v in found_items.items()}
-            existing_entry_dict = dict(zip(parsed_dict["keys"], parsed_dict["values"]))
+            existing_entry_dict = dict(zip(parsed_dict["keys"], parsed_dict["values"], strict=False))
 
             logger.warning(
                 f"{model.__name__} bulk create hit an IntegrityError, starting recovery procedure.\n"
@@ -175,7 +176,7 @@ def _bulk_create_with_id(model: Type["Model"], objs: Iterable, batch_size: int) 
             )
 
             for i, obj in enumerate(objs):
-                if all(map(lambda k: str(getattr(obj, k)) == existing_entry_dict[k], existing_entry_dict)):
+                if all(str(getattr(obj, k)) == existing_entry_dict[k] for k in existing_entry_dict):
                     del objs[i]
 
     return created_objs
@@ -224,7 +225,7 @@ def _format_history_objs(
 
 
 def _history_bulk(
-    model: Type["Model"],
+    model: type["Model"],
     objs: Iterable,
     update_fields: list | None = None,
     *,
@@ -261,12 +262,12 @@ def _history_bulk(
 
 
 def history_bulk_update(
-    model: Type["Model"], objs: Iterable, update_fields: list | None = None, batch_size: int | None = None
+    model: type["Model"], objs: Iterable, update_fields: list | None = None, batch_size: int | None = None
 ) -> None:
     _history_bulk(model, objs, update_fields, batch_size=batch_size, update=True)
 
 
 def history_bulk_create(
-    model: Type["Model"], objs: Iterable, batch_size: int | None = None, ignore_conflicts: bool = False
+    model: type["Model"], objs: Iterable, batch_size: int | None = None, ignore_conflicts: bool = False
 ) -> list:
     return _history_bulk(model, objs, batch_size=batch_size, ignore_conflicts=ignore_conflicts, update=False)

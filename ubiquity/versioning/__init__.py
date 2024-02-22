@@ -47,7 +47,7 @@ def get_api_version(request: "Request") -> Version:
         logger.warning(message + f"defaulting the max version: {DEFAULT_API_VERSION}")
         ver = DEFAULT_API_VERSION
 
-    setattr(request, "api_version", ver)
+    request.api_version = ver
     return ver
 
 

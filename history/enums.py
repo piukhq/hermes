@@ -1,5 +1,6 @@
+from collections.abc import Iterable
 from enum import Enum
-from typing import TYPE_CHECKING, Iterable, List, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from django.db.models import Model
@@ -27,7 +28,7 @@ class HistoryModel(Enum):
         return f"{self.historic_model_name}Serializer"
 
     @classmethod
-    def require_body_serializers(cls) -> List[Tuple[str, str]]:
+    def require_body_serializers(cls) -> list[tuple[str, str]]:
         return [
             entry.value.split(".")
             for entry in cls
@@ -42,7 +43,7 @@ class SchemeAccountJourney(Enum):
     ENROL = "enrol"
 
     @classmethod
-    def as_tuple_list(cls) -> List[tuple]:
+    def as_tuple_list(cls) -> list[tuple]:
         return [(entry.value, entry.value) for entry in cls]
 
 
@@ -62,7 +63,7 @@ class ExcludedField(Enum):
         return {entry.value for entry in cls}
 
     @classmethod
-    def as_list(cls, filter_for: Type["Model"] | None = None) -> List[str]:
+    def as_list(cls, filter_for: type["Model"] | None = None) -> list[str]:
         if filter_for:
             allowed_fields = [field.attname for field in filter_for._meta.fields]
         else:
@@ -76,7 +77,7 @@ class DeleteField(Enum):
     IS_ACTIVE = "is_active"
     NONE = "n/a"
 
-    def get_value(self, objs: Union[Iterable, Type["Model"]] | None = None) -> Tuple[Optional[str], bool]:
+    def get_value(self, objs: Iterable | type["Model"] | None = None) -> tuple[str | None, bool]:
         if not objs:
             field_value = False
 

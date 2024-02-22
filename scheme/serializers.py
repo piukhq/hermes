@@ -181,9 +181,8 @@ class UserConsentSerializer(serializers.Serializer):
         if expected_consents_set.symmetric_difference(actual_consents_set):
             raise serializers.ValidationError(
                 {
-                    "message": "Unexpected or missing user consents for '{0}' request - scheme id '{1}'".format(
-                        Consent.journeys[journey_type][1], scheme
-                    ),
+                    "message": f"Unexpected or missing user consents for '{Consent.journeys[journey_type][1]}' "
+                    f"request - scheme id '{scheme}'",
                     "code": serializers.ValidationError.status_code,
                 }
             )
@@ -198,7 +197,7 @@ class UserConsentSerializer(serializers.Serializer):
         if invalid_consents:
             raise serializers.ValidationError(
                 {
-                    "message": "The following consents require a value of True: {}".format(invalid_consents),
+                    "message": f"The following consents require a value of True: {invalid_consents}",
                     "code": serializers.ValidationError.status_code,
                 }
             )
@@ -258,7 +257,7 @@ class LinkSchemeSerializer(SchemeAnswerSerializer):
         missing_credentials = self.context["scheme_account_entry"].missing_credentials(question_types)
         if missing_credentials:
             raise serializers.ValidationError(
-                "All the required credentials have not been submitted: {0}".format(missing_credentials)
+                f"All the required credentials have not been submitted: {missing_credentials}"
             )
         return data
 
@@ -469,7 +468,8 @@ class JoinSerializer(SchemeAnswerSerializer):
             user_id = user_id.id
 
         # Validate scheme account for this doesn't already exist
-        exclude_status_list = AccountLinkStatus.join_action_required() + [
+        exclude_status_list = [
+            *AccountLinkStatus.join_action_required(),
             AccountLinkStatus.JOIN_ASYNC_IN_PROGRESS,
             AccountLinkStatus.REGISTRATION_ASYNC_IN_PROGRESS,
         ]
@@ -478,19 +478,19 @@ class JoinSerializer(SchemeAnswerSerializer):
         ).exclude(link_status__in=exclude_status_list)
 
         if scheme_account_entries.exists():
-            raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
+            raise serializers.ValidationError(f"You already have an account for this scheme: '{scheme}'")
 
         required_question_types = [question.type for question in scheme.join_questions if question.required]
 
         # Validate scheme join questions
         if not required_question_types:
-            raise serializers.ValidationError("No join questions found for scheme: {}".format(scheme.slug))
+            raise serializers.ValidationError(f"No join questions found for scheme: {scheme.slug}")
 
         # Validate all link questions are included in the required join questions
         scheme_link_question_types = [question.type for question in scheme.link_questions]
         if not set(scheme_link_question_types).issubset(required_question_types):
             raise serializers.ValidationError(
-                'Please convert all "Link" only credential questions ' 'to "Join & Link" for scheme: {}'.format(scheme)
+                'Please convert all "Link" only credential questions ' f'to "Join & Link" for scheme: {scheme}'
             )
 
         return self._validate_join_questions(scheme, data)
@@ -503,15 +503,14 @@ class JoinSerializer(SchemeAnswerSerializer):
             question_type = question.type
             if question_type in request_join_question_types:
                 data["credentials"][question_type] = str(data[question_type])
-            else:
-                if question.required:
-                    self.raise_missing_field_error(question_type)
+            elif question.required:
+                self.raise_missing_field_error(question_type)
 
         return data
 
     @staticmethod
     def raise_missing_field_error(missing_field):
-        raise serializers.ValidationError("{} field required".format(missing_field))
+        raise serializers.ValidationError(f"{missing_field} field required")
 
 
 class UbiquityJoinSerializer(JoinSerializer):
@@ -555,7 +554,7 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
         q_objs = Q()
         for key, val in query_args.items():
             if key not in CASE_SENSITIVE_CREDENTIALS:
-                val = val.lower()
+                val = val.lower()  # noqa: PLW2901
 
             if key in [CARD_NUMBER, BARCODE, MERCHANT_IDENTIFIER]:
                 q_objs |= Q(**{key: val})

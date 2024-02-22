@@ -51,7 +51,7 @@ def valid_marketing_code(marketing_code):
     return valid
 
 
-class ModifyingFieldDescriptor(object):
+class ModifyingFieldDescriptor:
     """Modifies a field when set using the field's (overriden) .to_python() method."""
 
     def __init__(self, field):
@@ -86,7 +86,7 @@ class MarketingCode(models.Model):
     partner = models.CharField(max_length=100, null=True, blank=True)
 
     def __str__(self):
-        return "{0} code for partner {1}".format(self.code, self.partner)
+        return f"{self.code} code for partner {self.partner}"
 
 
 class Organisation(models.Model):
@@ -114,7 +114,7 @@ class ClientApplication(models.Model):
     bink_app = None
 
     def __str__(self):
-        return "{} by {}".format(self.name, self.organisation.name)
+        return f"{self.name} by {self.organisation.name}"
 
     @classmethod
     def get_bink_app(cls):
@@ -180,7 +180,7 @@ class ClientApplicationBundle(models.Model):
         )
 
     def __str__(self):
-        return "{} ({})".format(self.bundle_id, self.client)
+        return f"{self.bundle_id} ({self.client})"
 
 
 class ClientApplicationKit(models.Model):
@@ -191,7 +191,7 @@ class ClientApplicationKit(models.Model):
     is_valid = models.BooleanField(default=True)
 
     def __str__(self):
-        return "ClientApplication: {} - kit: {}".format(self.client, self.kit_name)
+        return f"ClientApplication: {self.client} - kit: {self.kit_name}"
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
@@ -281,7 +281,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return self.email or str(self.uid)
 
     def __str__(self):
-        return "id: {} - {}".format(self.id, self.email) or str(self.uid)
+        return f"id: {self.id} - {self.email}" or str(self.uid)
 
     def create_token(self, bundle_id="", admin=False):
         # if admin is true this call is for the django admin and wants all bundle_id tokens returned
@@ -373,11 +373,10 @@ class UserDetail(models.Model):
             return setattr(self, field, value)
 
         field_mapping = {"address_line_1": ["address_1"], "address_line_2": ["address_2"], "city": ["town_city"]}
-        for user_field in field_mapping.keys():
+        for user_field in field_mapping:
             if field in field_mapping[user_field]:
                 return setattr(self, user_field, value)
-        else:
-            raise AttributeError("cant set {} field in user profile".format(field))
+        raise AttributeError(f"cant set {field} field in user profile")
 
 
 class Referral(models.Model):
@@ -386,7 +385,7 @@ class Referral(models.Model):
     date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return "{0} referred {1}".format(self.referrer, self.recipient)
+        return f"{self.referrer} referred {self.recipient}"
 
 
 @receiver(signals.post_save, sender=CustomUser)
@@ -432,7 +431,7 @@ class Setting(models.Model):
         return dict(self.CATEGORIES).get(self.category)
 
     def __str__(self):
-        return "({}) {}: {}".format(self.value_type_name, self.slug, self.default_value)
+        return f"({self.value_type_name}) {self.slug}: {self.default_value}"
 
     def clean(self):
         validate_setting_value(self.default_value, self)
@@ -452,7 +451,7 @@ class UserSetting(models.Model):
     value = models.CharField(max_length=255)
 
     def __str__(self):
-        return "{} - {}: {}".format(self.user.email, self.setting.slug, self.value)
+        return f"{self.user.email} - {self.setting.slug}: {self.value}"
 
     def clean(self):
         validate_setting_value(self.value, self.setting)

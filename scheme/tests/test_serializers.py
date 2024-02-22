@@ -166,7 +166,7 @@ class TestUserConsentSerializer(GlobalMockAPITestCase):
         )
 
         self.assertEqual(len(user_consents), 2)
-        self.assertTrue(all([metadata_keys == list(consent.metadata.keys()) for consent in user_consents]))
+        self.assertTrue(all(metadata_keys == list(consent.metadata) for consent in user_consents))
 
     def test_validate_consents_success(self):
         self.user_consent1.slug = self.consent1.slug
@@ -234,7 +234,7 @@ class TestUserConsentSerializer(GlobalMockAPITestCase):
 
         self.assertTrue("The following consents require a value of True:" in e.exception.detail["message"])
         self.assertTrue(
-            "[{{'consent_id': {}, 'slug': '{}'}}]".format(self.consent1.id, self.consent1.slug)
+            f"[{{'consent_id': {self.consent1.id}, 'slug': '{self.consent1.slug}'}}]"
             in str(e.exception.detail["message"])
         )
 

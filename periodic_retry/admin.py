@@ -43,9 +43,7 @@ add_visa_enrolments.short_description = "Add Visa Enrolments"
 
 
 def trigger_retry(modeladmin, request, queryset):
-    count = 0
-    for entry in queryset:
-        count += 1
+    for count, entry in enumerate(queryset, start=1):
         update_time = arrow.utcnow().shift(seconds=int(count / 5))
 
         if entry.status != PeriodicRetryStatus.SUCCESSFUL:

@@ -65,14 +65,14 @@ class TestJoinExisting(GlobalMockAPITestCase):
             scheme_account_entry=cls.scheme_account_entry,
         )
 
-        cls.auth_headers = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.old_user, cls.bundle.bundle_id))}
+        cls.auth_headers = {"HTTP_AUTHORIZATION": f"{cls._get_auth_header(cls.old_user, cls.bundle.bundle_id)}"}
 
     @staticmethod
     def _get_auth_header(user, bundle_id):
         token = GenerateJWToken(
             user.client.organisation.name, user.client.secret, bundle_id, user.external_id
         ).get_token()
-        return "Bearer {}".format(token)
+        return f"Bearer {token}"
 
     def test_join_existing_account(self):
         """Joining an existing account on a new user causes a link to be set up"""

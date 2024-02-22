@@ -315,7 +315,7 @@ class TestBaseSerializers(GlobalMockAPITestCase):
         scheme = SchemeFactory(**expected_data)
         serialized_data = base_MembershipPlanSerializer(scheme, context={"request": mock_request_context}).data
         # slug check
-        self.assertFalse("slug" in serialized_data.keys())
+        self.assertFalse("slug" in serialized_data)
         # account checks
         self.assertEqual(expected_data["company"], serialized_data["account"]["company_name"])
         self.assertEqual(expected_data["name"], serialized_data["account"]["plan_name"])
@@ -340,7 +340,7 @@ class TestBaseSerializers(GlobalMockAPITestCase):
         scheme = SchemeFactory(**expected_data)
         serialized_data = base_MembershipPlanSerializer(scheme, context={"request": mock_request_context}).data
         # slug check
-        self.assertFalse("slug" in serialized_data.keys())
+        self.assertFalse("slug" in serialized_data)
         # account checks
         self.assertEqual(expected_data["company"], serialized_data["account"]["company_name"])
         self.assertEqual(expected_data["name"], serialized_data["account"]["plan_name"])
@@ -431,7 +431,7 @@ class TestSerializersV1_2(GlobalMockAPITestCase):
 
         # Test base64 encoded but the value is not encrypted
         with self.assertRaises(ValueError) as e:
-            serializer(data, context={"bundle_id": self.bundle_id}).data
+            serializer(data, context={"bundle_id": self.bundle_id}).data  # noqa: B018
 
         self.assertEqual(e.exception.args[0], "Failed to decrypt sensitive fields")
 
@@ -448,7 +448,7 @@ class TestSerializersV1_2(GlobalMockAPITestCase):
 
         # Test value is not encrypted or base64 encoded
         with self.assertRaises(ValueError) as e:
-            serializer(data, context={"bundle_id": self.bundle_id}).data
+            serializer(data, context={"bundle_id": self.bundle_id}).data  # noqa: B018
 
         self.assertEqual(e.exception.args[0], "Failed to decrypt sensitive fields")
 
@@ -466,7 +466,7 @@ class TestSerializersV1_2(GlobalMockAPITestCase):
         scheme = SchemeFactory(**expected_data)
         serialized_data = MembershipPlanSerializerV1_2(scheme, context={"request": mock_request_context}).data
         # slug check
-        self.assertFalse("slug" in serialized_data.keys())
+        self.assertFalse("slug" in serialized_data)
         # account checks
         self.assertEqual(expected_data["company"], serialized_data["account"]["company_name"])
         self.assertEqual(expected_data["name"], serialized_data["account"]["plan_name"])
@@ -491,7 +491,7 @@ class TestSerializersV1_2(GlobalMockAPITestCase):
         scheme = SchemeFactory(**expected_data)
         serialized_data = MembershipPlanSerializerV1_2(scheme, context={"request": mock_request_context}).data
         # slug check
-        self.assertFalse("slug" in serialized_data.keys())
+        self.assertFalse("slug" in serialized_data)
         # account checks
         self.assertEqual(expected_data["company"], serialized_data["account"]["company_name"])
         self.assertEqual(expected_data["name"], serialized_data["account"]["plan_name"])
@@ -499,7 +499,7 @@ class TestSerializersV1_2(GlobalMockAPITestCase):
         self.assertEqual(expected_data["url"], serialized_data["account"]["plan_url"])
         self.assertEqual(expected_data["forgotten_password_url"], serialized_data["account"]["forgotten_password_url"])
         # card checks
-        self.assertEqual(expected_data["scan_message"], serialized_data["card"]["scan_message"]),
+        (self.assertEqual(expected_data["scan_message"], serialized_data["card"]["scan_message"]),)
         # go live check
         self.assertNotIn("go_live", serialized_data.keys())
 

@@ -6,10 +6,10 @@ import jwt
 from django.test import Client, override_settings
 from django.urls import reverse
 
-import ubiquity.channel_vault as channel_vault
 from history.utils import GlobalMockAPITestCase
 from scheme.models import SchemeBundleAssociation
 from scheme.tests.factories import SchemeBundleAssociationFactory, SchemeFactory
+from ubiquity import channel_vault
 from user.models import ClientApplicationBundle
 from user.serializers import MakeMagicLinkSerializer
 from user.tests.factories import ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory
@@ -170,7 +170,6 @@ class TestMakeMagicLinkViews(GlobalMockAPITestCase):
         self.assertEqual(self.url, serializer.validated_data["url"])
         token = serializer.validated_data["token"]
         token_data = jwt.decode(token, key=self.bink_web_secret, algorithms=["HS512"])
-        print(token_data)
         self.assertEqual(email, token_data["email"])
         self.assertEqual(self.BINK_BUNDLE_ID, token_data["bundle_id"])
         token_age = arrow.utcnow().int_timestamp - token_data["iat"]

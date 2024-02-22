@@ -39,7 +39,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
                     external_id=auth_user_id, client=channels_permit.bundle.client
                 )
             except CustomUser.DoesNotExist:
-                raise no_user_error
+                raise no_user_error from None
 
         return channels_permit, auth_user_id
 
@@ -55,7 +55,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
                 raise exceptions.AuthenticationFailed(_("Unknown token."))
 
         except (jwt.DecodeError, KeyError, self.model.DoesNotExist):
-            raise exceptions.AuthenticationFailed(_("Invalid token."))
+            raise exceptions.AuthenticationFailed(_("Invalid token.")) from None
 
         if not auth_user_id:
             raise exceptions.AuthenticationFailed(_("Invalid token."))
@@ -64,8 +64,8 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
 
     def authenticate(self, request):
         channels_permit, auth_user_id = self.authenticate_request(request)
-        setattr(request, "channels_permit", channels_permit)
-        setattr(request, "prop_id", auth_user_id)
+        request.channels_permit = channels_permit
+        request.prop_id = auth_user_id
         HISTORY_CONTEXT.user_info = user_info(user_id=None, channel=channels_permit.bundle_id)
         return channels_permit, None
 
@@ -126,8 +126,8 @@ class ServiceAuthentication(ServiceRegistrationAuthentication):
         # authenticate user raising NotFound error if user does not exist.  This is the expected error get Service
         # end point which causes a Not Found message to indicate that the Service had not been posted
         channels_permit, auth_user_id = self.user_authenticate(request, NotFound)
-        setattr(request, "channels_permit", channels_permit)
-        setattr(request, "prop_id", auth_user_id)
+        request.channels_permit = channels_permit
+        request.prop_id = auth_user_id
         HISTORY_CONTEXT.user_info = user_info(user_id=channels_permit.user.id, channel=channels_permit.bundle_id)
         return channels_permit.user, None
 
@@ -139,7 +139,7 @@ class PropertyAuthentication(ServiceRegistrationAuthentication):
         channels_permit, auth_user_id = self.user_authenticate(
             request, exceptions.AuthenticationFailed(_("Invalid token."))
         )
-        setattr(request, "channels_permit", channels_permit)
+        request.channels_permit = channels_permit
         HISTORY_CONTEXT.user_info = user_info(user_id=channels_permit.user.id, channel=channels_permit.bundle_id)
         return channels_permit.user, None
 

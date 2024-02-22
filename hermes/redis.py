@@ -3,8 +3,9 @@ import json
 import logging
 import pickle
 from collections import namedtuple
+from collections.abc import Callable
 from threading import RLock
-from typing import Any, Callable
+from typing import Any
 
 from django.conf import settings
 from redis import Redis
@@ -28,9 +29,9 @@ class _HashedSeq(list):
 
     """
 
-    __slots__ = "hashvalue"
+    __slots__ = "hashvalue"  # noqa: PLC0205
 
-    def __init__(self, tup, hash=hash):
+    def __init__(self, tup, hash=hash):  # noqa: A002
         self[:] = tup
         self.hashvalue = hash(tup)
 
@@ -38,7 +39,16 @@ class _HashedSeq(list):
         return self.hashvalue
 
 
-def _make_key(args, kwds, typed, kwd_mark=(object(),), fasttypes={int, str}, tuple=tuple, type=type, len=len):
+def _make_key(
+    args,
+    kwds,
+    typed,
+    kwd_mark=(object(),),  # noqa: B008
+    fasttypes={int, str},  # noqa: B006
+    tuple=tuple,  # noqa: A002
+    type=type,  # noqa: A002
+    len=len,  # noqa: A002
+):
     """Make a cache key from optionally typed positional and keyword arguments
 
     The key is constructed in a way that is flat as possible rather than
@@ -113,7 +123,7 @@ def redis_cache(user_function: Any) -> Callable:
                     pickle_hits += 1
             else:
                 result = user_function(*args, **kwargs)
-                if isinstance(result, (str, int, bool, float)):
+                if isinstance(result, (str | int | bool | float)):
                     value = {"is_json_serializable": True, "value": result}
                 else:
                     value = {"is_json_serializable": False, "value": pickle.dumps(result).decode("latin1")}

@@ -47,14 +47,14 @@ class TestSchemeImages(GlobalMockAPITestCase):
 
     def test_no_draft_images_in_schemes_list(self):
         resp = self.client.get("/schemes", **self.auth_headers)
-        our_scheme = [s for s in resp.json() if s["slug"] == self.image.scheme.slug][0]
+        our_scheme = next(s for s in resp.json() if s["slug"] == self.image.scheme.slug)
         self.assertEqual(0, len(our_scheme["images"]))
 
         self.image.status = Image.PUBLISHED
         self.image.save()
 
         resp = self.client.get("/schemes", **self.auth_headers)
-        our_scheme = [s for s in resp.json() if s["slug"] == self.image.scheme.slug][0]
+        our_scheme = next(s for s in resp.json() if s["slug"] == self.image.scheme.slug)
         self.assertEqual(1, len(our_scheme["images"]))
 
 
@@ -149,7 +149,7 @@ class TestSchemeViews(GlobalMockAPITestCase):
         )
         ConsentFactory.create(scheme=self.scheme, journey=JourneyTypes.LINK.value, text=link_message)
         ConsentFactory.create(scheme=self.scheme, journey=JourneyTypes.JOIN.value, text=join_message)
-        response = self.client.get("/schemes/{0}".format(self.scheme.id), **self.auth_headers)
+        response = self.client.get(f"/schemes/{self.scheme.id}", **self.auth_headers)
         self.assertIn("consents", response.data, "no consents section in /schemes/# ")
 
         found = False
@@ -174,7 +174,7 @@ class TestSchemeViews(GlobalMockAPITestCase):
         )
         SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, manual_question=True)
 
-        response = self.client.get("/schemes/{0}".format(self.scheme.id), **self.auth_headers)
+        response = self.client.get(f"/schemes/{self.scheme.id}", **self.auth_headers)
         expected_transaction_headers = [{"name": "header 1"}, {"name": "header 2"}, {"name": "header 3"}]
         self.assertListEqual(expected_transaction_headers, response.data["transaction_headers"])
 
@@ -193,7 +193,7 @@ class TestSchemeViews(GlobalMockAPITestCase):
             bundle_id="com.bink.wallet", client=self.user.client
         )
         scheme_bundle_assoc = SchemeBundleAssociation.objects.create(bundle=bundle, scheme=scheme)
-        response = self.client.get("/schemes/{0}".format(scheme.id), **self.auth_headers)
+        response = self.client.get(f"/schemes/{scheme.id}", **self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
@@ -204,13 +204,13 @@ class TestSchemeViews(GlobalMockAPITestCase):
 
         scheme_bundle_assoc.test_scheme = True
         scheme_bundle_assoc.save()
-        response = self.client.get("/schemes/{0}".format(scheme.id), **self.auth_headers)
+        response = self.client.get(f"/schemes/{scheme.id}", **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
         self.user.is_tester = True
         self.user.save()
 
-        response = self.client.get("/schemes/{0}".format(scheme.id), **self.auth_headers)
+        response = self.client.get(f"/schemes/{scheme.id}", **self.auth_headers)
         self.assertEqual(response.status_code, 200)
 
         scheme_bundle_assoc.test_scheme = False
@@ -236,7 +236,7 @@ class TestSchemeViews(GlobalMockAPITestCase):
         SchemeCredentialQuestionChoiceValueFactory(choice=choice_1, value="MRS")
         SchemeCredentialQuestionChoiceValueFactory(choice=choice_1, value="miss")
 
-        response = self.client.get("/schemes/{0}".format(self.scheme.id), **self.auth_headers)
+        response = self.client.get(f"/schemes/{self.scheme.id}", **self.auth_headers)
         data = response.json()
 
         self.assertEqual(data["link_questions"][0]["id"], link_question.id)
@@ -253,9 +253,7 @@ class TestSchemeViews(GlobalMockAPITestCase):
         scheme = SchemeFactory()
         SchemeImageFactory(scheme=scheme, image_type_code=5)
 
-        response = self.client.get(
-            "/schemes/images/reference", HTTP_AUTHORIZATION="Token {}".format(settings.SERVICE_API_KEY)
-        )
+        response = self.client.get("/schemes/images/reference", HTTP_AUTHORIZATION=f"Token {settings.SERVICE_API_KEY}")
         self.assertEqual(response.status_code, 200)
 
         json = response.json()

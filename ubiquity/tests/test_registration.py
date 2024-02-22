@@ -28,7 +28,7 @@ class TestRegistration(GlobalMockAPITestCase):
             "bundle_id": self.bundle.bundle_id,
         }
         token = self.token_generator(**data).get_token()
-        auth_headers = {"HTTP_AUTHORIZATION": "bearer {}".format(token)}
+        auth_headers = {"HTTP_AUTHORIZATION": f"bearer {token}"}
         consent = json.dumps({"consent": {"email": "test@email.bink", "timestamp": arrow.utcnow().int_timestamp}})
 
         resp = self.client.post("/ubiquity/service", data=consent, content_type="application/json", **auth_headers)
@@ -45,7 +45,7 @@ class TestRegistration(GlobalMockAPITestCase):
             "bundle_id": bundle.bundle_id,
         }
         token = self.token_generator(**data).get_token()
-        auth_headers = {"HTTP_AUTHORIZATION": "bearer {}".format(token)}
+        auth_headers = {"HTTP_AUTHORIZATION": f"bearer {token}"}
         consent = json.dumps({"consent": {"email": "test@email.bink", "timestamp": arrow.utcnow().int_timestamp}})
 
         resp = self.client.post("/ubiquity/service", data=consent, content_type="application/json", **auth_headers)
@@ -68,15 +68,15 @@ class TestRegistration(GlobalMockAPITestCase):
             "email": external_id,
         }
         token = self.token_generator(**data).get_token()
-        auth_headers = {"HTTP_AUTHORIZATION": "bearer {}".format(token)}
+        auth_headers = {"HTTP_AUTHORIZATION": f"bearer {token}"}
         consent = json.dumps({"consent": {"email": "test@email.bink", "timestamp": arrow.utcnow().int_timestamp}})
         resp = self.client.post("/ubiquity/service", data=consent, content_type="application/json", **auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertIn("consent", resp.data.keys())
 
     def test_service_registration_with_malformed_data_existing_user(self):
-        BINK_CLIENT_ID = "MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd"
-        BINK_BUNDLE_ID = "com.bink.wallet"
+        BINK_CLIENT_ID = "MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd"  # noqa: N806
+        BINK_BUNDLE_ID = "com.bink.wallet"  # noqa: N806
 
         user_response = self.client.post(
             reverse("register_user"),
@@ -89,7 +89,7 @@ class TestRegistration(GlobalMockAPITestCase):
         )
 
         token = user_response.json()["api_key"]
-        auth_headers = {"HTTP_AUTHORIZATION": "token {}".format(token)}
+        auth_headers = {"HTTP_AUTHORIZATION": f"token {token}"}
         consent = json.dumps({"consent": {"email": user_response.json()["email"], "timestamp": "abc"}})
 
         resp = self.client.post("/ubiquity/service", data=consent, content_type="application/json", **auth_headers)
@@ -107,7 +107,7 @@ class TestRegistration(GlobalMockAPITestCase):
             "bundle_id": self.bundle.bundle_id,
         }
         token = self.token_generator(**data).get_token()
-        auth_headers = {"HTTP_AUTHORIZATION": "bearer {}".format(token)}
+        auth_headers = {"HTTP_AUTHORIZATION": f"bearer {token}"}
         consent = json.dumps({"consent": {"timestamp": "not a timestamp", "email": "wrongconsent@bink.test"}})
 
         wrong_consent_resp = self.client.post(
@@ -123,7 +123,7 @@ class TestRegistration(GlobalMockAPITestCase):
             "bundle_id": "wrong bundle id",
         }
         token = self.token_generator(**data).get_token()
-        auth_headers = {"HTTP_AUTHORIZATION": "bearer {}".format(token)}
+        auth_headers = {"HTTP_AUTHORIZATION": f"bearer {token}"}
         consent = json.dumps({"consent": {"timestamp": arrow.utcnow().int_timestamp}})
 
         wrong_header_resp = self.client.post(

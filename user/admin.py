@@ -286,8 +286,6 @@ class ClientApplicationBundleAdmin(CacheResetAdmin):
         if not shared_scheme:
             bulk_deleted_membership_card_cleanup.delay(bundle.bundle_id, bundle.id, scheme.id)
 
-        return
-
     def save_formset(self, request, form, formset, change):
         super().save_formset(request, form, formset, change)
         cleaned = formset.cleaned_data

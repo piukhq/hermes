@@ -109,11 +109,11 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         no_pll_users = PllUserAssociation.objects.filter(
             pll__scheme_account=self.scheme_account, user=self.user
         ).count()
-        self.assertEquals(0, no_pll_users)
+        self.assertEqual(0, no_pll_users)
         no_pay_cards_in_wallet = PaymentCardAccountEntry.objects.filter(
             payment_card_account=self.payment_card_account, user=self.user
         ).count()
-        self.assertEquals(0, no_pay_cards_in_wallet)
+        self.assertEqual(0, no_pay_cards_in_wallet)
         self.payment_card_account.refresh_from_db()
         self.assertTrue(self.payment_card_account.is_deleted)
         self.assertTrue(mock_metis_request.called)
@@ -160,7 +160,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
             self.x_azure_ref_headers,
         )
         pll_users = PllUserAssociation.objects.filter(pll__scheme_account=self.scheme_account, user=self.user)
-        self.assertEquals(1, len(pll_users))
+        self.assertEqual(1, len(pll_users))
 
         self.assertEqual(WalletPLLStatus.PENDING, pll_users[0].state)
         self.assertEqual(WalletPLLSlug.PAYMENT_ACCOUNT_PENDING.value, pll_users[0].slug)
@@ -169,7 +169,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         no_pay_cards_in_wallet = PaymentCardAccountEntry.objects.filter(
             payment_card_account=self.payment_card_account, user=self.user
         ).count()
-        self.assertEquals(0, no_pay_cards_in_wallet)
+        self.assertEqual(0, no_pay_cards_in_wallet)
         self.payment_card_account.refresh_from_db()
         self.assertTrue(self.payment_card_account.is_deleted)
         self.assertTrue(mock_metis_request.called)
@@ -216,7 +216,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
             self.x_azure_ref_headers,
         )
         pll_users = PllUserAssociation.objects.filter(pll__scheme_account=self.scheme_account, user=self.user)
-        self.assertEquals(1, len(pll_users))
+        self.assertEqual(1, len(pll_users))
         self.assertEqual(self.payment_card_account.id, pll_users[0].pll.payment_card_account.id)
         self.assertEqual(WalletPLLStatus.ACTIVE, pll_users[0].state)
         self.assertEqual("", pll_users[0].slug)
@@ -226,11 +226,11 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         pay_cards_in_wallet = PaymentCardAccountEntry.objects.filter(
             payment_card_account=self.payment_card_account, user=self.user
         )
-        self.assertEquals(1, len(pay_cards_in_wallet))
+        self.assertEqual(1, len(pay_cards_in_wallet))
         self.assertFalse(pay_cards_in_wallet[0].payment_card_account.is_deleted)
         self.assertFalse(self.payment_card_account.is_deleted)
 
-        self.assertEquals(self.payment_card_account.id, pay_cards_in_wallet[0].payment_card_account.id)
+        self.assertEqual(self.payment_card_account.id, pay_cards_in_wallet[0].payment_card_account.id)
         self.assertTrue(mock_metis_request.called)
         self.assertEqual(RequestMethod.DELETE, mock_metis_request.call_args.args[0])
         self.assertEqual("/payment_service/payment_card", mock_metis_request.call_args.args[1])
@@ -446,10 +446,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
             "user_info": {"bink_user_id": self.user.id},
         }
         response = self.client.post(
-            "/schemes/accounts/{}/status/".format(self.scheme_account.id),
-            data,
-            format="json",
-            **self.auth_service_headers
+            f"/schemes/accounts/{self.scheme_account.id}/status/", data, format="json", **self.auth_service_headers
         )
         self.assertTrue(mock_get_midas_response.called)
         self.assertEqual(response.status_code, 200)
@@ -505,10 +502,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
             "user_info": {"bink_user_id": self.user.id},
         }
         response = self.client.post(
-            "/schemes/accounts/{}/status/".format(self.scheme_account.id),
-            data,
-            format="json",
-            **self.auth_service_headers
+            f"/schemes/accounts/{self.scheme_account.id}/status/", data, format="json", **self.auth_service_headers
         )
         self.assertTrue(mock_get_midas_response.called)
         self.assertEqual(response.status_code, 200)
@@ -572,10 +566,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
             "user_info": {"bink_user_id": self.user.id},
         }
         response = self.client.post(
-            "/schemes/accounts/{}/status/".format(self.scheme_account.id),
-            data,
-            format="json",
-            **self.auth_service_headers
+            f"/schemes/accounts/{self.scheme_account.id}/status/", data, format="json", **self.auth_service_headers
         )
         self.assertTrue(mock_vop_check.called)
         self.assertFalse(mock_get_midas_response.called)
@@ -644,10 +635,7 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
             "user_info": {"bink_user_id": self.user.id},
         }
         response = self.client.post(
-            "/schemes/accounts/{}/status/".format(self.scheme_account.id),
-            data,
-            format="json",
-            **self.auth_service_headers
+            f"/schemes/accounts/{self.scheme_account.id}/status/", data, format="json", **self.auth_service_headers
         )
         self.assertFalse(mock_vop_check.called)
         self.assertFalse(mock_get_midas_response.called)

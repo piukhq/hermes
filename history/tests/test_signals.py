@@ -44,7 +44,7 @@ class TestSignals(APITestCase):
             signals.signal_record_history(
                 PaymentCardAccount,
                 instance=self.payment_card_account,
-                **{"update_fields": ["expiry_year"], "body": {"expiry_year": 2022}}
+                **{"update_fields": ["expiry_year"], "body": {"expiry_year": 2022}},
             )
 
             self.assertTrue(mock_task.called)

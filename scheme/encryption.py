@@ -9,7 +9,7 @@ from ubiquity.channel_vault import get_aes_key
 # TODO : this should become its own library
 
 
-class AESCipher(object):
+class AESCipher:
     def __init__(self, aes_type):
         self.bs = 32
         _key = get_aes_key(aes_type).encode()

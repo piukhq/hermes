@@ -2,7 +2,7 @@ import base64
 import json
 from unittest import mock
 
-import httpretty as httpretty
+import httpretty
 import jwt
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
@@ -422,7 +422,7 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         try:
             user = CustomUser.objects.get(email=email, client=client)
         except CustomUser.DoesNotExist:
-            raise AssertionError("failed magic link user creation.")
+            raise AssertionError("failed magic link user creation.") from None
 
         self.assertTrue(user.magic_link_verified)
 
@@ -517,7 +517,7 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         try:
             user = CustomUser.objects.get(email=email, client=client)
         except CustomUser.DoesNotExist:
-            raise AssertionError("failed magic link user creation.")
+            raise AssertionError("failed magic link user creation.") from None
 
     @mock.patch("user.views.cache")
     @mock.patch("user.views.get_jwt_secret")
@@ -562,7 +562,7 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         try:
             user = CustomUser.objects.get(email=email, client=client)
         except CustomUser.DoesNotExist:
-            raise AssertionError("failed magic link user creation.")
+            raise AssertionError("failed magic link user creation.") from None
 
     @mock.patch("user.views.cache")
     @mock.patch("user.views.get_jwt_secret")
@@ -607,7 +607,7 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         try:
             user = CustomUser.objects.get(email=email, client=client)
         except CustomUser.DoesNotExist:
-            raise AssertionError("failed magic link user creation.")
+            raise AssertionError("failed magic link user creation.") from None
 
 
 class TestUserProfileViews(GlobalMockAPITestCase):
@@ -644,7 +644,7 @@ class TestUserProfileViews(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 201)
 
         api_key = response.data["api_key"]
-        auth_headers = {"HTTP_AUTHORIZATION": "Token {0}".format(api_key)}
+        auth_headers = {"HTTP_AUTHORIZATION": f"Token {api_key}"}
         data = {
             "email": "user_profile2@example.com",
             "first_name": "Andrew",
@@ -1138,7 +1138,7 @@ class TestLogout(GlobalMockAPITestCase):
         first_salt = user.salt
         self.assertEqual(len(first_salt), 8)
         self.assertNotIn(first_salt, [None, ""])
-        response = self.client.post(reverse("logout"), HTTP_AUTHORIZATION="token {}".format(token))
+        response = self.client.post(reverse("logout"), HTTP_AUTHORIZATION=f"token {token}")
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["logged_out"])
         user = CustomUser.objects.get(id=user.id)
@@ -1148,16 +1148,16 @@ class TestLogout(GlobalMockAPITestCase):
         user = UserFactory()
         token = user.create_token()
 
-        response = self.client.get(reverse("user_detail"), HTTP_AUTHORIZATION="token {}".format(token))
+        response = self.client.get(reverse("user_detail"), HTTP_AUTHORIZATION=f"token {token}")
         self.assertEqual(200, response.status_code)
 
-        self.client.post(reverse("logout"), HTTP_AUTHORIZATION="token {}".format(token))
-        response = self.client.get(reverse("user_detail"), HTTP_AUTHORIZATION="token {}".format(token))
+        self.client.post(reverse("logout"), HTTP_AUTHORIZATION=f"token {token}")
+        response = self.client.get(reverse("user_detail"), HTTP_AUTHORIZATION=f"token {token}")
         self.assertEqual(401, response.status_code)
 
         user = CustomUser.objects.get(id=user.id)
         token = user.create_token()
-        response = self.client.get(reverse("user_detail"), HTTP_AUTHORIZATION="token {}".format(token))
+        response = self.client.get(reverse("user_detail"), HTTP_AUTHORIZATION=f"token {token}")
         self.assertEqual(200, response.status_code)
 
 
@@ -1388,8 +1388,8 @@ class TestAppKitIdentification(GlobalMockAPITestCase):
             "kit_name": "core",
         }
         response = self.client.post(reverse("app_kit"), data=data)
-        self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.data, {})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, {})
 
     def test_app_kit_known_case_insensitive(self):
         data = {
@@ -1397,8 +1397,8 @@ class TestAppKitIdentification(GlobalMockAPITestCase):
             "kit_name": "Core",
         }
         response = self.client.post(reverse("app_kit"), data=data)
-        self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.data, {})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, {})
 
     def test_app_kit_invalid(self):
         data = {
@@ -1407,8 +1407,8 @@ class TestAppKitIdentification(GlobalMockAPITestCase):
         }
         response = self.client.post(reverse("app_kit"), data=data)
         self.assertTrue(ClientApplicationKit.objects.filter(**data).exists())
-        self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.data, {})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, {})
 
     def test_app_kit_invalid_client_id(self):
         data = {
@@ -1417,15 +1417,15 @@ class TestAppKitIdentification(GlobalMockAPITestCase):
         }
         response = self.client.post(reverse("app_kit"), data=data)
         self.assertFalse(ClientApplicationKit.objects.filter(**data).exists())
-        self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.data, {})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, {})
 
 
 class TestVerifyToken(GlobalMockAPITestCase):
     def test_valid_token(self):
         user = UserFactory()
         token = user.create_token()
-        headers = {"HTTP_AUTHORIZATION": "Token {}".format(token)}
+        headers = {"HTTP_AUTHORIZATION": f"Token {token}"}
 
         response = self.client.get(reverse("verify_token"), **headers)
         self.assertEqual(response.status_code, 200)
@@ -1437,7 +1437,7 @@ class TestVerifyToken(GlobalMockAPITestCase):
             "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjMwLCJpYXQiOjE0OTE1NTU0ODl9."
             "xXa36rs6keNVo9YVbFGgWe3EiXnNvS7yJ65fXgYnSLg"
         )
-        headers = {"HTTP_AUTHORIZATION": "Token {}".format(token)}
+        headers = {"HTTP_AUTHORIZATION": f"Token {token}"}
 
         response = self.client.get(reverse("verify_token"), **headers)
         self.assertEqual(response.status_code, 401)
@@ -1451,7 +1451,7 @@ class TestApplyPromoCode(GlobalMockAPITestCase):
 
         cls.marketing_code = MarketingCodeFactory()
 
-        cls.auth_headers = {"HTTP_AUTHORIZATION": "Token {}".format(cls.user1.create_token())}
+        cls.auth_headers = {"HTTP_AUTHORIZATION": f"Token {cls.user1.create_token()}"}
 
     def test_valid_marketing_code(self):
         """
@@ -1518,7 +1518,7 @@ class TestTermsAndConditions(GlobalMockAPITestCase):
     def setUpTestData(cls):
         cls.user1 = UserFactory()
 
-        cls.auth_headers = {"HTTP_AUTHORIZATION": "Token {}".format(cls.user1.create_token())}
+        cls.auth_headers = {"HTTP_AUTHORIZATION": f"Token {cls.user1.create_token()}"}
 
     def test_terms_and_conditions(self):
         client = Client()

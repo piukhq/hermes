@@ -51,7 +51,7 @@ class JwtAuthentication(BaseAuthentication):
             token = auth[1].decode()
         except UnicodeError:
             msg = _("Invalid token header. Token string should not contain invalid characters.")
-            raise exceptions.AuthenticationFailed(msg)
+            raise exceptions.AuthenticationFailed(msg) from None
         return token
 
     def authenticate(self, request):
@@ -68,7 +68,7 @@ class JwtAuthentication(BaseAuthentication):
         bundle_id = credentials.get("bundle_id", "")
         if not bundle_id:
             bundle_id = "com.bink.wallet"
-        setattr(request, "channels_permit", Permit(bundle_id, user.client, user=user))
+        request.channels_permit = Permit(bundle_id, user.client, user=user)
         return user, None
 
     def authenticate_credentials(self, key):
@@ -86,20 +86,20 @@ class JwtAuthentication(BaseAuthentication):
                 algorithms=["HS512", "HS256"],
             )
         except jwt.DecodeError:
-            raise exceptions.AuthenticationFailed(_("Invalid token."))
+            raise exceptions.AuthenticationFailed(_("Invalid token.")) from None
 
         try:
             user = self.model.objects.get(id=token_contents["sub"])
 
         except self.model.DoesNotExist:
-            raise exceptions.AuthenticationFailed(_("User does not exist."))
+            raise exceptions.AuthenticationFailed(_("User does not exist.")) from None
 
         try:
             jwt.decode(
                 key, user.client.secret + user.salt, algorithms=["HS512", "HS256"], leeway=settings.CLOCK_SKEW_LEEWAY
             )
         except jwt.DecodeError:
-            raise exceptions.AuthenticationFailed(_("Invalid token."))
+            raise exceptions.AuthenticationFailed(_("Invalid token.")) from None
         return user, token_contents
 
     def authenticate_header(self, request):
@@ -124,7 +124,7 @@ class ServiceAuthentication(JwtAuthentication):
         return ServiceUser(), None
 
     def authenticate(self, request):
-        setattr(request, "channels_permit", Permit(service_allow_all=True))
+        request.channels_permit = Permit(service_allow_all=True)
         return self.authenticate_credentials(self.get_token(request))
 
 

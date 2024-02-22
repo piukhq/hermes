@@ -279,8 +279,8 @@ def send_merchant_metrics_for_link_delete(
 
 @shared_task
 def deleted_payment_card_cleanup(
-    payment_card_id: t.Optional[int],
-    payment_card_hash: t.Optional[str],
+    payment_card_id: int | None,
+    payment_card_hash: str | None,
     user_id: int,
     channel_slug: str,
     history_kwargs: dict | None = None,
@@ -424,7 +424,7 @@ def _send_data_to_atlas(consent: dict, x_azure_ref: str | None = None) -> None:
     url = f"{settings.ATLAS_URL}/audit/ubiquity_user/save"
     headers = {
         "Content-Type": "application/json",
-        "Authorization": "Token {}".format(settings.SERVICE_API_KEY),
+        "Authorization": f"Token {settings.SERVICE_API_KEY}",
         "X-azure-ref": x_azure_ref,
     }
     data = {
@@ -558,7 +558,7 @@ def deleted_service_cleanup(
 
 
 def _update_one_card_with_many_new_pll_links(
-    card_to_update: t.Union[PaymentCardAccount, SchemeAccount], new_links_ids: list
+    card_to_update: PaymentCardAccount | SchemeAccount, new_links_ids: list
 ) -> None:
     card_to_update.refresh_from_db(fields=["pll_links"])
     existing_links = [link["id"] for link in card_to_update.pll_links]
@@ -705,7 +705,7 @@ def _get_instances_to_bulk_create(
 @shared_task
 def auto_link_payment_to_memberships(
     # wallet_scheme_account_entries: list,
-    payment_card_account: t.Union[PaymentCardAccount, int],
+    payment_card_account: PaymentCardAccount | int,
     user_id: int,
     just_created: bool,
     history_kwargs: dict | None = None,

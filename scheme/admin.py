@@ -199,7 +199,7 @@ class SchemeAdmin(CacheResetAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         if obj:  # editing an existing object
-            return self.readonly_fields + ("slug",)
+            return (*self.readonly_fields, "slug")
         return self.readonly_fields
 
 
@@ -365,7 +365,7 @@ class SchemeAccountAdmin(HistoryAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
-            return self.readonly_fields + ("scheme", "link_date")
+            return (*self.readonly_fields, "scheme", "link_date")
         return self.readonly_fields
 
     def credential_email(self, obj):
@@ -499,7 +499,7 @@ class SchemeUserAssociationAdmin(HistoryAdmin):
         list_display = super().get_list_display(request)
         if request.GET.get("scheme_account_card_number", None) is not None:
             self.list_per_page = 15
-            list_display = list_display + ("scheme_account_card_number",)
+            list_display = (*list_display, "scheme_account_card_number")
         else:
             self.list_per_page = 100
         return list_display
@@ -639,7 +639,7 @@ class ConsentAdmin(admin.ModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         if obj:  # editing an existing object
-            return self.readonly_fields + ("slug", "check_box")
+            return (*self.readonly_fields, "slug", "check_box")
         return self.readonly_fields
 
 

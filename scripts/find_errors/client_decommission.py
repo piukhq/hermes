@@ -25,7 +25,7 @@ class FindUsersByClientBase(BaseScript):
         users_ids: list[int] = CustomUser.objects.values_list("id", flat=True).filter(**filters)
         for user_id in users_ids:
             self.set_correction(Correction.DELETE_CLIENT_USERS)
-            self.make_correction(unique_id_string=f"{str(user_id)}.{self.client_name}", data={"user_id": user_id})
+            self.make_correction(unique_id_string=f"{user_id!s}.{self.client_name}", data={"user_id": user_id})
             self.result.append(f"user_id: {user_id} " f"script:{self.correction_title}")
 
 

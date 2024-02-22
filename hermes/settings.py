@@ -754,20 +754,20 @@ INTERNAL_SERVICE_BUNDLE = config("INTERNAL_SERVICE_BUNDLE", default="com.bink.da
 JWT_EXPIRY_TIME = config("JWT_EXPIRY_TIME", default=600, cast=int)
 
 
-VAULT_CONFIG = dict(
+VAULT_CONFIG = {
     # Hashicorp vault settings for secrets retrieval
-    VAULT_URL=config("VAULT_URL", default=""),
+    "VAULT_URL": config("VAULT_URL", default=""),
     # SET Signing secrets for JWT authentication
     # For deployment set LOCAL_SECRETS to False and set up Vault envs
     # For local use without Vault, set LOCAL_SECRETS to True
     # and set LOCAL_SECRETS_PATH to your json file. See example_local_secrets.json for format
     # (Do not commit your local_secrets json which might contain real secrets or edit example_local_secrets.json)
-    LOCAL_SECRETS=config("LOCAL_SECRETS", default=False, cast=bool),
-    LOCAL_SECRETS_PATH=config("LOCAL_SECRETS_PATH", default="example_local_secrets.json"),
-    BUNDLE_SECRETS_NAME=config("BUNDLE_SECRETS_NAME", default="channels"),
-    SECRET_KEYS_NAME=config("SECRET_KEYS_NAME", default="secret-keys"),
-    AES_KEYS_NAME=config("AES_KEYS_NAME", default="aes-keys"),
-)
+    "LOCAL_SECRETS": config("LOCAL_SECRETS", default=False, cast=bool),
+    "LOCAL_SECRETS_PATH": config("LOCAL_SECRETS_PATH", default="example_local_secrets.json"),
+    "BUNDLE_SECRETS_NAME": config("BUNDLE_SECRETS_NAME", default="channels"),
+    "SECRET_KEYS_NAME": config("SECRET_KEYS_NAME", default="secret-keys"),
+    "AES_KEYS_NAME": config("AES_KEYS_NAME", default="aes-keys"),
+}
 
 CSRF_COOKIE_HTTPONLY = config("SECURE_COOKIES", default=False, cast=bool)
 CSRF_COOKIE_SECURE = config("SECURE_COOKIES", default=False, cast=bool)

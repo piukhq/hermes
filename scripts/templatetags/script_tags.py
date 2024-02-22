@@ -1,7 +1,7 @@
 from django import template
 
-from ..admin import SCRIPT_CLASSES, SCRIPT_TITLES
-from ..scripts import DataScripts
+from scripts.admin import SCRIPT_CLASSES, SCRIPT_TITLES
+from scripts.scripts import DataScripts
 
 register = template.Library()
 
@@ -14,7 +14,7 @@ def script_list(parser, token):
 class ListScript(template.Node):
     def render(self, context):
         lines = []
-        for data_script in SCRIPT_CLASSES.keys():
+        for data_script in SCRIPT_CLASSES:
             lines.append(
                 f'<a href="scriptresult/run_script/{data_script.value}">find records for:'
                 f" {SCRIPT_TITLES[data_script]}</a>"
@@ -28,7 +28,7 @@ def script_id(parser, token):
         # split_contents() knows not to split quoted strings.
         tag_name, var = token.split_contents()
     except ValueError:
-        raise (template.TemplateSyntaxError, f"{token.contents.split()[0]} tag requires a single argument")
+        raise (template.TemplateSyntaxError, f"{token.contents.split()[0]} tag requires a single argument") from None
     return IdOfScript(var)
 
 
@@ -46,7 +46,7 @@ def script_title(parser, token):
         # split_contents() knows not to split quoted strings.
         tag_name, var = token.split_contents()
     except ValueError:
-        raise (template.TemplateSyntaxError, f"{token.contents.split()[0]} tag requires a single argument")
+        raise (template.TemplateSyntaxError, f"{token.contents.split()[0]} tag requires a single argument") from None
     return TitleOfScript(var)
 
 

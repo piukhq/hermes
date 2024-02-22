@@ -65,7 +65,7 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
     # iOS bug fix: return five characters for the four digit pan_end.
     @staticmethod
     def get_pan_end(payment_card_account):
-        return "•{}".format(payment_card_account.pan_end)
+        return f"•{payment_card_account.pan_end}"
 
     class Meta:
         model = models.PaymentCardAccount
@@ -165,7 +165,7 @@ class PaymentCardClientSerializer(serializers.ModelSerializer):
         fields = ("client_id", "secret", "organisation")
 
 
-def add_object_type_to_image_response(data, type):
+def add_object_type_to_image_response(data, type):  # noqa: A002
     new_data = copy(data)
     new_data["object_type"] = type
     return new_data

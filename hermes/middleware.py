@@ -1,4 +1,5 @@
 import logging
+from contextlib import suppress
 from time import perf_counter, process_time
 from typing import TYPE_CHECKING
 
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
     from rest_framework.response import Response
 
 
-class MiddlewareMixin(object):
+class MiddlewareMixin:
     def __init__(self, get_response=None):
         self.get_response = get_response
         super().__init__()
@@ -38,10 +39,8 @@ class AcceptVersion(MiddlewareMixin):
 
         response = self.get_response(request)
 
-        try:
+        with suppress(AttributeError):
             response["X-API-Version"] = response.renderer_context["request"].api_version
-        except AttributeError:
-            pass
 
         return response
 
@@ -70,8 +69,8 @@ class QueryDebug(MiddlewareMixin):
         response = self.get_response(request)
         if settings.DEBUG and response.status_code and int(response.status_code / 100) == 2:
             total_timer = 0
-            counter = 0
-            for query in connection.queries:
+
+            for counter, query in enumerate(connection.queries, start=1):
                 query_time = query.get("time")
                 if query_time is None:
                     # django-debug-toolbar monkeypatches the connection
@@ -83,7 +82,7 @@ class QueryDebug(MiddlewareMixin):
                 else:
                     query_time = float(query_time) * 1000
                 total_timer += float(query_time)
-                counter += 1
+
                 sql = query.get("sql", "")
                 response[f"X-SQL-{counter}"] = f"| {query_time}  | {sql} |"
             response["X-Total-Query-Timer"] = "".join([str(total_timer), " ms"])

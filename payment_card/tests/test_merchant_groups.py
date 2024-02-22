@@ -21,7 +21,7 @@ class TestVopMerchantGroups(TestCase):
                 msg, requested_group_id=requested_group_id, expected_returned_group=expected_returned_group
             ):
                 merchant_group = VopMerchantGroup.cached_group_lookup(requested_group_id)
-                self.assertEquals(merchant_group, expected_returned_group)
+                self.assertEqual(merchant_group, expected_returned_group)
 
     def test_cached_group_lookup_not_found(self) -> None:
         self.assertRaises(VopMerchantGroup.DoesNotExist, VopMerchantGroup.cached_group_lookup, -1)

@@ -1,4 +1,4 @@
-from typing import Iterable
+from collections.abc import Iterable
 
 from django.conf import settings
 
@@ -7,12 +7,7 @@ from ubiquity.models import VopActivation
 
 
 def needs_decryption(values: Iterable) -> bool:
-    return all(
-        map(
-            lambda x: isinstance(x, str) and len(x) > settings.ENCRYPTED_VALUES_LENGTH_CONTROL,
-            values,
-        )
-    )
+    return all(isinstance(x, str) and len(x) > settings.ENCRYPTED_VALUES_LENGTH_CONTROL for x in values)
 
 
 def vop_deactivation_dict_by_payment_card_id(payment_card_account_id, status=VopActivation.ACTIVATED):

@@ -215,7 +215,7 @@ class PaymentCardCreationMixin:
     @staticmethod
     def payment_card_already_exists(
         data: dict, user: CustomUser
-    ) -> t.Tuple[t.Optional[PaymentCardAccount], PaymentCardRoutes, int]:
+    ) -> tuple[PaymentCardAccount | None, PaymentCardRoutes, int]:
         status_code = status.HTTP_201_CREATED
         card = (
             PaymentCardAccount.all_objects.filter(fingerprint=data["fingerprint"])
@@ -255,8 +255,8 @@ class PaymentCardCreationMixin:
 
     @staticmethod
     def _collect_creation_data(
-        request_data: dict, allowed_issuers: t.List[int], version: "Version", bundle_id: str | None = None
-    ) -> t.Tuple[dict, dict]:
+        request_data: dict, allowed_issuers: list[int], version: "Version", bundle_id: str | None = None
+    ) -> tuple[dict, dict]:
         try:
             pcard_data = VersionedSerializerMixin.get_serializer_by_version(
                 SelectSerializer.PAYMENT_CARD_TRANSLATION,
@@ -270,7 +270,7 @@ class PaymentCardCreationMixin:
 
             consent = request_data["account"]["consents"]
         except (KeyError, ValueError) as e:
-            logger.debug(f"error creating payment card: {repr(e)}")
+            logger.debug(f"error creating payment card: {e!r}")
             raise ParseError from e
 
         return pcard_data, consent
@@ -297,7 +297,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         try:
             service_consent = request.user.serviceconsent
         except ServiceConsent.DoesNotExist:
-            raise NotFound
+            raise NotFound from None
 
         async_all_balance.delay(request.user.id, self.request.channels_permit)
         return Response(self.get_serializer_by_request(service_consent).data)
@@ -310,7 +310,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
             serializer.is_valid(raise_exception=True)
         except ValidationError:
             # Generic response required for Barclays
-            raise ParseError
+            raise ParseError from None
 
         service_consent, service_consent_created = serializer.save()
         logger.info(f"Service consent retrieved (id={service_consent.pk}) - created: {service_consent_created}")
@@ -328,7 +328,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         try:
             response = self.get_serializer_by_request(request.user.serviceconsent).data
         except ServiceConsent.DoesNotExist:
-            raise NotFound
+            raise NotFound from None
 
         request.user.soft_delete()
         user_id = request.user.id
@@ -416,8 +416,8 @@ class PaymentCardView(
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
         query = {"user_id": request.user.id}
-        pcard_hash: t.Optional[str] = None
-        pcard_pk: t.Optional[int] = None
+        pcard_hash: str | None = None
+        pcard_pk: int | None = None
 
         if self.kwargs.get("hash"):
             pcard_hash = BLAKE2sHash().new(obj=self.kwargs["hash"], key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET))
@@ -561,7 +561,7 @@ class MembershipCardView(
                 f"Requested fields to update: {request_fields}."
             )
         except (KeyError, ValueError, TypeError) as e:
-            logger.info(f"Failed to log membership card patch request. Error: {repr(e)}")
+            logger.info(f"Failed to log membership card patch request. Error: {e!r}")
 
     @censor_and_decorate
     def update(self, request, *args, **kwargs):
@@ -915,7 +915,7 @@ class MembershipCardView(
         auth_fields: dict,
         payment_cards_to_link: list,
         user_id: int,
-    ) -> t.Tuple[MembershipCardAddRoute, SchemeAccount]:
+    ) -> tuple[MembershipCardAddRoute, SchemeAccount]:
         if auth_fields:
             auth_fields = detect_and_handle_escaped_unicode(auth_fields)
 
@@ -1007,7 +1007,7 @@ class MembershipCardView(
 
         except (TypeError, KeyError, ValueError) as e:
             logger.debug(f"Error collecting field content - {type(e)} {e.args[0]}")
-            raise ParseError
+            raise ParseError from None
 
         return field_content
 
@@ -1017,7 +1017,9 @@ class MembershipCardView(
             rsa_key_pem = get_bundle_key(bundle_id=bundle_id, key_type=KeyType.PRIVATE_KEY)
             try:
                 with sentry_sdk.start_span(op="decryption", description="membership card"):
-                    decrypted_values = zip(fields.keys(), rsa_decrypt_base64(rsa_key_pem, list(fields.values())))
+                    decrypted_values = zip(
+                        fields.keys(), rsa_decrypt_base64(rsa_key_pem, list(fields.values())), strict=False
+                    )
             except ValueError as e:
                 raise ValueError("Failed to decrypt sensitive fields") from e
 
@@ -1037,9 +1039,7 @@ class MembershipCardView(
         else:
             field_content[credential_type] = item["value"]
 
-    def _collect_updated_answers(
-        self, scheme: Scheme, scheme_questions: list
-    ) -> t.Tuple[t.Optional[dict], t.Optional[dict]]:
+    def _collect_updated_answers(self, scheme: Scheme, scheme_questions: list) -> tuple[dict | None, dict | None]:
         data = self.request.data
         label_to_type = scheme.get_question_type_dict(scheme_questions)
         out_fields = {}
@@ -1055,7 +1055,7 @@ class MembershipCardView(
 
         return {**out_fields["add_fields"], **out_fields["authorise_fields"]}, None
 
-    def _collect_fields_and_determine_route(self) -> t.Tuple[Scheme, dict, dict, dict]:
+    def _collect_fields_and_determine_route(self) -> tuple[Scheme, dict, dict, dict]:
         try:
             if not self.request.channels_permit.is_scheme_available(int(self.request.data["membership_plan"])):
                 raise ParseError("membership plan not allowed for this user.")
@@ -1066,16 +1066,16 @@ class MembershipCardView(
                 raise ParseError("membership plan not allowed for this user.")
 
         except KeyError:
-            raise ParseError("required field membership_plan is missing")
+            raise ParseError("required field membership_plan is missing") from None
         except (ValueError, Scheme.DoesNotExist):
-            raise ParseError
+            raise ParseError from None
 
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(self.request.data, scheme=scheme)
         return scheme, auth_fields, enrol_fields, add_fields
 
     def _handle_create_link_route(
         self, user: CustomUser, scheme: Scheme, auth_fields: dict, add_fields: dict, payment_cards_to_link: list
-    ) -> t.Tuple[SchemeAccount, SchemeAccountEntry, int, MembershipCardAddRoute]:
+    ) -> tuple[SchemeAccount, SchemeAccountEntry, int, MembershipCardAddRoute]:
         HISTORY_CONTEXT.journey = journey = SchemeAccountJourney.ADD.value
 
         serializer = self.get_serializer(data={"scheme": scheme.id, "order": 0, **add_fields})
@@ -1154,7 +1154,7 @@ class MembershipCardView(
     @staticmethod
     def _handle_create_join_route(
         user: CustomUser, channels_permit: Permit, scheme: Scheme, enrol_fields: dict, payment_cards_to_link: list
-    ) -> t.Tuple[SchemeAccount, SchemeAccountEntry, int]:
+    ) -> tuple[SchemeAccount, SchemeAccountEntry, int]:
         history_journey = SchemeAccountJourney.ENROL.value
         HISTORY_CONTEXT.journey = history_journey
 
@@ -1283,9 +1283,7 @@ class MembershipCardView(
             if field["column"] not in valid_columns:
                 raise ValidationError("Column does not match field type.")
 
-    def _collect_credentials_answers(
-        self, data: dict, scheme: Scheme
-    ) -> t.Tuple[t.Optional[dict], t.Optional[dict], t.Optional[dict]]:
+    def _collect_credentials_answers(self, data: dict, scheme: Scheme) -> tuple[dict | None, dict | None, dict | None]:
         try:
             scheme_questions = scheme.questions.all()
             question_types = scheme_questions.values(
@@ -1303,7 +1301,7 @@ class MembershipCardView(
 
         except (KeyError, ValueError) as e:
             logger.exception(e)
-            raise ParseError()
+            raise ParseError() from None
 
         if fields["enrol_fields"]:
             return None, None, fields["enrol_fields"]
@@ -1314,7 +1312,7 @@ class MembershipCardView(
             try:
                 fields["add_fields"].update({manual_question: fields["authorise_fields"].pop(manual_question)})
             except KeyError:
-                raise ParseError()
+                raise ParseError() from None
 
         elif not fields["add_fields"]:
             raise ParseError("missing fields")
@@ -1378,7 +1376,7 @@ class MembershipCardView(
         return data_keys.intersection(consent_labels)
 
     @staticmethod
-    def allowed_answers(scheme: Scheme) -> t.List[str]:
+    def allowed_answers(scheme: Scheme) -> list[str]:
         allowed_types = []
         if scheme.manual_question:
             allowed_types.append(scheme.manual_question.type)
@@ -1577,14 +1575,14 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
 
     def _destroy_link(
         self, user: CustomUser, pcard_id: int, mcard_id: int
-    ) -> t.Tuple[PaymentCardAccount, SchemeAccount, bool]:
+    ) -> tuple[PaymentCardAccount, SchemeAccount, bool]:
         error = False
         pcard, mcard = self._collect_cards(pcard_id, mcard_id, user)
 
         try:
             link = PaymentCardSchemeEntry.objects.get(scheme_account=mcard, payment_card_account=pcard)
         except PaymentCardSchemeEntry.DoesNotExist:
-            raise NotFound("The link that you are trying to delete does not exist.")
+            raise NotFound("The link that you are trying to delete does not exist.") from None
 
         # Check if link is in multiple wallets
         if link.payment_card_account.user_set.count() > 1:
@@ -1599,7 +1597,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         return pcard, mcard, error
 
     # @todo PLL stuff - this looks wrong!
-    def _update_link(self, user: CustomUser, pcard_id: int, mcard_id: int) -> t.Tuple[PaymentCardSchemeEntry, int]:
+    def _update_link(self, user: CustomUser, pcard_id: int, mcard_id: int) -> tuple[PaymentCardSchemeEntry, int]:
         pcard, mcard = self._collect_cards(pcard_id, mcard_id, user)
         status_code = status.HTTP_200_OK
 
@@ -1621,7 +1619,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
                         f"that belongs to the membership plan {mcard.scheme_id}"
                     )
                 }
-            )
+            ) from None
         except PaymentCardSchemeEntry.DoesNotExist:
             # todo: PLL stuff
             # link = PaymentCardSchemeEntry(
@@ -1640,7 +1638,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
     @staticmethod
     def _collect_cards(
         payment_card_id: int, membership_card_id: int, user: CustomUser
-    ) -> t.Tuple[PaymentCardAccount, SchemeAccount]:
+    ) -> tuple[PaymentCardAccount, SchemeAccount]:
         try:
             filters = {"is_deleted": False}
             payment_card = user.payment_card_account_set.get(pk=payment_card_id, **filters)
@@ -1649,14 +1647,14 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
             )
 
         except PaymentCardAccount.DoesNotExist:
-            raise NotFound(f"The payment card of id {payment_card_id} was not found.")
+            raise NotFound(f"The payment card of id {payment_card_id} was not found.") from None
         except SchemeAccount.DoesNotExist:
             raise NotFound(
                 f"The membership card of id {membership_card_id} was not found or it is a Store type card that "
                 f"cannot be linked."
-            )
+            ) from None
         except KeyError:
-            raise ParseError
+            raise ParseError from None
 
         return payment_card, membership_card
 
@@ -1695,7 +1693,7 @@ class ListMembershipPlanView(VersionedSerializerMixin, ModelViewSet, IdentifyCar
         try:
             base64_image = request.data["card"]["base64_image"]
         except KeyError:
-            raise ParseError
+            raise ParseError from None
 
         json = self._get_scheme(base64_image)
         if json["status"] != "success" or json["reason"] == "no match":
@@ -1730,7 +1728,7 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
-        url = "{}/transactions/user/{}".format(settings.HADES_URL, request.user.id)
+        url = f"{settings.HADES_URL}/transactions/user/{request.user.id}"
         headers = {"Authorization": self._get_auth_token(request.user.id), "Content-Type": "application/json"}
         resp = self.hades_request(url, headers=headers)
         resp_json = resp.json()

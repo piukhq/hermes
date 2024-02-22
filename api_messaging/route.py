@@ -28,7 +28,7 @@ def retry(headers: dict, message: dict, route: dict) -> None:
             else:
                 logger.info(f"Retrying function: {headers['X-http-path']}")
         except KeyError:
-            raise InvalidMessagePath
+            raise InvalidMessagePath from None
         except Exception as e:
             logger.exception(f"An Angelia Background exception occurred. Traceback: {e}")
             break

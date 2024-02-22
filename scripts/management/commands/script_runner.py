@@ -185,7 +185,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         script_name = kwargs["script_name"]
-        script_kwargs = {k: kwargs[k] for k in available_scripts[script_name]["script_kwargs"].keys()}
+        script_kwargs = {k: kwargs[k] for k in available_scripts[script_name]["script_kwargs"]}
         self.stdout.write(f"Starting '{script_name}' with parameters {script_kwargs}")
 
         if msg := available_scripts[script_name]["fn"](**script_kwargs, stdout=self.stdout):

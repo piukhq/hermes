@@ -77,8 +77,8 @@ def _handle_remaining_pcards(oldest_pcard: "PaymentCardAccountType", remaining_p
             for pll in pcard.paymentcardschemeentry_set.all():
                 pll_migrated = False
 
-                if pll.scheme_account_id not in existing_plls.keys():
-                    if (main_answer := get_main_answer(pll.scheme_account)) not in existing_main_answers.keys():
+                if pll.scheme_account_id not in existing_plls:
+                    if (main_answer := get_main_answer(pll.scheme_account)) not in existing_main_answers:
                         pll.payment_card_account_id = oldest_pcard.id
                         pll.save(update_fields=["payment_card_account_id"])
                         existing_main_answers[main_answer] = pll.scheme_account_id

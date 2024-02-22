@@ -1069,7 +1069,7 @@ class TestTasks(GlobalMockAPITestCase):
         PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user1)
         PllUserAssociation.link_users_scheme_account_to_payment(mcard1, payment_card, user2)
 
-        user1.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
+        user1.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id  # noqa: B018
         user2_channel = user2.client.clientapplicationbundle_set.only("bundle_id").first().bundle_id
 
         # TEST

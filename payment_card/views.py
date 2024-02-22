@@ -8,9 +8,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework import serializers as rest_framework_serializers
-from rest_framework import status
 from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -543,7 +542,7 @@ def csv_upload(request):
 
             image_instance.save()
 
-            return redirect("/admin/payment_card/paymentaccountimage/{}".format(image_instance.id))
+            return redirect(f"/admin/payment_card/paymentaccountimage/{image_instance.id}")
 
     context = {"form": form}
     return render(request, "admin/csv_upload_form.html", context)
