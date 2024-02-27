@@ -6,6 +6,7 @@ WORKDIR /app
 RUN pip install --no-cache ${APP_NAME}==$(echo ${APP_VERSION} | cut -c 2-)
 ADD hermes/wsgi.py .
 ADD manage.py .
+ADD entrypoint.sh .
 
 ENTRYPOINT [ "/app/entrypoint.sh" ]
 CMD [ "gunicorn", "--workers=2", "--error-logfile=-", "--access-logfile=-", \
