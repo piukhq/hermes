@@ -29,6 +29,9 @@ packages = [
     {include = "ubiquity"},
     {include = "user"},
 ]
+include = [
+    { path = "templates", format = ["sdist", "wheel"] }
+]
 
 [[tool.poetry.source]]
 name = "PyPI"
