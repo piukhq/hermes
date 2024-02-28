@@ -8,6 +8,7 @@ ADD hermes/wsgi.py .
 ADD manage.py .
 ADD entrypoint.sh .
 ADD api_messaging/run.py ./api_messaging/run.py
+ADD templates ./templates
 
 ENTRYPOINT [ "/app/entrypoint.sh" ]
 CMD [ "gunicorn", "--workers=2", "--error-logfile=-", "--access-logfile=-", \
