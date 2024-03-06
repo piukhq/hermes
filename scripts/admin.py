@@ -1,13 +1,17 @@
 from collections.abc import Iterator
 
+from celery import group
 from django.contrib import admin, messages
+from django.forms import ModelForm
 from django.template.response import TemplateResponse
 from django.urls import path
+from django.utils.safestring import mark_safe
 
-from .actions.corrections import Correction
-from .models import ScriptResult
-from .scripts import SCRIPT_CLASSES, SCRIPT_TITLES
-from .tasks.async_corrections import background_corrections
+from scripts.actions.corrections import Correction
+from scripts.enums import ShirleyStatuses
+from scripts.models import ScriptResult, ShirleyYouCantBeSerious
+from scripts.scripts import SCRIPT_CLASSES, SCRIPT_TITLES
+from scripts.tasks.async_corrections import background_corrections
 
 # See scripts.py on how to add a new script find records function
 
@@ -67,8 +71,9 @@ def apply_correction_in_background(_, request, queryset):
         messages.add_message(request, messages.WARNING, "Could not execute the script: Access Denied")
     else:
         if len(script_results_ids) > BATCH_SIZE:
-            for batch in chunks(script_results_ids):
-                background_corrections.apply_async(kwargs={"script_results_ids": batch}, ignore_result=True)
+            group(
+                background_corrections.si(script_results_ids=batch) for batch in chunks(script_results_ids)
+            ).apply_async()
 
         else:
             background_corrections.apply_async(kwargs={"script_results_ids": script_results_ids}, ignore_result=True)
@@ -122,3 +127,58 @@ def scripts_to_run(script_id):
             result["summary"], result["corrections"], result["html_report"] = script_class.run()
             break
     return result
+
+
+def shirley_this_is_a_correction(_, request, queryset):
+    if not user_can_run_script(request):
+        messages.add_message(request, messages.WARNING, "Could not execute the script: Access Denied")
+    else:
+        for entry in queryset:
+            if entry.status == ShirleyStatuses.READY:
+                Correction.do(entry)
+
+
+class ShirleyYouCantBeAForm(ModelForm):
+    class Meta:
+        model = ShirleyYouCantBeSerious
+        help_texts = {
+            "batch_size": "Number of records to process in each batch, each batch will spawn a separate celery task.",
+            "progress": mark_safe(
+                "Shows completed/total spawned celery tasks. <br />"
+                "Once the Status is 'In Progress', manual page refresh is needed to see the progress.",
+            ),
+        }
+        exclude = ()
+
+
+@admin.register(ShirleyYouCantBeSerious)
+class ShirleyYouCantBeAnAdmin(admin.ModelAdmin):
+    form = ShirleyYouCantBeAForm
+
+    list_display = ("pk", "input_file", "correction", "progress", "status", "status_description")
+    list_filter = ("correction", "status")
+    search_fields = ("input_file", "success_file", "failed_file", "status_description")
+    readonly_fields = (
+        "status",
+        "success_file",
+        "failed_file",
+        "status_description",
+        "progress",
+    )
+    actions = [shirley_this_is_a_correction]
+    fields = (
+        "correction",
+        "batch_size",
+        "input_file",
+        "progress",
+        "status",
+        "status_description",
+        "success_file",
+        "failed_file",
+    )
+
+    def progress(self, obj: ShirleyYouCantBeSerious):
+        if obj.celery_group_result:
+            return f"{obj.celery_group_result.completed_count()}/{obj.created_tasks_n}"
+
+        return "-"

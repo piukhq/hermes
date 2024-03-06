@@ -1,4 +1,4 @@
-from .paymentaccount_actions import (  # do_delete_payment_account,
+from scripts.actions.paymentaccount_actions import (  # do_delete_payment_account,
     do_orphaned_payment_card_cleanup,
     do_re_enroll,
     do_remove_payment_account,
@@ -6,15 +6,16 @@ from .paymentaccount_actions import (  # do_delete_payment_account,
     do_un_enroll,
     do_update_hash,
 )
-from .schemeaccount_actions import do_mark_as_unknown, do_refresh_balance
-from .ubiquity_actions import (
+from scripts.actions.rtbf import test_correction
+from scripts.actions.schemeaccount_actions import do_mark_as_unknown, do_refresh_balance
+from scripts.actions.ubiquity_actions import (
     do_channel_retailer_offboarding,
     do_client_decommission,
     do_delete_user_cleanup,
     do_set_account_and_links_active,
     do_update_active_link_to_false,
 )
-from .vop_actions import (
+from scripts.actions.vop_actions import (
     do_activation,
     do_deactivate,
     do_fix_enroll,
@@ -58,6 +59,7 @@ class Correction:
     DELETE_CARD_LINKS_FOR_DELETED_USERS = 4001
     DELETE_CLIENT_USERS = 5001
     CHANNELS_RETAILER_OFFBOARDING = 6001
+    RTBF = 7000
 
     CORRECTION_SCRIPTS = (
         (NO_CORRECTION, "No correction available"),
@@ -93,6 +95,11 @@ class Correction:
         (DELETE_CARD_LINKS_FOR_DELETED_USERS, "Delete card links for deleted Users"),
         (DELETE_CLIENT_USERS, "Run delete process for Bink client users"),
         (CHANNELS_RETAILER_OFFBOARDING, "Offboard membership cards for specific retailer and channels"),
+    )
+
+    SHIRLEY_CORRECTION_SCRIPTS = (
+        (NO_CORRECTION, "No correction available"),
+        (RTBF, "Right to be forgotten"),
     )
 
     COMPOUND_CORRECTION_SCRIPTS = {
@@ -138,7 +145,14 @@ class Correction:
             cls.DELETE_CLIENT_USERS: do_client_decommission,
             cls.CHANNELS_RETAILER_OFFBOARDING: do_channel_retailer_offboarding,
             cls.ORPHANED_PAYMENT_CARD_CLEANUP: do_orphaned_payment_card_cleanup,
+            cls.RTBF: test_correction,
         }
-        if entry.apply not in actions:
-            return False
-        return actions[entry.apply](entry)
+        if hasattr(entry, "apply"):
+            if entry.apply not in actions:
+                return False
+            return actions[entry.apply](entry)
+        else:
+            if entry.correction not in actions:
+                return False
+
+            return actions[entry.correction](entry)
