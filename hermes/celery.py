@@ -37,6 +37,10 @@ app.conf.task_queues = (
         queue_arguments=dead_letter_queue_option,
     ),
 )
+app.conf.update(
+    result_extended=True,
+    broker_connection_retry_on_startup=True,
+)
 
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks(
@@ -51,6 +55,7 @@ app.autodiscover_tasks(
         "scheme.migrations.0109_alter_schemeaccountcredentialanswer_unique_together_and_more",
         "ubiquity.migrations.0016_alter_schemeaccountentry_link_status",
         "ubiquity.migrations.0018_migrate_pll_data",
+        "scripts.tasks.shirley_tasks",
     ]
 )
 
