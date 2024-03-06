@@ -1,28 +1,28 @@
 from enum import IntEnum, auto
 
-from .find_errors.barclays_hash_uploads import BarclaysDeleteUpload, BarclaysHashCorrectionsUpload
-from .find_errors.cards_in_provider_server_down_unknown import (
+from scripts.find_errors.barclays_hash_uploads import BarclaysDeleteUpload, BarclaysHashCorrectionsUpload
+from scripts.find_errors.cards_in_provider_server_down_unknown import (
     FindAmexCardsInProviderServerDownUnknownStatus,
     FindMastercardCardsInProviderServerDownUnknownStatus,
     FindVOPCardsInProviderServerDownUnknownStatus,
 )
-from .find_errors.cards_stuck_in_pending import FindCardsStuckInPending
-from .find_errors.channel_retailer_offboarding import (
+from scripts.find_errors.cards_stuck_in_pending import FindCardsStuckInPending
+from scripts.find_errors.channel_retailer_offboarding import (
     FindAllChannelsIcelandMembershipCards,
     FindBarclaysBinkWasabiMembershipCards,
     FindBarclaysSquaremealMembershipCards,
     FindBarclaysViatorMembershipCards,
 )
-from .find_errors.client_decommission import FindBarclaysUsers, FindBinkNonTestUsers
-from .find_errors.deleted_users_with_links import FindDeletedUsersWithCardLinks
-from .find_errors.deleted_vop_cards_with_activations import FindDeletedVopCardsWithActivations
-from .find_errors.orphaned_payment_cards import FindOrphanedPaymentCards
-from .find_errors.pll_incorrect_state import FindIncorrectPLL
-from .find_errors.scheme_accounts_invalid_creds import FindIcelandSchemeAccountsStuckInInvalidCreds
-from .find_errors.vop_activations_stuck_in_activating import FindVOPActivationsStuckInActivating
-from .find_errors.vop_activations_stuck_in_deactivating import FindVOPActivationsStuckInDeactivating
-from .find_errors.vop_cards_in_duplicate_card_status import FindVOPCardsInDuplicateCardStatus
-from .find_errors.vop_cards_needing_activations import FindVopCardsNeedingActivation
+from scripts.find_errors.client_decommission import FindBarclaysUsers, FindBinkNonTestUsers
+from scripts.find_errors.deleted_users_with_links import FindDeletedUsersWithCardLinks
+from scripts.find_errors.deleted_vop_cards_with_activations import FindDeletedVopCardsWithActivations
+from scripts.find_errors.orphaned_payment_cards import FindOrphanedPaymentCards
+from scripts.find_errors.pll_incorrect_state import FindIncorrectPLL
+from scripts.find_errors.scheme_accounts_invalid_creds import FindIcelandSchemeAccountsStuckInInvalidCreds
+from scripts.find_errors.vop_activations_stuck_in_activating import FindVOPActivationsStuckInActivating
+from scripts.find_errors.vop_activations_stuck_in_deactivating import FindVOPActivationsStuckInDeactivating
+from scripts.find_errors.vop_cards_in_duplicate_card_status import FindVOPCardsInDuplicateCardStatus
+from scripts.find_errors.vop_cards_needing_activations import FindVopCardsNeedingActivation
 
 # New scripts which find records to correct should be imported above and mapped in script functions
 # Define name and title here.  Only Scripts names in SCRIPT_CLASSES will have a link on /admin/scripts/ page

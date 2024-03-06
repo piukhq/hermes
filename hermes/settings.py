@@ -250,7 +250,7 @@ MEDIA_URL = config("HERMES_MEDIA_URL", default="/media/")
 MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
 
 STATIC_URL = config("HERMES_STATIC_URL", default="/admin/static/")
-STATIC_ROOT = "/tmp/static/"
+STATIC_ROOT = config("HERMES_STATIC_ROOT", default="/tmp/static/")
 
 AUTH_USER_MODEL = "user.CustomUser"
 
@@ -717,10 +717,11 @@ PUBLISH_RETRY_BACKOFF_FACTOR = config("PUBLISH_RETRY_BACKOFF_FACTOR", 0.25, cast
 # Celery
 CELERY_BROKER_URL = RABBIT_DSN
 CELERY_TASK_DEFAULT_QUEUE = config("CELERY_TASK_DEFAULT_QUEUE", default="delayed-70-ubiquity-async-midas")
+CELERY_WORKER_ENABLE_REMOTE_CONTROL = False
 CELERY_TASK_SERIALIZER = "pickle"
 CELERY_ACCEPT_CONTENT = ["pickle", "json"]
 CELERY_RESULT_SERIALIZER = "pickle"
-CELERY_WORKER_ENABLE_REMOTE_CONTROL = False
+CELERY_RESULT_BACKEND = REDIS_URL
 
 SPREEDLY_BASE_URL = config("SPREEDLY_BASE_URL", default="")  # "https://core.spreedly.com/v1"
 
@@ -825,10 +826,9 @@ WAREHOUSE_QUEUE_NAME = config("WAREHOUSE_QUEUE_NAME", default="clickhouse_hermes
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 # WhiteNoise Static Files Serving
-STATIC_URL = "/admin/static/"
-STATIC_ROOT = "/tmp/static/"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 API_MESSAGING_RETRY_LIMIT = config("API_MESSAGING_RETRY_LIMIT", default=3, cast=int)
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 2000
+HERMES_LOCAL = config("HERMES_LOCAL", default=False, cast=bool)
