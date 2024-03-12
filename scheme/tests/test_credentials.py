@@ -288,3 +288,24 @@ class TestCredentials(GlobalMockAPITestCase):
                 is_optional=True,
             )
         question.clean()
+
+    def test_save_answer(self):
+        # GIVEN
+        scheme_account = SchemeAccountFactory(scheme=self.scheme)
+        entry = SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+
+        question = SchemeCredentialQuestion.objects.get(type=PASSWORD, scheme=self.scheme)
+        answer = "1111"
+
+        for is_stored in (False, True):
+            question.is_stored = is_stored
+            question.save(update_fields=["is_stored"])
+
+            # WHEN
+            SchemeAccountCredentialAnswer.save_answer(question=question, answer=answer, scheme_account_entry=entry)
+
+            # THEN
+            answer_is_stored = SchemeAccountCredentialAnswer.objects.filter(
+                question=question, scheme_account_entry=entry
+            ).exists()
+            self.assertEqual(is_stored, answer_is_stored)

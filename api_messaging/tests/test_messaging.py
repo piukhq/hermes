@@ -3,11 +3,13 @@ from unittest.mock import patch
 import arrow
 
 from api_messaging import angelia_background, route
+from api_messaging.angelia_background import save_credential_answers
 from api_messaging.exceptions import InvalidMessagePath
 from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import PaymentCardAccountFactory
-from scheme.credentials import CARD_NUMBER
+from scheme.credentials import CARD_NUMBER, LAST_NAME, POSTCODE
+from scheme.models import SchemeAccountCredentialAnswer
 from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialQuestionFactory
 from ubiquity.models import (
     PaymentCardAccountEntry,
@@ -117,6 +119,9 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         )
 
         SchemeCredentialQuestionFactory(scheme=cls.scheme_account.scheme, type=CARD_NUMBER)
+        SchemeCredentialQuestionFactory(scheme=cls.scheme_account.scheme, type=LAST_NAME)
+        SchemeCredentialQuestionFactory(scheme=cls.scheme_account.scheme, type=POSTCODE)
+
         cls.auth_fields = [
             {"credential_slug": "last_name", "value": "Jones"},
             {"credential_slug": "postcode", "value": "RGB 114"},
@@ -259,7 +264,20 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
 
         creds = angelia_background.credentials_to_key_pairs(self.creds_for_refactor)
 
-        assert creds == {"postcode": "GU552RH", "last_name": "Bond", "email": "007@mi5.com"}
+        self.assertEqual({"postcode": "GU552RH", "last_name": "Bond", "email": "007@mi5.com"}, creds)
+
+    def test_save_credential_answers(self):
+        """Tests saving credential answers received from Angelia."""
+        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_entry=self.scheme_account_entry)
+        self.assertEqual(0, answers.count())
+
+        save_credential_answers(self.scheme_account_entry, credentials=self.auth_fields)
+
+        self.assertEqual(2, answers.count())
+
+        question_types = (answer.question.type for answer in answers)
+        for expected_q_type in ("last_name", "postcode"):
+            self.assertIn(expected_q_type, question_types)
 
 
 class TestUserMessaging(GlobalMockAPITestCase):

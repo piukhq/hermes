@@ -1053,6 +1053,9 @@ class SchemeCredentialQuestion(models.Model):
     is_optional = models.BooleanField(
         default=False, help_text="Whether this field is optional for Enrol & Register credentials"
     )
+    is_stored = models.BooleanField(
+        default=True, help_text="Whether the answer is stored long-term or disposed of after the initial request"
+    )
 
     def clean(self):
         if self.is_optional and (
@@ -1134,6 +1137,15 @@ class SchemeAccountCredentialAnswer(models.Model):
         if self.question.type in ENCRYPTED_CREDENTIALS:
             return "****"
         return self.answer
+
+    @staticmethod
+    def save_answer(question: SchemeCredentialQuestion, answer: str, scheme_account_entry: SchemeAccountEntry) -> None:
+        if question.is_stored:
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                question=question,
+                defaults={"answer": answer},
+                scheme_account_entry=scheme_account_entry,
+            )
 
     def __str__(self):
         return self.clean_answer()

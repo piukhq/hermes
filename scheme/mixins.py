@@ -45,7 +45,6 @@ DATAWAREHOUSE_EVENTS = {
     AccountLinkStatus.AUTH_PENDING: auth_outcome_task,
 }
 
-
 if t.TYPE_CHECKING:
     from django.db.models import QuerySet
     from rest_framework.serializers import Serializer
@@ -91,10 +90,9 @@ class BaseLinkMixin:
             )
 
         for answer_type, answer in data.items():
-            SchemeAccountCredentialAnswer.objects.update_or_create(
-                question=scheme_account.question(answer_type),
-                defaults={"answer": answer},
-                scheme_account_entry=scheme_account_entry,
+            question = scheme_account.question(answer_type)
+            SchemeAccountCredentialAnswer.save_answer(
+                question=question, answer=answer, scheme_account_entry=scheme_account_entry
             )
 
         midas_information, dw_event = scheme_account.get_balance(scheme_account_entry, headers=headers)
@@ -410,19 +408,13 @@ class SchemeAccountJoinMixin:
         for question in scheme_account.scheme.link_questions:
             question_type = question.type
 
-            if question_type in (PASSWORD, PASSWORD_2):
-                if PASSWORD_2 in credentials_dict:
-                    answer = credentials_dict[PASSWORD_2]
-                    credentials_dict[PASSWORD] = credentials_dict.pop(PASSWORD_2)
-                else:
-                    answer = credentials_dict[PASSWORD]
-            else:
-                answer = credentials_dict[question_type]
+            if question_type == PASSWORD_2 and PASSWORD_2 in credentials_dict:
+                credentials_dict[PASSWORD] = credentials_dict.pop(PASSWORD_2)
 
-            SchemeAccountCredentialAnswer.objects.update_or_create(
-                question=scheme_account.question(question_type),
-                defaults={"answer": answer},
-                scheme_account_entry=scheme_account_entry,
+            answer = credentials_dict[question_type]
+
+            SchemeAccountCredentialAnswer.save_answer(
+                question=question, answer=answer, scheme_account_entry=scheme_account_entry
             )
 
         updated_credentials = scheme_account_entry.update_or_create_primary_credentials(credentials_dict)
@@ -444,29 +436,29 @@ class SchemeAccountJoinMixin:
 class UpdateCredentialsMixin:
     @staticmethod
     def _update_credentials(
-        question_id_and_data: dict,
+        question_and_update_data: dict,
         existing_credentials: dict,
         scheme_account_entry: SchemeAccountEntry,
     ) -> list:
         create_credentials = []
         update_credentials = []
         updated_types = []
-        for question_id, answer_and_type in question_id_and_data.items():
+        for question, answer_and_type in question_and_update_data.items():
             question_type, new_answer = answer_and_type
 
             if question_type in ENCRYPTED_CREDENTIALS:
                 new_answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).encrypt(str(new_answer)).decode("utf-8")
 
-            if question_id in existing_credentials:
-                credential = existing_credentials[question_id]
+            if question.id in existing_credentials:
+                credential = existing_credentials[question.id]
 
                 credential.answer = new_answer
                 update_credentials.append(credential)
 
-            else:
+            elif question.is_stored:
                 create_credentials.append(
                     SchemeAccountCredentialAnswer(
-                        question_id=question_id,
+                        question_id=question.id,
                         answer=new_answer,
                         scheme_account_entry=scheme_account_entry,
                     )
@@ -521,19 +513,19 @@ class UpdateCredentialsMixin:
         if "consents" in data:
             del data["consents"]
 
-        question_id_from_type = {question.type: question.id for question in questions}
+        question_from_type = {question.type: question for question in questions}
         existing_credentials = {
             credential.question_id: credential
             for credential in SchemeAccountCredentialAnswer.objects.filter(
-                question_id__in=[question_id_from_type[credential_type] for credential_type in data],
+                question_id__in=[question_from_type[credential_type].id for credential_type in data],
                 scheme_account_entry=scheme_account_entry,
             ).all()
         }
-        question_id_and_data = {
-            question_id_from_type[question_type]: (question_type, answer) for question_type, answer in data.items()
+        question_and_update_data = {
+            question_from_type[question_type]: (question_type, answer) for question_type, answer in data.items()
         }
         updated_types = self._update_credentials(
-            question_id_and_data=question_id_and_data,
+            question_and_update_data=question_and_update_data,
             existing_credentials=existing_credentials,
             scheme_account_entry=scheme_account_entry,
         )
