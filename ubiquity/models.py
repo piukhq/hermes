@@ -303,13 +303,10 @@ class SchemeAccountEntry(models.Model):
             for question in self.scheme_account.scheme.get_required_questions
         }
 
-        for k, v in new_credentials.items():
-            if v:
-                SchemeAccountCredentialAnswer.objects.update_or_create(
-                    question=self.scheme_account.question(k),
-                    scheme_account_entry=self,
-                    defaults={"answer": v},
-                )
+        for question_type, answer in new_credentials.items():
+            if answer:
+                question = self.scheme_account.question(question_type)
+                SchemeAccountCredentialAnswer.save_answer(question=question, answer=answer, scheme_account_entry=self)
 
         self.update_scheme_account_key_credential_fields()
 

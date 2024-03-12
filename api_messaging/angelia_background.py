@@ -229,7 +229,7 @@ def loyalty_card_add(message: dict, headers: dict) -> None:
         ctx.x_azure_ref = headers.get("X-azure-ref")
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
         link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link, headers=headers)
-        create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
+        save_credential_answers(scheme_account_entry, credentials=ac.add_fields)
 
 
 def loyalty_card_trusted_add(message: dict, headers: dict) -> None:
@@ -240,28 +240,9 @@ def loyalty_card_trusted_add(message: dict, headers: dict) -> None:
             user=ac.user_id, scheme_account_id=scheme_account_id, scheme_account__is_deleted=False
         )
         link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link, headers=headers)
-        create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
 
-        for credential in message.get("merchant_fields"):
-            cred_type = credential["credential_slug"]
-            answer = credential["value"]
-            question = scheme_account_entry.scheme_account.scheme.questions.get(type=cred_type)
-
-            SchemeAccountCredentialAnswer.objects.update_or_create(
-                scheme_account_entry=scheme_account_entry,
-                question=question,
-                defaults={"answer": answer},
-            )
-
-            """
-            payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=ac.user_id).values_list(
-                "payment_card_account_id", flat=True
-            )
-            if payment_cards_to_link:
-                PllUserAssociation.link_user_scheme_account_to_payment_cards(
-                    scheme_account_id, payment_cards_to_link, ac.user_id
-                )
-            """
+        save_credential_answers(scheme_account_entry, credentials=ac.add_fields)
+        save_credential_answers(scheme_account_entry, credentials=message.get("merchant_fields"))
 
         scheme_account_entry.update_scheme_account_key_credential_fields()
 
@@ -300,7 +281,7 @@ def loyalty_card_add_authorise(message: dict, headers: dict) -> None:
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
 
         if journey == "ADD_AND_AUTH":
-            create_key_credential_from_add_fields(scheme_account_entry=scheme_account_entry, add_fields=ac.add_fields)
+            save_credential_answers(scheme_account_entry, credentials=ac.add_fields)
             scheme_account_entry.set_link_status(AccountLinkStatus.ADD_AUTH_PENDING)
         elif journey == "AUTH":
             scheme_account_entry.schemeaccountcredentialanswer_set.filter(
@@ -608,17 +589,15 @@ def sql_history(message: dict, headers: dict) -> None:
             )
 
 
-def create_key_credential_from_add_fields(scheme_account_entry: SchemeAccountEntry, add_fields):
-    cred_type = add_fields[0]["credential_slug"]
-    answer = add_fields[0]["value"]
-
-    question = scheme_account_entry.scheme_account.scheme.questions.get(type=cred_type)
-
-    SchemeAccountCredentialAnswer.objects.update_or_create(
-        scheme_account_entry=scheme_account_entry,
-        question=question,
-        defaults={"answer": answer},
-    )
+def save_credential_answers(scheme_account_entry: SchemeAccountEntry, credentials: list[dict]) -> None:
+    """This saves credential answers. The expected format is that of API 2 credential_field_schema"""
+    for credential in credentials:
+        cred_type = credential["credential_slug"]
+        answer = credential["value"]
+        question = scheme_account_entry.scheme_account.scheme.questions.get(type=cred_type)
+        SchemeAccountCredentialAnswer.save_answer(
+            question=question, answer=answer, scheme_account_entry=scheme_account_entry
+        )
 
 
 def add_trusted_failed(message: dict, headers: dict) -> None:

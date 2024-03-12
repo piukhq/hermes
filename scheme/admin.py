@@ -140,6 +140,7 @@ class CredentialQuestionInline(admin.StackedInline):
         "choice",
         ("add_field", "auth_field", "register_field", "enrol_field"),
         "is_optional",
+        "is_stored",
     )
     extra = 0
 
