@@ -492,17 +492,17 @@ class UpdateCredentialsMixin:
                 .only("id", "type")
                 .annotate(
                     is_main_question=Q(manual_question=True)
-                                     | Q(scan_question=True)
-                                     | Q(one_question_link=True)
-                                     | Q(type__in=[CARD_NUMBER, BARCODE, MERCHANT_IDENTIFIER])
+                    | Q(scan_question=True)
+                    | Q(one_question_link=True)
+                    | Q(type__in=[CARD_NUMBER, BARCODE, MERCHANT_IDENTIFIER])
                 )
             )
         else:
             questions = questions.annotate(
                 is_main_question=Q(manual_question=True)
-                                 | Q(scan_question=True)
-                                 | Q(one_question_link=True)
-                                 | Q(type__in=[CARD_NUMBER, BARCODE, MERCHANT_IDENTIFIER])
+                | Q(scan_question=True)
+                | Q(one_question_link=True)
+                | Q(type__in=[CARD_NUMBER, BARCODE, MERCHANT_IDENTIFIER])
             )
 
         serializer = UpdateCredentialSerializer(

@@ -218,22 +218,23 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertEqual(entry_pending.link_status, AccountLinkStatus.ACTIVE)
 
         expected_midas_payload = {
-            'scheme_account_id': scheme_account.id,
-            'credentials': '{"card_number": "1234567", "postcode": "SL5 5TD", "consents": []}',
-            'user_set': str(user_id),
-            'status': AccountLinkStatus.ADD_AUTH_PENDING.value,
-            'journey_type': JourneyTypes.LINK.value,
-            'bink_user_id': 1
+            "scheme_account_id": scheme_account.id,
+            "credentials": '{"card_number": "1234567", "postcode": "SL5 5TD", "consents": []}',
+            "user_set": str(user_id),
+            "status": AccountLinkStatus.ADD_AUTH_PENDING.value,
+            "journey_type": JourneyTypes.LINK.value,
+            "bink_user_id": 1,
         }
 
         expected_midas_headers = {
-            'User-agent': f"Hermes on {socket.gethostname()}",
-            'X-azure-ref': "azure",
+            "User-agent": f"Hermes on {socket.gethostname()}",
+            "X-azure-ref": "azure",
         }
 
         mock_request_params = mock_midas_balance.call_args[1]
         mock_request_params["params"]["credentials"] = AESCipher(AESKeyNames.AES_KEY).decrypt(
-            mock_request_params["params"]["credentials"])
+            mock_request_params["params"]["credentials"]
+        )
         self.assertEqual(
             expected_midas_payload,
             mock_request_params["params"],
@@ -292,22 +293,23 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertEqual(entry_pending.link_status, AccountLinkStatus.ACTIVE)
 
         expected_midas_payload = {
-            'scheme_account_id': scheme_account.id,
-            'credentials': '{"card_number": "1234567", "postcode": "SL5 5TD", "consents": []}',
-            'user_set': str(user_id),
-            'status': AccountLinkStatus.ADD_AUTH_PENDING.value,
-            'journey_type': JourneyTypes.LINK.value,
-            'bink_user_id': 1
+            "scheme_account_id": scheme_account.id,
+            "credentials": '{"card_number": "1234567", "postcode": "SL5 5TD", "consents": []}',
+            "user_set": str(user_id),
+            "status": AccountLinkStatus.ADD_AUTH_PENDING.value,
+            "journey_type": JourneyTypes.LINK.value,
+            "bink_user_id": 1,
         }
 
         expected_midas_headers = {
-            'User-agent': f"Hermes on {socket.gethostname()}",
-            'X-azure-ref': "azure",
+            "User-agent": f"Hermes on {socket.gethostname()}",
+            "X-azure-ref": "azure",
         }
 
         mock_request_params = mock_midas_balance.call_args[1]
         mock_request_params["params"]["credentials"] = AESCipher(AESKeyNames.AES_KEY).decrypt(
-            mock_request_params["params"]["credentials"])
+            mock_request_params["params"]["credentials"]
+        )
         self.assertEqual(
             expected_midas_payload,
             mock_request_params["params"],
