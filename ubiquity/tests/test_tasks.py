@@ -1,4 +1,6 @@
+import socket
 import typing
+import uuid
 from unittest.mock import patch
 
 import arrow
@@ -9,6 +11,7 @@ from hermes.channels import Permit
 from history.utils import GlobalMockAPITestCase
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.credentials import CARD_NUMBER, EMAIL, PASSWORD, POSTCODE
+from scheme.encryption import AESCipher
 from scheme.models import JourneyTypes, SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.serializers import JoinSerializer
 from scheme.tests.factories import (
@@ -17,6 +20,7 @@ from scheme.tests.factories import (
     SchemeCredentialAnswerFactory,
     SchemeCredentialQuestionFactory,
 )
+from ubiquity.channel_vault import AESKeyNames
 from ubiquity.models import (
     AccountLinkStatus,
     PaymentCardSchemeEntry,
@@ -200,22 +204,47 @@ class TestTasks(GlobalMockAPITestCase):
             "value_label": "£21.21",
             "reward_tier": 0,
             "scheme_account_id": scheme_account.id,
-            "user_set": f"{user_id}",
+            "user_set": str(user_id),
             "points_label": "21",
         }
 
         self.assertEqual(entry_pending.link_status, AccountLinkStatus.ADD_AUTH_PENDING)
 
         auth_fields = {"postcode": "SL5 5TD"}
-        async_link(auth_fields, scheme_account.id, user_id, False)
+        async_link(auth_fields, scheme_account.id, user_id, payment_cards_to_link=[], headers={"X-azure-ref": "azure"})
         entry_pending.refresh_from_db()
 
-        # Check AccountLinkStatus and correct JourneyType sent to Midas
+        # Check AccountLinkStatus and correct payload sent to Midas
         self.assertEqual(entry_pending.link_status, AccountLinkStatus.ACTIVE)
+
+        expected_midas_payload = {
+            "scheme_account_id": scheme_account.id,
+            "credentials": '{"card_number": "1234567", "postcode": "SL5 5TD", "consents": []}',
+            "user_set": str(user_id),
+            "status": AccountLinkStatus.ADD_AUTH_PENDING.value,
+            "journey_type": JourneyTypes.LINK.value,
+            "bink_user_id": user_id,
+        }
+
+        expected_midas_headers = {
+            "User-agent": f"Hermes on {socket.gethostname()}",
+            "X-azure-ref": "azure",
+        }
+
         mock_request_params = mock_midas_balance.call_args[1]
+        mock_request_params["params"]["credentials"] = AESCipher(AESKeyNames.AES_KEY).decrypt(
+            mock_request_params["params"]["credentials"]
+        )
         self.assertEqual(
-            mock_request_params["params"]["journey_type"],
-            JourneyTypes.LINK,
+            expected_midas_payload,
+            mock_request_params["params"],
+        )
+
+        # Will raise error if not valid UUID or if transaction is missing from headers
+        uuid.UUID(mock_request_params["headers"].pop("transaction"))
+        self.assertEqual(
+            expected_midas_headers,
+            mock_request_params["headers"],
         )
 
     @patch("requests.get")

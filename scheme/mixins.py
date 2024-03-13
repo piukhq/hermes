@@ -95,7 +95,12 @@ class BaseLinkMixin:
                 question=question, answer=answer, scheme_account_entry=scheme_account_entry
             )
 
-        midas_information, dw_event = scheme_account.get_balance(scheme_account_entry, headers=headers)
+        # override credentials here to send midas all credentials provided by the initial auth request. Due to the
+        # is_stored flag on SchemeCredentialQuestion, an auth credential might not be stored to be retrieved from
+        # the db, as is currently done.
+        midas_information, dw_event = scheme_account.get_balance(
+            scheme_account_entry, headers=headers, credentials_override=data
+        )
 
         # dw_event is a two piece tuple, success: bool, journey: SchemeAccount STATUS
         #  - not present for cached balances only fresh crepes
