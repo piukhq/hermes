@@ -4,6 +4,7 @@ from scripts.cli.barclays_wipe import wipe_barclays_data
 from scripts.cli.client_decommission import decommission_client
 from scripts.cli.collect_payment_card_tokens import collect_tokens
 from scripts.cli.redact_payment_cards import redact_payment_cards
+from scripts.cli.update_card_numbers import attempt_update_scheme_accounts
 from scripts.cli.visa_vop import run_activations_by_scheme_slug, run_deactivations_by_scheme_slug
 
 available_scripts = {
@@ -166,6 +167,30 @@ available_scripts = {
                 "help": "The destination folder to output error detail and retry files. Defaults to '/tmp/'",
                 "required": False,
                 "default": "/tmp/",
+            },
+        },
+    },
+    "update-mixr-card-numbers": {
+        "fn": attempt_update_scheme_accounts,
+        "script_kwargs": {
+            "members_filename": {
+                "flags": ["--filepath", "-f"],
+                "type": str,
+                "help": "Filepath of card numbers to be updated.",
+                "required": True,
+            },
+            "remaining_members_filename": {
+                "flags": ["--output-path", "-o"],
+                "type": str,
+                "help": "The destination file path to output the remaining invalid card numbers",
+                "default": "/tmp/remaining-invalid.csv",
+            },
+            "batch_size": {
+                "flags": ["--batch-size", "-b"],
+                "type": int,
+                "required": False,
+                "default": 5000,
+                "help": "updates to be processed batch size, defaults to 5000",
             },
         },
     },
