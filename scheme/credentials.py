@@ -91,4 +91,5 @@ CASE_SENSITIVE_CREDENTIALS = (
     MERCHANT_IDENTIFIER,
 )
 
+
 credential_types_set = {credential_type[0] for credential_type in CREDENTIAL_TYPES}

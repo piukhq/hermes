@@ -8,6 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from loguru import logger
 from rest_framework import generics, status
 from rest_framework import serializers as rest_framework_serializers
 from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
@@ -17,6 +18,7 @@ from rest_framework.views import APIView
 from history.data_warehouse import to_data_warehouse
 from history.utils import history_bulk_update
 from payment_card import metis, serializers
+from payment_card.enums import RetryTypes
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
 from payment_card.serializers import PaymentCardClientSerializer
@@ -381,6 +383,15 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         # deactivated_list = request.data.get('deactivated_list', [])
         # deactivate_errors = request.data.get('deactivate_errors', {})
         agent_card_uid = request.data.get("agent_card_uid", None)
+        retry_type_raw = request.data.get("retry_type", RetryTypes.REMOVE.value)
+
+        try:
+            retry_type = RetryTypes(retry_type_raw)
+        except ValueError:
+            logger.error(
+                "Received unknown retry_type '{}', ignoring and assuming '{}'", retry_type_raw, RetryTypes.REMOVE.value
+            )
+            retry_type = RetryTypes.REMOVE
 
         if agent_card_uid:
             agent_data["card_uid"] = agent_card_uid
@@ -400,7 +411,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             payment_card_account.agent_data = agent_data
 
         if response_action == "Delete":
-            retry_task, response_message = self._process_delete_response_action(request, response_message)
+            retry_task, response_message = self._process_delete_response_action(request, response_message, retry_type)
             self._process_retries(retry_task, response_state, retry_id, response_message, response_status, card_id)
             return Response({"id": payment_card_account.id})
 
@@ -409,9 +420,9 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         )
 
     @staticmethod
-    def _process_delete_response_action(request, response_message):
+    def _process_delete_response_action(request, response_message, retry_type: RetryTypes):
         # Retry with delete action is only called for providers which support it eg VOP path
-        retry_task = "retry_delete_payment_card"
+        retry_task = retry_type.get_task_name()
         deactivated_list = request.data.get("deactivated_list", [])
         deactivate_errors = request.data.get("deactivate_errors", {})
         if deactivate_errors:

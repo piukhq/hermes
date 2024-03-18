@@ -16,7 +16,7 @@ from ubiquity.models import VopActivation
 from ubiquity.utils import vop_deactivation_dict_by_payment_card_id
 
 
-def retry_payment_void_task(transaction_data: dict) -> (bool, str):
+def retry_payment_void_task(transaction_data: dict) -> tuple[bool, str]:
     done = False
     try:
         scheme_acc = SchemeAccount.objects.get(pk=transaction_data["scheme_acc_id"])
@@ -83,15 +83,17 @@ def metis_delete_cards_and_activations(
 
 @shared_task
 def metis_request(method: RequestMethod, endpoint: str, payload: dict, headers: dict | None = None) -> None:
+    headers = {
+        "Authorization": f"Token {settings.SERVICE_API_KEY}",
+        "Content-Type": "application/json",
+        "X-Azure-Ref": None,
+    } | (headers or {})
+
     response = request(
         method.value,
         settings.METIS_URL + endpoint,
         json=payload,
-        headers={
-            "Authorization": f"Token {settings.SERVICE_API_KEY}",
-            "Content-Type": "application/json",
-            "X-azure-ref": headers.get("X-azure-ref", None) if headers else None,
-        },
+        headers=headers,
     )
     try:
         response.raise_for_status()

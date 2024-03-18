@@ -1,6 +1,6 @@
 from django.db.models import Count, Q
 
-from scripts.actions.corrections import Correction
+from scripts.corrections import Correction
 from scripts.find_errors.base_script import BaseScript
 from user.models import CustomUser
 

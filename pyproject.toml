@@ -103,6 +103,7 @@ ptpython = "^3.0.26"
 tomli = "^2.0.1"
 ruff = "^0.2.2"
 ipython = "^8.21.0"
+pytest-mock = "^3.14.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]

@@ -1,29 +1,3 @@
-from scripts.actions.paymentaccount_actions import (  # do_delete_payment_account,
-    do_orphaned_payment_card_cleanup,
-    do_re_enroll,
-    do_remove_payment_account,
-    do_retain,
-    do_un_enroll,
-    do_update_hash,
-)
-from scripts.actions.rtbf import test_correction
-from scripts.actions.schemeaccount_actions import do_mark_as_unknown, do_refresh_balance
-from scripts.actions.ubiquity_actions import (
-    do_channel_retailer_offboarding,
-    do_client_decommission,
-    do_delete_user_cleanup,
-    do_set_account_and_links_active,
-    do_update_active_link_to_false,
-)
-from scripts.actions.vop_actions import (
-    do_activation,
-    do_deactivate,
-    do_fix_enroll,
-    do_mark_as_deactivated,
-    do_multiple_deactivate_unenroll,
-)
-
-
 class Correction:
     NO_CORRECTION = 0
     # VOP corrections
@@ -59,7 +33,7 @@ class Correction:
     DELETE_CARD_LINKS_FOR_DELETED_USERS = 4001
     DELETE_CLIENT_USERS = 5001
     CHANNELS_RETAILER_OFFBOARDING = 6001
-    RTBF = 7000
+    RTBF = 7001
 
     CORRECTION_SCRIPTS = (
         (NO_CORRECTION, "No correction available"),
@@ -97,7 +71,7 @@ class Correction:
         (CHANNELS_RETAILER_OFFBOARDING, "Offboard membership cards for specific retailer and channels"),
     )
 
-    SHIRLEY_CORRECTION_SCRIPTS = (
+    FILE_CORRECTION_SCRIPTS = (
         (NO_CORRECTION, "No correction available"),
         (RTBF, "Right to be forgotten"),
     )
@@ -121,38 +95,3 @@ class Correction:
     }
 
     TITLES = dict(CORRECTION_SCRIPTS)
-
-    @classmethod
-    def do(cls, entry: object):
-        actions = {
-            cls.VOP_UN_ENROLL: do_un_enroll,
-            cls.VOP_DEACTIVATE: do_deactivate,
-            cls.VOP_RE_ENROLL: do_re_enroll,
-            cls.VOP_ACTIVATE: do_activation,
-            cls.VOP_MARK_AS_DEACTIVATED: do_mark_as_deactivated,
-            cls.VOP_MULTIPLE_DEACTIVATE_UN_ENROLL: do_multiple_deactivate_unenroll,
-            cls.VOP_FIX_ENROLL: do_fix_enroll,
-            cls.RETAIN: do_retain,
-            cls.SET_ACTIVE: do_set_account_and_links_active,
-            cls.MARK_AS_UNKNOWN: do_mark_as_unknown,
-            cls.REFRESH_BALANCE: do_refresh_balance,
-            cls.UPDATE_CARD_HASH: do_update_hash,
-            cls.REMOVE_PAYMENT_ACCOUNT: do_remove_payment_account,
-            cls.UN_ENROLL_CARD: do_un_enroll,
-            cls.RE_ENROLL_CARD: do_re_enroll,
-            cls.UPDATE_ACTIVE_LINK: do_update_active_link_to_false,
-            cls.DELETE_CARD_LINKS_FOR_DELETED_USERS: do_delete_user_cleanup,
-            cls.DELETE_CLIENT_USERS: do_client_decommission,
-            cls.CHANNELS_RETAILER_OFFBOARDING: do_channel_retailer_offboarding,
-            cls.ORPHANED_PAYMENT_CARD_CLEANUP: do_orphaned_payment_card_cleanup,
-            cls.RTBF: test_correction,
-        }
-        if hasattr(entry, "apply"):
-            if entry.apply not in actions:
-                return False
-            return actions[entry.apply](entry)
-        else:
-            if entry.correction not in actions:
-                return False
-
-            return actions[entry.correction](entry)

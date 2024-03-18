@@ -1,7 +1,7 @@
 from enum import StrEnum
 
 
-class ShirleyStatuses(StrEnum):
+class FileScriptStatuses(StrEnum):
     READY = "READY"
     IN_PROGRESS = "IN_PROGRESS"
     DONE = "DONE"

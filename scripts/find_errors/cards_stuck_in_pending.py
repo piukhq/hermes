@@ -1,5 +1,5 @@
 from payment_card.models import PaymentCardAccount
-from scripts.actions.corrections import Correction
+from scripts.corrections import Correction
 from scripts.find_errors.base_script import BaseScript
 
 
