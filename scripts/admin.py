@@ -7,9 +7,10 @@ from django.template.response import TemplateResponse
 from django.urls import path
 from django.utils.safestring import mark_safe
 
-from scripts.actions.corrections import Correction
-from scripts.enums import ShirleyStatuses
-from scripts.models import ScriptResult, ShirleyYouCantBeSerious
+from scripts.corrections import Correction
+from scripts.corrections.map_to_action import apply_mapped_action
+from scripts.enums import FileScriptStatuses
+from scripts.models import FileScript, ScriptResult
 from scripts.scripts import SCRIPT_CLASSES, SCRIPT_TITLES
 from scripts.tasks.async_corrections import background_corrections
 
@@ -36,7 +37,7 @@ def apply_correction(_, request, queryset):
         for entry in queryset:
             if not entry.done:
                 title = Correction.TITLES[entry.apply]
-                success = Correction.do(entry)
+                success = apply_mapped_action(entry)
                 if success:
                     success_count += 1
                     sequence = entry.data["sequence"]
@@ -129,18 +130,18 @@ def scripts_to_run(script_id):
     return result
 
 
-def shirley_this_is_a_correction(_, request, queryset):
+def file_script_apply_correction(_, request, queryset):
     if not user_can_run_script(request):
         messages.add_message(request, messages.WARNING, "Could not execute the script: Access Denied")
     else:
         for entry in queryset:
-            if entry.status == ShirleyStatuses.READY:
-                Correction.do(entry)
+            if entry.status == FileScriptStatuses.READY:
+                apply_mapped_action(entry)
 
 
-class ShirleyYouCantBeAForm(ModelForm):
+class FileScriptForm(ModelForm):
     class Meta:
-        model = ShirleyYouCantBeSerious
+        model = FileScript
         help_texts = {
             "batch_size": "Number of records to process in each batch, each batch will spawn a separate celery task.",
             "progress": mark_safe(
@@ -151,9 +152,9 @@ class ShirleyYouCantBeAForm(ModelForm):
         exclude = ()
 
 
-@admin.register(ShirleyYouCantBeSerious)
-class ShirleyYouCantBeAnAdmin(admin.ModelAdmin):
-    form = ShirleyYouCantBeAForm
+@admin.register(FileScript)
+class FileScriptAdmin(admin.ModelAdmin):
+    form = FileScriptForm
 
     list_display = ("pk", "input_file", "correction", "progress", "status", "status_description")
     list_filter = ("correction", "status")
@@ -165,7 +166,7 @@ class ShirleyYouCantBeAnAdmin(admin.ModelAdmin):
         "status_description",
         "progress",
     )
-    actions = [shirley_this_is_a_correction]
+    actions = [file_script_apply_correction]
     fields = (
         "correction",
         "batch_size",
@@ -177,7 +178,7 @@ class ShirleyYouCantBeAnAdmin(admin.ModelAdmin):
         "failed_file",
     )
 
-    def progress(self, obj: ShirleyYouCantBeSerious):
+    def progress(self, obj: FileScript):
         if obj.celery_group_result:
             return f"{obj.celery_group_result.completed_count()}/{obj.created_tasks_n}"
 

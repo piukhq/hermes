@@ -1,6 +1,6 @@
 from django.db.models import Q
 
-from scripts.actions.corrections import Correction
+from scripts.corrections import Correction
 from scripts.find_errors.base_script import BaseScript
 from ubiquity.models import PaymentCardSchemeEntry, PllUserAssociation, WalletPLLStatus
 

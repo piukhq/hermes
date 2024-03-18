@@ -1,6 +1,7 @@
 from celery import shared_task
 
-from scripts.actions.corrections import Correction
+from scripts.corrections import Correction
+from scripts.corrections.map_to_action import apply_mapped_action
 from scripts.models import ScriptResult
 
 
@@ -9,7 +10,7 @@ def background_corrections(script_results_ids: list[int]):
     for entry in ScriptResult.objects.filter(id__in=script_results_ids).all():
         if not entry.done:
             title = Correction.TITLES[entry.apply]
-            success = Correction.do(entry)
+            success = apply_mapped_action(entry)
             if success:
                 sequence = entry.data["sequence"]
                 sequence_pos = entry.data["sequence_pos"] + 1

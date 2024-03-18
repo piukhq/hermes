@@ -1,6 +1,6 @@
 from django.db import connection
 
-from scripts.actions.corrections import Correction
+from scripts.corrections import Correction
 from scripts.find_errors.base_script import BaseScript
 
 

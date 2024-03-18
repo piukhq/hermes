@@ -5,6 +5,7 @@ from payment_card.models import PaymentCard, PaymentCardAccount
 from payment_card.tasks import metis_delete_cards_and_activations, metis_request
 from periodic_retry.models import PeriodicRetry, PeriodicRetryStatus
 from ubiquity.models import VopActivation
+from ubiquity.utils import vop_deactivation_dict_by_payment_card_id
 
 
 def _generate_card_json(account: "PaymentCardAccount", retry_id: int = -1) -> dict:
@@ -56,11 +57,54 @@ def delete_payment_card(
         metis_delete_cards_and_activations(RequestMethod.DELETE, url, payload, status, headers)
 
 
+def delete_and_redact_payment_card(
+    account: "PaymentCardAccount",
+    run_async: bool = True,
+    retry_id: int = -1,
+    activations: dict | None = None,
+    priority: int = 10,
+    redact_only: bool = False,
+    x_azure_ref: str | None = None,
+) -> None:
+    url = "/payment_service/payment_card/unenrol_and_redact"
+    extra_headers = {"X-Priority": priority}
+    if x_azure_ref:
+        extra_headers["X-Azure-Ref"] = x_azure_ref
+
+    payload = _generate_card_json(account, retry_id)
+    payload["redact_only"] = redact_only
+    if activations:
+        payload["activations"] = activations
+
+    if run_async:
+        metis_request.delay(RequestMethod.POST, url, payload, extra_headers)
+    else:
+        metis_request(RequestMethod.POST, url, payload, extra_headers)
+
+
 def retry_delete_payment_card(data):
     # Metis card check ensures retry callbacks are from delete retry providers eg VOP
     retry_obj = data["periodic_retry_obj"]
     account = PaymentCardAccount.all_objects.get(id=data["context"]["card_id"])
     delete_payment_card(account, retry_id=retry_obj.id, status=VopActivation.DEACTIVATING)
+
+
+def retry_delete_and_redact_payment_card(data: dict, *, redact_only: bool = False) -> None:
+    retry_obj = data["periodic_retry_obj"]
+    account = PaymentCardAccount.all_objects.get(id=data["context"]["card_id"])
+
+    delete_and_redact_payment_card(
+        account,
+        retry_id=retry_obj.id,
+        activations=vop_deactivation_dict_by_payment_card_id(account.id, VopActivation.DEACTIVATING),
+        priority=4,
+        redact_only=redact_only,
+        x_azure_ref=f"Triggered by PeriodicRetry of id {retry_obj.pk}",
+    )
+
+
+def retry_redact_payment_card(data: dict) -> None:
+    retry_delete_and_redact_payment_card(data, redact_only=True)
 
 
 def retry_enrol(data):
