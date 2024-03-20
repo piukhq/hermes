@@ -21,20 +21,35 @@ def remaining_invalid_card_numbers(scheme_id: int, valid_card_number_regex: str)
 
 
 sql = """
-update scheme_schemeaccount
-set
-    card_number = data_table.valid_number,
-    merchant_identifier = data_table.valid_number
-from (
-    select
-        unnest(%s) as invalid_number,
-        unnest(%s) as valid_number
-) as data_table
-where
-    is_deleted is false
-    and scheme_id = %s
-    and (card_number = data_table.invalid_number
-         or merchant_identifier = data_table.invalid_number)
+WITH updated_accounts AS (
+    UPDATE scheme_schemeaccount
+    SET
+        card_number = data_table.valid_number,
+        merchant_identifier = data_table.valid_number
+    FROM (
+        SELECT
+            unnest(%s) AS invalid_number,
+            unnest(%s) AS valid_number
+    ) AS data_table
+    WHERE
+        is_deleted is false
+        AND scheme_id = %s
+        AND (card_number = data_table.invalid_number
+             OR merchant_identifier = data_table.invalid_number)
+    RETURNING id AS scheme_account_id, data_table.valid_number
+)
+UPDATE scheme_schemeaccountcredentialanswer AS sca
+SET
+    answer = updated_accounts.valid_number
+FROM
+    updated_accounts
+JOIN ubiquity_schemeaccountentry AS uae ON uae.scheme_account_id = updated_accounts.scheme_account_id
+JOIN scheme_schemeaccountcredentialanswer AS sca_join ON sca_join.scheme_account_entry_id = uae.id
+JOIN scheme_schemecredentialquestion AS scq ON sca_join.question_id = scq.id
+WHERE
+    scq.type IN ('card_number', 'merchant_identifier')
+    AND sca.id = sca_join.id
+RETURNING updated_accounts.scheme_account_id;
 """
 
 
@@ -50,7 +65,8 @@ def batch_update_scheme_accounts(
         invalid_chunk = invalid_card_numbers[i : i + batch_size]
         valid_chunk = valid_card_numbers[i : i + batch_size]
         cursor.execute(sql, (invalid_chunk, valid_chunk, scheme_id))
-        count_success += cursor.rowcount
+        updated_accounts = cursor.fetchall()
+        count_success += len({row[0] for row in updated_accounts})
     return count_success
 
 
@@ -67,7 +83,11 @@ def attempt_update_scheme_accounts(
                 member_id = row["MemberID"]
                 member_number = row["MemberNumber"]
                 # Check if both MemberID contains numerical data and MemberNumber matches the specified pattern
-                if not member_id.isdigit() or not member_number or not re.match(valid_card_number_regex, member_number):
+                if (
+                    not re.match(r"^[a-zA-Z0-9]*$", member_id)
+                    or not member_number
+                    or not re.match(valid_card_number_regex, member_number)
+                ):
                     stdout.write(f"Invalid data in row: MemberID: {member_id}, MemberNumber: {member_number}")
                     continue
                 invalid_card_numbers.append(member_id)
