@@ -93,6 +93,7 @@ def route_message(headers: dict, message: dict):
         "user_session": angelia_background.user_session,
         "add_trusted_failed": angelia_background.add_trusted_failed,
         "view_wallet_event": angelia_background.view_wallet_event,
+        "create_trusted": angelia_background.create_trusted,
     }
 
     retry(headers, message, route)
