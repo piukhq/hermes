@@ -3,6 +3,7 @@ import arrow
 from payment_card.enums import RequestMethod
 from payment_card.models import PaymentCard, PaymentCardAccount
 from payment_card.tasks import metis_delete_cards_and_activations, metis_request
+from periodic_retry.models import PeriodicRetry, PeriodicRetryStatus
 from ubiquity.models import VopActivation
 
 
@@ -63,13 +64,15 @@ def retry_delete_payment_card(data):
 
 
 def retry_enrol(data):
-    retry_obj = data["periodic_retry_obj"]
-    retry_enrol_existing_payment_card(account_id=data["context"]["card_id"], retry_id=retry_obj.id)
-
-
-def retry_enrol_existing_payment_card(account_id: int, run_async: bool = True, retry_id: int = -1) -> None:
-    account = PaymentCardAccount.objects.get(id=account_id)
-    enrol_existing_payment_card(account, run_async, retry_id)
+    retry_obj: PeriodicRetry = data["periodic_retry_obj"]
+    card_id = data["context"]["card_id"]
+    try:
+        account = PaymentCardAccount.objects.get(id=card_id)
+        enrol_existing_payment_card(account, run_async=True, retry_id=retry_obj.id)
+    except PaymentCardAccount.DoesNotExist:
+        retry_obj.results += [f"PaymentCardAccount (id={card_id}) does not exist or has been deleted"]
+        retry_obj.status = PeriodicRetryStatus.FAILED
+        retry_obj.save(update_fields=["results", "status"])
 
 
 def enrol_existing_payment_card(

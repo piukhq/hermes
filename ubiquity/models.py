@@ -1001,11 +1001,21 @@ class PllUserAssociation(models.Model):
         headers: dict | None = None,
     ):
         for payment_card_account in payment_card_accounts:
-            if isinstance(payment_card_account, int):  # In background tasks a list of ids is sent rather than objects
-                from payment_card.models import PaymentCardAccount  # need to avoid circular import
+            try:
+                if isinstance(
+                    payment_card_account, int
+                ):  # In background tasks a list of ids is sent rather than objects
+                    from payment_card.models import PaymentCardAccount  # need to avoid circular import
 
-                payment_card_account = PaymentCardAccount.objects.get(id=payment_card_account)  # noqa: PLW2901
-            cls.link_users_scheme_account_entry_to_payment(scheme_account_entry, payment_card_account, headers=headers)
+                    payment_card_account = PaymentCardAccount.objects.get(id=payment_card_account)  # noqa: PLW2901
+                cls.link_users_scheme_account_entry_to_payment(
+                    scheme_account_entry, payment_card_account, headers=headers
+                )
+            except PaymentCardAccount.DoesNotExist:
+                logger.debug(
+                    f"PaymentCardAccount (id={payment_card_account}) does not exist or has been deleted. "
+                    "Could not link to loyalty accounts"
+                )
 
     @classmethod
     def link_users_scheme_account_to_payment(
