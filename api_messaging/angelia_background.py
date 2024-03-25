@@ -413,6 +413,14 @@ def refresh_balances(message: dict, headers: dict) -> None:
         logger.info(f"User {ac.user_id} refresh balances called. ")
 
 
+def create_trusted(message: dict, headers: dict) -> None:
+    user_session(message, headers)
+    refresh_balances(message, headers)
+    loyalty_card_trusted_add(message, headers)
+    loyalty_card_trusted_add_success_event(message, headers)
+    post_payment_account(message, headers)
+
+
 def view_wallet_event(message: dict, headers: dict) -> None:
     ctx.x_azure_ref = headers.get("X-azure-ref")
     user = CustomUser.objects.get(id=message.get("user_id"))
