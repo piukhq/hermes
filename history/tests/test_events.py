@@ -9,6 +9,7 @@ from history.data_warehouse import (
     addauth_request_lc_event,
     auth_outcome,
     auth_request_lc_event,
+    create_trusted_event,
     join_outcome,
     join_request_lc_event,
     register_lc_event,
@@ -833,3 +834,44 @@ class TestUserPllAssociationEvent(TestCase):
         self.assertEqual(args.get("from_state"), WalletPLLStatus.INACTIVE)
         self.assertEqual(args.get("to_state"), WalletPLLStatus.INACTIVE)
         self.assertEqual(args.get("slug"), WalletPLLSlug.PAYMENT_ACCOUNT_AND_LOYALTY_CARD_INACTIVE.value)
+
+
+class TestCreateTrustedEvent(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.organisation = OrganisationFactory(name="event_test_organisation")
+        cls.client_app = ClientApplicationFactory(
+            organisation=cls.organisation,
+            name="event test client application",
+            client_id="2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VAbcdef",
+        )
+        cls.bundle = ClientApplicationBundleFactory(bundle_id="test.auth.fake", client=cls.client_app)
+
+        cls.user = UserFactory(external_id="test@delete.user", client=cls.client_app, email="test@delete.user")
+
+        cls.scheme = SchemeFactory()
+
+        SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE)
+
+        cls.mcard = SchemeAccountFactory(scheme=cls.scheme)
+        cls.pcard = PaymentCardAccountEntryFactory(user=cls.user)
+
+    @patch("history.data_warehouse.to_data_warehouse")
+    def test_create_trusted_event(self, mock_to_warehouse):
+        create_trusted_event(
+            self.user,
+            self.mcard,
+            "test.auth.fake",
+            self.pcard.id,
+        )
+
+        self.assertTrue(mock_to_warehouse.called)
+        data = mock_to_warehouse.call_args.args[0]
+        self.assertEqual(data["event_type"], "tc.user.created")
+        self.assertEqual(data["origin"], "channel")
+        self.assertEqual(data["channel"], "test.auth.fake")
+        self.assertEqual(data["external_user_ref"], self.user.external_id)
+        self.assertEqual(data["internal_user_ref"], self.user.id)
+        self.assertEqual(data["scheme_account_id"], self.mcard.id)
+        self.assertEqual(data["loyalty_plan"], self.mcard.scheme_id)
+        self.assertEqual(data["payment_account_id"], self.pcard.id)

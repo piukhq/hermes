@@ -12,6 +12,7 @@ from history.data_warehouse import (
     add_trusted_lc_event,
     addauth_request_lc_event,
     auth_request_lc_event,
+    create_trusted_event,
     join_outcome,
     join_request_lc_event,
     register_lc_event,
@@ -259,6 +260,17 @@ def loyalty_card_trusted_add_success_event(message: dict, headers: dict) -> None
         add_trusted_lc_event(user, scheme_account, channel_slug, status, date_time, headers)
 
 
+def create_trusted_success_event(message: dict, headers: dict) -> None:
+    with AngeliaContext(message) as ac:
+        date_time = message.get("utc_adjusted")
+        loyalty_card_id = message.get("loyalty_card_id")
+        scheme_account = SchemeAccount.objects.get(pk=loyalty_card_id)
+        channel_slug = message.get("channel_slug")
+        user = CustomUser.objects.get(id=ac.user_id)
+        payment_account_id = message.get("payment_account_id")
+        create_trusted_event(user, scheme_account, channel_slug, payment_account_id, date_time, headers)
+
+
 def loyalty_card_add_authorise(message: dict, headers: dict) -> None:
     with AngeliaContext(message) as ac:
         ctx.x_azure_ref = headers.get("X-azure-ref")
@@ -418,6 +430,7 @@ def create_trusted(message: dict, headers: dict) -> None:
     refresh_balances(message, headers)
     loyalty_card_trusted_add(message, headers)
     loyalty_card_trusted_add_success_event(message, headers)
+    create_trusted_success_event(message, headers)
     post_payment_account(message, headers)
 
 

@@ -146,6 +146,28 @@ def join_request_lc_event(
     to_data_warehouse(payload, headers)
 
 
+def create_trusted_event(
+    user: "CustomUser",
+    scheme_account: "SchemeAccount",
+    bundle_id: str,
+    payment_account_id: int,
+    date_time: object | None = None,
+    headers: dict | None = None,
+):
+    payload = {
+        "event_type": "tc.user.created",
+        "origin": "channel",
+        "channel": bundle_id,
+        "event_date_time": date_time,
+        "external_user_ref": user.external_id,
+        "internal_user_ref": user.id,
+        "scheme_account_id": scheme_account.id,
+        "loyalty_plan": scheme_account.scheme_id,
+        "payment_account_id": payment_account_id,
+    }
+    to_data_warehouse(payload, headers)
+
+
 def remove_loyalty_card_event(
     scheme_account_entry: "SchemeAccountEntry", date_time: object | None = None, headers: dict | None = None
 ):
