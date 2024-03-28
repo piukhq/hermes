@@ -10,6 +10,7 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from typing_extensions import TypedDict
 
+from history import models as hm
 from payment_card.metis import delete_and_redact_payment_card
 from payment_card.models import PaymentCard, PaymentCardAccount
 from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer
@@ -218,6 +219,19 @@ def _forget_payment_cards(user: CustomUser) -> list[PaymentCardAccount]:
     return updated_pcards
 
 
+def _forget_history(user_id: int, pcards_ids: list[int], mcards_ids: list[int]) -> None:
+    hm.HistoricalCustomUser.objects.filter(instance_id=str(user_id)).delete()
+    hm.HistoricalPaymentCardAccount.objects.filter(instance_id__in=[str(val) for val in pcards_ids]).delete()
+    hm.HistoricalSchemeAccount.objects.filter(instance_id__in=[str(val) for val in mcards_ids]).delete()
+    hm.HistoricalPaymentCardAccountEntry.objects.filter(
+        user_id=user_id, payment_card_account_id__in=pcards_ids
+    ).delete()
+    hm.HistoricalSchemeAccountEntry.objects.filter(user_id=user_id, scheme_account_id__in=mcards_ids).delete()
+    hm.HistoricalPaymentCardSchemeEntry.objects.filter(
+        payment_card_account_id__in=pcards_ids, scheme_account_id__in=mcards_ids
+    ).delete()
+
+
 def _right_to_be_forgotten(user_id: str, entry_id: int) -> tuple[bool, str]:
     try:
         user = CustomUser.objects.prefetch_related(
@@ -232,10 +246,9 @@ def _right_to_be_forgotten(user_id: str, entry_id: int) -> tuple[bool, str]:
         with transaction.atomic():
             _forget_user(user)
             vop_deactivation_map = _forget_plls(user)
-
-            # will be needed for WAL-3370 RTBF Event
-            _forgotten_mcards_ids = _forget_membership_cards(user)
+            forgotten_mcards_ids = _forget_membership_cards(user)
             forgotten_pcards = _forget_payment_cards(user)
+            _forget_history(user.id, [pcard.id for pcard in forgotten_pcards], forgotten_mcards_ids)
 
     except Exception as e:
         return False, repr(e)
