@@ -1,5 +1,4 @@
 from csv import DictReader
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from celery import chord, group
@@ -16,10 +15,9 @@ if TYPE_CHECKING:
 
 
 def do_right_to_be_forgotten(entry: "FileScript") -> bool:
-    input_file = Path(entry.input_file.path)
     ids = []
     tasks = []
-    with input_file.open("r") as stream:
+    with entry.input_file.open("r") as stream:
         reader = DictReader(stream)
 
         for count, row in enumerate(reader, start=1):
