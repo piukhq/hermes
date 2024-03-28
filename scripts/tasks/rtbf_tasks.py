@@ -1,4 +1,5 @@
 import hashlib
+from codecs import getwriter
 from csv import DictWriter
 from typing import TYPE_CHECKING, cast
 from uuid import uuid4
@@ -34,14 +35,19 @@ if TYPE_CHECKING:
     GroupResultType = list[ResultType]
 
 
+BytesStreamWriter = getwriter("utf-8")
+
+
 def write_files_and_status(group_result: "GroupResultType", entry: "FileScript"):
-    failed_file = ContentFile("", name=f"FS{entry.id}_failed.csv")
-    success_file = ContentFile("", name=f"FS{entry.id}_success.csv")
+    # have to setup the file as bytes and use a codec to write utf-8 as azure storage only supports bytes file
+    failed_file = ContentFile(b"", name=f"FS{entry.id}_failed.csv")
+    success_file = ContentFile(b"", name=f"FS{entry.id}_success.csv")
+
     all_successful = True
 
-    with failed_file.open("w") as fail_output, success_file.open("w") as success_output:
-        fail_writer = DictWriter(fail_output, fieldnames=["ids", "reason"])
-        success_writer = DictWriter(success_output, fieldnames=["ids"])
+    with failed_file.open("wb") as fail_output, success_file.open("wb") as success_output:
+        fail_writer = DictWriter(BytesStreamWriter(fail_output), fieldnames=["ids", "reason"])
+        success_writer = DictWriter(BytesStreamWriter(success_output), fieldnames=["ids"])
         fail_writer.writeheader()
         success_writer.writeheader()
         for result in group_result:
