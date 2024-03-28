@@ -363,7 +363,7 @@ def setup_wallet(
     ),
 )
 @pytest.mark.django_db
-def test__right_to_be_forgotten_last_man_standing(
+def test__right_to_be_forgotten(
     setup_wallet: Callable[[ParametrizeInput], Wallet],
     mocker: MockerFixture,
     starting_data: ParametrizeInput,
