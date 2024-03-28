@@ -1,4 +1,5 @@
 from csv import DictReader
+from io import TextIOWrapper
 from typing import TYPE_CHECKING
 
 from celery import chord, group
@@ -17,8 +18,11 @@ if TYPE_CHECKING:
 def do_right_to_be_forgotten(entry: "FileScript") -> bool:
     ids = []
     tasks = []
-    with entry.input_file.open("r") as stream:
-        reader = DictReader(stream)
+
+    # Opening the file in binary mode and then wrapping it in TextIOWrapper to handle the encoding instead
+    # of just opening the file as string, due to azure blob storage not supporting text mode.
+    with entry.input_file.open("rb") as stream:
+        reader = DictReader(TextIOWrapper(stream))
 
         for count, row in enumerate(reader, start=1):
             ids.append(row["ids"])

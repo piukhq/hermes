@@ -19,6 +19,7 @@ class ScriptResult(models.Model):
 
 
 class FileScript(models.Model):
+    _FILE_UPLOAD_LOC = "file_script_files/"
     _CORRECTIONS_NAME_MAP = dict(Correction.FILE_CORRECTION_SCRIPTS)
     _STATUSES = [
         (FileScriptStatuses.READY, "Ready"),
@@ -30,9 +31,9 @@ class FileScript(models.Model):
         choices=Correction.FILE_CORRECTION_SCRIPTS, help_text="Correction Required", db_index=True
     )
     batch_size = models.IntegerField(default=1)
-    input_file = models.FileField()
-    success_file = models.FileField(blank=True, null=True)
-    failed_file = models.FileField(blank=True, null=True)
+    input_file = models.FileField(upload_to=_FILE_UPLOAD_LOC)
+    success_file = models.FileField(upload_to=_FILE_UPLOAD_LOC, blank=True, null=True)
+    failed_file = models.FileField(upload_to=_FILE_UPLOAD_LOC, blank=True, null=True)
     status = models.CharField(max_length=12, choices=_STATUSES, default=FileScriptStatuses.READY, db_index=True)
     status_description = models.TextField(blank=True, null=True)
     celery_group_id = models.CharField(max_length=36, blank=True, null=True)
