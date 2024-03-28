@@ -1,6 +1,5 @@
 import hashlib
 from csv import DictWriter
-from datetime import datetime
 from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
@@ -36,8 +35,8 @@ if TYPE_CHECKING:
 
 
 def write_files_and_status(group_result: "GroupResultType", entry: "FileScript"):
-    failed_file = ContentFile("", name=f"{datetime.now().isoformat()}_failed.csv")
-    success_file = ContentFile("", name=f"{datetime.now().isoformat()}_success.csv")
+    failed_file = ContentFile("", name=f"FS{entry.id}_failed.csv")
+    success_file = ContentFile("", name=f"FS{entry.id}_success.csv")
     all_successful = True
 
     with failed_file.open("w") as fail_output, success_file.open("w") as success_output:
