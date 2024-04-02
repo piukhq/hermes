@@ -171,13 +171,15 @@ def _forget_plls(user: CustomUser) -> dict[int, dict]:
     return vop_deactivation_map
 
 
-def _forget_membership_cards(user: CustomUser) -> list[int]:
+def _forget_membership_cards(user: CustomUser) -> tuple[set[int], set[int]]:
     updated_mcards: list[SchemeAccount] = []
+    ignored_mcards_ids: set[int] = set()
     links_to_delete: list[int] = []
     for mcard in cast(list[SchemeAccount], user.scheme_account_set.prefetch_related("schemeaccountentry_set").all()):
         links_to_delete.extend(mcard.schemeaccountentry_set.filter(user_id=user.id).values_list("id", flat=True).all())
 
         if mcard.schemeaccountentry_set.count() > 1:
+            ignored_mcards_ids.add(mcard.id)
             # not last man standing. skip rest of logic.
             continue
 
@@ -187,15 +189,19 @@ def _forget_membership_cards(user: CustomUser) -> list[int]:
         mcard.is_deleted = True
         updated_mcards.append(mcard)
 
-    SchemeAccountCredentialAnswer.objects.filter(scheme_account_entry_id__in=links_to_delete).delete()
-    SchemeAccountEntry.objects.filter(id__in=links_to_delete).delete()
-    SchemeAccount.all_objects.bulk_update(updated_mcards, fields=["is_deleted", "alt_main_answer"])
+    if links_to_delete:
+        SchemeAccountCredentialAnswer.objects.filter(scheme_account_entry_id__in=links_to_delete).delete()
+        SchemeAccountEntry.objects.filter(id__in=links_to_delete).delete()
 
-    return [card.id for card in updated_mcards]
+    if updated_mcards:
+        SchemeAccount.all_objects.bulk_update(updated_mcards, fields=["is_deleted", "alt_main_answer"])
+
+    return {card.id for card in updated_mcards}, ignored_mcards_ids
 
 
-def _forget_payment_cards(user: CustomUser) -> list[PaymentCardAccount]:
+def _forget_payment_cards(user: CustomUser) -> tuple[list[PaymentCardAccount], set[int]]:
     updated_pcards: list[PaymentCardAccount] = []
+    ignored_pcards_ids: set[int] = set()
     links_to_delete: list[int] = []
 
     for pcard in cast(
@@ -206,6 +212,8 @@ def _forget_payment_cards(user: CustomUser) -> list[PaymentCardAccount]:
         )
 
         if pcard.paymentcardaccountentry_set.count() > 1:
+            ignored_pcards_ids.add(pcard.id)
+
             # not last man standing. skip rest of logic.
             continue
 
@@ -213,23 +221,65 @@ def _forget_payment_cards(user: CustomUser) -> list[PaymentCardAccount]:
         pcard.is_deleted = True
         updated_pcards.append(pcard)
 
-    PaymentCardAccountEntry.objects.filter(id__in=links_to_delete).delete()
-    PaymentCardAccount.all_objects.bulk_update(updated_pcards, fields=["is_deleted", "name_on_card"])
+    if links_to_delete:
+        PaymentCardAccountEntry.objects.filter(id__in=links_to_delete).delete()
 
-    return updated_pcards
+    if updated_pcards:
+        PaymentCardAccount.all_objects.bulk_update(updated_pcards, fields=["is_deleted", "name_on_card"])
+
+    return updated_pcards, ignored_pcards_ids
 
 
-def _forget_history(user_id: int, pcards_ids: list[int], mcards_ids: list[int]) -> None:
+def _forget_history(
+    user_id: int,
+    pcards_ids: set[int],
+    ignored_pcards_ids: set[int],
+    mcards_ids: set[int],
+    ignored_mcards_ids: set[int],
+) -> list[PaymentCardAccount]:
+    pcard_ids_to_delete: set[int] = set(
+        hm.HistoricalPaymentCardAccountEntry.objects.filter(user_id=user_id)
+        .exclude(payment_card_account_id__in=ignored_pcards_ids)
+        .values_list("payment_card_account_id", flat=True)
+        .all()
+    )
+
+    redact_only_updated_pcards: list[PaymentCardAccount] = []
+    if history_only_pcard_ids := pcard_ids_to_delete - pcards_ids:
+        for pcard in PaymentCardAccount.all_objects.filter(id__in=history_only_pcard_ids, is_deleted=True).all():
+            pcard.name_on_card = _anonymised_value(pcard.name_on_card)
+            redact_only_updated_pcards.append(pcard)
+
+        if redact_only_updated_pcards:
+            PaymentCardAccount.all_objects.bulk_update(redact_only_updated_pcards, fields=["name_on_card"])
+
+    mcard_ids_to_delete: set[int] = set(
+        hm.HistoricalSchemeAccountEntry.objects.filter(user_id=user_id)
+        .exclude(scheme_account_id__in=ignored_mcards_ids)
+        .values_list("scheme_account_id", flat=True)
+        .all()
+    )
+
+    if history_only_mcard_ids := mcard_ids_to_delete - mcards_ids:
+        updated_mcards: list[SchemeAccount] = []
+        for mcard in SchemeAccount.all_objects.filter(id__in=history_only_mcard_ids, is_deleted=True).all():
+            if mcard.alt_main_answer:
+                mcard.alt_main_answer = _anonymised_value(mcard.alt_main_answer)
+                updated_mcards.append(mcard)
+
+        if updated_mcards:
+            SchemeAccount.all_objects.bulk_update(updated_mcards, fields=["alt_main_answer"])
+
     hm.HistoricalCustomUser.objects.filter(instance_id=str(user_id)).delete()
-    hm.HistoricalPaymentCardAccount.objects.filter(instance_id__in=[str(val) for val in pcards_ids]).delete()
-    hm.HistoricalSchemeAccount.objects.filter(instance_id__in=[str(val) for val in mcards_ids]).delete()
-    hm.HistoricalPaymentCardAccountEntry.objects.filter(
-        user_id=user_id, payment_card_account_id__in=pcards_ids
-    ).delete()
-    hm.HistoricalSchemeAccountEntry.objects.filter(user_id=user_id, scheme_account_id__in=mcards_ids).delete()
+    hm.HistoricalPaymentCardAccount.objects.filter(instance_id__in=[str(val) for val in pcard_ids_to_delete]).delete()
+    hm.HistoricalSchemeAccount.objects.filter(instance_id__in=[str(val) for val in mcard_ids_to_delete]).delete()
+    hm.HistoricalPaymentCardAccountEntry.objects.filter(user_id=user_id).delete()
+    hm.HistoricalSchemeAccountEntry.objects.filter(user_id=user_id).delete()
     hm.HistoricalPaymentCardSchemeEntry.objects.filter(
-        payment_card_account_id__in=pcards_ids, scheme_account_id__in=mcards_ids
+        payment_card_account_id__in=pcard_ids_to_delete, scheme_account_id__in=mcard_ids_to_delete
     ).delete()
+
+    return redact_only_updated_pcards
 
 
 def _right_to_be_forgotten(user_id: str, entry_id: int) -> tuple[bool, str]:
@@ -246,21 +296,26 @@ def _right_to_be_forgotten(user_id: str, entry_id: int) -> tuple[bool, str]:
         with transaction.atomic():
             _forget_user(user)
             vop_deactivation_map = _forget_plls(user)
-            forgotten_mcards_ids = _forget_membership_cards(user)
-            forgotten_pcards = _forget_payment_cards(user)
-            _forget_history(user.id, [pcard.id for pcard in forgotten_pcards], forgotten_mcards_ids)
+            forgotten_mcards_ids, ignored_mcards_ids = _forget_membership_cards(user)
+            forgotten_pcards, ignored_pcards_ids = _forget_payment_cards(user)
+            redact_only_pcards = _forget_history(
+                user_id=user.id,
+                pcards_ids={pcard.id for pcard in forgotten_pcards},
+                ignored_pcards_ids=ignored_pcards_ids,
+                mcards_ids=forgotten_mcards_ids,
+                ignored_mcards_ids=ignored_mcards_ids,
+            )
 
     except Exception as e:
         return False, repr(e)
 
     # send requests to metis only if db changes committed successfully
+    azure_ref = f"Triggered by django admin FileScript of id {entry_id}"
     for pcard in forgotten_pcards:
         activations = vop_deactivation_map.get(pcard.id, None)
-        delete_and_redact_payment_card(
-            pcard,
-            activations=activations,
-            priority=4,
-            x_azure_ref=f"Triggered by django admin FileScript of id {entry_id}",
-        )
+        delete_and_redact_payment_card(pcard, activations=activations, priority=4, x_azure_ref=azure_ref)
+
+    for pcard in redact_only_pcards:
+        delete_and_redact_payment_card(pcard, priority=1, redact_only=True, x_azure_ref=azure_ref)
 
     return True, ""
