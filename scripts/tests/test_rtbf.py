@@ -1,6 +1,7 @@
 from collections.abc import Callable, Generator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, NamedTuple, TypedDict
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -87,23 +88,20 @@ class Wallet:
 
 
 @pytest.fixture(autouse=True)
-def stop_history_signals(mocker: MockerFixture) -> Generator[None, None, None]:
-    with mocker.patch("history.signals.record_history"):
+def stop_history_signals() -> Generator[None, None, None]:
+    with patch("history.signals.record_history"):
         yield
 
 
 @pytest.fixture()
-def payment_schemes() -> Generator["PaymentSchemesType", None, None]:
+def payment_schemes() -> "PaymentSchemesType":
     schemes: "PaymentSchemesType" = {
         "visa": PaymentCardFactory(slug="visa"),
         "amex": PaymentCardFactory(slug="amex"),
         "mastercard": PaymentCardFactory(slug="mastercard"),
     }
 
-    yield schemes
-
-    for scheme in schemes.values():
-        scheme.delete()
+    return schemes
 
 
 def _create_mcards(user: CustomUser, extra_user: CustomUser, mcards_data: list[McardInput]) -> list[WalletMcardData]:
@@ -196,13 +194,16 @@ def setup_wallet(
         wallet.user_data.model.delete()
 
         for pcard, _, activations in wallet.pcards_data:
-            pcard.delete()
-
             for activation in activations:
                 activation.delete()
 
+            pcard.delete()
+
         for mcard, _ in wallet.mcards_data:
             mcard.delete()
+
+        for scheme in payment_schemes.values():
+            scheme.delete()
 
 
 @pytest.mark.parametrize(
@@ -373,7 +374,7 @@ def test__right_to_be_forgotten(
     user, user_input = wallet.user_data
 
     mock_metis_request = mocker.patch("payment_card.metis.metis_request")
-    _right_to_be_forgotten(str(user.id), test_entry_id)
+    _right_to_be_forgotten(str(user.id), test_entry_id, "0,test")
 
     # check user
 

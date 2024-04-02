@@ -1,11 +1,12 @@
 import typing as t
+from datetime import UTC, datetime
 
 import arrow
 
 from api_messaging.message_broker import ProducerQueues, sending_service
 
 if t.TYPE_CHECKING:
-    from datetime import datetime
+    from collections.abc import Iterable
 
     from scheme.models import SchemeAccount
     from ubiquity.models import PllUserAssociation, SchemeAccountEntry
@@ -510,5 +511,24 @@ def add_trusted_failed_lc_event(
         "loyalty_plan": scheme_id,
         "main_answer": get_main_answer(scheme_account) if scheme_account else None,
         "status": None,
+    }
+    to_data_warehouse(payload, headers)
+
+
+def user_rtbf_event(
+    user_id: int,
+    scheme_accounts_ids: "Iterable[int]",
+    payment_accounts_ids: "Iterable[int]",
+    django_user_id: str,
+    date_time: datetime | None = None,
+    headers: dict | None = None,
+):
+    payload = {
+        "event_type": "user.RTBF",
+        "event_date_time": (date_time or datetime.now(tz=UTC)).isoformat(),
+        "internal_user_ref": user_id,
+        "scheme_accounts_ids": list(scheme_accounts_ids),
+        "payment_card_account_ids": list(payment_accounts_ids),
+        "django_user_id": django_user_id,
     }
     to_data_warehouse(payload, headers)
