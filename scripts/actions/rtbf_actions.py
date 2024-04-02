@@ -1,6 +1,6 @@
 from csv import DictReader
 from io import TextIOWrapper
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 from celery import chord, group
 
@@ -14,10 +14,14 @@ from scripts.tasks.rtbf_tasks import (
 if TYPE_CHECKING:
     from scripts.models import FileScript
 
+    class ContextType(TypedDict):
+        script_runner_id: str
 
-def do_right_to_be_forgotten(entry: "FileScript") -> bool:
+
+def do_right_to_be_forgotten(entry: "FileScript", *, context: "ContextType") -> bool:
     ids = []
     tasks = []
+    script_runner_id = context.get("script_runner_id")
 
     # Opening the file in binary mode and then wrapping it in TextIOWrapper to handle the encoding, instead
     # of just opening the file as string, due to azure blob storage not supporting text mode.
@@ -28,11 +32,13 @@ def do_right_to_be_forgotten(entry: "FileScript") -> bool:
             ids.append(row["ids"])
 
             if count % entry.batch_size == 0:
-                tasks.append(right_to_be_forgotten_batch_task.s(ids=ids, entry_id=entry.id))
+                tasks.append(
+                    right_to_be_forgotten_batch_task.s(ids=ids, entry_id=entry.id, script_runner_id=script_runner_id)
+                )
                 ids = []
 
     if ids:
-        tasks.append(right_to_be_forgotten_batch_task.s(ids=ids, entry_id=entry.id))
+        tasks.append(right_to_be_forgotten_batch_task.s(ids=ids, entry_id=entry.id, script_runner_id=script_runner_id))
 
     tasks_n = len(tasks)
     result = chord(group(tasks))(

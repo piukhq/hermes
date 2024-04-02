@@ -138,7 +138,7 @@ def file_script_apply_correction(_, request, queryset):
     else:
         for entry in queryset:
             if entry.status == FileScriptStatuses.READY:
-                apply_file_script_mapped_action(entry)
+                apply_file_script_mapped_action(entry, script_runner_id=f"{request.user.pk},{request.user.email}")
 
 
 class FileScriptForm(ModelForm):

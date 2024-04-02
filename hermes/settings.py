@@ -832,3 +832,5 @@ API_MESSAGING_RETRY_LIMIT = config("API_MESSAGING_RETRY_LIMIT", default=3, cast=
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 2000
 HERMES_LOCAL = config("HERMES_LOCAL", default=False, cast=bool)
+# allows manage.py test to discover pytest only tests
+TEST_RUNNER = "hermes.pytest_runner.PytestTestRunner"

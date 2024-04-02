@@ -12,6 +12,7 @@ from django.db.models import Q
 from typing_extensions import TypedDict
 
 from history import models as hm
+from history.data_warehouse import user_rtbf_event
 from payment_card.metis import delete_and_redact_payment_card
 from payment_card.models import PaymentCard, PaymentCardAccount
 from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer
@@ -103,11 +104,11 @@ def right_to_be_forgotten_batch_fail_handler_task(*_args, entry_id: int) -> None
 
 
 @shared_task
-def right_to_be_forgotten_batch_task(ids: list[str], entry_id: int) -> "ResultType":
+def right_to_be_forgotten_batch_task(ids: list[str], entry_id: int, script_runner_id: str) -> "ResultType":
     result: "ResultType" = {"failed": [], "successful": []}
 
     for uid in ids:
-        success, reason = _right_to_be_forgotten(uid, entry_id)
+        success, reason = _right_to_be_forgotten(uid, entry_id, script_runner_id)
         if success:
             result["successful"].append({"ids": uid})
         else:
@@ -158,8 +159,6 @@ def _forget_plls(user: CustomUser) -> dict[int, dict]:
         if pll.plluserassociation_set.count() > 1:
             # not last man standing. skip rest of logic.
             continue
-
-        # TODO: send midas last man standing event here
 
         pll_to_delete.append(pll.id)
         if pll.active_link and pll.payment_card_account.payment_card_id == visa_payment_card_id:
@@ -290,7 +289,7 @@ def _forget_history(
     return redact_only_updated_pcards
 
 
-def _right_to_be_forgotten(user_id: str, entry_id: int) -> tuple[bool, str]:
+def _right_to_be_forgotten(user_id: str, entry_id: int, script_runner_id: str) -> tuple[bool, str]:
     try:
         user = CustomUser.objects.prefetch_related(
             "plluserassociation_set", "scheme_account_set", "paymentcardaccountentry_set"
@@ -306,9 +305,10 @@ def _right_to_be_forgotten(user_id: str, entry_id: int) -> tuple[bool, str]:
             vop_deactivation_map = _forget_plls(user)
             forgotten_mcards_ids, ignored_mcards_ids = _forget_membership_cards(user)
             forgotten_pcards, ignored_pcards_ids = _forget_payment_cards(user)
+            forgotten_pcards_ids = {pcard.id for pcard in forgotten_pcards}
             redact_only_pcards = _forget_history(
                 user_id=user.id,
-                pcards_ids={pcard.id for pcard in forgotten_pcards},
+                pcards_ids=forgotten_pcards_ids,
                 ignored_pcards_ids=ignored_pcards_ids,
                 mcards_ids=forgotten_mcards_ids,
                 ignored_mcards_ids=ignored_mcards_ids,
@@ -318,12 +318,20 @@ def _right_to_be_forgotten(user_id: str, entry_id: int) -> tuple[bool, str]:
         return False, repr(e)
 
     # send requests to metis only if db changes committed successfully
-    azure_ref = f"Triggered by django admin FileScript of id {entry_id}"
+    azure_ref = f"Django Admin FileScript {entry_id}"
     for pcard in forgotten_pcards:
         activations = vop_deactivation_map.get(pcard.id, None)
         delete_and_redact_payment_card(pcard, activations=activations, priority=4, x_azure_ref=azure_ref)
 
     for pcard in redact_only_pcards:
         delete_and_redact_payment_card(pcard, priority=1, redact_only=True, x_azure_ref=azure_ref)
+
+    user_rtbf_event(
+        user_id=user.id,
+        scheme_accounts_ids=forgotten_mcards_ids,
+        payment_accounts_ids=forgotten_pcards_ids,
+        django_user_id=script_runner_id,
+        headers={"X-azure-ref": azure_ref},
+    )
 
     return True, ""
