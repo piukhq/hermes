@@ -97,7 +97,7 @@ def metis_request(method: RequestMethod, endpoint: str, payload: dict, headers: 
         method.value,
         settings.METIS_URL + endpoint,
         json=payload,
-        headers=headers,
+        headers=base_headers,
     )
     try:
         response.raise_for_status()
