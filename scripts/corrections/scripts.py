@@ -6,7 +6,6 @@ from scripts.actions.paymentaccount_actions import (
     do_un_enroll,
     do_update_hash,
 )
-from scripts.actions.rtbf_actions import do_right_to_be_forgotten
 from scripts.actions.schemeaccount_actions import do_mark_as_unknown, do_refresh_balance
 from scripts.actions.ubiquity_actions import (
     do_channel_retailer_offboarding,
@@ -45,17 +44,10 @@ MAPPED_ACTIONS = {
     Correction.DELETE_CLIENT_USERS: do_client_decommission,
     Correction.CHANNELS_RETAILER_OFFBOARDING: do_channel_retailer_offboarding,
     Correction.ORPHANED_PAYMENT_CARD_CLEANUP: do_orphaned_payment_card_cleanup,
-    Correction.RTBF: do_right_to_be_forgotten,
 }
 
 
 def apply_mapped_action(entry: object):
-    if hasattr(entry, "apply"):
-        if entry.apply not in MAPPED_ACTIONS:
-            return False
-        return MAPPED_ACTIONS[entry.apply](entry)
-    else:
-        if entry.correction not in MAPPED_ACTIONS:
-            return False
-
-        return MAPPED_ACTIONS[entry.correction](entry)
+    if entry.apply not in MAPPED_ACTIONS:
+        return False
+    return MAPPED_ACTIONS[entry.apply](entry)

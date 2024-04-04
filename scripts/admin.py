@@ -8,8 +8,10 @@ from django.urls import path
 from django.utils.safestring import mark_safe
 
 from scripts.corrections import Correction
-from scripts.corrections.map_to_action import apply_mapped_action
+from scripts.corrections.file_scripts import INPUT_FILE_VALIDATION_BY_CORRECTION, apply_file_script_mapped_action
+from scripts.corrections.scripts import apply_mapped_action
 from scripts.enums import FileScriptStatuses
+from scripts.file_script_validators import input_file_validation
 from scripts.models import FileScript, ScriptResult
 from scripts.scripts import SCRIPT_CLASSES, SCRIPT_TITLES
 from scripts.tasks.async_corrections import background_corrections
@@ -136,7 +138,7 @@ def file_script_apply_correction(_, request, queryset):
     else:
         for entry in queryset:
             if entry.status == FileScriptStatuses.READY:
-                apply_mapped_action(entry)
+                apply_file_script_mapped_action(entry)
 
 
 class FileScriptForm(ModelForm):
@@ -150,6 +152,17 @@ class FileScriptForm(ModelForm):
             ),
         }
         exclude = ()
+
+    def clean_input_file(self):
+        cleaned_data = self.cleaned_data
+        form_input_file = cleaned_data.get("input_file")
+
+        if (validation_map := INPUT_FILE_VALIDATION_BY_CORRECTION.get(cleaned_data.get("correction", -1))) and (
+            input_file := form_input_file or self.instance.input_file
+        ):
+            input_file_validation(input_file, validation_map)
+
+        return form_input_file
 
 
 @admin.register(FileScript)

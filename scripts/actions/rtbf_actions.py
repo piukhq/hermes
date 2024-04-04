@@ -19,10 +19,10 @@ def do_right_to_be_forgotten(entry: "FileScript") -> bool:
     ids = []
     tasks = []
 
-    # Opening the file in binary mode and then wrapping it in TextIOWrapper to handle the encoding instead
+    # Opening the file in binary mode and then wrapping it in TextIOWrapper to handle the encoding, instead
     # of just opening the file as string, due to azure blob storage not supporting text mode.
     with entry.input_file.open("rb") as stream:
-        reader = DictReader(TextIOWrapper(stream))
+        reader = DictReader(TextIOWrapper(stream, encoding="utf-8"))
 
         for count, row in enumerate(reader, start=1):
             ids.append(row["ids"])

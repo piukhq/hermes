@@ -8,6 +8,7 @@ from celery import shared_task
 from celery.result import GroupResult
 from django.core.files.base import ContentFile
 from django.db import transaction
+from django.db.models import Q
 from typing_extensions import TypedDict
 
 from history import models as hm
@@ -276,7 +277,14 @@ def _forget_history(
     hm.HistoricalPaymentCardAccountEntry.objects.filter(user_id=user_id).delete()
     hm.HistoricalSchemeAccountEntry.objects.filter(user_id=user_id).delete()
     hm.HistoricalPaymentCardSchemeEntry.objects.filter(
-        payment_card_account_id__in=pcard_ids_to_delete, scheme_account_id__in=mcard_ids_to_delete
+        Q(
+            payment_card_account_id__in=pcard_ids_to_delete,
+            scheme_account_id__in=mcard_ids_to_delete | ignored_mcards_ids,
+        )
+        | Q(
+            payment_card_account_id__in=pcard_ids_to_delete | ignored_pcards_ids,
+            scheme_account_id__in=mcard_ids_to_delete,
+        )
     ).delete()
 
     return redact_only_updated_pcards
