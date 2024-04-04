@@ -1,7 +1,7 @@
 from celery import shared_task
 
 from scripts.corrections import Correction
-from scripts.corrections.map_to_action import apply_mapped_action
+from scripts.corrections.scripts import apply_mapped_action
 from scripts.models import ScriptResult
 
 
