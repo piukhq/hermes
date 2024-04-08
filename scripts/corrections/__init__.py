@@ -34,6 +34,7 @@ class Correction:
     DELETE_CLIENT_USERS = 5001
     CHANNELS_RETAILER_OFFBOARDING = 6001
     RTBF = 7001
+    ACCOUNT_CLOSURE = 8001
 
     CORRECTION_SCRIPTS = (
         (NO_CORRECTION, "No correction available"),
@@ -74,6 +75,7 @@ class Correction:
     FILE_CORRECTION_SCRIPTS = (
         (NO_CORRECTION, "No correction available"),
         (RTBF, "Right to be forgotten"),
+        (ACCOUNT_CLOSURE, "Account closure"),
     )
 
     COMPOUND_CORRECTION_SCRIPTS = {

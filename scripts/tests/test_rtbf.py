@@ -17,7 +17,7 @@ from scheme.tests.factories import (
     SchemeCredentialQuestionFactory,
     SchemeFactory,
 )
-from scripts.tasks.rtbf_tasks import _right_to_be_forgotten
+from scripts.tasks.file_script_tasks.rtbf_tasks import _right_to_be_forgotten
 from ubiquity.models import VopActivation
 from ubiquity.tests.factories import (
     PaymentCardAccountEntryFactory,

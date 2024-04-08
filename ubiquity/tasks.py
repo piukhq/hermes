@@ -462,7 +462,9 @@ def _delete_user_membership_cards(
         PaymentCardSchemeEntry.deactivate_activations(activations, headers)
 
     links_to_remove.delete()
-    history_bulk_update(SchemeAccount, cards_to_delete, ["is_deleted"])
+    if cards_to_delete:
+        history_bulk_update(SchemeAccount, cards_to_delete, ["is_deleted"])
+
     user_card_entries.delete()
 
 

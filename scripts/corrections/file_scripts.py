@@ -1,8 +1,11 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from scripts.actions.rtbf_actions import do_right_to_be_forgotten
+from scripts.actions.file_scripts import FileScriptAction
 from scripts.corrections import Correction
+from scripts.tasks.file_script_tasks import file_script_fail_handler_task, file_script_success_handler_task
+from scripts.tasks.file_script_tasks.account_closure_tasks import account_closure_batch_task
+from scripts.tasks.file_script_tasks.rtbf_tasks import right_to_be_forgotten_batch_task
 
 
 @dataclass
@@ -11,17 +14,27 @@ class ColumnTypeSchema:
     is_valid: Callable[[str], bool]
 
 
+INT_COLUMN_TYPE_VALIDATION = ColumnTypeSchema(
+    name="integer",
+    is_valid=lambda value: value.isdecimal(),
+)
+
 INPUT_FILE_VALIDATION_BY_CORRECTION = {
-    Correction.RTBF: {
-        "ids": ColumnTypeSchema(
-            name="integer",
-            is_valid=lambda value: value.isdecimal(),
-        ),
-    },
+    Correction.RTBF: {"ids": INT_COLUMN_TYPE_VALIDATION},
+    Correction.ACCOUNT_CLOSURE: {"ids": INT_COLUMN_TYPE_VALIDATION},
 }
 
 MAPPED_ACTIONS = {
-    Correction.RTBF: do_right_to_be_forgotten,
+    Correction.RTBF: FileScriptAction(
+        process_batch_task=right_to_be_forgotten_batch_task,
+        success_handler_task=file_script_success_handler_task,
+        fail_handler_task=file_script_fail_handler_task,
+    ),
+    Correction.ACCOUNT_CLOSURE: FileScriptAction(
+        process_batch_task=account_closure_batch_task,
+        success_handler_task=file_script_success_handler_task,
+        fail_handler_task=file_script_fail_handler_task,
+    ),
 }
 
 

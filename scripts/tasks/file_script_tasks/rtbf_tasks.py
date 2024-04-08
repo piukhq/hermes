@@ -1,120 +1,24 @@
 import hashlib
-from codecs import getwriter
-from csv import DictWriter
 from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
 from celery import shared_task
-from celery.result import GroupResult
-from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Q
-from typing_extensions import TypedDict
 
+from hermes.utils import ctx
 from history import models as hm
 from history.data_warehouse import user_rtbf_event
 from payment_card.metis import delete_and_redact_payment_card
 from payment_card.models import PaymentCard, PaymentCardAccount
 from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer
-from scripts.enums import FileScriptStatuses
-from scripts.models import FileScript
+from scripts.tasks.file_script_tasks import file_script_batch_task_base
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.utils import vop_deactivation_dict_by_payment_card_id
 from user.models import CustomUser
 
 if TYPE_CHECKING:
-
-    class SuccessfulType(TypedDict):
-        ids: int
-
-    class FailedType(TypedDict):
-        ids: int
-        reason: str
-
-    class ResultType(TypedDict):
-        successful: list[SuccessfulType]
-        failed: list[FailedType]
-
-    GroupResultType = list[ResultType]
-
-
-BytesStreamWriter = getwriter("utf-8")
-
-
-def write_files_and_status(group_result: "GroupResultType", entry: "FileScript"):
-    # have to setup the file as bytes and use a codec to write utf-8 as azure storage only supports bytes file
-    failed_file = ContentFile(b"", name=f"FS{entry.id}_failed.csv")
-    success_file = ContentFile(b"", name=f"FS{entry.id}_success.csv")
-
-    all_successful = True
-
-    with failed_file.open("wb") as fail_output, success_file.open("wb") as success_output:
-        fail_writer = DictWriter(BytesStreamWriter(fail_output), fieldnames=["ids", "reason"])
-        success_writer = DictWriter(BytesStreamWriter(success_output), fieldnames=["ids"])
-        fail_writer.writeheader()
-        success_writer.writeheader()
-        for result in group_result:
-            if failed := result["failed"]:
-                fail_writer.writerows(failed)
-                all_successful = False
-            if successful := result["successful"]:
-                success_writer.writerows(successful)
-
-    description = "Task completed"
-    if all_successful:
-        description += ", no further action needed."
-    else:
-        description += ", but with some failures. Check the failed file."
-
-    entry.status = FileScriptStatuses.DONE
-    entry.status_description = description
-    entry.failed_file = failed_file
-    entry.success_file = success_file
-    entry.celery_group_id = None
-    entry.save(update_fields=["status", "failed_file", "success_file", "status_description", "celery_group_id"])
-
-
-@shared_task
-def right_to_be_forgotten_batch_success_handler_task(group_result: "GroupResultType", *, entry_id: int) -> None:
-    entry = FileScript.objects.get(id=entry_id)
-    celery_group = GroupResult.restore(entry.celery_group_id)
-    write_files_and_status(group_result, entry)
-    celery_group.forget()
-
-
-@shared_task
-def right_to_be_forgotten_batch_fail_handler_task(*_args, entry_id: int) -> None:
-    entry = FileScript.objects.get(id=entry_id)
-    celery_group = GroupResult.restore(entry.celery_group_id)
-    group_result: GroupResultType = []
-    for result in celery_group.results:
-        if result.successful():
-            group_result.append(result.get(disable_sync_subtasks=False))
-        else:
-            group_result.append(
-                {
-                    "failed": [{"ids": uid, "reason": repr(result.info)} for uid in result.kwargs["ids"]],
-                    "successful": [],
-                }
-            )
-            result.forget()
-
-    write_files_and_status(group_result, entry)
-    celery_group.forget()
-
-
-@shared_task
-def right_to_be_forgotten_batch_task(ids: list[str], entry_id: int, script_runner_id: str) -> "ResultType":
-    result: "ResultType" = {"failed": [], "successful": []}
-
-    for uid in ids:
-        success, reason = _right_to_be_forgotten(uid, entry_id, script_runner_id)
-        if success:
-            result["successful"].append({"ids": uid})
-        else:
-            result["failed"].append({"ids": uid, "reason": reason})
-
-    return result
+    from scripts.tasks.file_script_tasks import ResultType
 
 
 def _anonymised_value(value: str) -> str:
@@ -290,6 +194,8 @@ def _forget_history(
 
 
 def _right_to_be_forgotten(user_id: str, entry_id: int, script_runner_id: str) -> tuple[bool, str]:
+    ctx.x_azure_ref = f"Django Admin FileScript {entry_id}"
+
     try:
         user = CustomUser.objects.prefetch_related(
             "plluserassociation_set", "scheme_account_set", "paymentcardaccountentry_set"
@@ -318,20 +224,24 @@ def _right_to_be_forgotten(user_id: str, entry_id: int, script_runner_id: str) -
         return False, repr(e)
 
     # send requests to metis only if db changes committed successfully
-    azure_ref = f"Django Admin FileScript {entry_id}"
     for pcard in forgotten_pcards:
         activations = vop_deactivation_map.get(pcard.id, None)
-        delete_and_redact_payment_card(pcard, activations=activations, priority=4, x_azure_ref=azure_ref)
+        delete_and_redact_payment_card(pcard, activations=activations, priority=4, x_azure_ref=ctx.x_azure_ref)
 
     for pcard in redact_only_pcards:
-        delete_and_redact_payment_card(pcard, priority=1, redact_only=True, x_azure_ref=azure_ref)
+        delete_and_redact_payment_card(pcard, priority=1, redact_only=True, x_azure_ref=ctx.x_azure_ref)
 
     user_rtbf_event(
         user_id=user.id,
         scheme_accounts_ids=forgotten_mcards_ids,
         payment_accounts_ids=forgotten_pcards_ids,
         django_user_id=script_runner_id,
-        headers={"X-azure-ref": azure_ref},
+        headers={"X-azure-ref": ctx.x_azure_ref},
     )
 
     return True, ""
+
+
+@shared_task
+def right_to_be_forgotten_batch_task(ids: list[str], entry_id: int, script_runner_id: str) -> "ResultType":
+    return file_script_batch_task_base(ids, entry_id, script_runner_id, logic_fn=_right_to_be_forgotten)
