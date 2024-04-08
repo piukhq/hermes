@@ -67,7 +67,7 @@ def delete_and_redact_payment_card(
     x_azure_ref: str | None = None,
 ) -> None:
     url = "/payment_service/payment_card/unenrol_and_redact"
-    extra_headers = {"X-Priority": priority}
+    extra_headers = {"X-Priority": str(priority)}
     if x_azure_ref:
         extra_headers["X-Azure-Ref"] = x_azure_ref
 
