@@ -366,6 +366,7 @@ def loyalty_card_join(message: dict, headers: dict) -> None:
         else:
             # send event to data warehouse
             join_request_lc_event(entry, ac.channel_slug, ac.date_time, headers=headers)
+            save_credential_answers(entry, credentials=message.get("join_fields"))
             async_join(
                 scheme_account_id=account.id,
                 user_id=user.id,
