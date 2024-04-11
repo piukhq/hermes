@@ -16,7 +16,12 @@ from payment_card.enums import RequestMethod
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import EMAIL, POSTCODE
-from scheme.models import SchemeAccount, SchemeBundleAssociation, SchemeCredentialQuestion
+from scheme.models import (
+    SchemeAccount,
+    SchemeAccountCredentialAnswer,
+    SchemeBundleAssociation,
+    SchemeCredentialQuestion,
+)
 from scheme.tests.factories import (
     SchemeAccountFactory,
     SchemeBalanceDetailsFactory,
@@ -328,7 +333,9 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         This test is for angelia background "loyalty_card_join" message handler - testing complete route through to
         midas message send via Q.
         """
-        SchemeCredentialQuestion.objects.create(scheme=self.scheme, type=EMAIL, manual_question=True, label="Email")
+        question = SchemeCredentialQuestion.objects.create(
+            scheme=self.scheme, type=EMAIL, manual_question=True, label="Email"
+        )
 
         self.scheme_account_entry.link_status = AccountLinkStatus.PENDING
         self.scheme_account_entry.save()
@@ -355,6 +362,14 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
         user_pll = PllUserAssociation.objects.get(pll__scheme_account=self.scheme_account, user=self.user)
         self.assertEqual(user_pll.state, WalletPLLStatus.PENDING.value)
         self.assertEqual(user_pll.slug, WalletPLLSlug.LOYALTY_CARD_PENDING.value)
+        assert (
+            SchemeAccountCredentialAnswer.objects.filter(
+                question=question, scheme_account_entry=self.scheme_account_entry
+            )
+            .values("answer")
+            .get()["answer"]
+            == "qatest+testnp2join1201@bink.com"
+        )
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
     @patch("api_messaging.midas_messaging.to_midas", autospec=True)
