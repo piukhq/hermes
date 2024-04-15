@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 class FileScriptAction:
     required_task_keys = ["ids"]
-    forwarded_context_keys = ["script_runner_id"]
+    forwarded_context_keys = ["script_runner"]
 
     def __init__(
         self,
@@ -23,7 +23,6 @@ class FileScriptAction:
         success_handler_task: "Task",
         fail_handler_task: "Task",
         required_task_keys: list[str] | None = None,
-        forwarded_context_keys: list[str] | None = None,
     ) -> None:
         self.process_batch_task = process_batch_task
         self.success_handler_task = success_handler_task

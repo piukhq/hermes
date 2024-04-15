@@ -13,6 +13,10 @@ from scripts.models import FileScript
 
 if TYPE_CHECKING:
 
+    class ScriptRunnerType(TypedDict):
+        pk: int
+        email: str
+
     class SuccessfulType(TypedDict):
         ids: int
 
@@ -93,12 +97,16 @@ def file_script_fail_handler_task(*_args, entry_id: int) -> None:
 
 
 def file_script_batch_task_base(
-    ids: list[str], entry_id: int, script_runner_id: str, *, logic_fn: Callable[[str, int, str], tuple[bool, str]]
+    ids: list[str],
+    entry_id: int,
+    script_runner: "ScriptRunnerType",
+    *,
+    logic_fn: Callable[[str, int, "ScriptRunnerType"], tuple[bool, str]],
 ) -> "ResultType":
     result: "ResultType" = {"failed": [], "successful": []}
 
     for uid in ids:
-        success, reason = logic_fn(uid, entry_id, script_runner_id)
+        success, reason = logic_fn(uid, entry_id, script_runner)
         if success:
             result["successful"].append({"ids": uid})
         else:
