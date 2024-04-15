@@ -374,7 +374,7 @@ def test__right_to_be_forgotten(
     user, user_input = wallet.user_data
 
     mock_metis_request = mocker.patch("payment_card.metis.metis_request")
-    _right_to_be_forgotten(str(user.id), test_entry_id, "0,test")
+    _right_to_be_forgotten(str(user.id), test_entry_id, {"pk": 0, "email": "test@test.test"})
 
     # check user
 

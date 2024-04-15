@@ -440,7 +440,7 @@ def _delete_user_membership_cards(
     channel_slug: str = None,
     send_deactivation: bool = True,
     headers: dict | None = None,
-) -> None:
+) -> list[int]:
     cards_to_delete = []
     for card in m_cards:
         if card.user_set.count() == 1:
@@ -467,10 +467,12 @@ def _delete_user_membership_cards(
 
     user_card_entries.delete()
 
+    return [card.id for card in cards_to_delete]
+
 
 def _delete_user_payment_cards(
     user: "CustomUser", p_cards: list[PaymentCardAccount], run_async: bool = True, headers: dict | None = None
-) -> None:
+) -> list[int]:
     cards_to_delete = []
     for card in p_cards:
         if card.user_set.count() == 1:
@@ -482,7 +484,8 @@ def _delete_user_payment_cards(
             for entry in card.paymentcardschemeentry_set.all():
                 PllUserAssociation.update_user_pll_by_both(entry.payment_card_account, entry.scheme_account)
 
-    PaymentCardSchemeEntry.objects.filter(payment_card_account_id__in=[card.id for card in cards_to_delete]).delete()
+    cards_to_delete_ids = [card.id for card in cards_to_delete]
+    PaymentCardSchemeEntry.objects.filter(payment_card_account_id__in=cards_to_delete_ids).delete()
 
     user_card_entries = user.paymentcardaccountentry_set.all()
 
@@ -506,8 +509,12 @@ def _delete_user_payment_cards(
             }
             to_data_warehouse(payload, headers)
 
-        history_bulk_update(PaymentCardAccount, cards_to_delete, ["is_deleted"])
         user_card_entry.delete()
+
+    if cards_to_delete:
+        history_bulk_update(PaymentCardAccount, cards_to_delete, ["is_deleted"])
+
+    return cards_to_delete_ids
 
 
 @shared_task
@@ -518,7 +525,7 @@ def deleted_service_cleanup(
     history_kwargs: dict | None = None,
     headers: dict | None = None,
     user: CustomUser | None = None,
-) -> None:
+) -> tuple[list[int], list[int]]:
     set_history_kwargs(history_kwargs)
 
     if not user:
@@ -549,14 +556,19 @@ def deleted_service_cleanup(
     # Don't deactivate when removing membership card as it will race with delete payment card
     # Deleting all payment cards causes an un-enrol for each card which also deactivates all linked activations
     # if a payment card was linked to 2 accounts its activations will not be deleted
-    _delete_user_membership_cards(user, m_cards, channel_slug=channel_slug, send_deactivation=False, headers=headers)
-    _delete_user_payment_cards(user, p_cards, run_async=False, headers=headers)
+    deleted_mcards_ids = _delete_user_membership_cards(
+        user, m_cards, channel_slug=channel_slug, send_deactivation=False, headers=headers
+    )
+    deleted_pcards_ids = _delete_user_payment_cards(user, p_cards, run_async=False, headers=headers)
+
     clean_history_kwargs(history_kwargs)
 
     try:  # send user info to be persisted in Atlas
         _send_data_to_atlas(consent, headers.get("X-azure-ref", None) if headers else None)
     except Exception:
         sentry_sdk.capture_exception()
+
+    return deleted_pcards_ids, deleted_mcards_ids
 
 
 def _update_one_card_with_many_new_pll_links(

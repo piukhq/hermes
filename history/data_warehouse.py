@@ -519,7 +519,8 @@ def user_rtbf_event(
     user_id: int,
     scheme_accounts_ids: "Iterable[int]",
     payment_accounts_ids: "Iterable[int]",
-    django_user_id: str,
+    requesting_user_id: int,
+    requesting_user_email: str,
     date_time: datetime | None = None,
     headers: dict | None = None,
 ):
@@ -529,6 +530,28 @@ def user_rtbf_event(
         "internal_user_ref": user_id,
         "scheme_accounts_ids": list(scheme_accounts_ids),
         "payment_card_account_ids": list(payment_accounts_ids),
-        "django_user_id": django_user_id,
+        "requesting_user_id": requesting_user_id,
+        "requesting_user_email": requesting_user_email,
+    }
+    to_data_warehouse(payload, headers)
+
+
+def user_account_closure_event(
+    user_id: int,
+    scheme_accounts_ids: "Iterable[int]",
+    payment_accounts_ids: "Iterable[int]",
+    requesting_user_id: int,
+    requesting_user_email: str,
+    date_time: datetime | None = None,
+    headers: dict | None = None,
+):
+    payload = {
+        "event_type": "user.closure",
+        "event_date_time": (date_time or datetime.now(tz=UTC)).isoformat(),
+        "internal_user_ref": user_id,
+        "scheme_accounts_ids": list(scheme_accounts_ids),
+        "payment_card_account_ids": list(payment_accounts_ids),
+        "requesting_user_id": requesting_user_id,
+        "requesting_user_email": requesting_user_email,
     }
     to_data_warehouse(payload, headers)
