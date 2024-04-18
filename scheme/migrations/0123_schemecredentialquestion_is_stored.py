@@ -10,7 +10,6 @@ def set_default_is_stored(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("scheme", "0122_scheme_vop_merchant_group"),
     ]

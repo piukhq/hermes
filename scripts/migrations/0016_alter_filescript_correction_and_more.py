@@ -4,30 +4,33 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('scripts', '0015_filescript'),
+        ("scripts", "0015_filescript"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='filescript',
-            name='correction',
-            field=models.IntegerField(choices=[(0, 'No correction available'), (7001, 'Right to be forgotten')], db_index=True, help_text='Correction Required'),
+            model_name="filescript",
+            name="correction",
+            field=models.IntegerField(
+                choices=[(0, "No correction available"), (7001, "Right to be forgotten")],
+                db_index=True,
+                help_text="Correction Required",
+            ),
         ),
         migrations.AlterField(
-            model_name='filescript',
-            name='failed_file',
-            field=models.FileField(blank=True, null=True, upload_to='file_script_files/'),
+            model_name="filescript",
+            name="failed_file",
+            field=models.FileField(blank=True, null=True, upload_to="file_script_files/"),
         ),
         migrations.AlterField(
-            model_name='filescript',
-            name='input_file',
-            field=models.FileField(upload_to='file_script_files/'),
+            model_name="filescript",
+            name="input_file",
+            field=models.FileField(upload_to="file_script_files/"),
         ),
         migrations.AlterField(
-            model_name='filescript',
-            name='success_file',
-            field=models.FileField(blank=True, null=True, upload_to='file_script_files/'),
+            model_name="filescript",
+            name="success_file",
+            field=models.FileField(blank=True, null=True, upload_to="file_script_files/"),
         ),
     ]
