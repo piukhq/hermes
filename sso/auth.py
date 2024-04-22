@@ -8,7 +8,6 @@ from mozilla_django_oidc.auth import LOGGER, OIDCAuthenticationBackend
 from mozilla_django_oidc.utils import add_state_and_verifier_and_nonce_to_session
 from mozilla_django_oidc.views import OIDCAuthenticationRequestView, get_next_url
 
-from sso import get_role_name
 from user.models import ClientApplication, CustomUser
 
 
@@ -66,28 +65,32 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
             reader = Group.objects.get(name="Reader")
             contributor = Group.objects.get(name="Contributor")
         except Group.DoesNotExist:
-            user.save()
             raise SuspiciousOperation("Groups 'Reader' and/or 'Contributor' not found.") from None
 
         # Get roles from AAD token
         roles = payload.get("roles", [])
-        if len(roles) != 1:
-            roles = ["reader"]
+        if (roles_n := len(roles)) < 1:
+            raise SuspiciousOperation("No user roles.")
+
+        if roles_n > 1:
+            raise SuspiciousOperation("Multiple user roles.")
 
         # change this to `role = roles[0].lower()` and delete `get_role_name` func
         # once AAD roles have been fully updated
-        role = get_role_name(roles[0])
 
-        if role == "owner":
-            user.is_superuser = True
-        elif role == "contributor":
-            reader.user_set.remove(user)
-            user.user_permissions.clear()
-            contributor.user_set.add(user)
-        else:
-            contributor.user_set.remove(user)
-            user.user_permissions.clear()
-            reader.user_set.add(user)
+        match roles[0].lower():
+            case "owner":
+                user.is_superuser = True
+            case "contributor":
+                reader.user_set.remove(user)
+                user.user_permissions.clear()
+                contributor.user_set.add(user)
+            case "reader":
+                contributor.user_set.remove(user)
+                user.user_permissions.clear()
+                reader.user_set.add(user)
+            case unknown_role:
+                raise SuspiciousOperation(f"Invalid user role '{unknown_role}'.")
 
         user.save()
 
