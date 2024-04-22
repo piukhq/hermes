@@ -18,7 +18,7 @@ from ubiquity.utils import vop_deactivation_dict_by_payment_card_id
 from user.models import CustomUser
 
 if TYPE_CHECKING:
-    from scripts.tasks.file_script_tasks import ResultType
+    from scripts.tasks.file_script_tasks import ResultType, ScriptRunnerType
 
 
 def _anonymised_value(value: str) -> str:
@@ -193,7 +193,7 @@ def _forget_history(
     return redact_only_updated_pcards
 
 
-def _right_to_be_forgotten(user_id: str, entry_id: int, script_runner_id: str) -> tuple[bool, str]:
+def _right_to_be_forgotten(user_id: str, entry_id: int, script_runner: "ScriptRunnerType") -> tuple[bool, str]:
     ctx.x_azure_ref = f"Django Admin FileScript {entry_id}"
 
     try:
@@ -235,7 +235,8 @@ def _right_to_be_forgotten(user_id: str, entry_id: int, script_runner_id: str) -
         user_id=user.id,
         scheme_accounts_ids=forgotten_mcards_ids,
         payment_accounts_ids=forgotten_pcards_ids,
-        django_user_id=script_runner_id,
+        requesting_user_id=script_runner["pk"],
+        requesting_user_email=script_runner["email"],
         headers={"X-azure-ref": ctx.x_azure_ref},
     )
 
@@ -243,5 +244,5 @@ def _right_to_be_forgotten(user_id: str, entry_id: int, script_runner_id: str) -
 
 
 @shared_task
-def right_to_be_forgotten_batch_task(ids: list[str], entry_id: int, script_runner_id: str) -> "ResultType":
-    return file_script_batch_task_base(ids, entry_id, script_runner_id, logic_fn=_right_to_be_forgotten)
+def right_to_be_forgotten_batch_task(ids: list[str], entry_id: int, script_runner: "ScriptRunnerType") -> "ResultType":
+    return file_script_batch_task_base(ids, entry_id, script_runner, logic_fn=_right_to_be_forgotten)

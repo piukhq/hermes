@@ -125,10 +125,6 @@ line-length = 120
 output-format = "full"
 target-version = "py311"
 
-exclude = [
-    "**/migrations/*",
-]
-
 [tool.ruff.format]
 docstring-code-format = true
 
@@ -182,6 +178,9 @@ ignore = [
     "RUF012", # ClassVar Annotation
     "UP008",  # Use `super()` instead of `super(__class__, self)`
     "PLW0603", # Using the global statement
+]
+exclude = [
+    "**/migrations/*",
 ]
 
 [tool.ruff.lint.per-file-ignores]

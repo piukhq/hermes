@@ -5,25 +5,43 @@ import scripts.enums
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('scripts', '0014_alter_scriptresult_apply_and_more'),
+        ("scripts", "0014_alter_scriptresult_apply_and_more"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='FileScript',
+            name="FileScript",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('correction', models.IntegerField(choices=[(0, 'No correction available'), (7000, 'Right to be forgotten')], db_index=True, help_text='Correction Required')),
-                ('batch_size', models.IntegerField(default=1)),
-                ('input_file', models.FileField(upload_to='')),
-                ('success_file', models.FileField(blank=True, null=True, upload_to='')),
-                ('failed_file', models.FileField(blank=True, null=True, upload_to='')),
-                ('status', models.CharField(choices=[(scripts.enums.FileScriptStatuses['READY'], 'Ready'), (scripts.enums.FileScriptStatuses['IN_PROGRESS'], 'In Progress'), (scripts.enums.FileScriptStatuses['DONE'], 'Done')], db_index=True, default=scripts.enums.FileScriptStatuses['READY'], max_length=12)),
-                ('status_description', models.TextField(blank=True, null=True)),
-                ('celery_group_id', models.CharField(blank=True, max_length=36, null=True)),
-                ('created_tasks_n', models.IntegerField(default=0)),
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "correction",
+                    models.IntegerField(
+                        choices=[(0, "No correction available"), (7000, "Right to be forgotten")],
+                        db_index=True,
+                        help_text="Correction Required",
+                    ),
+                ),
+                ("batch_size", models.IntegerField(default=1)),
+                ("input_file", models.FileField(upload_to="")),
+                ("success_file", models.FileField(blank=True, null=True, upload_to="")),
+                ("failed_file", models.FileField(blank=True, null=True, upload_to="")),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            (scripts.enums.FileScriptStatuses["READY"], "Ready"),
+                            (scripts.enums.FileScriptStatuses["IN_PROGRESS"], "In Progress"),
+                            (scripts.enums.FileScriptStatuses["DONE"], "Done"),
+                        ],
+                        db_index=True,
+                        default=scripts.enums.FileScriptStatuses["READY"],
+                        max_length=12,
+                    ),
+                ),
+                ("status_description", models.TextField(blank=True, null=True)),
+                ("celery_group_id", models.CharField(blank=True, max_length=36, null=True)),
+                ("created_tasks_n", models.IntegerField(default=0)),
             ],
         ),
     ]

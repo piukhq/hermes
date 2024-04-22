@@ -62,49 +62,35 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
         user.is_superuser = False
 
         try:
-            rw = Group.objects.get(name="Read/Write")
-            ro = Group.objects.get(name="Read Only")
-            sc_rw = Group.objects.get(name="Scripts Run and Correct")
-            sc_ro = Group.objects.get(name="Scripts Run Only")
-
-            # Get roles from AAD token
-            roles = payload.get("roles", [])
-            if len(roles) != 1:
-                roles = ["readonly"]
-            role = roles[0]
-
-            if role == "superuser":
-                user.is_superuser = True
-            elif role == "readwrite":
-                user.is_superuser = False
-                ro.user_set.remove(user)
-                sc_rw.user_set.remove(user)
-                sc_ro.user_set.remove(user)
-                user.user_permissions.clear()
-                rw.user_set.add(user)
-            elif role == "script_run_and_correct":
-                user.is_superuser = False
-                rw.user_set.remove(user)
-                sc_ro.user_set.remove(user)
-                user.user_permissions.clear()
-                ro.user_set.add(user)
-                sc_rw.user_set.add(user)
-            elif role == "script_run_only":
-                user.is_superuser = False
-                rw.user_set.remove(user)
-                sc_rw.user_set.remove(user)
-                user.user_permissions.clear()
-                ro.user_set.add(user)
-                sc_ro.user_set.add(user)
-            else:
-                user.is_superuser = False
-                rw.user_set.remove(user)
-                user.user_permissions.clear()
-                ro.user_set.add(user)
-                sc_ro.user_set.remove(user)
-                sc_rw.user_set.remove(user)
+            reader = Group.objects.get(name="Reader")
+            contributor = Group.objects.get(name="Contributor")
         except Group.DoesNotExist:
-            user.is_superuser = True
+            raise SuspiciousOperation("Groups 'Reader' and/or 'Contributor' not found.") from None
+
+        # Get roles from AAD token
+        roles = payload.get("roles", [])
+        if (roles_n := len(roles)) < 1:
+            raise SuspiciousOperation("No user roles.")
+
+        if roles_n > 1:
+            raise SuspiciousOperation("Multiple user roles.")
+
+        # change this to `role = roles[0].lower()` and delete `get_role_name` func
+        # once AAD roles have been fully updated
+
+        match roles[0].lower():
+            case "owner":
+                user.is_superuser = True
+            case "contributor":
+                reader.user_set.remove(user)
+                user.user_permissions.clear()
+                contributor.user_set.add(user)
+            case "reader":
+                contributor.user_set.remove(user)
+                user.user_permissions.clear()
+                reader.user_set.add(user)
+            case unknown_role:
+                raise SuspiciousOperation(f"Invalid user role '{unknown_role}'.")
 
         user.save()
 

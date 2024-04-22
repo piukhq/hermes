@@ -38,8 +38,16 @@ MAPPED_ACTIONS = {
 }
 
 
-def apply_file_script_mapped_action(entry: object, script_runner_id: str):
+def apply_file_script_mapped_action(entry: object, script_runner_id: int, script_runner_email: str):
     if entry.correction not in MAPPED_ACTIONS:
         return False
 
-    return MAPPED_ACTIONS[entry.correction](entry, context={"script_runner_id": script_runner_id})
+    return MAPPED_ACTIONS[entry.correction](
+        entry,
+        context={
+            "script_runner": {
+                "pk": script_runner_id,
+                "email": script_runner_email,
+            }
+        },
+    )
