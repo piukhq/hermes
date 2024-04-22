@@ -28,7 +28,6 @@ from scheme.credentials import (
     USER_NAME,
 )
 from scheme.encryption import AESCipher
-from scheme.mixins import BaseLinkMixin
 from scheme.models import (
     JourneyTypes,
     SchemeAccount,
@@ -55,10 +54,7 @@ from ubiquity.models import (
     AccountLinkStatus,
     PaymentCardAccountEntry,
     PaymentCardSchemeEntry,
-    PllUserAssociation,
     SchemeAccountEntry,
-    WalletPLLSlug,
-    WalletPLLStatus,
 )
 from ubiquity.reason_codes import CURRENT_STATUS_CODES
 from ubiquity.tasks import deleted_membership_card_cleanup
@@ -2731,75 +2727,6 @@ class TestResources(GlobalMockAPITestCase):
     @patch.object(SchemeAccount, "_get_midas_balance")
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    def test_credential_emails_are_stored_as_lowercase_auth_route(self, *_):
-        new_user, scheme, card_num_question, email_question, auth_header = self._setup_user_and_email_scheme()
-
-        # Test for auth route
-        email = "MiXedCaSe@EmAiL.COm"
-
-        payload = {
-            "membership_plan": scheme.id,
-            "account": {
-                "add_fields": [{"column": CARD_NUMBER, "value": "123456789"}],
-                "authorise_fields": [{"column": EMAIL, "value": email}],
-            },
-        }
-
-        resp = self.client.post(
-            reverse("membership-cards"),
-            data=json.dumps(payload),
-            content_type="application/json",
-            HTTP_AUTHORIZATION=auth_header,
-        )
-
-        self.assertEqual(resp.status_code, 201)
-
-        scheme_acc_id = resp.json()["id"]
-        linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account_id=scheme_acc_id).exists()
-        self.assertTrue(linked)
-
-        answers = SchemeAccountCredentialAnswer.objects.filter(
-            scheme_account_entry__scheme_account_id=scheme_acc_id, question=email_question
-        )
-        self.assertEqual(len(answers), 1)
-        self.assertEqual(answers[0].answer, "mixedcase@email.com")
-
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    @patch("api_messaging.midas_messaging.to_midas", autospec=True, return_value=MagicMock())
-    def test_credential_emails_are_stored_as_lowercase_enrol_route(self, mock_join_msg, *_):
-        new_user, scheme, card_num_question, email_question, auth_header = self._setup_user_and_email_scheme()
-
-        email = "MiXedCaSe@EmAiL.COm"
-        payload = {"membership_plan": scheme.id, "account": {"enrol_fields": [{"column": EMAIL, "value": email}]}}
-
-        resp = self.client.post(
-            reverse("membership-cards"),
-            data=json.dumps(payload),
-            content_type="application/json",
-            HTTP_AUTHORIZATION=auth_header,
-        )
-
-        self.assertEqual(resp.status_code, 201)
-
-        scheme_acc_id = resp.json()["id"]
-        linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account_id=scheme_acc_id).exists()
-        self.assertTrue(linked)
-
-        answers = SchemeAccountCredentialAnswer.objects.filter(
-            scheme_account_entry__scheme_account_id=scheme_acc_id, question=email_question
-        )
-        self.assertEqual(len(answers), 1)
-        self.assertEqual(answers[0].answer, "mixedcase@email.com")
-        self.assertTrue(mock_join_msg.called)
-
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("ubiquity.influx_audit.InfluxDBClient")
-    @patch.object(SchemeAccount, "_get_midas_balance")
-    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
     @patch("api_messaging.midas_messaging.to_midas", autospec=True, return_value=MagicMock())
     def test_credential_emails_are_stored_as_lowercase_register_route(self, mock_join_msg, *_):
         new_user, scheme, card_num_question, email_question, auth_header = self._setup_user_and_email_scheme()
@@ -3005,68 +2932,6 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertTrue(mock_to_warehouse.called)
         self.assertEqual(mock_to_warehouse.call_count, 2)
-
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch.object(BaseLinkMixin, "link_account", autospec=True)
-    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
-    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
-    def test_auto_link(self, *_):
-        external_id = "test auto link"
-        user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
-
-        auth_header = self._get_auth_header(user)
-        auth_headers = {"HTTP_AUTHORIZATION": f"{auth_header}"}
-        payment_card_account = PaymentCardAccountFactory(issuer=self.issuer, payment_card=self.payment_card)
-        PaymentCardAccountEntryFactory(user=user, payment_card_account=payment_card_account)
-        query = {"payment_card_account_id": payment_card_account.id}
-
-        payload = {
-            "membership_plan": self.scheme.id,
-            "account": {
-                "add_fields": [{"column": "barcode", "value": "123456789"}],
-                "authorise_fields": [{"column": "last_name", "value": "Test Successful Link"}],
-            },
-        }
-        success_resp = self.client.post(
-            f'{reverse("membership-cards")}?autoLink=True',
-            data=json.dumps(payload),
-            content_type="application/json",
-            **auth_headers,
-        )
-
-        self.assertEqual(success_resp.status_code, 201)
-        query["scheme_account_id"] = success_resp.json()["id"]
-
-        self.assertTrue(PaymentCardSchemeEntry.objects.filter(**query).exists())
-
-        # linking a second loyalty card of the same plan to the same payment account. UBIQUITY_COLLISION scenario.
-        payload = {
-            "membership_plan": self.scheme.id,
-            "account": {
-                "add_fields": [{"column": "barcode", "value": "987654321"}],
-                "authorise_fields": [{"column": "last_name", "value": "Test Excluded Link"}],
-            },
-        }
-        fail_resp = self.client.post(
-            f'{reverse("membership-cards")}?autoLink=True',
-            data=json.dumps(payload),
-            content_type="application/json",
-            **auth_headers,
-        )
-
-        self.assertEqual(fail_resp.status_code, 201)
-        entries = (
-            PaymentCardSchemeEntry.objects.filter(
-                payment_card_account=payment_card_account, scheme_account__scheme=self.scheme
-            )
-            .order_by("id")
-            .all()
-        )
-        self.assertEqual(len(entries), 2)
-        ulinks = PllUserAssociation.objects.get(pll=entries[1], user=user)
-        self.assertEqual(ulinks.slug, WalletPLLSlug.UBIQUITY_COLLISION.value)
-        self.assertEqual(ulinks.state, WalletPLLStatus.INACTIVE.value)
-        self.assertFalse(entries[1].active_link)
 
     @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     @patch("ubiquity.views.async_join", autospec=True)
@@ -3802,94 +3667,6 @@ class TestHistoryResources(GlobalMockAPIHistoryTestCase):
         self.assertFalse(response_success)
         self.assertTrue(response_fail)
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("history.data_warehouse.to_data_warehouse")
-    @patch.object(SchemeAccount, "_get_balance_request")
-    def test_history_add_and_auth(self, mock_get_midas_response, mock_to_data_warehouse, *_):
-        email = "user1_test@test.com"
-        user1, scheme, card_num_question, email_question = setup_user_and_email_scheme(
-            self.client_app, self.bundle, email
-        )
-
-        payload = json.dumps(
-            {
-                "membership_plan": scheme.id,
-                "account": {
-                    "add_fields": [{"column": CARD_NUMBER, "value": "123456789"}],
-                    "authorise_fields": [{"column": EMAIL, "value": email}],
-                },
-            }
-        )
-
-        mock_get_midas_response.return_value = MockMidasBalanceResponse(200)
-
-        response = self.client.post(
-            reverse("membership-cards"),
-            data=payload,
-            content_type="application/json",
-            HTTP_AUTHORIZATION=self._get_auth_header(user1),
-        )
-        self.assertEqual(response.status_code, 201)
-        self.assertTrue(mock_get_midas_response.called)
-        self.assertTrue(mock_to_data_warehouse.called)
-        # The sequence is a bit weird with 2 status updates as it calls get balance twice - once in main background
-        # process and once triggering another async_balance.delay to get balance from the serializer to_representation.
-        request_event = {}
-        response_success = {}
-        response_fail = {}
-        for call_number in range(0, len(mock_to_data_warehouse.call_args_list)):
-            args = mock_to_data_warehouse.call_args_list[call_number][0][0]
-            if args["event_type"] == "lc.addandauth.request":
-                request_event = args
-            elif args["event_type"] == "lc.addandauth.success":
-                response_success = args
-            elif args["event_type"] == "lc.addandauth.failed":
-                response_fail = args
-        self.assertTrue(request_event)
-        self.assertTrue(response_success)
-        self.assertFalse(response_fail)
-        sae = SchemeAccountEntry.objects.get(scheme_account__scheme=scheme, user=user1)
-        self.assertEqual(sae.link_status, AccountLinkStatus.ACTIVE)
-
-        # Second wallet with same card should also give same events
-        email2 = "user2_test@test.com"
-        user2 = UserFactory(external_id=email2, client=self.client_app, email=email2)
-        response = self.client.post(
-            reverse("membership-cards"),
-            data=payload,
-            content_type="application/json",
-            HTTP_AUTHORIZATION=self._get_auth_header(user2),
-        )
-        self.assertEqual(response.status_code, 200)
-        sae2 = SchemeAccountEntry.objects.get(scheme_account__scheme=scheme, user=user2)
-        self.assertEqual(sae2.link_status, AccountLinkStatus.ACTIVE)
-
-        self.assertTrue(mock_get_midas_response.called)
-        self.assertTrue(mock_to_data_warehouse.called)
-        last_request_event = {}
-        request_event_count = 0
-        last_response_success = {}
-        response_success_count = 0
-        last_response_fail = {}
-        response_fail_count = 0
-        for call_number in range(0, len(mock_to_data_warehouse.call_args_list)):
-            args = mock_to_data_warehouse.call_args_list[call_number][0][0]
-            if args["event_type"] == "lc.addandauth.request":
-                last_request_event = args
-                request_event_count += 1
-            elif args["event_type"] == "lc.addandauth.success":
-                last_response_success = args
-                response_success_count += 1
-            elif args["event_type"] == "lc.addandauth.failed":
-                last_response_fail = args
-                response_fail_count += 1
-        self.assertTrue(last_request_event)
-        self.assertTrue(last_response_success)
-        self.assertFalse(last_response_fail)
-        self.assertEqual(request_event_count, 2)
-        self.assertEqual(response_fail_count, 0)
-        self.assertEqual(response_success_count, 2)
-
     def add_to_wallet(self, card_number, email, mock_get_midas_response, mock_to_data_warehouse):
         user1, scheme, card_num_question, email_question = setup_user_and_email_scheme(
             self.client_app, self.bundle, email
@@ -3925,81 +3702,3 @@ class TestHistoryResources(GlobalMockAPIHistoryTestCase):
                 count += 1
         self.assertEqual(count, 2)
         return scheme, user1, response.data["id"]
-
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("history.data_warehouse.to_data_warehouse")
-    @patch.object(SchemeAccount, "_get_balance_request")
-    def test_history_membership_card_auth_success(self, mock_get_midas_response, mock_to_data_warehouse, *_):
-        card_number = "123456789"
-        email = "user1_test@test.com"
-        scheme, _, _ = self.add_to_wallet(card_number, email, mock_get_midas_response, mock_to_data_warehouse)
-
-        mock_get_midas_response.return_value = MockMidasBalanceResponse(200)
-
-        payload = json.dumps(
-            {
-                "membership_plan": scheme.id,
-                "account": {
-                    "add_fields": [{"column": CARD_NUMBER, "value": card_number}],
-                    "authorise_fields": [{"column": EMAIL, "value": email}],
-                },
-            }
-        )
-        response = self.client.post(
-            reverse("membership-cards"),
-            content_type="application/json",
-            data=payload,
-            **self.auth_headers,
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(mock_get_midas_response.called)
-        self.assertTrue(mock_to_data_warehouse.called)
-
-        events, counts = check_events(
-            mock_to_data_warehouse, ["lc.auth.request", "lc.auth.success", "lc.auth.failed", "lc.statuschange"]
-        )
-        self.assertEqual(counts["lc.auth.request"], 1)
-        self.assertEqual(counts["lc.auth.success"], 1)
-        self.assertEqual(counts["lc.auth.failed"], 0)
-        self.assertTrue(events["lc.statuschange"].get(AccountLinkStatus.AUTH_PENDING.value))
-        self.assertTrue(events["lc.statuschange"].get(AccountLinkStatus.ACTIVE.value))
-
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
-    @patch("history.data_warehouse.to_data_warehouse")
-    @patch.object(SchemeAccount, "_get_balance_request")
-    def test_history_membership_card_auth_fail(self, mock_get_midas_response, mock_to_data_warehouse, *_):
-        card_number = "123456789"
-        email = "user1_test@test.com"
-
-        scheme, _, _ = self.add_to_wallet(card_number, email, mock_get_midas_response, mock_to_data_warehouse)
-
-        mock_get_midas_response.return_value = MockMidasBalanceResponse(AccountLinkStatus.INVALID_CREDENTIALS.value)
-
-        payload = json.dumps(
-            {
-                "membership_plan": scheme.id,
-                "account": {
-                    "add_fields": [{"column": CARD_NUMBER, "value": card_number}],
-                    "authorise_fields": [{"column": EMAIL, "value": email}],
-                },
-            }
-        )
-        response = self.client.post(
-            reverse("membership-cards"),
-            content_type="application/json",
-            data=payload,
-            **self.auth_headers,
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(mock_get_midas_response.called)
-        self.assertTrue(mock_to_data_warehouse.called)
-
-        events, counts = check_events(
-            mock_to_data_warehouse, ["lc.auth.request", "lc.auth.success", "lc.auth.failed", "lc.statuschange"]
-        )
-        self.assertEqual(counts["lc.auth.request"], 1)
-        self.assertEqual(counts["lc.auth.success"], 0)
-        self.assertEqual(counts["lc.auth.failed"], 1)
-        self.assertTrue(events["lc.statuschange"].get(AccountLinkStatus.AUTH_PENDING.value))
-        self.assertFalse(events["lc.statuschange"].get(AccountLinkStatus.ACTIVE.value))
-        self.assertTrue(events["lc.statuschange"].get(AccountLinkStatus.INVALID_CREDENTIALS.value))

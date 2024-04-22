@@ -9,7 +9,6 @@ import sentry_sdk
 from celery import shared_task
 from django.conf import settings
 from django.db.models import Q
-from rest_framework import serializers
 
 from hermes.vop_tasks import activate, deactivate
 from history.data_warehouse import (
@@ -22,9 +21,9 @@ from history.tasks import auth_outcome_task
 from history.utils import clean_history_kwargs, history_bulk_update, set_history_kwargs, user_info
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
+from scheme.credentials import CredentialAnswers
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
-from scheme.serializers import LinkSchemeSerializer
 from ubiquity.models import (
     AccountLinkStatus,
     PaymentCardSchemeEntry,
@@ -75,7 +74,8 @@ def _send_metrics_to_atlas(method: str, slug: str, payload: dict, x_azure_ref: s
 
 @shared_task
 def async_link(
-    auth_fields: dict,
+    credential_answers: CredentialAnswers,
+    consents: list | None,
     scheme_account_id: int,
     user_id: int,
     payment_cards_to_link: list,
@@ -87,22 +87,21 @@ def async_link(
     scheme_account = SchemeAccount.objects.select_related("scheme").get(id=scheme_account_id)
     user = CustomUser.objects.get(id=user_id)
     scheme_account_entry = SchemeAccountEntry.objects.get(user=user, scheme_account=scheme_account)
-    try:
-        serializer = LinkSchemeSerializer(data=auth_fields, context={"scheme_account_entry": scheme_account_entry})
-        if payment_cards_to_link:
-            PllUserAssociation.link_user_scheme_account_to_payment_cards(
-                scheme_account, payment_cards_to_link, user, headers
-            )
-            # auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
-        BaseLinkMixin.link_account(serializer, scheme_account, user, scheme_account_entry, headers)
-        clean_history_kwargs(history_kwargs)
 
-    except serializers.ValidationError as e:
-        scheme_account_entry.set_link_status(AccountLinkStatus.INVALID_CREDENTIALS)
-        # scheme_account.status = scheme_account.INVALID_CREDENTIALS
-        scheme_account.save()
-        clean_history_kwargs(history_kwargs)
-        raise e
+    if payment_cards_to_link:
+        PllUserAssociation.link_user_scheme_account_to_payment_cards(
+            scheme_account, payment_cards_to_link, user, headers
+        )
+
+    BaseLinkMixin.link_account(
+        credential_answers,
+        consents,
+        scheme_account,
+        user,
+        scheme_account_entry,
+        headers,
+    )
+    clean_history_kwargs(history_kwargs)
 
 
 @shared_task

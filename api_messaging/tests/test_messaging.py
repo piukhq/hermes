@@ -1,3 +1,6 @@
+import json
+import socket
+import uuid
 from unittest.mock import patch
 
 import arrow
@@ -9,9 +12,12 @@ from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.credentials import CARD_NUMBER, LAST_NAME, POSTCODE
-from scheme.models import SchemeAccountCredentialAnswer
+from scheme.encryption import AESCipher
+from scheme.models import JourneyTypes, SchemeAccountCredentialAnswer
 from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialQuestionFactory
+from ubiquity.channel_vault import AESKeyNames
 from ubiquity.models import (
+    AccountLinkStatus,
     PaymentCardAccountEntry,
     PaymentCardSchemeEntry,
     PllUserAssociation,
@@ -118,20 +124,38 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             payment_card_account__status=PaymentCardAccount.ACTIVE,
         )
 
-        SchemeCredentialQuestionFactory(scheme=cls.scheme_account.scheme, type=CARD_NUMBER)
-        SchemeCredentialQuestionFactory(scheme=cls.scheme_account.scheme, type=LAST_NAME)
-        SchemeCredentialQuestionFactory(scheme=cls.scheme_account.scheme, type=POSTCODE)
+        cls.card_number_q = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme_account.scheme, type=CARD_NUMBER, manual_question=True, add_field=True
+        )
+        cls.last_name_q = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme_account.scheme, type=LAST_NAME, auth_field=True
+        )
+        cls.postcode_q = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme_account.scheme, type=POSTCODE, auth_field=True
+        )
 
+        cls.add_fields = [
+            {"credential_slug": "card_number", "value": "76389246123642384"},
+        ]
         cls.auth_fields = [
             {"credential_slug": "last_name", "value": "Jones"},
             {"credential_slug": "postcode", "value": "RGB 114"},
         ]
         cls.consents = [{"id": 15, "value": "true"}]
-        cls.creds_for_refactor = [
-            {"credential_slug": "postcode", "value": "GU552RH"},
-            {"credential_slug": "last_name", "value": "Bond"},
-            {"credential_slug": "email", "value": "007@mi5.com"},
-        ]
+        cls.loyalty_card_add_and_authorise_autolink_message = {
+            "utc_adjusted": arrow.utcnow().isoformat(),
+            "loyalty_plan_id": cls.scheme_account.scheme_id,
+            "loyalty_card_id": cls.scheme_account.id,
+            "user_id": cls.scheme_account_entry.user.id,
+            "entry_id": cls.scheme_account_entry.id,
+            "channel_slug": "com.bink.wallet",
+            "journey": "ADD_AND_AUTH",  # TODO: change when API 2 journeys are an enum in the shared lib
+            "auto_link": True,
+            "consents": [],
+            "authorise_fields": cls.auth_fields,
+            "add_fields": cls.add_fields,
+        }
+
         cls.loyalty_card_auth_autolink_message = {
             "utc_adjusted": arrow.utcnow().isoformat(),
             "loyalty_card_id": cls.scheme_account.id,
@@ -139,7 +163,6 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             "entry_id": cls.scheme_account_entry.id,
             "channel_slug": "com.bink.wallet",
             "auto_link": True,
-            "primary_auth": True,
             "authorise_fields": cls.auth_fields,
         }
         cls.loyalty_card_auth_no_autolink_message = {
@@ -149,7 +172,6 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             "entry_id": cls.scheme_account_entry.id,
             "channel_slug": "com.bink.wallet",
             "auto_link": False,
-            "primary_auth": False,
             "authorise_fields": cls.auth_fields,
         }
 
@@ -161,7 +183,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             "channel_slug": "com.bink.wallet",
             "auto_link": True,
             "loyalty_plan_id": cls.scheme_account.scheme.id,
-            "add_fields": [{"credential_slug": "card_number", "value": "76389246123642384"}],
+            "add_fields": cls.add_fields,
             "register_fields": [{"credential_slug": "postcode", "value": "GU552RH"}],
             "consents": cls.consents,
         }
@@ -260,24 +282,95 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         self.assertTrue(mock_deleted_card_cleanup.called)
 
     def test_credentials_to_key_pairs(self):
-        """Tests refactoring of credentials from Angelia to Ubiquity format."""
+        """Tests refactoring of credentials from Angelia to Hermes format."""
+        # TODO: This is to be removed once this method usage is replaced by
+        #  the equivalent found in the CredentialAnswers handler class
+        creds_for_refactor = [
+            {"credential_slug": "postcode", "value": "GU552RH"},
+            {"credential_slug": "last_name", "value": "Bond"},
+            {"credential_slug": "email", "value": "007@mi5.com"},
+        ]
 
-        creds = angelia_background.credentials_to_key_pairs(self.creds_for_refactor)
+        creds = angelia_background.credentials_to_key_pairs(creds_for_refactor)
 
         self.assertEqual({"postcode": "GU552RH", "last_name": "Bond", "email": "007@mi5.com"}, creds)
 
     def test_save_credential_answers(self):
-        """Tests saving credential answers received from Angelia."""
+        """Tests saving credential in Hermes format"""
         answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_entry=self.scheme_account_entry)
         self.assertEqual(0, answers.count())
 
-        save_credential_answers(self.scheme_account_entry, credentials=self.auth_fields)
+        auth_fields = {"postcode": "GU552RH", "last_name": "Bond", "email": "007@mi5.com"}
+        save_credential_answers(self.scheme_account_entry, credentials=auth_fields)
 
         self.assertEqual(2, answers.count())
 
         question_types = (answer.question.type for answer in answers)
         for expected_q_type in ("last_name", "postcode"):
             self.assertIn(expected_q_type, question_types)
+
+    @patch("requests.get")
+    def test_loyalty_card_add_authorise_main_cred_not_stored(self, mock_midas_balance):
+        """Component test for loyalty_card_add_authorise message handler.
+
+        Tests a successful add and auth when the main credential is not stored beyond the initial request.
+        """
+        user_id = self.scheme_account_entry.user_id
+        # Mock Midas response
+        mock_midas_balance.return_value.status_code = 200
+        mock_midas_balance.return_value.json.return_value = {
+            "points": 21.21,
+            "value": 21.21,
+            "value_label": "£21.21",
+            "reward_tier": 0,
+            "scheme_account_id": self.scheme_account.id,
+            "user_set": str(user_id),
+            "points_label": "21",
+        }
+
+        self.card_number_q.is_stored = False
+        self.card_number_q.save(update_fields=["is_stored"])
+
+        angelia_background.loyalty_card_add_authorise(
+            self.loyalty_card_add_and_authorise_autolink_message, self.x_azure_ref_headers
+        )
+
+        expected_midas_payload = {
+            "scheme_account_id": self.scheme_account.id,
+            "credentials": (
+                '{"card_number": "76389246123642384", "last_name": "Jones", "postcode": "RGB 114", ' '"consents": []}'
+            ),
+            "user_set": str(user_id),
+            "status": AccountLinkStatus.ADD_AUTH_PENDING.value,
+            "journey_type": JourneyTypes.LINK.value,
+            "bink_user_id": user_id,
+        }
+
+        expected_midas_headers = {
+            "User-agent": f"Hermes on {socket.gethostname()}",
+            "X-azure-ref": self.x_azure_ref_headers["X-azure-ref"],
+        }
+
+        mock_request_params = mock_midas_balance.call_args[1]
+        mock_request_params["params"]["credentials"] = AESCipher(AESKeyNames.AES_KEY).decrypt(
+            mock_request_params["params"]["credentials"]
+        )
+
+        expected_credentials = json.loads(expected_midas_payload.pop("credentials"))
+        actual_credentials = json.loads(mock_request_params["params"].pop("credentials"))
+        self.assertDictEqual(expected_credentials, actual_credentials)
+
+        self.assertEqual(
+            expected_midas_payload,
+            mock_request_params["params"],
+        )
+
+        # Will raise error if not valid UUID or if transaction is missing from headers
+        uuid.UUID(mock_request_params["headers"].pop("transaction"))
+        self.assertEqual(
+            expected_midas_headers,
+            mock_request_params["headers"],
+        )
 
 
 class TestUserMessaging(GlobalMockAPITestCase):

@@ -25,9 +25,9 @@ from history.tasks import add_auth_outcome_task, auth_outcome_task, record_histo
 from history.utils import clean_history_kwargs, set_history_kwargs, user_info
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
-from scheme.credentials import MERCHANT_IDENTIFIER
+from scheme.credentials import MERCHANT_IDENTIFIER, CredentialAnswers
 from scheme.mixins import SchemeAccountJoinMixin
-from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
+from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
 from ubiquity.models import (
     AccountLinkStatus,
     PaymentCardAccountEntry,
@@ -70,12 +70,24 @@ class AngeliaContext:
 
     """
 
+    user_id: int | None
+    channel_slug: str | None
+    entry_id: int | None
+
     def __init__(self, message: dict, journey: str | None = None):
         self.user_id = message.get("user_id")
         self.channel_slug = message.get("channel_slug")
         self.entry_id = message.get("entry_id")
         self.add_fields = message.get("add_fields")
         self.date_time = message.get("utc_adjusted")
+        self.credential_answers = CredentialAnswers(
+            add=message.get("add_fields"),
+            authorise=message.get("authorise_fields"),
+            register=message.get("register_fields"),
+            join=message.get("join_fields"),
+            merchant=message.get("merchant_fields"),
+        )
+
         # auto_link was only sent for payment and not membership cards. Now use self.auto_link as it is True by default
         # ie unless a message with specific entry auto_link=False must be sent
         self.auto_link = message.get("auto_link", True)
@@ -108,6 +120,7 @@ class AngeliaContext:
 
 
 def credentials_to_key_pairs(cred_list: list) -> dict:
+    # TODO: remove usages in favour of credential_answers stored in AngeliaContext
     ret = {}
     for item in cred_list:
         ret[item["credential_slug"]] = item["value"]
@@ -186,6 +199,7 @@ def link_payment_cards(
 def _loyalty_card_register(message: dict, path: LoyaltyCardPath, headers: dict) -> None:
     with AngeliaContext(message, SchemeAccountJourney.REGISTER.value) as ac:
         ctx.x_azure_ref = headers.get("X-azure-ref")
+        # TODO: handle credentials in the same way as add_auth
         all_credentials_and_consents = {}
         all_credentials_and_consents.update(credentials_to_key_pairs(message.get("register_fields")))
 
@@ -230,7 +244,8 @@ def loyalty_card_add(message: dict, headers: dict) -> None:
         ctx.x_azure_ref = headers.get("X-azure-ref")
         scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
         link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link, headers=headers)
-        save_credential_answers(scheme_account_entry, credentials=ac.add_fields)
+
+        save_credential_answers(scheme_account_entry, credentials=ac.credential_answers.add)
 
 
 def loyalty_card_trusted_add(message: dict, headers: dict) -> None:
@@ -242,8 +257,8 @@ def loyalty_card_trusted_add(message: dict, headers: dict) -> None:
         )
         link_payment_cards(ac.user_id, scheme_account_entry, ac.auto_link, headers=headers)
 
-        save_credential_answers(scheme_account_entry, credentials=ac.add_fields)
-        save_credential_answers(scheme_account_entry, credentials=message.get("merchant_fields"))
+        save_credential_answers(scheme_account_entry, credentials=ac.credential_answers.add)
+        save_credential_answers(scheme_account_entry, credentials=ac.credential_answers.merchant)
 
         scheme_account_entry.update_scheme_account_key_credential_fields()
 
@@ -276,6 +291,9 @@ def loyalty_card_add_authorise(message: dict, headers: dict) -> None:
         ctx.x_azure_ref = headers.get("X-azure-ref")
         journey = message.get("journey")
 
+        account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
+        scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
+
         if message.get("auto_link"):
             payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=ac.user_id).values_list(
                 "payment_card_account_id", flat=True
@@ -283,17 +301,8 @@ def loyalty_card_add_authorise(message: dict, headers: dict) -> None:
         else:
             payment_cards_to_link = []
 
-        all_credentials_and_consents = {}
-        all_credentials_and_consents.update(credentials_to_key_pairs(message.get("authorise_fields")))
-
-        if message.get("consents"):
-            all_credentials_and_consents.update({"consents": message["consents"]})
-
-        account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
-        scheme_account_entry = SchemeAccountEntry.objects.get(pk=ac.entry_id)
-
         if journey == "ADD_AND_AUTH":
-            save_credential_answers(scheme_account_entry, credentials=ac.add_fields)
+            save_credential_answers(scheme_account_entry, credentials=ac.credential_answers.add)
             scheme_account_entry.set_link_status(AccountLinkStatus.ADD_AUTH_PENDING)
         elif journey == "AUTH":
             scheme_account_entry.schemeaccountcredentialanswer_set.filter(
@@ -308,8 +317,10 @@ def loyalty_card_add_authorise(message: dict, headers: dict) -> None:
 
             scheme_account_entry.save(update_fields=update_fields)
 
+        save_credential_answers(scheme_account_entry, credentials=ac.credential_answers.authorise)
         async_link(
-            auth_fields=all_credentials_and_consents,
+            credential_answers=ac.credential_answers,
+            consents=message.get("consents"),
             scheme_account_id=account.id,
             user_id=ac.user_id,
             payment_cards_to_link=payment_cards_to_link,
@@ -328,6 +339,7 @@ def loyalty_card_join(message: dict, headers: dict) -> None:
         else:
             payment_cards_to_link = []
 
+        # TODO: handle credentials the same way as add_auth
         all_credentials_and_consents = credentials_to_key_pairs(message.get("join_fields"))
 
         if message.get("consents"):
@@ -366,7 +378,7 @@ def loyalty_card_join(message: dict, headers: dict) -> None:
         else:
             # send event to data warehouse
             join_request_lc_event(entry, ac.channel_slug, ac.date_time, headers=headers)
-            save_credential_answers(entry, credentials=message.get("join_fields"))
+            save_credential_answers(entry, credentials=ac.credential_answers.join)
             async_join(
                 scheme_account_id=account.id,
                 user_id=user.id,
@@ -611,12 +623,18 @@ def sql_history(message: dict, headers: dict) -> None:
             )
 
 
-def save_credential_answers(scheme_account_entry: SchemeAccountEntry, credentials: list[dict]) -> None:
-    """This saves credential answers. The expected format is that of API 2 credential_field_schema"""
-    for credential in credentials:
-        cred_type = credential["credential_slug"]
-        answer = credential["value"]
-        question = scheme_account_entry.scheme_account.scheme.questions.get(type=cred_type)
+def save_credential_answers(scheme_account_entry: SchemeAccountEntry, credentials: dict) -> None:
+    """This saves credential answers from the hermes formatted credentials.
+    Only answers that have a matching SchemeCredentialQuestion will be saved
+    (if the is_stored flag on the credential is True)
+    """
+    questions = SchemeCredentialQuestion.objects.filter(
+        scheme=scheme_account_entry.scheme_account.scheme_id,
+        type__in=credentials.keys(),
+    )
+
+    for question in questions:
+        answer = credentials[question.type]
         SchemeAccountCredentialAnswer.save_answer(
             question=question, answer=answer, scheme_account_entry=scheme_account_entry
         )

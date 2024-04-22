@@ -164,6 +164,8 @@ class UserConsentSerializer(serializers.Serializer):
 
     @staticmethod
     def validate_consents(user_consents, scheme, journey_type, scheme_consents):
+        # TODO: check as part of API 1 clean up if this is done in angelia. If not, we will need a ticket
+        #  to do this so this method can be removed, since these are errors that should be surfaced by the public API.
         # Validate correct number of user_consents provided
         expected_consents_set = {consent.slug for consent in scheme_consents}
 

@@ -3,10 +3,11 @@ from typing import NamedTuple
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.test import TestCase
 from rest_framework.exceptions import ErrorDetail
 
 from history.utils import GlobalMockAPITestCase
-from scheme.credentials import BARCODE, CARD_NUMBER, LAST_NAME, MERCHANT_IDENTIFIER, PASSWORD
+from scheme.credentials import BARCODE, CARD_NUMBER, LAST_NAME, MERCHANT_IDENTIFIER, PASSWORD, CredentialAnswers
 from scheme.models import SchemeAccountCredentialAnswer, SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.tests.factories import (
     SchemeAccountFactory,
@@ -309,3 +310,29 @@ class TestCredentials(GlobalMockAPITestCase):
                 question=question, scheme_account_entry=entry
             ).exists()
             self.assertEqual(is_stored, answer_is_stored)
+
+
+class CredentialAnswersClass(TestCase):
+    def test_credential_conversion(self):
+        """Tests refactoring of credentials from Angelia to Hermes format."""
+        creds_for_refactor = [
+            {"credential_slug": "card_number", "value": "118118"},
+            {"credential_slug": "last_name", "value": "Bond"},
+            {"credential_slug": "email", "value": "007@mi5.com"},
+        ]
+
+        credential_answers = CredentialAnswers(
+            add=creds_for_refactor,
+            authorise=creds_for_refactor,
+            register=creds_for_refactor,
+            join=creds_for_refactor,
+            merchant=creds_for_refactor,
+        )
+
+        cred_types = ("add", "authorise", "register", "join", "merchant")
+
+        for cred_type in cred_types:
+            self.assertEqual(
+                {"card_number": "118118", "last_name": "Bond", "email": "007@mi5.com"},
+                getattr(credential_answers, cred_type),
+            )
