@@ -5,12 +5,11 @@ from unittest.mock import patch
 
 import arrow
 from django.core.exceptions import ValidationError
-from rest_framework import serializers
 
 from hermes.channels import Permit
 from history.utils import GlobalMockAPITestCase
 from payment_card.tests.factories import PaymentCardAccountFactory
-from scheme.credentials import CARD_NUMBER, EMAIL, PASSWORD, POSTCODE
+from scheme.credentials import CARD_NUMBER, EMAIL, PASSWORD, POSTCODE, CredentialAnswers
 from scheme.encryption import AESCipher
 from scheme.models import JourneyTypes, SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.serializers import JoinSerializer
@@ -159,21 +158,6 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertTrue(self.entry2 in async_balance_call_args)
 
     @patch("requests.get")
-    def test_async_link_validation_error(self, mock_midas_balance):
-        scheme_account = self.link_entry.scheme_account
-        user_id = self.link_entry.user_id
-        SchemeCredentialAnswerFactory(question=self.manual_question, scheme_account_entry=self.link_entry)
-
-        auth_fields = {"password": "test123"}
-        self.assertEqual(self.link_entry.link_status, AccountLinkStatus.ACTIVE)
-        with self.assertRaises(serializers.ValidationError):
-            async_link(auth_fields, scheme_account.id, user_id, False)
-
-        self.link_entry.refresh_from_db()
-        self.assertEqual(self.link_entry.link_status, AccountLinkStatus.INVALID_CREDENTIALS)
-        self.assertFalse(mock_midas_balance.called)
-
-    @patch("requests.get")
     def test_async_link_add_and_auth_journey_success(self, mock_midas_balance):
         # Setup db tables
         scheme_account = SchemeAccountFactory()
@@ -188,6 +172,7 @@ class TestTasks(GlobalMockAPITestCase):
             type=POSTCODE,
             options=SchemeCredentialQuestion.LINK_AND_JOIN,
             auth_field=True,
+            is_stored=False,
         )
         entry_pending = SchemeAccountEntryFactory(
             user=self.user, scheme_account=scheme_account, link_status=AccountLinkStatus.ADD_AUTH_PENDING
@@ -210,8 +195,16 @@ class TestTasks(GlobalMockAPITestCase):
 
         self.assertEqual(entry_pending.link_status, AccountLinkStatus.ADD_AUTH_PENDING)
 
-        auth_fields = {"postcode": "SL5 5TD"}
-        async_link(auth_fields, scheme_account.id, user_id, payment_cards_to_link=[], headers={"X-azure-ref": "azure"})
+        credential_answers = CredentialAnswers()
+        credential_answers.authorise = {"postcode": "SL5 5TD"}
+        async_link(
+            credential_answers=credential_answers,
+            consents=None,
+            scheme_account_id=scheme_account.id,
+            user_id=user_id,
+            payment_cards_to_link=[],
+            headers={"X-azure-ref": "azure"},
+        )
         entry_pending.refresh_from_db()
 
         # Check AccountLinkStatus and correct payload sent to Midas
@@ -292,8 +285,15 @@ class TestTasks(GlobalMockAPITestCase):
 
         self.assertEqual(entry_pending_1.link_status, AccountLinkStatus.ADD_AUTH_PENDING)
 
-        auth_fields = {"postcode": "SL5 5TD"}
-        async_link(auth_fields, scheme_account.id, user_id, False)
+        credential_answers = CredentialAnswers()
+        credential_answers.authorise = {"postcode": "SL5 5TD"}
+        async_link(
+            credential_answers=credential_answers,
+            consents=None,
+            scheme_account_id=scheme_account.id,
+            user_id=user_id,
+            payment_cards_to_link=[],
+        )
         entry_pending_1.refresh_from_db()
 
         # Check first SchemeAccountEntry.link_status activated and correct JourneyType sent to Midas for first request
@@ -323,8 +323,13 @@ class TestTasks(GlobalMockAPITestCase):
 
         self.assertEqual(entry_pending_2.link_status, AccountLinkStatus.ADD_AUTH_PENDING)
 
-        auth_fields = {"postcode": "SL5 5TD"}
-        async_link(auth_fields, scheme_account.id, user_id_2, False)
+        async_link(
+            credential_answers=credential_answers,
+            consents=None,
+            scheme_account_id=scheme_account.id,
+            user_id=user_id_2,
+            payment_cards_to_link=[],
+        )
         entry_pending_2.refresh_from_db()
 
         # Check second SchemeAccountEntry.link_status activated and correct JourneyType sent to Midas for second request
@@ -377,18 +382,50 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertEqual(entry_pending.link_status, AccountLinkStatus.AUTH_PENDING)
         self.assertEqual(entry_pending.authorised, False)
 
-        auth_fields = {"postcode": "SL5 5TD"}
-
-        async_link(auth_fields, scheme_account.id, user_id, payment_cards_to_link=[])
+        credential_answers = CredentialAnswers()
+        credential_answers.authorise = {"postcode": "SL5 5TD"}
+        async_link(
+            credential_answers=credential_answers,
+            consents=None,
+            scheme_account_id=scheme_account.id,
+            user_id=user_id,
+            payment_cards_to_link=[],
+            headers={"X-azure-ref": "azure"},
+        )
         entry_pending.refresh_from_db()
 
-        # Check AccountLinkStatus and correct JourneyType sent to Midas
+        # Check AccountLinkStatus and correct payload sent to Midas
         self.assertEqual(entry_pending.link_status, AccountLinkStatus.ACTIVE)
         self.assertEqual(entry_pending.authorised, True)
+
+        expected_midas_payload = {
+            "scheme_account_id": scheme_account.id,
+            "credentials": '{"card_number": "1234567", "postcode": "SL5 5TD", "consents": []}',
+            "user_set": str(user_id),
+            "status": AccountLinkStatus.AUTH_PENDING.value,
+            "journey_type": JourneyTypes.LINK.value,
+            "bink_user_id": user_id,
+        }
+
+        expected_midas_headers = {
+            "User-agent": f"Hermes on {socket.gethostname()}",
+            "X-azure-ref": "azure",
+        }
+
         mock_request_params = mock_midas_balance.call_args[1]
+        mock_request_params["params"]["credentials"] = AESCipher(AESKeyNames.AES_KEY).decrypt(
+            mock_request_params["params"]["credentials"]
+        )
         self.assertEqual(
-            mock_request_params["params"]["journey_type"],
-            JourneyTypes.LINK,
+            expected_midas_payload,
+            mock_request_params["params"],
+        )
+
+        # Will raise error if not valid UUID or if transaction is missing from headers
+        uuid.UUID(mock_request_params["headers"].pop("transaction"))
+        self.assertEqual(
+            expected_midas_headers,
+            mock_request_params["headers"],
         )
 
     @patch("requests.get")
@@ -424,9 +461,15 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertEqual(entry_pending.link_status, AccountLinkStatus.AUTH_PENDING)
         self.assertEqual(entry_pending.authorised, False)
 
-        auth_fields = {"postcode": "wrong"}
-
-        async_link(auth_fields, scheme_account.id, user_id, payment_cards_to_link=[])
+        credential_answers = CredentialAnswers()
+        credential_answers.authorise = {"postcode": "wrong"}
+        async_link(
+            credential_answers=credential_answers,
+            consents=None,
+            scheme_account_id=scheme_account.id,
+            user_id=user_id,
+            payment_cards_to_link=[],
+        )
         entry_pending.refresh_from_db()
 
         # Check AccountLinkStatus and correct JourneyType sent to Midas

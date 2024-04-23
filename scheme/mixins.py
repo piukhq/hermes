@@ -24,6 +24,7 @@ from scheme.credentials import (
     PASSWORD,
     PASSWORD_2,
     PAYMENT_CARD_HASH,
+    CredentialAnswers,
 )
 from scheme.encryption import AESCipher
 from scheme.models import (
@@ -57,49 +58,30 @@ logger = logging.getLogger(__name__)
 class BaseLinkMixin:
     @staticmethod
     def link_account(
-        serializer: "Serializer",
-        scheme_account: SchemeAccount,
-        user: "CustomUser",
-        scheme_account_entry: "SchemeAccountEntry",
-        headers: dict | None = None,
-    ) -> dict:
-        serializer.is_valid(raise_exception=True)
-        return BaseLinkMixin._link_account(
-            serializer.validated_data, scheme_account, user, scheme_account_entry, headers
-        )
-
-    @staticmethod
-    def _link_account(
-        data: dict,
+        credential_answers: CredentialAnswers,
+        consents: list | None,
         scheme_account: "SchemeAccount",
         user: "CustomUser",
         scheme_account_entry: "SchemeAccountEntry",
         headers: dict | None = None,
-    ) -> dict:
+    ) -> None:
         user_consents = []
-
-        if "consents" in data:
-            consent_data = data.pop("consents")
+        if consents:
             scheme_consents = Consent.objects.filter(
                 scheme=scheme_account.scheme.id, journey=JourneyTypes.LINK.value, check_box=True
             )
 
-            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user, scheme_consents)
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consents, user, scheme_consents)
             UserConsentSerializer.validate_consents(
                 user_consents, scheme_account.scheme.id, JourneyTypes.LINK.value, scheme_consents
-            )
-
-        for answer_type, answer in data.items():
-            question = scheme_account.question(answer_type)
-            SchemeAccountCredentialAnswer.save_answer(
-                question=question, answer=answer, scheme_account_entry=scheme_account_entry
             )
 
         # override credentials here to send midas all credentials provided by the initial auth request. Due to the
         # is_stored flag on SchemeCredentialQuestion, an auth credential might not be stored to be retrieved from
         # the db, as is currently done.
+        add_and_auth_creds = {**credential_answers.add, **credential_answers.authorise}
         midas_information, dw_event = scheme_account.get_balance(
-            scheme_account_entry, headers=headers, credentials_override=data
+            scheme_account_entry, headers=headers, credentials_override=add_and_auth_creds
         )
 
         # dw_event is a two piece tuple, success: bool, journey: SchemeAccount STATUS
@@ -110,14 +92,6 @@ class BaseLinkMixin:
                 success=success, scheme_account_entry=scheme_account_entry, headers=headers
             )
 
-        response_data = {
-            "balance": midas_information,
-            "status": scheme_account_entry.link_status,
-            "status_name": scheme_account_entry.status_name,
-            "display_status": scheme_account_entry.display_status,
-        }
-        response_data.update(dict(data))
-
         if scheme_account.schemeaccountentry_set.filter(link_status=AccountLinkStatus.ACTIVE).exists():
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
@@ -127,8 +101,6 @@ class BaseLinkMixin:
             for user_consent in user_consents:
                 user_consent = UserConsent.objects.get(id=user_consent["id"])  # noqa: PLW2901
                 user_consent.delete()
-
-        return response_data
 
 
 class SwappableSerializerMixin:

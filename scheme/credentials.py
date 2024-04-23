@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 USER_NAME = "username"
 CARD_NUMBER = "card_number"
 BARCODE = "barcode"
@@ -91,5 +93,71 @@ CASE_SENSITIVE_CREDENTIALS = (
     MERCHANT_IDENTIFIER,
 )
 
-
 credential_types_set = {credential_type[0] for credential_type in CREDENTIAL_TYPES}
+
+
+@dataclass
+class CredentialAnswers:
+    """
+    Holds credential answers and manages conversion between angelia and hermes formats
+
+    A CredentialAnswers instance should be instantiated with credentials in the Angelia format e.g::
+
+        join_credentials = [
+            {"credential_slug": "email", "value": "hello@email.com"},
+            {"credential_slug": "first_name", "value": "Bobby"},
+        ]
+
+        creds = CredentialAnswers(join=join_credentials)
+
+        >>> creds.join
+        {"email": "hello@email.com", "first_name": "Bobby"}
+
+    """
+
+    add: dict
+    authorise: dict
+    register: dict
+    join: dict
+    merchant: dict
+
+    def __init__(
+        self,
+        add: list[dict] | None = None,
+        authorise: list[dict] | None = None,
+        register: list[dict] | None = None,
+        join: list[dict] | None = None,
+        merchant: list[dict] | None = None,
+    ):
+        self.add = self._credentials_to_key_pairs(add) if add else {}
+        self.authorise = self._credentials_to_key_pairs(authorise) if authorise else {}
+        self.register = self._credentials_to_key_pairs(register) if register else {}
+        self.join = self._credentials_to_key_pairs(join) if join else {}
+        self.merchant = self._credentials_to_key_pairs(merchant) if merchant else {}
+
+    @staticmethod
+    def _credentials_to_key_pairs(cred_list: list[dict]) -> dict:
+        ret = {}
+        for item in cred_list:
+            ret[item["credential_slug"]] = item["value"]
+        return ret
+
+    def update(
+        self,
+        add: list[dict] | None = None,
+        authorise: list[dict] | None = None,
+        register: list[dict] | None = None,
+        join: list[dict] | None = None,
+        merchant: list[dict] | None = None,
+    ) -> None:
+        """Update the stored credentials in the instance"""
+        if add:
+            self.add = self._credentials_to_key_pairs(add)
+        if authorise:
+            self.authorise = self._credentials_to_key_pairs(authorise)
+        if register:
+            self.register = self._credentials_to_key_pairs(register)
+        if join:
+            self.join = self._credentials_to_key_pairs(join)
+        if merchant:
+            self.merchant = self._credentials_to_key_pairs(merchant)

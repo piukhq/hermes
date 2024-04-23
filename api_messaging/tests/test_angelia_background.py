@@ -966,7 +966,6 @@ class TestAngeliaBackground(GlobalMockAPITestCase):
     #             "entry_id": self.scheme_account_entry.id,
     #             "channel_slug": "com.bink.wallet",
     #             "auto_link": True,
-    #             "primary_auth": True,
     #             "journey": "AUTH",
     #             "authorise_fields": [
     #                 {"credential_slug": "last_name", "value": "Jones"},
